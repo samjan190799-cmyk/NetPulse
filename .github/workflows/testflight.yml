@@ -25,8 +25,8 @@ concurrency:
 jobs:
   build-and-upload:
     name: "Сборка и доставка в TestFlight"
-    runs-on: macos-14
-    timeout-minutes: 30
+    runs-on: macos-15
+    timeout-minutes: 45
     env:
       APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
 
@@ -34,16 +34,152 @@ jobs:
       - name: "Проверка репозитория"
         uses: actions/checkout@v4
 
-      - name: "Выбор активной версии Xcode"
+      - name: "Выбор Xcode 26 (iOS 26 SDK)"
         run: |
-          if [ -d "/Applications/Xcode_16.0.app" ]; then
+          echo "=== Доступные версии Xcode ==="
+          ls /Applications/ | grep Xcode || true
+          
+          # Выбор Xcode 26+ (требуется Apple с 2026 года)
+          if [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          elif [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app
+          elif [ -d "/Applications/Xcode_16.3.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.3.app
+          elif [ -d "/Applications/Xcode_16.2.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.2.app
+          elif [ -d "/Applications/Xcode_16.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          elif [ -d "/Applications/Xcode_16.0.app" ]; then
             sudo xcode-select -s /Applications/Xcode_16.0.app
-          elif [ -d "/Applications/Xcode_15.4.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_15.4.app
           else
             sudo xcode-select -s /Applications/Xcode.app
           fi
+          
+          echo "=== Активный Xcode ==="
           xcodebuild -version
+          echo "=== Доступные SDK ==="
+          xcodebuild -showsdks | grep iphoneos || true
+
+      - name: "Генерация иконок приложения"
+        working-directory: ./ios
+        run: |
+          ICONSET="Assets.xcassets/AppIcon.appiconset"
+          mkdir -p "$ICONSET"
+          
+          # Генерация всех необходимых иконок через встроенный sips
+          generate_icon() {
+            SIZE=$1
+            FILENAME=$2
+            sips -z $SIZE $SIZE \
+              --setProperty format png \
+              --canvas $SIZE $SIZE \
+              /System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/Tones/Strum.m4r \
+              --out "$ICONSET/$FILENAME" 2>/dev/null || \
+            python3 -c "
+          from PIL import Image, ImageDraw, ImageFont
+          import os
+          img = Image.new('RGBA', ($SIZE, $SIZE), (0, 20, 80, 255))
+          draw = ImageDraw.Draw(img)
+          # Синий градиентный фон
+          for i in range($SIZE):
+              r = int(0 + i * 10 / $SIZE)
+              g = int(122 + i * 60 / $SIZE)
+              b = int(255 - i * 50 / $SIZE)
+              draw.line([(0, i), ($SIZE, i)], fill=(r, g, b, 255))
+          # Буква N
+          font_size = max(int($SIZE * 0.55), 10)
+          try:
+              font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', font_size)
+          except:
+              font = ImageFont.load_default()
+          bbox = draw.textbbox((0,0), 'N', font=font)
+          w = bbox[2] - bbox[0]
+          h = bbox[3] - bbox[1]
+          x = ($SIZE - w) // 2 - bbox[0]
+          y = ($SIZE - h) // 2 - bbox[1]
+          draw.text((x, y), 'N', font=font, fill=(255,255,255,255))
+          img.save('$ICONSET/$FILENAME', 'PNG')
+          print('Generated $ICONSET/$FILENAME ($SIZE x $SIZE)')
+          " || \
+            # Запасной вариант — ImageMagick
+            convert -size ${SIZE}x${SIZE} \
+              xc:"#007AFF" \
+              -fill white \
+              -pointsize $(($SIZE / 2)) \
+              -gravity Center \
+              -annotate 0 "N" \
+              "$ICONSET/$FILENAME" 2>/dev/null || \
+            # Финальный запасной — создаём минимальный PNG через Python без Pillow
+            python3 -c "
+          import struct, zlib
+          def make_png(w, h, color):
+              def chunk(name, data):
+                  c = zlib.crc32(name + data) & 0xffffffff
+                  return struct.pack('>I', len(data)) + name + data + struct.pack('>I', c)
+              raw = b''
+              r, g, b = color
+              for y in range(h):
+                  raw += b'\\x00'
+                  for x in range(w):
+                      raw += bytes([r, g, b])
+              compressed = zlib.compress(raw)
+              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
+              return b'\\x89PNG\\r\\n\\x1a\\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', compressed) + chunk(b'IEND', b'')
+          with open('$ICONSET/$FILENAME', 'wb') as f:
+              f.write(make_png($SIZE, $SIZE, (0, 122, 255)))
+          print('Minimal PNG: $ICONSET/$FILENAME')
+          "
+          }
+          
+          # iPhone иконки
+          generate_icon 20 "Icon-20.png"
+          generate_icon 29 "Icon-29.png"
+          generate_icon 40 "Icon-40.png"
+          generate_icon 57 "Icon-57.png"
+          generate_icon 58 "Icon-58.png"
+          generate_icon 60 "Icon-60.png"
+          generate_icon 76 "Icon-76.png"
+          generate_icon 80 "Icon-80.png"
+          generate_icon 87 "Icon-87.png"
+          generate_icon 114 "Icon-114.png"
+          generate_icon 120 "Icon-120.png"
+          generate_icon 152 "Icon-152.png"
+          generate_icon 167 "Icon-167.png"
+          generate_icon 180 "Icon-180.png"
+          generate_icon 1024 "Icon-1024.png"
+          
+          echo "=== Сгенерированные иконки ==="
+          ls -la "$ICONSET/"
+
+          # Запись Contents.json со всеми иконками
+          cat > "$ICONSET/Contents.json" << 'CONTENTS_EOF'
+          {
+            "images" : [
+              { "idiom" : "iphone", "scale" : "2x", "size" : "20x20",  "filename" : "Icon-40.png"   },
+              { "idiom" : "iphone", "scale" : "3x", "size" : "20x20",  "filename" : "Icon-60.png"   },
+              { "idiom" : "iphone", "scale" : "2x", "size" : "29x29",  "filename" : "Icon-58.png"   },
+              { "idiom" : "iphone", "scale" : "3x", "size" : "29x29",  "filename" : "Icon-87.png"   },
+              { "idiom" : "iphone", "scale" : "2x", "size" : "40x40",  "filename" : "Icon-80.png"   },
+              { "idiom" : "iphone", "scale" : "3x", "size" : "40x40",  "filename" : "Icon-120.png"  },
+              { "idiom" : "iphone", "scale" : "2x", "size" : "60x60",  "filename" : "Icon-120.png"  },
+              { "idiom" : "iphone", "scale" : "3x", "size" : "60x60",  "filename" : "Icon-180.png"  },
+              { "idiom" : "ipad",   "scale" : "1x", "size" : "20x20",  "filename" : "Icon-20.png"   },
+              { "idiom" : "ipad",   "scale" : "2x", "size" : "20x20",  "filename" : "Icon-40.png"   },
+              { "idiom" : "ipad",   "scale" : "1x", "size" : "29x29",  "filename" : "Icon-29.png"   },
+              { "idiom" : "ipad",   "scale" : "2x", "size" : "29x29",  "filename" : "Icon-58.png"   },
+              { "idiom" : "ipad",   "scale" : "1x", "size" : "40x40",  "filename" : "Icon-40.png"   },
+              { "idiom" : "ipad",   "scale" : "2x", "size" : "40x40",  "filename" : "Icon-80.png"   },
+              { "idiom" : "ipad",   "scale" : "1x", "size" : "76x76",  "filename" : "Icon-76.png"   },
+              { "idiom" : "ipad",   "scale" : "2x", "size" : "76x76",  "filename" : "Icon-152.png"  },
+              { "idiom" : "ipad",   "scale" : "2x", "size" : "83.5x83.5", "filename" : "Icon-167.png" },
+              { "idiom" : "ios-marketing", "scale" : "1x", "size" : "1024x1024", "filename" : "Icon-1024.png" }
+            ],
+            "info" : { "author" : "xcode", "version" : 1 }
+          }
+          CONTENTS_EOF
+          
+          echo "✔ Иконки сгенерированы успешно"
 
       - name: "Настройка ключа App Store Connect API"
         env:
@@ -59,17 +195,15 @@ jobs:
         env:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'default_keychain_pass_123' }}
+          KEYCHAIN_PASSWORD: "netpulse_build_keychain_2026"
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
           echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
           security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
-
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
       - name: "Сборка архива NetPulse.xcarchive"
@@ -77,7 +211,6 @@ jobs:
         run: |
           BUILD_NUM=${{ github.run_number }}
           VERSION="${{ github.event.inputs.version_name || '1.0.0' }}"
-          
           xcrun agvtool new-version -all $BUILD_NUM || true
           xcrun agvtool new-marketing-version $VERSION || true
 
@@ -99,8 +232,6 @@ jobs:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           mkdir -p build/IPA
-          
-          # Установка актуального teamID в ExportOptions.plist
           plutil -replace teamID -string "$TEAM_ID" ExportOptions.plist
 
           xcodebuild -exportArchive \
@@ -120,10 +251,10 @@ jobs:
         run: |
           IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
           if [ -z "$IPA_PATH" ]; then
-            echo "❌ IPA файл не найден в build/IPA!"
+            echo "❌ IPA файл не найден!"
             exit 1
           fi
-          echo "✔ Найден подписанный IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
+          echo "✔ Найден IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
 
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
@@ -131,4 +262,4 @@ jobs:
             --apiKey "$KEY_ID" \
             --apiIssuer "$ISSUER_ID"
 
-          echo "🚀 Сборка успешно отправлена на обработку в Apple TestFlight!"
+          echo "🚀 Сборка успешно отправлена в Apple TestFlight!"

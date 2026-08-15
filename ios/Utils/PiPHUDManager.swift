@@ -6,12 +6,12 @@
 //
 
 import SwiftUI
-import AVKit
+@preconcurrency import AVKit
 import Combine
 
 /// Менеджер плавающего оверлея Picture-in-Picture (PiP), отображаемого поверх ВСЕХ приложений и игр
 @MainActor
-public final class PiPHUDManager: NSObject, ObservableObject, AVPictureInPictureControllerDelegate {
+public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AVPictureInPictureControllerDelegate {
     public static let shared = PiPHUDManager()
 
     @Published public var isPiPActive: Bool = false
@@ -81,16 +81,22 @@ public final class PiPHUDManager: NSObject, ObservableObject, AVPictureInPicture
 
     // MARK: - AVPictureInPictureControllerDelegate
 
-    public func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
-        self.isPiPActive = true
+    nonisolated public func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        Task { @MainActor in
+            self.isPiPActive = true
+        }
     }
 
-    public func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
-        self.isPiPActive = false
+    nonisolated public func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        Task { @MainActor in
+            self.isPiPActive = false
+        }
     }
 
-    public func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
-        self.isPiPActive = false
-        print("❌ PiP ошибка: \(error.localizedDescription)")
+    nonisolated public func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
+        Task { @MainActor in
+            self.isPiPActive = false
+            print("❌ PiP ошибка: \(error.localizedDescription)")
+        }
     }
 }

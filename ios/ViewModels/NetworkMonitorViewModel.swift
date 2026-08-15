@@ -118,8 +118,7 @@ public final class NetworkMonitorViewModel {
 
     private func initMetricsForTargets() {
         for target in targets {
-            hostMetrics[target.id] = HostMetrics(
-                targetId: target.id,
+            hostMetrics[target.address] = HostMetrics(
                 name: target.name,
                 address: target.address,
                 isGateway: target.isGateway
@@ -195,7 +194,7 @@ public final class NetworkMonitorViewModel {
         diagnosticsTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
-                let info = await self.diagnostics.collectSystemDiagnostics()
+                let info = await self.diagnostics.collectSystemInfo()
                 self.systemInfo = info
                 try? await Task.sleep(nanoseconds: 10_000_000_000) // каждые 10 секунд
             }
@@ -203,28 +202,28 @@ public final class NetworkMonitorViewModel {
     }
 
     private func pollAllHosts() async {
-        let currentTargets = targets
+        let currentTargets = targets.filter { $0.isEnabled }
         await withTaskGroup(of: (String, PingRecord).self) { group in
             for target in currentTargets {
                 group.addTask {
-                    let record = await self.pingEngine.ping(host: target.address, port: target.port)
-                    return (target.id, record)
+                    let record = await self.pingEngine.pingTarget(target)
+                    return (target.address, record)
                 }
             }
 
-            for await (targetId, record) in group {
-                self.processPingRecord(targetId: targetId, record: record)
+            for await (address, record) in group {
+                self.processPingRecord(address: address, record: record)
             }
         }
     }
 
-    private func processPingRecord(targetId: String, record: PingRecord) {
-        guard var metric = hostMetrics[targetId] else { return }
+    private func processPingRecord(address: String, record: PingRecord) {
+        guard var metric = hostMetrics[address] else { return }
 
         metric.sentCount += 1
-        let prevRtt = prevLatencies[targetId]
+        let prevRtt = prevLatencies[address]
 
-        if record.isSuccessful, let lat = record.latencyMs {
+        if record.isSuccess, let lat = record.latencyMs {
             metric.receivedCount += 1
             metric.lastLatencyMs = lat
 
@@ -233,7 +232,7 @@ public final class NetworkMonitorViewModel {
                 let d = abs(lat - pRtt)
                 metric.jitterMs = metric.jitterMs + (d - metric.jitterMs) / 16.0
             }
-            prevLatencies[targetId] = lat
+            prevLatencies[address] = lat
 
             // Min / Max / Avg
             metric.minLatencyMs = metric.minLatencyMs != nil ? min(metric.minLatencyMs!, lat) : lat
@@ -251,14 +250,28 @@ public final class NetworkMonitorViewModel {
             // Оценка статуса хоста
             if lat > latencyCritThreshold {
                 metric.status = .critical
-                triggerAlertIfNeeded(targetId: targetId, type: .highLatency(latency: lat))
+                triggerAlertIfNeeded(
+                    address: address,
+                    message: "Высокая задержка: \(Int(lat)) мс",
+                    severity: .critical,
+                    currentVal: lat,
+                    threshVal: latencyCritThreshold
+                )
             } else if lat > latencyWarnThreshold {
                 metric.status = .warning
+                triggerAlertIfNeeded(
+                    address: address,
+                    message: "Повышенная задержка: \(Int(lat)) мс",
+                    severity: .warning,
+                    currentVal: lat,
+                    threshVal: latencyWarnThreshold
+                )
             } else {
                 metric.status = .ok
             }
         } else {
             // Потеря пакета
+            metric.lostCount += 1
             metric.lastLatencyMs = nil
             metric.latencyHistory.append(nil)
             if metric.latencyHistory.count > 30 {
@@ -268,31 +281,46 @@ public final class NetworkMonitorViewModel {
             let lossPct = metric.lossWindowPct
             if lossPct >= lossCritThreshold {
                 metric.status = .down
-                triggerAlertIfNeeded(targetId: targetId, type: .packetLoss(lossPct: lossPct))
+                triggerAlertIfNeeded(
+                    address: address,
+                    message: "Потеря пакетов: \(String(format: "%.0f", lossPct))%",
+                    severity: .critical,
+                    currentVal: lossPct,
+                    threshVal: lossCritThreshold
+                )
             } else {
                 metric.status = .warning
             }
         }
 
-        hostMetrics[targetId] = metric
+        hostMetrics[address] = metric
     }
 
     // MARK: - Алерты
 
-    private func triggerAlertIfNeeded(targetId: String, type: NetworkAlert.AlertType) {
-        guard let host = hostMetrics[targetId] else { return }
+    private func triggerAlertIfNeeded(
+        address: String,
+        message: String,
+        severity: AlertSeverity,
+        currentVal: Double,
+        threshVal: Double
+    ) {
+        guard let host = hostMetrics[address] else { return }
         
-        let shouldAlert = recentAlerts.first(where: {
-            $0.hostName == host.name && Date().timeIntervalSince($0.timestamp) < 30
-        }) == nil
+        let isDuplicate = recentAlerts.contains { alert in
+            alert.host == host.address && Date().timeIntervalSince(alert.timestamp) < 30
+        }
 
-        guard shouldAlert else { return }
+        guard !isDuplicate else { return }
 
         let alert = NetworkAlert(
-            hostName: host.name,
-            hostAddress: host.address,
-            type: type,
-            timestamp: Date()
+            host: host.address,
+            targetName: host.name,
+            severity: severity,
+            message: message,
+            metricName: "RTT/Loss",
+            currentValue: currentVal,
+            thresholdValue: threshVal
         )
 
         recentAlerts.insert(alert, at: 0)

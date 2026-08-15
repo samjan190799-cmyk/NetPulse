@@ -82,7 +82,7 @@ class TerminalUI:
 
         return Panel(
             Group(grid, sub_grid),
-            title="[bold cyan]⚡ NetPulse — Real-Time Network Quality Monitor v1.0[/bold cyan]",
+            title="[bold bright_green]❯❯[/bold bright_green][bold bright_cyan]━▲━ NetPulse[/bold bright_cyan] [dim]|[/dim] [italic bright_white]Network Motion & Quality Telemetry v1.0[/italic bright_white]",
             border_style="bright_blue",
             padding=(0, 1)
         )

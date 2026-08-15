@@ -16,6 +16,7 @@ from metrics.storage import StorageManager
 try:
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import FileResponse, HTMLResponse
+    from fastapi.staticfiles import StaticFiles
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -34,7 +35,11 @@ def create_web_app(
 
     app = FastAPI(title="NetPulse Web Dashboard", version="1.0.0")
     templates_dir = Path(__file__).parent / "templates"
+    static_dir = Path(__file__).parent / "static"
     index_html_path = templates_dir / "index.html"
+
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     @app.get("/", response_class=HTMLResponse)
     async def get_dashboard():
@@ -202,14 +207,18 @@ class StandaloneWebServer:
                     self.end_headers()
                     with open(file_path, "rb") as f:
                         self.wfile.write(f.read())
-                elif self.path == "/api/export/csv":
-                    file_path = storage.export_csv()
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/csv")
-                    self.send_header("Content-Disposition", f'attachment; filename="{file_path.name}"')
-                    self.end_headers()
-                    with open(file_path, "rb") as f:
-                        self.wfile.write(f.read())
+                elif self.path.startswith("/static/"):
+                    static_file = Path(__file__).parent / self.path.lstrip("/")
+                    if static_file.exists() and static_file.is_file():
+                        content_type = "image/png" if static_file.suffix == ".png" else "image/x-icon" if static_file.suffix == ".ico" else "application/octet-stream"
+                        self.send_response(200)
+                        self.send_header("Content-Type", content_type)
+                        self.end_headers()
+                        with open(static_file, "rb") as f:
+                            self.wfile.write(f.read())
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
                 else:
                     self.send_response(404)
                     self.end_headers()

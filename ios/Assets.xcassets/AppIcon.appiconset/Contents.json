@@ -1,19 +1,24 @@
 {
   "images" : [
     {
+      "filename" : "AppIcon-1024.png",
       "idiom" : "universal",
       "platform" : "ios",
-      "scale" : "1x"
+      "size" : "1024x1024"
     },
     {
+      "filename" : "AppIcon-60@2x.png",
       "idiom" : "universal",
       "platform" : "ios",
-      "scale" : "2x"
+      "scale" : "2x",
+      "size" : "60x60"
     },
     {
+      "filename" : "AppIcon-60@3x.png",
       "idiom" : "universal",
       "platform" : "ios",
-      "scale" : "3x"
+      "scale" : "3x",
+      "size" : "60x60"
     }
   ],
   "info" : {

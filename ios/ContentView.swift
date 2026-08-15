@@ -23,7 +23,7 @@ public struct ContentView: View {
                     Label("Настройки", systemImage: "gearshape.fill")
                 }
         }
-        .tint(.cyan)
+        .tint(.blue)
         .preferredColorScheme(.dark)
     }
 }

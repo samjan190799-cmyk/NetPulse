@@ -32,6 +32,7 @@
 		A10000172C12345600000017 /* AlertsBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000172C12345600000017 /* AlertsBannerView.swift */; };
 		A10000182C12345600000018 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000182C12345600000018 /* HapticManager.swift */; };
 		A10000192C12345600000019 /* HistoryStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000192C12345600000019 /* HistoryStorage.swift */; };
+		A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000212C1234560000002B /* SpeedtestHeroView.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -63,6 +64,7 @@
 		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsBannerView.swift; sourceTree = "<group>"; };
 		B10000182C12345600000018 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStorage.swift; sourceTree = "<group>"; };
+		B10000212C1234560000002B /* SpeedtestHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestHeroView.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -164,6 +166,7 @@
 				B10000152C12345600000015 /* SpeedtestGaugeView.swift */,
 				B10000162C12345600000016 /* TracerouteSheetView.swift */,
 				B10000172C12345600000017 /* AlertsBannerView.swift */,
+				B10000212C1234560000002B /* SpeedtestHeroView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -267,6 +270,7 @@
 				A10000172C12345600000017 /* AlertsBannerView.swift in Sources */,
 				A10000182C12345600000018 /* HapticManager.swift in Sources */,
 				A10000192C12345600000019 /* HistoryStorage.swift in Sources */,
+				A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

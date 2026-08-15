@@ -7,49 +7,78 @@
 
 import SwiftUI
 
-/// Главный экран мониторинга качества сетевого соединения.
+/// Главный экран мониторинга и тестирования скорости сетевого соединения.
 public struct DashboardView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
     @State private var jsonExportURL: URL?
     @State private var csvExportURL: URL?
     @State private var isExporting = false
 
+    private var currentPing: Double? {
+        if let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), let lat = gw.lastLatencyMs {
+            return lat
+        }
+        let latencies = viewModel.hostMetrics.values.compactMap { $0.lastLatencyMs }
+        guard !latencies.isEmpty else { return nil }
+        return latencies.reduce(0, +) / Double(latencies.count)
+    }
+
+    private var currentJitter: Double? {
+        if let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }) {
+            return gw.jitterMs
+        }
+        let jitters = viewModel.hostMetrics.values.map { $0.jitterMs }.filter { $0 > 0 }
+        guard !jitters.isEmpty else { return nil }
+        return jitters.reduce(0, +) / Double(jitters.count)
+    }
+
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                // Фоновый градиент
-                LinearGradient(
-                    colors: [Color(red: 0.04, green: 0.06, blue: 0.11), Color(red: 0.08, green: 0.10, blue: 0.18)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                // Строгий системный темный фон
+                Color(uiColor: .systemBackground)
+                    .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 20) {
-                        // Системная сетевая карточка
+                    VStack(spacing: 16) {
+                        // 1. Системный статус сети
                         NetworkInfoCardView(
                             info: viewModel.systemInfo,
                             isMonitoring: viewModel.isMonitoringActive
                         )
 
-                        // График задержки в реальном времени (Swift Charts)
+                        // 2. Интерактивный замер скорости (Speedtest Hero Card)
+                        SpeedtestHeroView(
+                            isRunning: viewModel.isSpeedtestRunning,
+                            downloadMbps: viewModel.liveDownloadSpeed,
+                            uploadMbps: viewModel.liveUploadSpeed,
+                            pingMs: currentPing,
+                            jitterMs: currentJitter,
+                            onStartSpeedtest: {
+                                viewModel.runSpeedtest()
+                            }
+                        )
+
+                        // 3. График задержки (Swift Charts)
                         LatencyChartView(hostMetrics: viewModel.hostMetrics)
 
-                        // Секция целевых узлов
-                        VStack(alignment: .leading, spacing: 12) {
+                        // 4. Секция целевых узлов
+                        VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text("ЦЕЛЕВЫЕ УЗЛЫ")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(viewModel.targets.count) узлов")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.cyan)
+                                    .foregroundStyle(.secondary)
+                                    .tracking(0.5)
+
+                                Spacer()
+
+                                Text("\(viewModel.targets.count) узлов")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 4)
 
-                            LazyVStack(spacing: 12) {
+                            LazyVStack(spacing: 10) {
                                 ForEach(viewModel.targets) { target in
                                     if let metrics = viewModel.hostMetrics[target.address] {
                                         HostMetricCardView(metrics: metrics) {
@@ -58,15 +87,6 @@ public struct DashboardView: View {
                                     }
                                 }
                             }
-                        }
-
-                        // Спидометр скорости (Speedtest)
-                        SpeedtestGaugeView(
-                            isRunning: viewModel.isSpeedtestRunning,
-                            downloadMbps: viewModel.liveDownloadSpeed,
-                            uploadMbps: viewModel.liveUploadSpeed
-                        ) {
-                            viewModel.runSpeedtest()
                         }
                     }
                     .padding(16)
@@ -95,9 +115,9 @@ public struct DashboardView: View {
                             viewModel.startMonitoring()
                         }
                     } label: {
-                        Image(systemName: viewModel.isMonitoringActive ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(viewModel.isMonitoringActive ? .orange : .green)
+                        Image(systemName: viewModel.isMonitoringActive ? "pause.circle" : "play.circle")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(viewModel.isMonitoringActive ? .orange : .blue)
                     }
                 }
 
@@ -107,18 +127,18 @@ public struct DashboardView: View {
                         Button {
                             prepareJSONExport()
                         } label: {
-                            Label("Экспорт отчета JSON", systemImage: "arrow.down.doc")
+                            Label("Экспорт JSON", systemImage: "arrow.down.doc")
                         }
 
                         Button {
                             prepareCSVExport()
                         } label: {
-                            Label("Экспорт метрик CSV", systemImage: "tablecells")
+                            Label("Экспорт CSV", systemImage: "tablecells")
                         }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.primary)
                     }
                 }
             }

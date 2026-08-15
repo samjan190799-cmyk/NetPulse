@@ -94,22 +94,21 @@ public struct HostMetricCardView: View {
 
                 Button(action: onTracerouteTapped) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.cyan)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
                         .padding(8)
-                        .background(Color.cyan.opacity(0.12))
+                        .background(Color(uiColor: .tertiarySystemBackground))
                         .clipShape(Circle())
                 }
             }
         }
         .padding(16)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(strokeColorForStatus(metrics.status), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.18), radius: 8, x: 0, y: 4)
     }
 
     private func colorForLatency(_ lat: Double) -> Color {

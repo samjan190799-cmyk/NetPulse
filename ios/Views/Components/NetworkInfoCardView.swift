@@ -56,21 +56,13 @@ public struct NetworkInfoCardView: View {
                 InfoItem(title: "Провайдер", value: info.ispName ?? "...", icon: "antenna.radiowaves.left.and.right")
             }
         }
-        .padding(18)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(16)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.cyan.opacity(0.35), Color.purple.opacity(0.1)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 6)
     }
 
     private func iconForConnectionType(_ type: NetworkConnectionType) -> String {
@@ -92,11 +84,25 @@ private struct InfoItem: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(.cyan)
-                .frame(width: 24, height: 24)
-                .background(Color.cyan.opacity(0.12))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 26)
+                .background(Color(uiColor: .tertiarySystemBackground))
                 .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+    }
+}
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

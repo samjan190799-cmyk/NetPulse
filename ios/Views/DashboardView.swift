@@ -7,12 +7,9 @@
 
 import SwiftUI
 
-/// Главный экран мониторинга и тестирования скорости сетевого соединения.
+/// Главный экран: Замер скорости (Speedtest) и оценка возможностей сети.
 public struct DashboardView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
-    @State private var jsonExportURL: URL?
-    @State private var csvExportURL: URL?
-    @State private var isExporting = false
 
     private var currentPing: Double? {
         if let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), let lat = gw.lastLatencyMs {
@@ -32,26 +29,32 @@ public struct DashboardView: View {
         return jitters.reduce(0, +) / Double(jitters.count)
     }
 
+    private var capabilities: [CapabilityItem] {
+        let evaluator = NetworkCapabilityEvaluator(
+            downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
+            uploadMbps: viewModel.liveUploadSpeed > 0 ? viewModel.liveUploadSpeed : (viewModel.lastSpeedtestResult?.uploadMbps ?? 0.0),
+            pingMs: currentPing,
+            jitterMs: currentJitter
+        )
+        return evaluator.evaluateAll()
+    }
+
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                // Строгий системный темный фон
                 Color(uiColor: .systemBackground)
                     .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
-                        // 1. Системный статус сети
-                        NetworkInfoCardView(
-                            info: viewModel.systemInfo,
-                            isMonitoring: viewModel.isMonitoringActive
-                        )
+                        // 1. Компактная плашка текущего подключения
+                        ConnectionStatusHeader(info: viewModel.systemInfo)
 
-                        // 2. Интерактивный замер скорости (Speedtest Hero Card)
+                        // 2. Интерактивный замер скорости (Speedtest)
                         SpeedtestHeroView(
                             isRunning: viewModel.isSpeedtestRunning,
-                            downloadMbps: viewModel.liveDownloadSpeed,
-                            uploadMbps: viewModel.liveUploadSpeed,
+                            downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
+                            uploadMbps: viewModel.liveUploadSpeed > 0 ? viewModel.liveUploadSpeed : (viewModel.lastSpeedtestResult?.uploadMbps ?? 0.0),
                             pingMs: currentPing,
                             jitterMs: currentJitter,
                             onStartSpeedtest: {
@@ -59,101 +62,15 @@ public struct DashboardView: View {
                             }
                         )
 
-                        // 3. График задержки (Swift Charts)
-                        LatencyChartView(hostMetrics: viewModel.hostMetrics)
-
-                        // 4. Секция целевых узлов
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text("ЦЕЛЕВЫЕ УЗЛЫ")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                    .tracking(0.5)
-
-                                Spacer()
-
-                                Text("\(viewModel.targets.count) узлов")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 4)
-
-                            LazyVStack(spacing: 10) {
-                                ForEach(viewModel.targets) { target in
-                                    if let metrics = viewModel.hostMetrics[target.address] {
-                                        HostMetricCardView(metrics: metrics) {
-                                            viewModel.startTraceroute(for: target.address)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // 3. Блок оценки применимости скорости (Для чего подходит сеть)
+                        NetworkCapabilityCardView(items: capabilities)
                     }
                     .padding(16)
                     .padding(.bottom, 32)
                 }
-
-                // Всплывающий баннер алертов
-                if let alert = viewModel.activeAlert {
-                    AlertsBannerView(alert: alert) {
-                        withAnimation {
-                            viewModel.activeAlert = nil
-                        }
-                    }
-                    .padding(.top, 8)
-                }
             }
             .navigationTitle("NetPulse")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                // Кнопка включения/выключения монитора
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        if viewModel.isMonitoringActive {
-                            viewModel.stopMonitoring()
-                        } else {
-                            viewModel.startMonitoring()
-                        }
-                    } label: {
-                        Image(systemName: viewModel.isMonitoringActive ? "pause.circle" : "play.circle")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(viewModel.isMonitoringActive ? .orange : .blue)
-                    }
-                }
-
-                // Меню экспорта отчетов
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            prepareJSONExport()
-                        } label: {
-                            Label("Экспорт JSON", systemImage: "arrow.down.doc")
-                        }
-
-                        Button {
-                            prepareCSVExport()
-                        } label: {
-                            Label("Экспорт CSV", systemImage: "tablecells")
-                        }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.primary)
-                    }
-                }
-            }
-            .sheet(isPresented: $viewModel.showTracerouteSheet) {
-                TracerouteSheetView(
-                    targetHost: viewModel.selectedTracerouteTarget,
-                    hops: viewModel.tracerouteHops,
-                    isRunning: viewModel.isTracerouteRunning
-                )
-            }
-            .sheet(isPresented: $isExporting) {
-                if let url = jsonExportURL ?? csvExportURL {
-                    ShareSheet(activityItems: [url])
-                }
-            }
             .onAppear {
                 if !viewModel.isMonitoringActive {
                     viewModel.startMonitoring()
@@ -161,34 +78,60 @@ public struct DashboardView: View {
             }
         }
     }
-
-    private func prepareJSONExport() {
-        Task {
-            if let url = try? await viewModel.getExportJSONURL() {
-                jsonExportURL = url
-                csvExportURL = nil
-                isExporting = true
-            }
-        }
-    }
-
-    private func prepareCSVExport() {
-        Task {
-            if let url = try? await viewModel.getExportCSVURL() {
-                csvExportURL = url
-                jsonExportURL = nil
-                isExporting = true
-            }
-        }
-    }
 }
 
-private struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
+/// Компактная плашка статуса текущего интернет-соединения
+private struct ConnectionStatusHeader: View {
+    let info: NetworkInterfaceInfo
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: iconForType(info.connectionType))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.blue)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.ispName ?? "Определение провайдера...")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text("\(info.connectionType.rawValue) • \(info.publicIP ?? "...")")
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 6, height: 6)
+                Text("АКТИВНО")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.green)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.green.opacity(0.1))
+            .clipShape(Capsule())
+        }
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    private func iconForType(_ type: NetworkConnectionType) -> String {
+        switch type {
+        case .wifi: return "wifi"
+        case .cellular: return "antenna.radiowaves.left.and.right"
+        case .ethernet: return "cable.connector"
+        case .loopback: return "arrow.triangle.2.circlepath"
+        case .unavailable: return "wifi.slash"
+        }
+    }
 }

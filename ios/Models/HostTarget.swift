@@ -35,7 +35,7 @@ public struct HostTarget: Identifiable, Hashable, Codable, Sendable {
     /// Список узлов по умолчанию
     public static var defaultTargets: [HostTarget] {
         [
-            HostTarget(name: "Локальный шлюз", address: "gateway", tcpPort: 80, isGateway: true),
+            HostTarget(name: "Локальный шлюз", address: "gateway", tcpPort: 53, isGateway: true),
             HostTarget(name: "Cloudflare DNS", address: "1.1.1.1", tcpPort: 443),
             HostTarget(name: "Google DNS", address: "8.8.8.8", tcpPort: 53),
             HostTarget(name: "Yandex DNS", address: "77.88.8.8", tcpPort: 53),

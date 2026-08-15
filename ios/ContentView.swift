@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Главный навигационный контейнер приложения.
+/// Главный навигационный контейнер приложения с 3 разделами.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel()
 
@@ -15,7 +15,12 @@ public struct ContentView: View {
         TabView {
             DashboardView(viewModel: viewModel)
                 .tabItem {
-                    Label("Монитор", systemImage: "waveform.path.ecg")
+                    Label("Скорость", systemImage: "gauge.with.dots.needle.67percent")
+                }
+
+            DiagnosticsView(viewModel: viewModel)
+                .tabItem {
+                    Label("Диагностика", systemImage: "waveform.path.ecg")
                 }
 
             SettingsView(viewModel: viewModel)

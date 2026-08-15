@@ -52,32 +52,50 @@ public actor PingEngine {
             )
         }
 
-        let portNum = UInt16(target.tcpPort > 0 ? target.tcpPort : 443)
-        let clock = ContinuousClock()
-        let start = clock.now
+        // Для локального шлюза проверяем несколько стандартных портов (DNS, HTTPS, HTTP)
+        let portsToTry: [UInt16] = target.isGateway ? [53, 443, 80, 8080] : [UInt16(target.tcpPort > 0 ? target.tcpPort : 443)]
 
-        do {
-            let latencyMs = try await withTimeout(seconds: timeoutInterval) {
-                try await self.tcpConnect(host: hostStr, port: portNum)
+        for portNum in portsToTry {
+            let clock = ContinuousClock()
+            let start = clock.now
+
+            do {
+                let latencyMs = try await withTimeout(seconds: timeoutInterval) {
+                    try await self.tcpConnect(host: hostStr, port: portNum)
+                }
+                return PingRecord(
+                    host: hostStr,
+                    targetName: target.name,
+                    isSuccess: true,
+                    latencyMs: latencyMs,
+                    protocolType: "tcp:\(portNum)"
+                )
+            } catch {
+                let elapsed = clock.now - start
+                let elapsedMs = Double(elapsed.components.attoseconds) / 1_000_000_000_000_000.0 + Double(elapsed.components.seconds) * 1000.0
+
+                // Если шлюз отклонил порт (Connection Refused / RST), но ответил за <500мс — узел онлайн!
+                let errStr = error.localizedDescription.lowercased()
+                if target.isGateway && (errStr.contains("refused") || errStr.contains("61") || errStr.contains("reset")) && elapsedMs < 500 {
+                    return PingRecord(
+                        host: hostStr,
+                        targetName: target.name,
+                        isSuccess: true,
+                        latencyMs: max(1.0, (elapsedMs * 10).rounded() / 10),
+                        protocolType: "tcp:rst:\(portNum)"
+                    )
+                }
             }
-            return PingRecord(
-                host: hostStr,
-                targetName: target.name,
-                isSuccess: true,
-                latencyMs: latencyMs,
-                protocolType: "tcp:\(portNum)"
-            )
-        } catch {
-            let _ = clock.now - start
-            return PingRecord(
-                host: hostStr,
-                targetName: target.name,
-                isSuccess: false,
-                latencyMs: nil,
-                errorMessage: error.localizedDescription,
-                protocolType: "tcp:\(portNum)"
-            )
         }
+
+        return PingRecord(
+            host: hostStr,
+            targetName: target.name,
+            isSuccess: false,
+            latencyMs: nil,
+            errorMessage: "Таймаут ответа",
+            protocolType: "tcp:\(target.tcpPort)"
+        )
     }
 
     /// Параллельный опрос группы целевых хостов
@@ -147,16 +165,18 @@ public actor PingEngine {
             group.addTask {
                 try await operation()
             }
+
             group.addTask {
-                try await Task.sleep(for: .seconds(seconds))
-                throw URLError(.timedOut)
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw NSError(domain: "NetPulsePing", code: -1001, userInfo: [NSLocalizedDescriptionKey: "Таймаут соединения"])
             }
 
-            guard let success = try await group.next() else {
-                throw URLError(.cancelled)
+            guard let result = try await group.next() else {
+                throw NSError(domain: "NetPulsePing", code: -1001, userInfo: [NSLocalizedDescriptionKey: "Ошибка выполнения"])
             }
+
             group.cancelAll()
-            return success
+            return result
         }
     }
 }

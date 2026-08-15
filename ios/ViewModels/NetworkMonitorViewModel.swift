@@ -99,6 +99,7 @@ public final class NetworkMonitorViewModel {
 
     private func handleDidEnterBackground() {
         if liveActivityEnabled || isMonitoringActive {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
             bgTask = UIApplication.shared.beginBackgroundTask(withName: "NetPulseBackgroundTelemetry") { [weak self] in
                 guard let self else { return }
                 if self.bgTask != .invalid {
@@ -132,6 +133,8 @@ public final class NetworkMonitorViewModel {
         guard !isMonitoringActive else { return }
         isMonitoringActive = true
 
+        BackgroundTelemetryKeeper.shared.startKeepAlive()
+
         if hapticsEnabled {
             HapticManager.shared.impactLight()
         }
@@ -146,6 +149,10 @@ public final class NetworkMonitorViewModel {
         monitorTask = nil
         diagnosticsTask?.cancel()
         diagnosticsTask = nil
+
+        if !liveActivityEnabled {
+            BackgroundTelemetryKeeper.shared.stopKeepAlive()
+        }
 
         if hapticsEnabled {
             HapticManager.shared.impactLight()
@@ -416,6 +423,7 @@ public final class NetworkMonitorViewModel {
     public func toggleLiveActivity(enabled: Bool) {
         liveActivityEnabled = enabled
         if enabled {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
             let snapshot = bandwidthEngine.sampleBandwidth()
             ActivityManager.shared.startActivity(
                 downloadSpeedText: snapshot.formattedDownloadSpeed,
@@ -427,6 +435,9 @@ public final class NetworkMonitorViewModel {
             )
         } else {
             ActivityManager.shared.stopActivity()
+            if !isMonitoringActive {
+                BackgroundTelemetryKeeper.shared.stopKeepAlive()
+            }
         }
     }
 

@@ -42,6 +42,7 @@
 		A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */; };
 		A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C12345600000032 /* FloatingGameOverlayView.swift */; };
 		A10000302C12345600000034 /* PiPHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C12345600000034 /* PiPHUDManager.swift */; };
+		A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
@@ -111,6 +112,7 @@
 		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HistoryStorage.swift; sourceTree = "<group>"; };
 		B10000262C12345600000030 /* ActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ActivityManager.swift; sourceTree = "<group>"; };
 		B10000302C12345600000034 /* PiPHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/PiPHUDManager.swift; sourceTree = "<group>"; };
+		B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/BackgroundTelemetryKeeper.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -237,6 +239,7 @@
 				B10000192C12345600000019 /* HistoryStorage.swift */,
 				B10000262C12345600000030 /* ActivityManager.swift */,
 				B10000302C12345600000034 /* PiPHUDManager.swift */,
+				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -372,8 +375,6 @@
 				A10000152C12345600000015 /* SpeedtestGaugeView.swift in Sources */,
 				A10000162C12345600000016 /* TracerouteSheetView.swift in Sources */,
 				A10000172C12345600000017 /* AlertsBannerView.swift in Sources */,
-				A10000182C12345600000018 /* HapticManager.swift in Sources */,
-				A10000192C12345600000019 /* HistoryStorage.swift in Sources */,
 				A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */,
 				A10000222C1234560000002C /* NetworkCapability.swift in Sources */,
 				A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */,
@@ -383,6 +384,7 @@
 				A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */,
 				A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */,
 				A10000302C12345600000034 /* PiPHUDManager.swift in Sources */,
+				A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

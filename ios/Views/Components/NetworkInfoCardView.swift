@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Glassmorphism карточка системной информации и сетевого провайдера.
+/// Карточка системной информации и сетевого интерфейса в стиле Apple HIG.
 public struct NetworkInfoCardView: View {
     public let info: NetworkInterfaceInfo
     public let isMonitoring: Bool
@@ -96,20 +96,6 @@ private struct InfoItem: View {
                     .foregroundStyle(.secondary)
                 Text(value)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-        }
-    }
-}
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)

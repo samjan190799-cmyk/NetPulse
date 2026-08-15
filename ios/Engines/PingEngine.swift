@@ -8,6 +8,30 @@
 import Foundation
 import Network
 
+/// Потокобезопасная обертка для однократного вызова продолжения (Swift 6 Strict Concurrency).
+private final class SafeContinuation<T>: @unchecked Sendable {
+    private var continuation: CheckedContinuation<T, Error>?
+    private let lock = NSLock()
+
+    init(_ continuation: CheckedContinuation<T, Error>) {
+        self.continuation = continuation
+    }
+
+    func resume(returning value: T) {
+        lock.lock()
+        defer { lock.unlock() }
+        continuation?.resume(returning: value)
+        continuation = nil
+    }
+
+    func resume(throwing error: Error) {
+        lock.lock()
+        defer { lock.unlock() }
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
+}
+
 /// Асинхронный многопоточный движок сетевого пинга для iOS.
 public actor PingEngine {
     private let timeoutInterval: TimeInterval
@@ -44,7 +68,7 @@ public actor PingEngine {
                 protocolType: "tcp:\(portNum)"
             )
         } catch {
-            let elapsed = clock.now - start
+            let _ = clock.now - start
             return PingRecord(
                 host: hostStr,
                 targetName: target.name,
@@ -89,29 +113,22 @@ public actor PingEngine {
         let startTime = clock.now
 
         return try await withCheckedThrowingContinuation { continuation in
-            var hasResumed = false
+            let safeContinuation = SafeContinuation(continuation)
 
             connection.stateUpdateHandler = { state in
-                guard !hasResumed else { return }
-
                 switch state {
                 case .ready:
-                    hasResumed = true
                     let duration = clock.now - startTime
                     let ms = Double(duration.components.attoseconds) / 1_000_000_000_000_000.0 + Double(duration.components.seconds) * 1000.0
                     connection.cancel()
-                    continuation.resume(returning: (ms * 10).rounded() / 10)
+                    safeContinuation.resume(returning: (ms * 10).rounded() / 10)
 
                 case .failed(let err):
-                    hasResumed = true
                     connection.cancel()
-                    continuation.resume(throwing: err)
+                    safeContinuation.resume(throwing: err)
 
                 case .cancelled:
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(throwing: CancellationError())
-                    }
+                    safeContinuation.resume(throwing: CancellationError())
 
                 default:
                     break

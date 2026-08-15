@@ -24,12 +24,13 @@ public final class ActivityManager {
 
     private init() {}
 
-    /// Запуск Live Activity в Dynamic Island
+    /// Запуск Live Activity в Dynamic Island с реальной скоростью загрузки и отдачи
     public func startActivity(
-        downloadMbps: Double = 0.0,
-        uploadMbps: Double = 0.0,
-        pingMs: Double? = nil,
-        jitterMs: Double? = nil,
+        downloadSpeedText: String = "↓ 0 КБ/с",
+        uploadSpeedText: String = "↑ 0 КБ/с",
+        compactDownloadText: String = "↓0K",
+        compactUploadText: String = "↑0K",
+        isTesting: Bool = false,
         connectionType: String = "Wi-Fi",
         ispName: String = "Интернет"
     ) {
@@ -43,11 +44,11 @@ public final class ActivityManager {
 
         let attributes = NetPulseAttributes(sessionTitle: "Мониторинг NetPulse")
         let initialState = NetPulseAttributes.ContentState(
-            downloadMbps: downloadMbps,
-            uploadMbps: uploadMbps,
-            pingMs: pingMs,
-            jitterMs: jitterMs,
-            isTesting: false,
+            downloadSpeedText: downloadSpeedText,
+            uploadSpeedText: uploadSpeedText,
+            compactDownloadText: compactDownloadText,
+            compactUploadText: compactUploadText,
+            isTesting: isTesting,
             connectionType: connectionType,
             ispName: ispName
         )
@@ -74,12 +75,12 @@ public final class ActivityManager {
         #endif
     }
 
-    /// Обновление живых данных скорости и пинга в Dynamic Island
+    /// Обновление живых данных реальной скорости в Dynamic Island
     public func updateActivity(
-        downloadMbps: Double,
-        uploadMbps: Double,
-        pingMs: Double?,
-        jitterMs: Double?,
+        downloadSpeedText: String,
+        uploadSpeedText: String,
+        compactDownloadText: String,
+        compactUploadText: String,
         isTesting: Bool,
         connectionType: String,
         ispName: String
@@ -88,10 +89,11 @@ public final class ActivityManager {
         guard let activity = currentActivity ?? Activity<NetPulseAttributes>.activities.first else {
             // Если сессии не было, но вызван update - запускаем
             startActivity(
-                downloadMbps: downloadMbps,
-                uploadMbps: uploadMbps,
-                pingMs: pingMs,
-                jitterMs: jitterMs,
+                downloadSpeedText: downloadSpeedText,
+                uploadSpeedText: uploadSpeedText,
+                compactDownloadText: compactDownloadText,
+                compactUploadText: compactUploadText,
+                isTesting: isTesting,
                 connectionType: connectionType,
                 ispName: ispName
             )
@@ -102,10 +104,10 @@ public final class ActivityManager {
         self.isLiveActivityActive = true
 
         let updatedState = NetPulseAttributes.ContentState(
-            downloadMbps: downloadMbps,
-            uploadMbps: uploadMbps,
-            pingMs: pingMs,
-            jitterMs: jitterMs,
+            downloadSpeedText: downloadSpeedText,
+            uploadSpeedText: uploadSpeedText,
+            compactDownloadText: compactDownloadText,
+            compactUploadText: compactUploadText,
             isTesting: isTesting,
             connectionType: connectionType,
             ispName: ispName

@@ -21,6 +21,7 @@
 		A100000C2C1234560000000C /* SpeedtestEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000C2C1234560000000C /* SpeedtestEngine.swift */; };
 		A100000D2C1234560000000D /* NetworkDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000D2C1234560000000D /* NetworkDiagnostics.swift */; };
 		A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E2C1234560000000E /* TracerouteEngine.swift */; };
+		A10000292C12345600000033 /* BandwidthEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000292C12345600000033 /* BandwidthEngine.swift */; };
 		A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */; };
 		A10000102C12345600000010 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000102C12345600000010 /* DashboardView.swift */; };
 		A10000112C12345600000011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000112C12345600000011 /* SettingsView.swift */; };
@@ -40,6 +41,7 @@
 		A10000262C12345600000030 /* ActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000262C12345600000030 /* ActivityManager.swift */; };
 		A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */; };
 		A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C12345600000032 /* FloatingGameOverlayView.swift */; };
+		A10000302C12345600000034 /* PiPHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C12345600000034 /* PiPHUDManager.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
@@ -90,6 +92,7 @@
 		B100000C2C1234560000000C /* SpeedtestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/SpeedtestEngine.swift; sourceTree = "<group>"; };
 		B100000D2C1234560000000D /* NetworkDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/NetworkDiagnostics.swift; sourceTree = "<group>"; };
 		B100000E2C1234560000000E /* TracerouteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/TracerouteEngine.swift; sourceTree = "<group>"; };
+		B10000292C12345600000033 /* BandwidthEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/BandwidthEngine.swift; sourceTree = "<group>"; };
 		B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/NetworkMonitorViewModel.swift; sourceTree = "<group>"; };
 		B10000102C12345600000010 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DashboardView.swift; sourceTree = "<group>"; };
 		B10000242C1234560000002E /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DiagnosticsView.swift; sourceTree = "<group>"; };
@@ -107,6 +110,7 @@
 		B10000182C12345600000018 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HapticManager.swift; sourceTree = "<group>"; };
 		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HistoryStorage.swift; sourceTree = "<group>"; };
 		B10000262C12345600000030 /* ActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ActivityManager.swift; sourceTree = "<group>"; };
+		B10000302C12345600000034 /* PiPHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/PiPHUDManager.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -185,6 +189,7 @@
 				B100000C2C1234560000000C /* SpeedtestEngine.swift */,
 				B100000D2C1234560000000D /* NetworkDiagnostics.swift */,
 				B100000E2C1234560000000E /* TracerouteEngine.swift */,
+				B10000292C12345600000033 /* BandwidthEngine.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -231,6 +236,7 @@
 				B10000182C12345600000018 /* HapticManager.swift */,
 				B10000192C12345600000019 /* HistoryStorage.swift */,
 				B10000262C12345600000030 /* ActivityManager.swift */,
+				B10000302C12345600000034 /* PiPHUDManager.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -356,6 +362,7 @@
 				A100000C2C1234560000000C /* SpeedtestEngine.swift in Sources */,
 				A100000D2C1234560000000D /* NetworkDiagnostics.swift in Sources */,
 				A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */,
+				A10000292C12345600000033 /* BandwidthEngine.swift in Sources */,
 				A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */,
 				A10000102C12345600000010 /* DashboardView.swift in Sources */,
 				A10000112C12345600000011 /* SettingsView.swift in Sources */,
@@ -375,6 +382,7 @@
 				A10000262C12345600000030 /* ActivityManager.swift in Sources */,
 				A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */,
 				A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */,
+				A10000302C12345600000034 /* PiPHUDManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

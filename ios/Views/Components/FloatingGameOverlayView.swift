@@ -7,23 +7,20 @@
 
 import SwiftUI
 
-/// Минималистичный плавающий игровой HUD-виджет с 95% прозрачностью (5% фона), свободно перемещаемый по экрану.
+/// Минималистичный плавающий игровой HUD-виджет с 95% прозрачностью (5% заливка), отображающий реальную скорость загрузки и отдачи.
 public struct FloatingGameOverlayView: View {
-    public let downloadMbps: Double
-    public let uploadMbps: Double
+    public let downloadSpeedText: String
+    public let uploadSpeedText: String
     public let pingMs: Double?
     public let jitterMs: Double?
     public let packetLossPct: Double
+    public let onTogglePiP: () -> Void
     public let onClose: () -> Void
 
     @State private var offset: CGSize = CGSize(width: 16, height: 70)
     @State private var dragTranslation: CGSize = .zero
     @State private var isCollapsed: Bool = false
     @State private var isDragging: Bool = false
-
-    private var currentSpeed: Double {
-        uploadMbps > 0 ? uploadMbps : downloadMbps
-    }
 
     private var pingColor: Color {
         guard let p = pingMs else { return .secondary }
@@ -38,24 +35,23 @@ public struct FloatingGameOverlayView: View {
                 if isCollapsed {
                     // Свернутый режим (95% прозрачный компактный бейдж)
                     HStack(spacing: 5) {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 11, weight: .bold))
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.blue)
 
-                        Text(String(format: "%.0f", currentSpeed))
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                        Text(downloadSpeedText)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
+                            .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
 
-                        if let ping = pingMs {
-                            Circle()
-                                .fill(pingColor)
-                                .frame(width: 6, height: 6)
-                            Text("\(Int(ping))")
-                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(pingColor)
-                                .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
-                        }
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.cyan)
+
+                        Text(uploadSpeedText)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.cyan)
+                            .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
@@ -75,61 +71,59 @@ public struct FloatingGameOverlayView: View {
                     }
                 } else {
                     // Развернутый режим (95% прозрачный игровой HUD)
-                    HStack(spacing: 12) {
-                        // 1. Скорость
+                    HStack(spacing: 10) {
+                        // 1. Реальная скорость скачивания
                         HStack(spacing: 4) {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 12, weight: .bold))
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(.blue)
 
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(String(format: "%.1f", currentSpeed))
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                Text(downloadSpeedText)
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
-                                    .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
-                                Text("Мбит/с")
-                                    .font(.system(size: 8, weight: .medium))
+                                    .shadow(color: .black.opacity(0.95), radius: 1, x: 0, y: 1)
+                                Text("СКАЧИВАНИЕ")
+                                    .font(.system(size: 7, weight: .semibold))
                                     .foregroundStyle(.gray)
                             }
                         }
 
                         Divider()
-                            .frame(height: 20)
+                            .frame(height: 18)
                             .background(Color.white.opacity(0.15))
 
-                        // 2. Пинг и джиттер
+                        // 2. Реальная скорость отдачи
                         HStack(spacing: 4) {
-                            Circle()
-                                .fill(pingColor)
-                                .frame(width: 6, height: 6)
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.cyan)
 
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(pingMs != nil ? "\(Int(pingMs!)) мс" : "—")
-                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(pingColor)
-                                    .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
-                                Text(jitterMs != nil ? "±\(String(format: "%.0f", jitterMs!))мс" : "Jitter")
-                                    .font(.system(size: 8, weight: .medium))
+                                Text(uploadSpeedText)
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.cyan)
+                                    .shadow(color: .black.opacity(0.95), radius: 1, x: 0, y: 1)
+                                Text("ОТДАЧА")
+                                    .font(.system(size: 7, weight: .semibold))
                                     .foregroundStyle(.gray)
                             }
                         }
 
-                        Divider()
-                            .frame(height: 20)
-                            .background(Color.white.opacity(0.15))
-
-                        // 3. Потери пакетов
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("\(String(format: "%.0f", packetLossPct))%")
-                                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                .foregroundStyle(packetLossPct > 2 ? .red : .white)
-                                .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
-                            Text("Потери")
-                                .font(.system(size: 8, weight: .medium))
-                                .foregroundStyle(.gray)
+                        // 3. Кнопка выноса в Picture-in-Picture (поверх всех игр и приложений)
+                        Button(action: {
+                            HapticManager.shared.impactMedium()
+                            onTogglePiP()
+                        }) {
+                            Image(systemName: "pip.enter")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.green)
+                                .padding(5)
+                                .background(Color.black.opacity(0.1))
+                                .clipShape(Circle())
                         }
 
-                        // Кнопка сворачивания
+                        // 4. Кнопка сворачивания
                         Button(action: {
                             HapticManager.shared.impactLight()
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
@@ -142,9 +136,9 @@ public struct FloatingGameOverlayView: View {
                                 .padding(4)
                         }
 
-                        // Кнопка закрытия
+                        // 5. Кнопка закрытия
                         Button(action: {
-                            HapticManager.shared.impactMedium()
+                            HapticManager.shared.impactLight()
                             onClose()
                         }) {
                             Image(systemName: "xmark")
@@ -153,7 +147,7 @@ public struct FloatingGameOverlayView: View {
                                 .padding(4)
                         }
                     }
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
                         Color.black.opacity(0.05) // 95% прозрачности
@@ -165,43 +159,34 @@ public struct FloatingGameOverlayView: View {
                     )
                 }
             }
-            .scaleEffect(isDragging ? 1.05 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDragging)
-            .position(
-                x: boundX(geometry: geometry),
-                y: boundY(geometry: geometry)
+            .scaleEffect(isDragging ? 1.03 : 1.0)
+            .offset(
+                x: offset.width + dragTranslation.width,
+                y: offset.height + dragTranslation.height
             )
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        if !isDragging {
-                            isDragging = true
-                            HapticManager.shared.impactLight()
-                        }
+                        isDragging = true
                         dragTranslation = value.translation
                     }
                     .onEnded { value in
                         isDragging = false
-                        offset.width += value.translation.width
-                        offset.height += value.translation.height
-                        dragTranslation = .zero
+                        let finalX = offset.width + value.translation.width
+                        let finalY = offset.height + value.translation.height
+
+                        // Умное прилипание к краям экрана (Safe Area Snap)
+                        let screenWidth = geometry.size.width
+                        let snapX: CGFloat = finalX > screenWidth / 2 - 80 ? screenWidth - (isCollapsed ? 140 : 260) : 16
+                        let clampedY = min(max(finalY, 50), geometry.size.height - 120)
+
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                            offset = CGSize(width: snapX, height: clampedY)
+                            dragTranslation = .zero
+                        }
                         HapticManager.shared.impactLight()
                     }
             )
         }
-    }
-
-    private func boundX(geometry: GeometryProxy) -> CGFloat {
-        let currentX = offset.width + dragTranslation.width + 100
-        let minX: CGFloat = 80
-        let maxX: CGFloat = geometry.size.width - 80
-        return min(max(currentX, minX), maxX)
-    }
-
-    private func boundY(geometry: GeometryProxy) -> CGFloat {
-        let currentY = offset.height + dragTranslation.height + 40
-        let minY: CGFloat = 60
-        let maxY: CGFloat = geometry.size.height - 100
-        return min(max(currentY, minY), maxY)
     }
 }

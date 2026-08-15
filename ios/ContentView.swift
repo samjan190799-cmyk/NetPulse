@@ -35,11 +35,14 @@ public struct ContentView: View {
             // Плавающий игровой HUD поверх экранов
             if viewModel.floatingHUDEnabled {
                 FloatingGameOverlayView(
-                    downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
-                    uploadMbps: viewModel.liveUploadSpeed > 0 ? viewModel.liveUploadSpeed : (viewModel.lastSpeedtestResult?.uploadMbps ?? 0.0),
+                    downloadSpeedText: viewModel.isSpeedtestRunning ? String(format: "%.1f Мбит/с", viewModel.liveDownloadSpeed) : viewModel.liveBandwidth.formattedDownloadSpeed,
+                    uploadSpeedText: viewModel.isSpeedtestRunning ? String(format: "%.1f Мбит/с", viewModel.liveUploadSpeed) : viewModel.liveBandwidth.formattedUploadSpeed,
                     pingMs: viewModel.currentAveragePing,
                     jitterMs: viewModel.currentAverageJitter,
                     packetLossPct: viewModel.currentPacketLossPct,
+                    onTogglePiP: {
+                        PiPHUDManager.shared.togglePiP()
+                    },
                     onClose: {
                         withAnimation {
                             viewModel.floatingHUDEnabled = false

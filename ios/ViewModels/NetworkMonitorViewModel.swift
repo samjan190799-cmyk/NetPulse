@@ -22,6 +22,17 @@ public final class NetworkMonitorViewModel {
     public var isMonitoringActive: Bool = false
     public var pollingInterval: TimeInterval = 1.0
     
+    // Регулярный системный замер реального трафика (getifaddrs)
+    public var liveBandwidth: BandwidthSnapshot = BandwidthSnapshot(
+        downloadBytesPerSec: 0,
+        uploadBytesPerSec: 0,
+        downloadMbps: 0,
+        uploadMbps: 0,
+        totalReceivedBytes: 0,
+        totalSentBytes: 0,
+        timestamp: Date()
+    )
+
     // Speedtest
     public var isSpeedtestRunning: Bool = false
     public var liveDownloadSpeed: Double = 0.0
@@ -52,6 +63,7 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Движки и зависимости
     private let pingEngine = PingEngine(timeout: 2.0)
+    private let bandwidthEngine = BandwidthEngine()
     private let speedtestEngine = SpeedtestEngine()
     private let tracerouteEngine = TracerouteEngine()
     private let diagnostics = NetworkDiagnostics()
@@ -106,204 +118,216 @@ public final class NetworkMonitorViewModel {
 
     private func initMetricsForTargets() {
         for target in targets {
-            if hostMetrics[target.address] == nil {
-                hostMetrics[target.address] = HostMetrics(
-                    name: target.name,
-                    address: target.address,
-                    isGateway: target.isGateway
-                )
-            }
+            hostMetrics[target.id] = HostMetrics(
+                targetId: target.id,
+                name: target.name,
+                address: target.address,
+                isGateway: target.isGateway
+            )
         }
     }
 
-    // MARK: - Управление циклом мониторинга
+    // MARK: - Запуск / Остановка мониторинга
 
     public func startMonitoring() {
         guard !isMonitoringActive else { return }
         isMonitoringActive = true
-        HapticManager.shared.impactMedium()
 
-        // Фоновый опрос сетевой конфигурации
-        diagnosticsTask = Task { [weak self] in
-            guard let self else { return }
-            let info = await self.diagnostics.collectSystemInfo()
-            self.systemInfo = info
-            
-            // Если шлюз определен, обновляем адрес в списке
-            if let gw = info.gatewayIP, gw != "127.0.0.1" {
-                if let idx = self.targets.firstIndex(where: { $0.isGateway }) {
-                    self.targets[idx].address = gw
-                    self.hostMetrics[gw] = self.hostMetrics.removeValue(forKey: "gateway") ?? HostMetrics(name: "Локальный шлюз", address: gw, isGateway: true)
-                }
-            }
+        if hapticsEnabled {
+            HapticManager.shared.impactLight()
         }
 
-        // Основной асинхронный цикл пинга
-        monitorTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled && self.isMonitoringActive {
-                let records = await self.pingEngine.pingAll(targets: self.targets)
-                self.processPingBatch(records)
-
-                try? await Task.sleep(for: .seconds(self.pollingInterval))
-            }
-        }
+        startPollingTask()
+        startDiagnosticsTask()
     }
 
     public func stopMonitoring() {
         isMonitoringActive = false
         monitorTask?.cancel()
-        diagnosticsTask?.cancel()
         monitorTask = nil
+        diagnosticsTask?.cancel()
         diagnosticsTask = nil
-        HapticManager.shared.impactLight()
+
+        if hapticsEnabled {
+            HapticManager.shared.impactLight()
+        }
     }
 
-    // MARK: - Обработка результатов пинга
+    // MARK: - Фоновые задачи опроса
 
-    private func processPingBatch(_ records: [PingRecord]) {
-        for record in records {
-            let address = record.host
-            var metrics = hostMetrics[address] ?? HostMetrics(name: record.targetName, address: address)
+    private func startPollingTask() {
+        monitorTask?.cancel()
+        monitorTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self = self, self.isMonitoringActive else { break }
+                
+                await self.pollAllHosts()
 
-            metrics.sentCount += 1
-            metrics.lastUpdated = record.timestamp
+                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы
+                let snapshot = self.bandwidthEngine.sampleBandwidth()
+                self.liveBandwidth = snapshot
 
-            if record.isSuccess, let latency = record.latencyMs {
-                metrics.receivedCount += 1
-                metrics.lastLatencyMs = latency
+                // Передача реальной скорости в Dynamic Island
+                if self.liveActivityEnabled {
+                    let dlText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveDownloadSpeed) : snapshot.formattedDownloadSpeed
+                    let ulText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveUploadSpeed) : snapshot.formattedUploadSpeed
+                    let compactDl = self.isSpeedtestRunning ? String(format: "↓%.0fM", self.liveDownloadSpeed) : snapshot.compactDownload
+                    let compactUl = self.isSpeedtestRunning ? String(format: "↑%.0fM", self.liveUploadSpeed) : snapshot.compactUpload
 
-                // Расчет джиттера по RFC 3550
-                let prevLat = prevLatencies[address]
-                metrics.jitterMs = JitterAnalyzer.calculateRFC3550Jitter(
-                    previousJitter: metrics.jitterMs,
-                    previousLatency: prevLat,
-                    currentLatency: latency
-                )
-                prevLatencies[address] = latency
+                    ActivityManager.shared.updateActivity(
+                        downloadSpeedText: dlText,
+                        uploadSpeedText: ulText,
+                        compactDownloadText: compactDl,
+                        compactUploadText: compactUl,
+                        isTesting: self.isSpeedtestRunning,
+                        connectionType: self.systemInfo.connectionType.rawValue,
+                        ispName: self.systemInfo.ispName ?? "Интернет"
+                    )
+                }
 
-                metrics.latencyHistory.append(latency)
+                try? await Task.sleep(nanoseconds: UInt64(self.pollingInterval * 1_000_000_000))
+            }
+        }
+    }
+
+    private func startDiagnosticsTask() {
+        diagnosticsTask?.cancel()
+        diagnosticsTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self = self, self.isMonitoringActive else { break }
+                let info = await self.diagnostics.collectSystemDiagnostics()
+                self.systemInfo = info
+                try? await Task.sleep(nanoseconds: 10_000_000_000) // каждые 10 секунд
+            }
+        }
+    }
+
+    private func pollAllHosts() async {
+        let currentTargets = targets
+        await withTaskGroup(of: (String, PingRecord).self) { group in
+            for target in currentTargets {
+                group.addTask {
+                    let record = await self.pingEngine.ping(host: target.address, port: target.port)
+                    return (target.id, record)
+                }
+            }
+
+            for await (targetId, record) in group {
+                self.processPingRecord(targetId: targetId, record: record)
+            }
+        }
+    }
+
+    private func processPingRecord(targetId: String, record: PingRecord) {
+        guard var metric = hostMetrics[targetId] else { return }
+
+        metric.sentCount += 1
+        let prevRtt = prevLatencies[targetId]
+
+        if record.isSuccessful, let lat = record.latencyMs {
+            metric.receivedCount += 1
+            metric.lastLatencyMs = lat
+
+            // Расчет RFC 3550 Jitter
+            if let pRtt = prevRtt {
+                let d = abs(lat - pRtt)
+                metric.jitterMs = metric.jitterMs + (d - metric.jitterMs) / 16.0
+            }
+            prevLatencies[targetId] = lat
+
+            // Min / Max / Avg
+            metric.minLatencyMs = metric.minLatencyMs != nil ? min(metric.minLatencyMs!, lat) : lat
+            metric.maxLatencyMs = metric.maxLatencyMs != nil ? max(metric.maxLatencyMs!, lat) : lat
+
+            let totalLat = (metric.avgLatencyMs ?? lat) * Double(metric.receivedCount - 1) + lat
+            metric.avgLatencyMs = totalLat / Double(metric.receivedCount)
+
+            // Добавление в историю Sparkline
+            metric.latencyHistory.append(lat)
+            if metric.latencyHistory.count > 30 {
+                metric.latencyHistory.removeFirst()
+            }
+
+            // Оценка статуса хоста
+            if lat > latencyCritThreshold {
+                metric.status = .critical
+                triggerAlertIfNeeded(targetId: targetId, type: .highLatency(latency: lat))
+            } else if lat > latencyWarnThreshold {
+                metric.status = .warning
             } else {
-                metrics.lostCount += 1
-                metrics.lastLatencyMs = nil
-                metrics.latencyHistory.append(nil)
+                metric.status = .ok
             }
-
-            // Ограничение длины истории для графиков (последние 40 точек)
-            if metrics.latencyHistory.count > 40 {
-                metrics.latencyHistory.removeFirst()
-            }
-
-            // Расчет процента потерь
-            if metrics.sentCount > 0 {
-                metrics.lossRatePct = ((Double(metrics.lostCount) / Double(metrics.sentCount)) * 1000).rounded() / 10
-            }
-
-            let windowLost = metrics.latencyHistory.filter { $0 == nil }.count
-            metrics.lossWindowPct = ((Double(windowLost) / Double(metrics.latencyHistory.count)) * 1000).rounded() / 10
-
-            // Расчет перцентилей задержки
-            let validLatencies = metrics.latencyHistory.compactMap { $0 }
-            if !validLatencies.isEmpty {
-                metrics.minLatencyMs = (validLatencies.min()! * 10).rounded() / 10
-                metrics.maxLatencyMs = (validLatencies.max()! * 10).rounded() / 10
-                metrics.avgLatencyMs = ((validLatencies.reduce(0, +) / Double(validLatencies.count)) * 10).rounded() / 10
-                let percentiles = JitterAnalyzer.calculatePercentiles(from: validLatencies)
-                metrics.p95LatencyMs = percentiles.p95
-                metrics.p99LatencyMs = percentiles.p99
-            }
-
-            // Оценка статуса
-            evaluateHostStatus(&metrics)
-
-            hostMetrics[address] = metrics
-
-            // Сохранение в хранилище
-            Task { [storage = self.storage] in
-                await storage.recordPing(record)
-            }
-        }
-
-        // Непрерывное обновление Dynamic Island при активной Live Activity
-        if liveActivityEnabled {
-            let speed = liveDownloadSpeed > 0 ? liveDownloadSpeed : (lastSpeedtestResult?.downloadMbps ?? 0.0)
-            let upload = liveUploadSpeed > 0 ? liveUploadSpeed : (lastSpeedtestResult?.uploadMbps ?? 0.0)
-            ActivityManager.shared.updateActivity(
-                downloadMbps: speed,
-                uploadMbps: upload,
-                pingMs: currentAveragePing,
-                jitterMs: currentAverageJitter,
-                isTesting: isSpeedtestRunning,
-                connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Интернет"
-            )
-        }
-    }
-
-    private func evaluateHostStatus(_ metrics: inout HostMetrics) {
-        if metrics.lossWindowPct >= 99.0 && metrics.sentCount >= 3 {
-            metrics.status = .down
-            triggerAlert(for: metrics, severity: .critical, message: "Хост \(metrics.name) полностью недоступен")
-            return
-        }
-
-        if metrics.lossWindowPct >= lossCritThreshold {
-            metrics.status = .critical
-            triggerAlert(for: metrics, severity: .critical, message: "Критические потери: \(metrics.lossWindowPct)%")
-        } else if let lat = metrics.lastLatencyMs, lat >= latencyCritThreshold {
-            metrics.status = .critical
-            triggerAlert(for: metrics, severity: .critical, message: "Высокая задержка: \(lat) мс")
-        } else if let lat = metrics.lastLatencyMs, lat >= latencyWarnThreshold {
-            metrics.status = .warning
-        } else if metrics.jitterMs >= jitterWarnThreshold {
-            metrics.status = .warning
         } else {
-            metrics.status = .ok
+            // Потеря пакета
+            metric.lastLatencyMs = nil
+            metric.latencyHistory.append(nil)
+            if metric.latencyHistory.count > 30 {
+                metric.latencyHistory.removeFirst()
+            }
+
+            let lossPct = metric.lossWindowPct
+            if lossPct >= lossCritThreshold {
+                metric.status = .down
+                triggerAlertIfNeeded(targetId: targetId, type: .packetLoss(lossPct: lossPct))
+            } else {
+                metric.status = .warning
+            }
         }
+
+        hostMetrics[targetId] = metric
     }
 
-    private func triggerAlert(for metrics: HostMetrics, severity: AlertSeverity, message: String) {
+    // MARK: - Алерты
+
+    private func triggerAlertIfNeeded(targetId: String, type: NetworkAlert.AlertType) {
+        guard let host = hostMetrics[targetId] else { return }
+        
+        let shouldAlert = recentAlerts.first(where: {
+            $0.hostName == host.name && Date().timeIntervalSince($0.timestamp) < 30
+        }) == nil
+
+        guard shouldAlert else { return }
+
         let alert = NetworkAlert(
-            host: metrics.address,
-            targetName: metrics.name,
-            severity: severity,
-            message: message,
-            metricName: "network_quality",
-            currentValue: metrics.lastLatencyMs ?? 0.0,
-            thresholdValue: latencyCritThreshold
+            hostName: host.name,
+            hostAddress: host.address,
+            type: type,
+            timestamp: Date()
         )
 
         recentAlerts.insert(alert, at: 0)
-        if recentAlerts.count > 50 {
+        if recentAlerts.count > 20 {
             recentAlerts.removeLast()
         }
-
         activeAlert = alert
 
         if hapticsEnabled {
-            if severity == .critical {
-                HapticManager.shared.notificationError()
-            } else {
-                HapticManager.shared.notificationWarning()
-            }
+            HapticManager.shared.notificationWarning()
         }
+    }
+
+    public func dismissAlert() {
+        activeAlert = nil
     }
 
     // MARK: - Speedtest
 
-    public func runSpeedtest() {
+    public func startSpeedtest() {
         guard !isSpeedtestRunning else { return }
         isSpeedtestRunning = true
         liveDownloadSpeed = 0.0
         liveUploadSpeed = 0.0
-        HapticManager.shared.impactHeavy()
+
+        if hapticsEnabled {
+            HapticManager.shared.impactMedium()
+        }
 
         if liveActivityEnabled {
             ActivityManager.shared.updateActivity(
-                downloadMbps: 0.0,
-                uploadMbps: 0.0,
-                pingMs: currentAveragePing,
-                jitterMs: currentAverageJitter,
+                downloadSpeedText: "↓ Замер...",
+                uploadSpeedText: "↑ Замер...",
+                compactDownloadText: "↓...",
+                compactUploadText: "↑...",
                 isTesting: true,
                 connectionType: systemInfo.connectionType.rawValue,
                 ispName: systemInfo.ispName ?? "Интернет"
@@ -320,10 +344,10 @@ public final class NetworkMonitorViewModel {
 
                         if self.liveActivityEnabled {
                             ActivityManager.shared.updateActivity(
-                                downloadMbps: dl,
-                                uploadMbps: ul,
-                                pingMs: self.currentAveragePing,
-                                jitterMs: self.currentAverageJitter,
+                                downloadSpeedText: String(format: "↓ %.1f Мбит/с", dl),
+                                uploadSpeedText: String(format: "↑ %.1f Мбит/с", ul),
+                                compactDownloadText: String(format: "↓%.0fM", dl),
+                                compactUploadText: String(format: "↑%.0fM", ul),
                                 isTesting: true,
                                 connectionType: self.systemInfo.connectionType.rawValue,
                                 ispName: self.systemInfo.ispName ?? "Интернет"
@@ -338,10 +362,10 @@ public final class NetworkMonitorViewModel {
 
                 if self.liveActivityEnabled {
                     ActivityManager.shared.updateActivity(
-                        downloadMbps: result.downloadMbps,
-                        uploadMbps: result.uploadMbps,
-                        pingMs: self.currentAveragePing,
-                        jitterMs: self.currentAverageJitter,
+                        downloadSpeedText: String(format: "↓ %.1f Мбит/с", result.downloadMbps),
+                        uploadSpeedText: String(format: "↑ %.1f Мбит/с", result.uploadMbps),
+                        compactDownloadText: String(format: "↓%.0fM", result.downloadMbps),
+                        compactUploadText: String(format: "↑%.0fM", result.uploadMbps),
                         isTesting: false,
                         connectionType: self.systemInfo.connectionType.rawValue,
                         ispName: self.systemInfo.ispName ?? "Интернет"
@@ -364,11 +388,12 @@ public final class NetworkMonitorViewModel {
     public func toggleLiveActivity(enabled: Bool) {
         liveActivityEnabled = enabled
         if enabled {
+            let snapshot = bandwidthEngine.sampleBandwidth()
             ActivityManager.shared.startActivity(
-                downloadMbps: liveDownloadSpeed,
-                uploadMbps: liveUploadSpeed,
-                pingMs: currentAveragePing,
-                jitterMs: currentAverageJitter,
+                downloadSpeedText: snapshot.formattedDownloadSpeed,
+                uploadSpeedText: snapshot.formattedUploadSpeed,
+                compactDownloadText: snapshot.compactDownload,
+                compactUploadText: snapshot.compactUpload,
                 connectionType: systemInfo.connectionType.rawValue,
                 ispName: systemInfo.ispName ?? "Интернет"
             )

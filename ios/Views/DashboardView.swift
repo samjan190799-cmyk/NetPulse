@@ -61,7 +61,7 @@ public struct DashboardView: View {
                             pingMs: currentPing,
                             jitterMs: currentJitter,
                             onStartSpeedtest: {
-                                viewModel.runSpeedtest()
+                                viewModel.startSpeedtest()
                             }
                         )
 

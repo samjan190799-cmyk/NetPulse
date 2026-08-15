@@ -1,0 +1,61 @@
+# ==========================
+# Python & Virtual Environments
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================
+# Local DB & Session Reports
+# ==========================
+*.db
+*.sqlite
+*.sqlite3
+netpulse_history.db
+netpulse_report_*.json
+netpulse_metrics_*.csv
+NetPulse_Report_*.json
+NetPulse_Metrics_*.csv
+
+# ==========================
+# Apple iOS & Xcode
+# ==========================
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.ipa
+*.app
+
+# ==========================
+# OS & Editors
+# ==========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

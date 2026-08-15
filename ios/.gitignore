@@ -1,0 +1,25 @@
+# Файлы сборки и кэш Xcode
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+# Специфика macOS и IDE
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.vscode/
+.idea/
+
+# Временные отчеты сессий
+NetPulse_Report_*.json
+NetPulse_Metrics_*.csv

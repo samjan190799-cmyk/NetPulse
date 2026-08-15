@@ -1,0 +1,28 @@
+# Байткод Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Окружение и зависимости
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Локальные базы данных и отчеты
+*.db
+netpulse_history.db
+netpulse_report_*.json
+netpulse_metrics_*.csv
+
+# Тестирование и кэш
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+*.swo

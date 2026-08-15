@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetPulse — Real-Time Network Quality Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-card: rgba(18, 26, 43, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-blue: #00d2ff;
+            --accent-purple: #9d4edd;
+            --accent-green: #00f59b;
+            --accent-yellow: #ffd166;
+            --accent-red: #ff3366;
+            --text-primary: #f0f4f8;
+            --text-secondary: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 24px;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 210, 255, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(157, 78, 221, 0.12) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 28px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-box h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge-live {
+            background: rgba(0, 245, 155, 0.15);
+            color: var(--accent-green);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(0, 245, 155, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-live::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.3); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .grid-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 210, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .card-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-val {
+            font-size: 20px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .table-box {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 500;
+        }
+
+        td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .status-pill {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-ok { background: rgba(0, 245, 155, 0.15); color: var(--accent-green); }
+        .status-warn { background: rgba(255, 209, 102, 0.15); color: var(--accent-yellow); }
+        .status-crit { background: rgba(255, 51, 102, 0.15); color: var(--accent-red); }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        button {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(157, 78, 221, 0.2));
+            color: var(--text-primary);
+            border: 1px solid rgba(0, 210, 255, 0.4);
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.4), rgba(157, 78, 221, 0.4));
+            box-shadow: 0 0 16px rgba(0, 210, 255, 0.3);
+        }
+
+        .chart-box {
+            position: relative;
+            height: 280px;
+            margin-top: 14px;
+        }
+
+        .logs-box {
+            max-height: 240px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .log-entry.crit { border-left-color: var(--accent-red); }
+        .log-entry.warn { border-left-color: var(--accent-yellow); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo-box">
+                <h1>⚡ NetPulse</h1>
+                <div class="badge-live">LIVE MONITORING</div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="triggerSpeedtest()">🚀 Запустить Speedtest</button>
+                <button onclick="exportData('json')">📥 Экспорт JSON</button>
+                <button onclick="exportData('csv')">📊 Экспорт CSV</button>
+            </div>
+        </header>
+
+        <!-- System Topology Grid -->
+        <div class="grid-info">
+            <div class="card">
+                <div class="card-label">Локальный IP</div>
+                <div class="card-val" id="local-ip">...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Шлюз по умолчанию</div>
+                <div class="card-val" id="gateway-ip">...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Публичный IP & Провайдер</div>
+                <div class="card-val" id="public-ip" style="font-size: 16px;">...</div>
+            </div>
+            <div class="card">
+                <div class="card-label">DNS-серверы</div>
+                <div class="card-val" id="dns-servers" style="font-size: 16px;">...</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Left: Table & Latency Chart -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="card">
+                    <h2 style="font-size: 18px; margin-bottom: 14px;">Мониторинг целевых узлов</h2>
+                    <div class="table-box">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Статус</th>
+                                    <th>Хост</th>
+                                    <th>Адрес</th>
+                                    <th>RTT (мс)</th>
+                                    <th>Min/Avg/Max</th>
+                                    <th>Джиттер RFC 3550</th>
+                                    <th>Потери (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hosts-tbody">
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">Ожидание данных телеметрии...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 style="font-size: 18px;">Динамика задержки RTT в реальном времени</h2>
+                    <div class="chart-box">
+                        <canvas id="rttChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Speedtest & Alert Logs -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="card">
+                    <h2 style="font-size: 18px; margin-bottom: 12px;">Пропускная способность</h2>
+                    <div style="display: flex; justify-content: space-around; margin: 16px 0;">
+                        <div style="text-align: center;">
+                            <div class="card-label">Download</div>
+                            <div id="speed-down" style="font-size: 26px; font-weight: 700; color: var(--accent-green);">-- Mbps</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="card-label">Upload</div>
+                            <div id="speed-up" style="font-size: 26px; font-weight: 700; color: var(--accent-blue);">-- Mbps</div>
+                        </div>
+                    </div>
+                    <div id="speed-status" style="font-size: 12px; color: var(--text-secondary); text-align: center;">Готов к тестированию</div>
+                </div>
+
+                <div class="card" style="flex: 1;">
+                    <h2 style="font-size: 18px; margin-bottom: 12px;">События и алерты</h2>
+                    <div class="logs-box" id="alerts-box">
+                        <div style="color: var(--accent-green); padding: 8px;">Сеть функционирует стабильно.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        const chartData = {
+            labels: [],
+            datasets: []
+        };
+
+        function initChart() {
+            const ctx = document.getElementById('rttChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'RTT (мс)', color: '#94a3b8' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#f0f4f8' } }
+                    }
+                }
+            });
+        }
+
+        async function fetchSystemInfo() {
+            try {
+                const res = await fetch('/api/system');
+                const data = await res.json();
+                document.getElementById('local-ip').innerText = data.local_ip;
+                document.getElementById('gateway-ip').innerText = data.gateway_ip || 'N/A';
+                document.getElementById('public-ip').innerText = `${data.public_ip} (${data.isp_name || 'ISP'})`;
+                document.getElementById('dns-servers').innerText = (data.dns_servers || []).join(', ');
+            } catch(e) {}
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/stats');
+                const hosts = await res.json();
+                renderTable(hosts);
+                updateChart(hosts);
+            } catch(e) {}
+        }
+
+        function renderTable(hosts) {
+            const tbody = document.getElementById('hosts-tbody');
+            tbody.innerHTML = '';
+            hosts.forEach(h => {
+                const tr = document.createElement('tr');
+                const statusClass = h.status === 'OK' ? 'status-ok' : (h.status === 'WARN' ? 'status-warn' : 'status-crit');
+                const rtt = h.last_latency_ms !== null ? `${h.last_latency_ms.toFixed(1)} мс` : '<span style="color:var(--accent-red)">LOST</span>';
+                const minAvgMax = h.min_latency_ms !== null ? `${h.min_latency_ms.toFixed(0)}/${h.avg_latency_ms.toFixed(0)}/${h.max_latency_ms.toFixed(0)}` : '-';
+                
+                tr.innerHTML = `
+                    <td><span class="status-pill ${statusClass}">${h.status}</span></td>
+                    <td><strong>${h.name}</strong></td>
+                    <td style="color:var(--text-secondary)">${h.address}</td>
+                    <td>${rtt}</td>
+                    <td>${minAvgMax}</td>
+                    <td>${h.jitter_ms.toFixed(1)} мс</td>
+                    <td>${h.loss_window_pct.toFixed(1)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateChart(hosts) {
+            const nowStr = new Date().toLocaleTimeString();
+            if (chartData.labels.length > 25) {
+                chartData.labels.shift();
+            }
+            chartData.labels.push(nowStr);
+
+            const colors = ['#00d2ff', '#9d4edd', '#00f59b', '#ffd166', '#ff3366'];
+            
+            hosts.forEach((h, idx) => {
+                let dataset = chartData.datasets.find(d => d.label === h.name);
+                if (!dataset) {
+                    dataset = {
+                        label: h.name,
+                        data: [],
+                        borderColor: colors[idx % colors.length],
+                        backgroundColor: 'transparent',
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 2
+                    };
+                    chartData.datasets.push(dataset);
+                }
+                if (dataset.data.length > 25) {
+                    dataset.data.shift();
+                }
+                dataset.data.push(h.last_latency_ms);
+            });
+
+            chart.update('none');
+        }
+
+        async function triggerSpeedtest() {
+            document.getElementById('speed-status').innerText = 'Замер скорости в процессе...';
+            try {
+                const res = await fetch('/api/speedtest', { method: 'POST' });
+                const data = await res.json();
+                document.getElementById('speed-down').innerText = `${data.download_mbps} Mbps`;
+                document.getElementById('speed-up').innerText = `${data.upload_mbps} Mbps`;
+                document.getElementById('speed-status').innerText = `Завершено в ${new Date().toLocaleTimeString()}`;
+            } catch(e) {
+                document.getElementById('speed-status').innerText = 'Ошибка замера';
+            }
+        }
+
+        function exportData(format) {
+            window.location.href = `/api/export/${format}`;
+        }
+
+        window.onload = () => {
+            initChart();
+            fetchSystemInfo();
+            fetchMetrics();
+            setInterval(fetchMetrics, 1000);
+            setInterval(fetchSystemInfo, 30000);
+        };
+    </script>
+</body>
+</html>

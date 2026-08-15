@@ -40,6 +40,10 @@ public final class NetworkMonitorViewModel {
     public var soundEnabled: Bool = true
     public var hapticsEnabled: Bool = true
 
+    // Виджеты: Dynamic Island & Игровой HUD
+    public var liveActivityEnabled: Bool = false
+    public var floatingHUDEnabled: Bool = false
+
     // Настройки порогов
     public var latencyWarnThreshold: Double = 100.0
     public var latencyCritThreshold: Double = 180.0
@@ -240,6 +244,18 @@ public final class NetworkMonitorViewModel {
         liveUploadSpeed = 0.0
         HapticManager.shared.impactHeavy()
 
+        if liveActivityEnabled {
+            ActivityManager.shared.updateActivity(
+                downloadMbps: 0.0,
+                uploadMbps: 0.0,
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
+                isTesting: true,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет"
+            )
+        }
+
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -247,12 +263,36 @@ public final class NetworkMonitorViewModel {
                     Task { @MainActor in
                         self.liveDownloadSpeed = dl
                         self.liveUploadSpeed = ul
+
+                        if self.liveActivityEnabled {
+                            ActivityManager.shared.updateActivity(
+                                downloadMbps: dl,
+                                uploadMbps: ul,
+                                pingMs: self.currentAveragePing,
+                                jitterMs: self.currentAverageJitter,
+                                isTesting: true,
+                                connectionType: self.systemInfo.connectionType.rawValue,
+                                ispName: self.systemInfo.ispName ?? "Интернет"
+                            )
+                        }
                     }
                 }
                 self.lastSpeedtestResult = result
                 self.liveDownloadSpeed = result.downloadMbps
                 self.liveUploadSpeed = result.uploadMbps
                 self.isSpeedtestRunning = false
+
+                if self.liveActivityEnabled {
+                    ActivityManager.shared.updateActivity(
+                        downloadMbps: result.downloadMbps,
+                        uploadMbps: result.uploadMbps,
+                        pingMs: self.currentAveragePing,
+                        jitterMs: self.currentAverageJitter,
+                        isTesting: false,
+                        connectionType: self.systemInfo.connectionType.rawValue,
+                        ispName: self.systemInfo.ispName ?? "Интернет"
+                    )
+                }
 
                 if self.hapticsEnabled {
                     HapticManager.shared.notificationSuccess()
@@ -263,6 +303,42 @@ public final class NetworkMonitorViewModel {
                 self.isSpeedtestRunning = false
             }
         }
+    }
+
+    // MARK: - Управление виджетами
+
+    public func toggleLiveActivity(enabled: Bool) {
+        liveActivityEnabled = enabled
+        if enabled {
+            ActivityManager.shared.startActivity(
+                downloadMbps: liveDownloadSpeed,
+                uploadMbps: liveUploadSpeed,
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет"
+            )
+        } else {
+            ActivityManager.shared.stopActivity()
+        }
+    }
+
+    public var currentAveragePing: Double? {
+        let latencies = hostMetrics.values.compactMap { $0.lastLatencyMs }
+        guard !latencies.isEmpty else { return nil }
+        return (latencies.reduce(0, +) / Double(latencies.count) * 10).rounded() / 10
+    }
+
+    public var currentAverageJitter: Double? {
+        let jitters = hostMetrics.values.map { $0.jitterMs }.filter { $0 > 0 }
+        guard !jitters.isEmpty else { return nil }
+        return (jitters.reduce(0, +) / Double(jitters.count) * 10).rounded() / 10
+    }
+
+    public var currentPacketLossPct: Double {
+        let losses = hostMetrics.values.map { $0.lossWindowPct }
+        guard !losses.isEmpty else { return 0.0 }
+        return (losses.reduce(0, +) / Double(losses.count) * 10).rounded() / 10
     }
 
     // MARK: - Traceroute (MTR)

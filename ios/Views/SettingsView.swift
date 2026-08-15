@@ -113,6 +113,32 @@ public struct SettingsView: View {
                     Slider(value: $viewModel.lossCritThreshold, in: 1...20, step: 1)
                 }
 
+                // Виджеты и Оверлеи
+                Section("Виджеты и мониторинг") {
+                    Toggle(isOn: Binding(
+                        get: { viewModel.liveActivityEnabled },
+                        set: { viewModel.toggleLiveActivity(enabled: $0) }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Dynamic Island (Live Activity)")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Показ скорости в вырезе экрана и на Lock Screen")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Toggle(isOn: $viewModel.floatingHUDEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Плавающий игровой оверлей (HUD)")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Мини-виджет поверх экрана, который можно перемещать пальцем")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 // Обратная связь
                 Section("Тактильная отдача и звуки") {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)

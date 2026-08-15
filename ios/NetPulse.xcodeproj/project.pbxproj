@@ -36,6 +36,10 @@
 		A10000222C1234560000002C /* NetworkCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000222C1234560000002C /* NetworkCapability.swift */; };
 		A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000232C1234560000002D /* NetworkCapabilityCardView.swift */; };
 		A10000242C1234560000002E /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000242C1234560000002E /* DiagnosticsView.swift */; };
+		A10000252C1234560000002F /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000252C1234560000002F /* NetPulseAttributes.swift */; };
+		A10000262C12345600000030 /* ActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000262C12345600000030 /* ActivityManager.swift */; };
+		A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */; };
+		A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C12345600000032 /* FloatingGameOverlayView.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -71,6 +75,10 @@
 		B10000222C1234560000002C /* NetworkCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCapability.swift; sourceTree = "<group>"; };
 		B10000232C1234560000002D /* NetworkCapabilityCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCapabilityCardView.swift; sourceTree = "<group>"; };
 		B10000242C1234560000002E /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		B10000252C1234560000002F /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseAttributes.swift; sourceTree = "<group>"; };
+		B10000262C12345600000030 /* ActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityManager.swift; sourceTree = "<group>"; };
+		B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
+		B10000282C12345600000032 /* FloatingGameOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingGameOverlayView.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -130,6 +138,7 @@
 				B10000082C12345600000008 /* TracerouteHop.swift */,
 				B10000092C12345600000009 /* NetworkAlert.swift */,
 				B10000222C1234560000002C /* NetworkCapability.swift */,
+				B10000252C1234560000002F /* NetPulseAttributes.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -176,6 +185,8 @@
 				B10000172C12345600000017 /* AlertsBannerView.swift */,
 				B10000212C1234560000002B /* SpeedtestHeroView.swift */,
 				B10000232C1234560000002D /* NetworkCapabilityCardView.swift */,
+				B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */,
+				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -185,6 +196,7 @@
 			children = (
 				B10000182C12345600000018 /* HapticManager.swift */,
 				B10000192C12345600000019 /* HistoryStorage.swift */,
+				B10000262C12345600000030 /* ActivityManager.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -283,6 +295,10 @@
 				A10000222C1234560000002C /* NetworkCapability.swift in Sources */,
 				A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */,
 				A10000242C1234560000002E /* DiagnosticsView.swift in Sources */,
+				A10000252C1234560000002F /* NetPulseAttributes.swift in Sources */,
+				A10000262C12345600000030 /* ActivityManager.swift in Sources */,
+				A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */,
+				A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

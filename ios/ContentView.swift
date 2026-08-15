@@ -7,28 +7,47 @@
 
 import SwiftUI
 
-/// Главный навигационный контейнер приложения с 3 разделами.
+/// Главный навигационный контейнер приложения с 3 разделами и плавающим игровым HUD.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel()
 
     public var body: some View {
-        TabView {
-            DashboardView(viewModel: viewModel)
-                .tabItem {
-                    Label("Скорость", systemImage: "gauge.with.dots.needle.67percent")
-                }
+        ZStack {
+            TabView {
+                DashboardView(viewModel: viewModel)
+                    .tabItem {
+                        Label("Скорость", systemImage: "gauge.with.dots.needle.67percent")
+                    }
 
-            DiagnosticsView(viewModel: viewModel)
-                .tabItem {
-                    Label("Диагностика", systemImage: "waveform.path.ecg")
-                }
+                DiagnosticsView(viewModel: viewModel)
+                    .tabItem {
+                        Label("Диагностика", systemImage: "waveform.path.ecg")
+                    }
 
-            SettingsView(viewModel: viewModel)
-                .tabItem {
-                    Label("Настройки", systemImage: "gearshape.fill")
-                }
+                SettingsView(viewModel: viewModel)
+                    .tabItem {
+                        Label("Настройки", systemImage: "gearshape.fill")
+                    }
+            }
+            .tint(.blue)
+            .preferredColorScheme(.dark)
+
+            // Плавающий игровой HUD поверх экранов
+            if viewModel.floatingHUDEnabled {
+                FloatingGameOverlayView(
+                    downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
+                    uploadMbps: viewModel.liveUploadSpeed > 0 ? viewModel.liveUploadSpeed : (viewModel.lastSpeedtestResult?.uploadMbps ?? 0.0),
+                    pingMs: viewModel.currentAveragePing,
+                    jitterMs: viewModel.currentAverageJitter,
+                    packetLossPct: viewModel.currentPacketLossPct,
+                    onClose: {
+                        withAnimation {
+                            viewModel.floatingHUDEnabled = false
+                        }
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            }
         }
-        .tint(.blue)
-        .preferredColorScheme(.dark)
     }
 }

@@ -8,10 +8,12 @@
 import SwiftUI
 import Charts
 
-/// Glassmorphic карточка целевого узла со статусом, RTT и джиттером RFC 3550.
+/// Карточка целевого узла со статусом, RTT, джиттером RFC 3550 и живыми микро-анимациями.
 public struct HostMetricCardView: View {
     public let metrics: HostMetrics
     public let onTracerouteTapped: () -> Void
+
+    @State private var isTraceroutePressed: Bool = false
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -36,7 +38,7 @@ public struct HostMetricCardView: View {
 
                 Spacer()
 
-                // Статус хоста
+                // Статус хоста с пульсирующей точкой
                 StatusPill(status: metrics.status)
             }
 
@@ -52,6 +54,8 @@ public struct HostMetricCardView: View {
                             Text(String(format: "%.1f", rtt))
                                 .font(.system(size: 26, weight: .heavy, design: .rounded))
                                 .foregroundStyle(colorForLatency(rtt))
+                                .contentTransition(.numericText(value: rtt))
+                                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: rtt)
 
                             Text("мс")
                                 .font(.system(size: 12, weight: .semibold))
@@ -92,13 +96,26 @@ public struct HostMetricCardView: View {
                     isAlert: metrics.lossWindowPct > 3.0
                 )
 
-                Button(action: onTracerouteTapped) {
+                Button(action: {
+                    HapticManager.shared.impactLight()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                        isTraceroutePressed = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            isTraceroutePressed = false
+                        }
+                    }
+                    onTracerouteTapped()
+                }) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                         .padding(8)
                         .background(Color(uiColor: .tertiarySystemBackground))
                         .clipShape(Circle())
+                        .scaleEffect(isTraceroutePressed ? 0.88 : 1.0)
+                        .rotationEffect(.degrees(isTraceroutePressed ? 45 : 0))
                 }
             }
         }
@@ -107,8 +124,9 @@ public struct HostMetricCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(strokeColorForStatus(metrics.status), lineWidth: 1)
         )
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: metrics.status)
     }
 
     private func colorForLatency(_ lat: Double) -> Color {
@@ -119,11 +137,11 @@ public struct HostMetricCardView: View {
 
     private func strokeColorForStatus(_ status: HostStatus) -> Color {
         switch status {
-        case .ok: return Color.white.opacity(0.1)
+        case .ok: return Color.white.opacity(0.06)
         case .warning: return Color.yellow.opacity(0.35)
         case .critical: return Color.red.opacity(0.45)
         case .down: return Color.red.opacity(0.6)
-        case .unknown: return Color.white.opacity(0.08)
+        case .unknown: return Color.white.opacity(0.06)
         }
     }
 
@@ -137,12 +155,16 @@ public struct HostMetricCardView: View {
 
 private struct StatusPill: View {
     let status: HostStatus
+    @State private var isBreathing: Bool = false
 
     var body: some View {
         HStack(spacing: 5) {
             Circle()
                 .fill(statusColor)
                 .frame(width: 6, height: 6)
+                .scaleEffect(status == .ok && isBreathing ? 1.3 : 1.0)
+                .opacity(status == .ok && isBreathing ? 0.7 : 1.0)
+                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isBreathing)
 
             Text(status.rawValue)
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -150,8 +172,11 @@ private struct StatusPill: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
-        .background(statusColor.opacity(0.15))
+        .background(statusColor.opacity(0.12))
         .clipShape(Capsule())
+        .onAppear {
+            isBreathing = true
+        }
     }
 
     private var statusColor: Color {
@@ -209,9 +234,10 @@ private struct MiniSparklineView: View {
                     }
                 }
                 .stroke(
-                    LinearGradient(colors: [.cyan, .purple], startPoint: .leading, endPoint: .trailing),
+                    LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
                 )
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: data.count)
             } else {
                 Color.clear
             }

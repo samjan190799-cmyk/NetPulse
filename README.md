@@ -4,6 +4,8 @@
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-brightgreen.svg)](https://www.python.org/)
 [![Swift: 6.0+](https://img.shields.io/badge/Swift-6.0%2B-orange.svg)](https://swift.org)
 [![iOS: 17.0+](https://img.shields.io/badge/iOS-17.0%2B-purple.svg)](https://developer.apple.com/ios/)
+[![TestFlight: Ready](https://img.shields.io/badge/TestFlight-v1.0.0-blue.svg)](https://appstoreconnect.apple.com/)
+[![CI/CD: GitHub Actions](https://img.shields.io/badge/CI%2FCD-Active-success.svg)](.github/workflows/testflight.yml)
 
 **NetPulse** — это кроссплатформенный набор легковесных, высокопроизводительных инструментов для мониторинга качества сетевого соединения в реальном времени, анализа стабильности каналов связи, расчета джиттера по стандарту **RFC 3550**, потокового замера скорости (Speedtest) и автоматической MTR-трассировки.
 

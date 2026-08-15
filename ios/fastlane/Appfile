@@ -1,0 +1,5 @@
+# Fastlane Appfile
+app_identifier(ENV["APP_IDENTIFIER"] || "com.samvel.netpulse")
+apple_id(ENV["APPLE_ID"] || "samjan190799@gmail.com")
+itc_team_id(ENV["ITC_TEAM_ID"] || "")
+team_id(ENV["TEAM_ID"] || "")

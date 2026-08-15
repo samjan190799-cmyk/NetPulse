@@ -1,0 +1,384 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000012C12345600000001 /* NetPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000012C12345600000001 /* NetPulseApp.swift */; };
+		A10000022C12345600000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000022C12345600000002 /* ContentView.swift */; };
+		A10000032C12345600000003 /* HostTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000032C12345600000003 /* HostTarget.swift */; };
+		A10000042C12345600000004 /* PingRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000042C12345600000004 /* PingRecord.swift */; };
+		A10000052C12345600000005 /* HostMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000052C12345600000005 /* HostMetrics.swift */; };
+		A10000062C12345600000006 /* NetworkInterfaceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000062C12345600000006 /* NetworkInterfaceInfo.swift */; };
+		A10000072C12345600000007 /* SpeedtestResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000072C12345600000007 /* SpeedtestResult.swift */; };
+		A10000082C12345600000008 /* TracerouteHop.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000082C12345600000008 /* TracerouteHop.swift */; };
+		A10000092C12345600000009 /* NetworkAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000092C12345600000009 /* NetworkAlert.swift */; };
+		A100000A2C1234560000000A /* PingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000A2C1234560000000A /* PingEngine.swift */; };
+		A100000B2C1234560000000B /* JitterAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000B2C1234560000000B /* JitterAnalyzer.swift */; };
+		A100000C2C1234560000000C /* SpeedtestEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000C2C1234560000000C /* SpeedtestEngine.swift */; };
+		A100000D2C1234560000000D /* NetworkDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000D2C1234560000000D /* NetworkDiagnostics.swift */; };
+		A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E2C1234560000000E /* TracerouteEngine.swift */; };
+		A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */; };
+		A10000102C12345600000010 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000102C12345600000010 /* DashboardView.swift */; };
+		A10000112C12345600000011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000112C12345600000011 /* SettingsView.swift */; };
+		A10000122C12345600000012 /* NetworkInfoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000122C12345600000012 /* NetworkInfoCardView.swift */; };
+		A10000132C12345600000013 /* HostMetricCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000132C12345600000013 /* HostMetricCardView.swift */; };
+		A10000142C12345600000014 /* LatencyChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000142C12345600000014 /* LatencyChartView.swift */; };
+		A10000152C12345600000015 /* SpeedtestGaugeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000152C12345600000015 /* SpeedtestGaugeView.swift */; };
+		A10000162C12345600000016 /* TracerouteSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000162C12345600000016 /* TracerouteSheetView.swift */; };
+		A10000172C12345600000017 /* AlertsBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000172C12345600000017 /* AlertsBannerView.swift */; };
+		A10000182C12345600000018 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000182C12345600000018 /* HapticManager.swift */; };
+		A10000192C12345600000019 /* HistoryStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000192C12345600000019 /* HistoryStorage.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C10000002C12345600000000 /* NetPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000002C12345600000000 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000012C12345600000001 /* NetPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseApp.swift; sourceTree = "<group>"; };
+		B10000022C12345600000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B10000032C12345600000003 /* HostTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostTarget.swift; sourceTree = "<group>"; };
+		B10000042C12345600000004 /* PingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingRecord.swift; sourceTree = "<group>"; };
+		B10000052C12345600000005 /* HostMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMetrics.swift; sourceTree = "<group>"; };
+		B10000062C12345600000006 /* NetworkInterfaceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceInfo.swift; sourceTree = "<group>"; };
+		B10000072C12345600000007 /* SpeedtestResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestResult.swift; sourceTree = "<group>"; };
+		B10000082C12345600000008 /* TracerouteHop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracerouteHop.swift; sourceTree = "<group>"; };
+		B10000092C12345600000009 /* NetworkAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkAlert.swift; sourceTree = "<group>"; };
+		B100000A2C1234560000000A /* PingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingEngine.swift; sourceTree = "<group>"; };
+		B100000B2C1234560000000B /* JitterAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JitterAnalyzer.swift; sourceTree = "<group>"; };
+		B100000C2C1234560000000C /* SpeedtestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestEngine.swift; sourceTree = "<group>"; };
+		B100000D2C1234560000000D /* NetworkDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkDiagnostics.swift; sourceTree = "<group>"; };
+		B100000E2C1234560000000E /* TracerouteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracerouteEngine.swift; sourceTree = "<group>"; };
+		B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorViewModel.swift; sourceTree = "<group>"; };
+		B10000102C12345600000010 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		B10000112C12345600000011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B10000122C12345600000012 /* NetworkInfoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInfoCardView.swift; sourceTree = "<group>"; };
+		B10000132C12345600000013 /* HostMetricCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMetricCardView.swift; sourceTree = "<group>"; };
+		B10000142C12345600000014 /* LatencyChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatencyChartView.swift; sourceTree = "<group>"; };
+		B10000152C12345600000015 /* SpeedtestGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestGaugeView.swift; sourceTree = "<group>"; };
+		B10000162C12345600000016 /* TracerouteSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracerouteSheetView.swift; sourceTree = "<group>"; };
+		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsBannerView.swift; sourceTree = "<group>"; };
+		B10000182C12345600000018 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
+		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStorage.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D10000012C12345600000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E10000002C12345600000000 = {
+			isa = PBXGroup;
+			children = (
+				E10000012C12345600000001 /* NetPulse */,
+				E10000082C12345600000008 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E10000012C12345600000001 /* NetPulse */ = {
+			isa = PBXGroup;
+			children = (
+				B10000012C12345600000001 /* NetPulseApp.swift */,
+				B10000022C12345600000002 /* ContentView.swift */,
+				B10000002C12345600000000 /* Info.plist */,
+				E10000022C12345600000002 /* Models */,
+				E10000032C12345600000003 /* Engines */,
+				E10000042C12345600000004 /* ViewModels */,
+				E10000052C12345600000005 /* Views */,
+				E10000072C12345600000007 /* Utils */,
+			);
+			path = NetPulse;
+			sourceTree = "<group>";
+		};
+		E10000022C12345600000002 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10000032C12345600000003 /* HostTarget.swift */,
+				B10000042C12345600000004 /* PingRecord.swift */,
+				B10000052C12345600000005 /* HostMetrics.swift */,
+				B10000062C12345600000006 /* NetworkInterfaceInfo.swift */,
+				B10000072C12345600000007 /* SpeedtestResult.swift */,
+				B10000082C12345600000008 /* TracerouteHop.swift */,
+				B10000092C12345600000009 /* NetworkAlert.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		E10000032C12345600000003 /* Engines */ = {
+			isa = PBXGroup;
+			children = (
+				B100000A2C1234560000000A /* PingEngine.swift */,
+				B100000B2C1234560000000B /* JitterAnalyzer.swift */,
+				B100000C2C1234560000000C /* SpeedtestEngine.swift */,
+				B100000D2C1234560000000D /* NetworkDiagnostics.swift */,
+				B100000E2C1234560000000E /* TracerouteEngine.swift */,
+			);
+			path = Engines;
+			sourceTree = "<group>";
+		};
+		E10000042C12345600000004 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		E10000052C12345600000005 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B10000102C12345600000010 /* DashboardView.swift */,
+				B10000112C12345600000011 /* SettingsView.swift */,
+				E10000062C12345600000006 /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		E10000062C12345600000006 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				B10000122C12345600000012 /* NetworkInfoCardView.swift */,
+				B10000132C12345600000013 /* HostMetricCardView.swift */,
+				B10000142C12345600000014 /* LatencyChartView.swift */,
+				B10000152C12345600000015 /* SpeedtestGaugeView.swift */,
+				B10000162C12345600000016 /* TracerouteSheetView.swift */,
+				B10000172C12345600000017 /* AlertsBannerView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		E10000072C12345600000007 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				B10000182C12345600000018 /* HapticManager.swift */,
+				B10000192C12345600000019 /* HistoryStorage.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		E10000082C12345600000008 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C10000002C12345600000000 /* NetPulse.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F10000012C12345600000001 /* NetPulse */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G10000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulse" */;
+			buildPhases = (
+				D10000002C12345600000000 /* Sources */,
+				D10000012C12345600000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NetPulse;
+			productName = NetPulse;
+			productReference = C10000002C12345600000000 /* NetPulse.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		010000002C12345600000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					F10000012C12345600000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = G10000002C12345600000000 /* Build configuration list for PBXProject "NetPulse" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ru;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				ru,
+				Base,
+			);
+			mainGroup = E10000002C12345600000000;
+			productRefGroup = E10000082C12345600000008 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F10000012C12345600000001 /* NetPulse */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D10000002C12345600000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000012C12345600000001 /* NetPulseApp.swift in Sources */,
+				A10000022C12345600000002 /* ContentView.swift in Sources */,
+				A10000032C12345600000003 /* HostTarget.swift in Sources */,
+				A10000042C12345600000004 /* PingRecord.swift in Sources */,
+				A10000052C12345600000005 /* HostMetrics.swift in Sources */,
+				A10000062C12345600000006 /* NetworkInterfaceInfo.swift in Sources */,
+				A10000072C12345600000007 /* SpeedtestResult.swift in Sources */,
+				A10000082C12345600000008 /* TracerouteHop.swift in Sources */,
+				A10000092C12345600000009 /* NetworkAlert.swift in Sources */,
+				A100000A2C1234560000000A /* PingEngine.swift in Sources */,
+				A100000B2C1234560000000B /* JitterAnalyzer.swift in Sources */,
+				A100000C2C1234560000000C /* SpeedtestEngine.swift in Sources */,
+				A100000D2C1234560000000D /* NetworkDiagnostics.swift in Sources */,
+				A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */,
+				A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */,
+				A10000102C12345600000010 /* DashboardView.swift in Sources */,
+				A10000112C12345600000011 /* SettingsView.swift in Sources */,
+				A10000122C12345600000012 /* NetworkInfoCardView.swift in Sources */,
+				A10000132C12345600000013 /* HostMetricCardView.swift in Sources */,
+				A10000142C12345600000014 /* LatencyChartView.swift in Sources */,
+				A10000152C12345600000015 /* SpeedtestGaugeView.swift in Sources */,
+				A10000162C12345600000016 /* TracerouteSheetView.swift in Sources */,
+				A10000172C12345600000017 /* AlertsBannerView.swift in Sources */,
+				A10000182C12345600000018 /* HapticManager.swift in Sources */,
+				A10000192C12345600000019 /* HistoryStorage.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		H10000002C12345600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		H10000012C12345600000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		H10000022C12345600000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		H10000032C12345600000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		G10000002C12345600000000 /* Build configuration list for PBXProject "NetPulse" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H10000002C12345600000000 /* Debug */,
+				H10000012C12345600000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		G10000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulse" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H10000022C12345600000002 /* Debug */,
+				H10000032C12345600000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 010000002C12345600000000 /* Project object */;
+}

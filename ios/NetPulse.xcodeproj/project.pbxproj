@@ -375,6 +375,8 @@
 				A10000152C12345600000015 /* SpeedtestGaugeView.swift in Sources */,
 				A10000162C12345600000016 /* TracerouteSheetView.swift in Sources */,
 				A10000172C12345600000017 /* AlertsBannerView.swift in Sources */,
+				A10000182C12345600000018 /* HapticManager.swift in Sources */,
+				A10000192C12345600000019 /* HistoryStorage.swift in Sources */,
 				A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */,
 				A10000222C1234560000002C /* NetworkCapability.swift in Sources */,
 				A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */,

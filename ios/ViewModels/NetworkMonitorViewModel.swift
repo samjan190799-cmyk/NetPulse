@@ -85,7 +85,9 @@ public final class NetworkMonitorViewModel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleDidEnterBackground()
+            Task { @MainActor in
+                self?.handleDidEnterBackground()
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -93,7 +95,9 @@ public final class NetworkMonitorViewModel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleWillEnterForeground()
+            Task { @MainActor in
+                self?.handleWillEnterForeground()
+            }
         }
     }
 

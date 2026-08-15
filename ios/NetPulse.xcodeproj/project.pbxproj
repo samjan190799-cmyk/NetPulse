@@ -95,7 +95,6 @@
 				E10000052C12345600000005 /* Views */,
 				E10000072C12345600000007 /* Utils */,
 			);
-			path = NetPulse;
 			sourceTree = "<group>";
 		};
 		E10000022C12345600000002 /* Models */ = {

@@ -27,6 +27,8 @@ jobs:
     name: "Сборка и доставка в TestFlight"
     runs-on: macos-14
     timeout-minutes: 30
+    env:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
 
     steps:
       - name: "Проверка репозитория"
@@ -47,24 +49,21 @@ jobs:
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
 
       - name: "Импорт сертификата Apple Distribution (при наличии)"
-        if: ${{ secrets.APPLE_CERTIFICATE_BASE64 != '' }}
+        if: env.APPLE_CERTIFICATE_BASE64 != ''
         env:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'default_keychain_pass_123' }}
         run: |
-          # Создание временной связки ключей
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-          # Импорт сертификата
           echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
           security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
 
-          # Разрешение доступа к кодовой подписи
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
       - name: "Сборка архива NetPulse.xcarchive"
@@ -77,11 +76,9 @@ jobs:
           BUILD_NUM=${{ github.run_number }}
           VERSION="${{ github.event.inputs.version_name || '1.0.0' }}"
           
-          # Установка версий
           xcrun agvtool new-version -all $BUILD_NUM || true
           xcrun agvtool new-marketing-version $VERSION || true
 
-          # Сборка архива
           xcodebuild archive \
             -project NetPulse.xcodeproj \
             -scheme NetPulse \
@@ -122,7 +119,6 @@ jobs:
           fi
           echo "✔ Найден IPA: $IPA_PATH"
 
-          # Выгрузка через xcrun altool
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
             --type ios \

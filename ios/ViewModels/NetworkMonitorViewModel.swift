@@ -60,9 +60,48 @@ public final class NetworkMonitorViewModel {
     private var monitorTask: Task<Void, Never>?
     private var diagnosticsTask: Task<Void, Never>?
     private var prevLatencies: [String: Double] = [:]
+    private var bgTask: UIBackgroundTaskIdentifier = .invalid
 
     public init() {
         initMetricsForTargets()
+        setupBackgroundObservation()
+    }
+
+    private func setupBackgroundObservation() {
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleDidEnterBackground()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleWillEnterForeground()
+        }
+    }
+
+    private func handleDidEnterBackground() {
+        if liveActivityEnabled || isMonitoringActive {
+            bgTask = UIApplication.shared.beginBackgroundTask(withName: "NetPulseBackgroundTelemetry") { [weak self] in
+                guard let self else { return }
+                if self.bgTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(self.bgTask)
+                    self.bgTask = .invalid
+                }
+            }
+        }
+    }
+
+    private func handleWillEnterForeground() {
+        if bgTask != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+        }
     }
 
     private func initMetricsForTargets() {

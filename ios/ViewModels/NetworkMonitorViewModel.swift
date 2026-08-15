@@ -184,6 +184,21 @@ public final class NetworkMonitorViewModel {
                 await storage.recordPing(record)
             }
         }
+
+        // Непрерывное обновление Dynamic Island при активной Live Activity
+        if liveActivityEnabled {
+            let speed = liveDownloadSpeed > 0 ? liveDownloadSpeed : (lastSpeedtestResult?.downloadMbps ?? 0.0)
+            let upload = liveUploadSpeed > 0 ? liveUploadSpeed : (lastSpeedtestResult?.uploadMbps ?? 0.0)
+            ActivityManager.shared.updateActivity(
+                downloadMbps: speed,
+                uploadMbps: upload,
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
+                isTesting: isSpeedtestRunning,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет"
+            )
+        }
     }
 
     private func evaluateHostStatus(_ metrics: inout HostMetrics) {

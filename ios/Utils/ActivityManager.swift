@@ -34,10 +34,12 @@ public final class ActivityManager {
         ispName: String = "Интернет"
     ) {
         #if canImport(ActivityKit)
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-
-        // Завершаем старую сессию, если она была
-        stopActivity()
+        // Завершаем старые активные сессии перед созданием новой
+        for activity in Activity<NetPulseAttributes>.activities {
+            Task {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
 
         let attributes = NetPulseAttributes(sessionTitle: "Мониторинг NetPulse")
         let initialState = NetPulseAttributes.ContentState(
@@ -50,16 +52,24 @@ public final class ActivityManager {
             ispName: ispName
         )
 
+        let content = ActivityContent(
+            state: initialState,
+            staleDate: Date(timeIntervalSinceNow: 86400),
+            relevanceScore: 100.0
+        )
+
         do {
             let activity = try Activity<NetPulseAttributes>.request(
                 attributes: attributes,
-                content: .init(state: initialState, staleDate: nil),
+                content: content,
                 pushType: nil
             )
             self.currentActivity = activity
             self.isLiveActivityActive = true
+            print("✅ Live Activity успешно запущена в Dynamic Island: \(activity.id)")
         } catch {
-            print("Не удалось запустить Live Activity: \(error.localizedDescription)")
+            print("❌ Ошибка запуска Live Activity: \(error.localizedDescription)")
+            self.isLiveActivityActive = false
         }
         #endif
     }
@@ -75,7 +85,21 @@ public final class ActivityManager {
         ispName: String
     ) {
         #if canImport(ActivityKit)
-        guard let activity = currentActivity else { return }
+        guard let activity = currentActivity ?? Activity<NetPulseAttributes>.activities.first else {
+            // Если сессии не было, но вызван update - запускаем
+            startActivity(
+                downloadMbps: downloadMbps,
+                uploadMbps: uploadMbps,
+                pingMs: pingMs,
+                jitterMs: jitterMs,
+                connectionType: connectionType,
+                ispName: ispName
+            )
+            return
+        }
+
+        self.currentActivity = activity
+        self.isLiveActivityActive = true
 
         let updatedState = NetPulseAttributes.ContentState(
             downloadMbps: downloadMbps,
@@ -87,8 +111,14 @@ public final class ActivityManager {
             ispName: ispName
         )
 
+        let content = ActivityContent(
+            state: updatedState,
+            staleDate: Date(timeIntervalSinceNow: 86400),
+            relevanceScore: isTesting ? 100.0 : 50.0
+        )
+
         Task {
-            await activity.update(.init(state: updatedState, staleDate: nil))
+            await activity.update(content)
         }
         #endif
     }
@@ -96,10 +126,10 @@ public final class ActivityManager {
     /// Остановка Live Activity
     public func stopActivity() {
         #if canImport(ActivityKit)
-        guard let activity = currentActivity else { return }
-
-        Task {
-            await activity.end(nil, dismissalPolicy: .immediate)
+        for activity in Activity<NetPulseAttributes>.activities {
+            Task {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
         }
         self.currentActivity = nil
         self.isLiveActivityActive = false

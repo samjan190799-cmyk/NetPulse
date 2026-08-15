@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Минималистичный плавающий игровой HUD-виджет, который можно перемещать пальцем в любую часть экрана.
+/// Минималистичный плавающий игровой HUD-виджет с 95% прозрачностью (5% фона), свободно перемещаемый по экрану.
 public struct FloatingGameOverlayView: View {
     public let downloadMbps: Double
     public let uploadMbps: Double
@@ -36,7 +36,7 @@ public struct FloatingGameOverlayView: View {
         GeometryReader { geometry in
             ZStack {
                 if isCollapsed {
-                    // Свернутый режим (компактный бейдж)
+                    // Свернутый режим (95% прозрачный компактный бейдж)
                     HStack(spacing: 5) {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 11, weight: .bold))
@@ -45,6 +45,7 @@ public struct FloatingGameOverlayView: View {
                         Text(String(format: "%.0f", currentSpeed))
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
 
                         if let ping = pingMs {
                             Circle()
@@ -53,17 +54,19 @@ public struct FloatingGameOverlayView: View {
                             Text("\(Int(ping))")
                                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(pingColor)
+                                .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
                         }
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .background(Color.black.opacity(0.82))
+                    .background(
+                        Color.black.opacity(0.05) // 95% прозрачности
+                    )
                     .clipShape(Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
                     )
-                    .shadow(color: Color.black.opacity(0.4), radius: 8, x: 0, y: 4)
                     .onTapGesture {
                         HapticManager.shared.impactLight()
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
@@ -71,7 +74,7 @@ public struct FloatingGameOverlayView: View {
                         }
                     }
                 } else {
-                    // Развернутый режим (полный игровой HUD)
+                    // Развернутый режим (95% прозрачный игровой HUD)
                     HStack(spacing: 12) {
                         // 1. Скорость
                         HStack(spacing: 4) {
@@ -83,6 +86,7 @@ public struct FloatingGameOverlayView: View {
                                 Text(String(format: "%.1f", currentSpeed))
                                     .font(.system(size: 14, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
+                                    .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
                                 Text("Мбит/с")
                                     .font(.system(size: 8, weight: .medium))
                                     .foregroundStyle(.gray)
@@ -103,6 +107,7 @@ public struct FloatingGameOverlayView: View {
                                 Text(pingMs != nil ? "\(Int(pingMs!)) мс" : "—")
                                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                                     .foregroundStyle(pingColor)
+                                    .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
                                 Text(jitterMs != nil ? "±\(String(format: "%.0f", jitterMs!))мс" : "Jitter")
                                     .font(.system(size: 8, weight: .medium))
                                     .foregroundStyle(.gray)
@@ -117,7 +122,8 @@ public struct FloatingGameOverlayView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             Text("\(String(format: "%.0f", packetLossPct))%")
                                 .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                .foregroundStyle(packetLossPct > 2 ? .red : .gray)
+                                .foregroundStyle(packetLossPct > 2 ? .red : .white)
+                                .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
                             Text("Потери")
                                 .font(.system(size: 8, weight: .medium))
                                 .foregroundStyle(.gray)
@@ -149,13 +155,14 @@ public struct FloatingGameOverlayView: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(Color(red: 0.08, green: 0.09, blue: 0.13).opacity(0.92))
+                    .background(
+                        Color.black.opacity(0.05) // 95% прозрачности
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .stroke(Color.white.opacity(0.12), lineWidth: 1)
                     )
-                    .shadow(color: Color.black.opacity(0.45), radius: 10, x: 0, y: 5)
                 }
             }
             .scaleEffect(isDragging ? 1.05 : 1.0)

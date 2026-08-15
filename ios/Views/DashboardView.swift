@@ -50,7 +50,10 @@ public struct DashboardView: View {
                         // 1. Компактная плашка текущего подключения
                         ConnectionStatusHeader(info: viewModel.systemInfo)
 
-                        // 2. Интерактивный замер скорости (Speedtest)
+                        // 2. Быстрые переключатели виджетов (Dynamic Island & HUD)
+                        WidgetQuickControlsBar(viewModel: viewModel)
+
+                        // 3. Интерактивный замер скорости (Speedtest)
                         SpeedtestHeroView(
                             isRunning: viewModel.isSpeedtestRunning,
                             downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
@@ -62,7 +65,7 @@ public struct DashboardView: View {
                             }
                         )
 
-                        // 3. Блок оценки применимости скорости (Для чего подходит сеть)
+                        // 4. Блок оценки применимости скорости (Для чего подходит сеть)
                         NetworkCapabilityCardView(items: capabilities)
                     }
                     .padding(16)
@@ -75,6 +78,71 @@ public struct DashboardView: View {
                 if !viewModel.isMonitoringActive {
                     viewModel.startMonitoring()
                 }
+            }
+        }
+    }
+}
+
+/// Панель быстрого переключения Dynamic Island и игрового HUD
+private struct WidgetQuickControlsBar: View {
+    @Bindable var viewModel: NetworkMonitorViewModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Кнопка Dynamic Island
+            Button {
+                HapticManager.shared.impactMedium()
+                viewModel.toggleLiveActivity(enabled: !viewModel.liveActivityEnabled)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: viewModel.liveActivityEnabled ? "circle.fill" : "circle")
+                        .font(.system(size: 8))
+                        .foregroundStyle(viewModel.liveActivityEnabled ? .green : .secondary)
+
+                    Image(systemName: "pip.enter")
+                        .font(.system(size: 12, weight: .semibold))
+
+                    Text("Островок")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(viewModel.liveActivityEnabled ? Color.blue.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
+                .foregroundStyle(viewModel.liveActivityEnabled ? Color.blue : Color.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(viewModel.liveActivityEnabled ? Color.blue.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                )
+            }
+
+            // Кнопка Игрового HUD
+            Button {
+                HapticManager.shared.impactMedium()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    viewModel.floatingHUDEnabled.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: viewModel.floatingHUDEnabled ? "circle.fill" : "circle")
+                        .font(.system(size: 8))
+                        .foregroundStyle(viewModel.floatingHUDEnabled ? .green : .secondary)
+
+                    Image(systemName: "gamecontroller.fill")
+                        .font(.system(size: 12, weight: .semibold))
+
+                    Text("Игровой HUD")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(viewModel.floatingHUDEnabled ? Color.cyan.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
+                .foregroundStyle(viewModel.floatingHUDEnabled ? Color.cyan : Color.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(viewModel.floatingHUDEnabled ? Color.cyan.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                )
             }
         }
     }

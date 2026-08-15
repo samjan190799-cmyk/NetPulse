@@ -109,8 +109,16 @@ public struct NetPulseLiveActivityWidget: Widget {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.blue)
-                    Text(String(format: "%.0f", context.state.downloadMbps > 0 ? context.state.downloadMbps : context.state.uploadMbps))
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                    let speed = context.state.downloadMbps > 0 ? context.state.downloadMbps : context.state.uploadMbps
+                    if speed > 0 {
+                        Text(String(format: "%.0f", speed))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("ON")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.blue)
+                    }
                 }
             } compactTrailing: {
                 // Компактный вид (справа от выреза)
@@ -119,14 +127,14 @@ public struct NetPulseLiveActivityWidget: Widget {
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .foregroundStyle(ping < 80 ? .green : .orange)
                 } else {
-                    Text("Мбит")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    Text("Live")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.green)
                 }
             } minimal: {
                 // Минимальный вид (когда остров разделен с другим приложением)
                 Image(systemName: "gauge.with.dots.needle.67percent")
-                    .font(.system(size: 11))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.blue)
             }
         }

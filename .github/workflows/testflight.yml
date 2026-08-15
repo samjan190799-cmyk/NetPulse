@@ -85,17 +85,20 @@ jobs:
           xcrun agvtool new-version -all $BUILD_NUM || true
           xcrun agvtool new-marketing-version $VERSION || true
 
+          # Сборка архива с автоматической загрузкой профилей
           xcodebuild archive \
             -project NetPulse.xcodeproj \
             -scheme NetPulse \
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/NetPulse.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
 
-      - name: "Экспорт и подготовка IPA архива"
+      - name: "Экспорт и подпись IPA архива"
         working-directory: ./ios
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -103,26 +106,18 @@ jobs:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           mkdir -p build/IPA
+          
+          # Установка teamID в ExportOptions.plist
+          plutil -replace teamID -string "$TEAM_ID" ExportOptions.plist
 
-          # Попытка стандартного экспорта через xcodebuild
-          if xcodebuild -exportArchive \
-              -archivePath build/NetPulse.xcarchive \
-              -exportOptionsPlist ExportOptions.plist \
-              -exportPath build/IPA \
-              -allowProvisioningUpdates \
-              -authenticationKeyID "$KEY_ID" \
-              -authenticationKeyIssuerID "$ISSUER_ID" \
-              -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"; then
-            echo "✔ Успешный экспорт через xcodebuild"
-          else
-            echo "ℹ Упаковка IPA напрямую из архива App..."
-            mkdir -p build/IPA/Payload
-            cp -r "build/NetPulse.xcarchive/Products/Applications/NetPulse.app" build/IPA/Payload/
-            cd build/IPA
-            zip -qr "NetPulse.ipa" Payload
-            cd ../..
-            echo "✔ Успешно сформирован NetPulse.ipa"
-          fi
+          xcodebuild -exportArchive \
+            -archivePath build/NetPulse.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/IPA \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
 
       - name: "Выгрузка в TestFlight"
         working-directory: ./ios

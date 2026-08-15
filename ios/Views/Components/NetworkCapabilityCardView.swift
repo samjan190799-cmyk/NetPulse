@@ -145,11 +145,11 @@ private struct CapabilityRow: View {
 
     private func scoreRatio(for level: CapabilityLevel) -> CGFloat {
         switch level {
-        case .perfect: return 1.0
-        case .excellent: return 0.85
-        case .good: return 0.65
-        case .moderate: return 0.45
-        case .poor: return 0.2
+        case .excellent: return 1.0
+        case .good: return 0.75
+        case .moderate: return 0.5
+        case .poor: return 0.25
+        case .unknown: return 0.05
         }
     }
 }

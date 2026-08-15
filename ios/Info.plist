@@ -35,6 +35,11 @@
         <string>fetch</string>
         <string>processing</string>
     </array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.samvel.netpulse.telemetry</string>
+        <string>com.samvel.netpulse.refresh</string>
+    </array>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

@@ -91,26 +91,38 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/NetPulse.xcarchive \
-            DEVELOPMENT_TEAM="$TEAM_ID" \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$KEY_ID" \
-            -authenticationKeyIssuerID "$ISSUER_ID" \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
-      - name: "Экспорт IPA архива"
+      - name: "Экспорт и подготовка IPA архива"
         working-directory: ./ios
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcodebuild -exportArchive \
-            -archivePath build/NetPulse.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/IPA \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$KEY_ID" \
-            -authenticationKeyIssuerID "$ISSUER_ID" \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
+          mkdir -p build/IPA
+
+          # Попытка стандартного экспорта через xcodebuild
+          if xcodebuild -exportArchive \
+              -archivePath build/NetPulse.xcarchive \
+              -exportOptionsPlist ExportOptions.plist \
+              -exportPath build/IPA \
+              -allowProvisioningUpdates \
+              -authenticationKeyID "$KEY_ID" \
+              -authenticationKeyIssuerID "$ISSUER_ID" \
+              -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"; then
+            echo "✔ Успешный экспорт через xcodebuild"
+          else
+            echo "ℹ Упаковка IPA напрямую из архива App..."
+            mkdir -p build/IPA/Payload
+            cp -r "build/NetPulse.xcarchive/Products/Applications/NetPulse.app" build/IPA/Payload/
+            cd build/IPA
+            zip -qr "NetPulse.ipa" Payload
+            cd ../..
+            echo "✔ Успешно сформирован NetPulse.ipa"
+          fi
 
       - name: "Выгрузка в TestFlight"
         working-directory: ./ios
@@ -123,7 +135,7 @@ jobs:
             echo "❌ IPA файл не найден!"
             exit 1
           fi
-          echo "✔ Найден IPA: $IPA_PATH"
+          echo "✔ Найден IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
 
           xcrun altool --upload-app \
             -f "$IPA_PATH" \

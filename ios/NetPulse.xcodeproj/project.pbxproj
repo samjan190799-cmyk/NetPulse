@@ -42,8 +42,8 @@
 		A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C12345600000032 /* FloatingGameOverlayView.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
-		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */; };
-		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000252C1234560000002F /* NetPulseAttributes.swift */; };
+		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
+		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* NetPulseAttributes.swift */; };
 		A20000042C12345600000004 /* NetPulseWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000012C12345600000001 /* NetPulseWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -76,41 +76,43 @@
 		B10000002C12345600000000 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000012C12345600000001 /* NetPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseApp.swift; sourceTree = "<group>"; };
 		B10000022C12345600000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B10000032C12345600000003 /* HostTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostTarget.swift; sourceTree = "<group>"; };
-		B10000042C12345600000004 /* PingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingRecord.swift; sourceTree = "<group>"; };
-		B10000052C12345600000005 /* HostMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMetrics.swift; sourceTree = "<group>"; };
-		B10000062C12345600000006 /* NetworkInterfaceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceInfo.swift; sourceTree = "<group>"; };
-		B10000072C12345600000007 /* SpeedtestResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestResult.swift; sourceTree = "<group>"; };
-		B10000082C12345600000008 /* TracerouteHop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracerouteHop.swift; sourceTree = "<group>"; };
-		B10000092C12345600000009 /* NetworkAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkAlert.swift; sourceTree = "<group>"; };
-		B100000A2C1234560000000A /* PingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingEngine.swift; sourceTree = "<group>"; };
-		B100000B2C1234560000000B /* JitterAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JitterAnalyzer.swift; sourceTree = "<group>"; };
-		B100000C2C1234560000000C /* SpeedtestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestEngine.swift; sourceTree = "<group>"; };
-		B100000D2C1234560000000D /* NetworkDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkDiagnostics.swift; sourceTree = "<group>"; };
-		B100000E2C1234560000000E /* TracerouteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracerouteEngine.swift; sourceTree = "<group>"; };
-		B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorViewModel.swift; sourceTree = "<group>"; };
-		B10000102C12345600000010 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
-		B10000112C12345600000011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		B10000122C12345600000012 /* NetworkInfoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInfoCardView.swift; sourceTree = "<group>"; };
-		B10000132C12345600000013 /* HostMetricCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostMetricCardView.swift; sourceTree = "<group>"; };
-		B10000142C12345600000014 /* LatencyChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatencyChartView.swift; sourceTree = "<group>"; };
-		B10000152C12345600000015 /* SpeedtestGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestGaugeView.swift; sourceTree = "<group>"; };
-		B10000162C12345600000016 /* TracerouteSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracerouteSheetView.swift; sourceTree = "<group>"; };
-		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsBannerView.swift; sourceTree = "<group>"; };
-		B10000182C12345600000018 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
-		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStorage.swift; sourceTree = "<group>"; };
-		B10000212C1234560000002B /* SpeedtestHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedtestHeroView.swift; sourceTree = "<group>"; };
-		B10000222C1234560000002C /* NetworkCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCapability.swift; sourceTree = "<group>"; };
-		B10000232C1234560000002D /* NetworkCapabilityCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCapabilityCardView.swift; sourceTree = "<group>"; };
-		B10000242C1234560000002E /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
-		B10000252C1234560000002F /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseAttributes.swift; sourceTree = "<group>"; };
-		B10000262C12345600000030 /* ActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityManager.swift; sourceTree = "<group>"; };
-		B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
-		B10000282C12345600000032 /* FloatingGameOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingGameOverlayView.swift; sourceTree = "<group>"; };
+		B10000032C12345600000003 /* HostTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HostTarget.swift; sourceTree = "<group>"; };
+		B10000042C12345600000004 /* PingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/PingRecord.swift; sourceTree = "<group>"; };
+		B10000052C12345600000005 /* HostMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HostMetrics.swift; sourceTree = "<group>"; };
+		B10000062C12345600000006 /* NetworkInterfaceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetworkInterfaceInfo.swift; sourceTree = "<group>"; };
+		B10000072C12345600000007 /* SpeedtestResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/SpeedtestResult.swift; sourceTree = "<group>"; };
+		B10000082C12345600000008 /* TracerouteHop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TracerouteHop.swift; sourceTree = "<group>"; };
+		B10000092C12345600000009 /* NetworkAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetworkAlert.swift; sourceTree = "<group>"; };
+		B10000222C1234560000002C /* NetworkCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetworkCapability.swift; sourceTree = "<group>"; };
+		B10000252C1234560000002F /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetPulseAttributes.swift; sourceTree = "<group>"; };
+		B100000A2C1234560000000A /* PingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/PingEngine.swift; sourceTree = "<group>"; };
+		B100000B2C1234560000000B /* JitterAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/JitterAnalyzer.swift; sourceTree = "<group>"; };
+		B100000C2C1234560000000C /* SpeedtestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/SpeedtestEngine.swift; sourceTree = "<group>"; };
+		B100000D2C1234560000000D /* NetworkDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/NetworkDiagnostics.swift; sourceTree = "<group>"; };
+		B100000E2C1234560000000E /* TracerouteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/TracerouteEngine.swift; sourceTree = "<group>"; };
+		B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/NetworkMonitorViewModel.swift; sourceTree = "<group>"; };
+		B10000102C12345600000010 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DashboardView.swift; sourceTree = "<group>"; };
+		B10000242C1234560000002E /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DiagnosticsView.swift; sourceTree = "<group>"; };
+		B10000112C12345600000011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
+		B10000122C12345600000012 /* NetworkInfoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkInfoCardView.swift; sourceTree = "<group>"; };
+		B10000132C12345600000013 /* HostMetricCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/HostMetricCardView.swift; sourceTree = "<group>"; };
+		B10000142C12345600000014 /* LatencyChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/LatencyChartView.swift; sourceTree = "<group>"; };
+		B10000152C12345600000015 /* SpeedtestGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/SpeedtestGaugeView.swift; sourceTree = "<group>"; };
+		B10000162C12345600000016 /* TracerouteSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/TracerouteSheetView.swift; sourceTree = "<group>"; };
+		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AlertsBannerView.swift; sourceTree = "<group>"; };
+		B10000212C1234560000002B /* SpeedtestHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/SpeedtestHeroView.swift; sourceTree = "<group>"; };
+		B10000232C1234560000002D /* NetworkCapabilityCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkCapabilityCardView.swift; sourceTree = "<group>"; };
+		B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
+		B10000282C12345600000032 /* FloatingGameOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/FloatingGameOverlayView.swift; sourceTree = "<group>"; };
+		B10000182C12345600000018 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HapticManager.swift; sourceTree = "<group>"; };
+		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HistoryStorage.swift; sourceTree = "<group>"; };
+		B10000262C12345600000030 /* ActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ActivityManager.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
-		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
+		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NetPulseWidgets/Info.plist; sourceTree = "<group>"; };
+		B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
+		B20000052C12345600000005 /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseAttributes.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,15 +136,6 @@
 		E10000002C12345600000000 = {
 			isa = PBXGroup;
 			children = (
-				E10000012C12345600000001 /* NetPulse */,
-				E20000022C12345600000002 /* NetPulseWidgets */,
-				E10000082C12345600000008 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		E10000012C12345600000001 /* NetPulse */ = {
-			isa = PBXGroup;
-			children = (
 				B10000002C12345600000000 /* Info.plist */,
 				B10000012C12345600000001 /* NetPulseApp.swift */,
 				B10000022C12345600000002 /* ContentView.swift */,
@@ -152,17 +145,20 @@
 				E10000052C12345600000005 /* Views */,
 				E10000072C12345600000007 /* Utils */,
 				B1000020AC1234560000002A /* Assets.xcassets */,
+				E20000022C12345600000002 /* NetPulseWidgets */,
+				E10000082C12345600000008 /* Products */,
 			);
-			path = NetPulse;
 			sourceTree = "<group>";
 		};
 		E20000022C12345600000002 /* NetPulseWidgets */ = {
 			isa = PBXGroup;
 			children = (
 				B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */,
+				B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */,
+				B20000052C12345600000005 /* NetPulseAttributes.swift */,
 				B20000032C12345600000003 /* Info.plist */,
 			);
-			path = NetPulseWidgets;
+			name = NetPulseWidgets;
 			sourceTree = "<group>";
 		};
 		E10000022C12345600000002 /* Models */ = {
@@ -178,7 +174,7 @@
 				B10000222C1234560000002C /* NetworkCapability.swift */,
 				B10000252C1234560000002F /* NetPulseAttributes.swift */,
 			);
-			path = Models;
+			name = Models;
 			sourceTree = "<group>";
 		};
 		E10000032C12345600000003 /* Engines */ = {
@@ -190,7 +186,7 @@
 				B100000D2C1234560000000D /* NetworkDiagnostics.swift */,
 				B100000E2C1234560000000E /* TracerouteEngine.swift */,
 			);
-			path = Engines;
+			name = Engines;
 			sourceTree = "<group>";
 		};
 		E10000042C12345600000004 /* ViewModels */ = {
@@ -198,7 +194,7 @@
 			children = (
 				B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */,
 			);
-			path = ViewModels;
+			name = ViewModels;
 			sourceTree = "<group>";
 		};
 		E10000052C12345600000005 /* Views */ = {
@@ -209,7 +205,7 @@
 				B10000112C12345600000011 /* SettingsView.swift */,
 				E10000062C12345600000006 /* Components */,
 			);
-			path = Views;
+			name = Views;
 			sourceTree = "<group>";
 		};
 		E10000062C12345600000006 /* Components */ = {
@@ -226,7 +222,7 @@
 				B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */,
 				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
 			);
-			path = Components;
+			name = Components;
 			sourceTree = "<group>";
 		};
 		E10000072C12345600000007 /* Utils */ = {
@@ -236,7 +232,7 @@
 				B10000192C12345600000019 /* HistoryStorage.swift */,
 				B10000262C12345600000030 /* ActivityManager.swift */,
 			);
-			path = Utils;
+			name = Utils;
 			sourceTree = "<group>";
 		};
 		E10000082C12345600000008 /* Products */ = {

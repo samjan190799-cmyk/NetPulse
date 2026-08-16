@@ -31,20 +31,21 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
 
         do {
             let audioSession = AVAudioSession.sharedInstance()
+            // Используем первичную категорию .playback (без mixWithOthers) для наивысшего приоритета фонового исполнения в iOS
             try audioSession.setCategory(
                 .playback,
                 mode: .default,
-                options: [.mixWithOthers]
+                options: []
             )
             try audioSession.setActive(true)
 
-            // Создаем стабильный 3.0-секундный беззвучный PCM буфер
+            // Создаем 5.0-секундный инфразвуковой PCM буфер (18 Гц), который абсолютно не слышен уху, но предотвращает переход ЦАП iOS в режим сна
             if audioPlayer == nil {
-                let silentData = generateSilentWavData()
+                let silentData = generateInaudibleWavData()
                 audioPlayer = try AVAudioPlayer(data: silentData)
                 audioPlayer?.delegate = self
                 audioPlayer?.numberOfLoops = -1 // Бесконечный цикл
-                audioPlayer?.volume = 0.01 // Минимальная громкость для удержания аудио-потока CoreAudio
+                audioPlayer?.volume = 0.05
                 audioPlayer?.prepareToPlay()
             }
 
@@ -107,6 +108,19 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
                 self?.handleRouteChange(notification)
             }
         }
+
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.audioPlayer = nil
+                if self?.isRunning == true {
+                    self?.startKeepAlive()
+                }
+            }
+        }
     }
 
     private func handleAudioInterruption(_ notification: Notification) {
@@ -141,13 +155,16 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    /// Генерация 3.0-секундного беззвучного WAV-файла в памяти (8kHz, 16-bit Mono PCM)
-    private func generateSilentWavData() -> Data {
-        let sampleRate: Int32 = 8000
-        let numChannels: Int16 = 1
-        let bitsPerSample: Int16 = 16
-        let numSamples: Int32 = 24000 // 3.0 сек при 8kHz (надежно для CoreAudio в спящем режиме)
-        let dataSize = numSamples * Int32(numChannels) * Int32(bitsPerSample / 8)
+    /// Генерация 5.0-секундного инфразвукового WAV-файла (18 Гц, 8kHz, 16-bit Mono PCM).
+    /// Синусоида 18 Гц не воспринимается человеческим слухом, но аппаратный DMA-контроллер CoreAudio видит реальный аудиопоток и не отключает питание процесса в спящем режиме.
+    private func generateInaudibleWavData() -> Data {
+        let sampleRate: Double = 8000.0
+        let durationSeconds: Double = 5.0
+        let numSamples = Int(sampleRate * durationSeconds)
+        let frequency: Double = 18.0 // 18 Гц — инфразвук ниже порога слышимости
+        let amplitude: Double = 80.0 // 0.2% от 32767 для непрерывной аппаратной активности DMA
+        let bytesPerSample = 2
+        let dataSize = Int32(numSamples * bytesPerSample)
         let totalSize = 36 + dataSize
 
         var data = Data()
@@ -164,15 +181,15 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         data.append(Data(bytes: &subchunk1Size, count: 4))
         var audioFormat: Int16 = 1 // PCM
         data.append(Data(bytes: &audioFormat, count: 2))
-        var channels = numChannels
+        var channels: Int16 = 1 // Mono
         data.append(Data(bytes: &channels, count: 2))
-        var rate = sampleRate
+        var rate = Int32(sampleRate)
         data.append(Data(bytes: &rate, count: 4))
-        var byteRate = sampleRate * Int32(numChannels) * Int32(bitsPerSample / 8)
+        var byteRate = Int32(sampleRate) * Int32(channels) * Int32(bytesPerSample)
         data.append(Data(bytes: &byteRate, count: 4))
-        var blockAlign = Int16(numChannels * (bitsPerSample / 8))
+        var blockAlign = Int16(channels * Int16(bytesPerSample))
         data.append(Data(bytes: &blockAlign, count: 2))
-        var bps = bitsPerSample
+        var bps: Int16 = 16
         data.append(Data(bytes: &bps, count: 2))
 
         // data subchunk
@@ -180,8 +197,13 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         var subchunk2Size = dataSize
         data.append(Data(bytes: &subchunk2Size, count: 4))
 
-        // Тишина (нули)
-        data.append(Data(repeating: 0, count: Int(dataSize)))
+        // Генерация синусоиды инфразвука 18 Гц
+        for i in 0..<numSamples {
+            let angle = 2.0 * Double.pi * frequency * Double(i) / sampleRate
+            let sampleVal = Int16(amplitude * sin(angle))
+            var leVal = sampleVal.littleEndian
+            withUnsafeBytes(of: &leVal) { data.append(contentsOf: $0) }
+        }
 
         return data
     }

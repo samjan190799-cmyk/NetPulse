@@ -20,7 +20,7 @@ public final class ActivityManager {
     private var currentActivity: Activity<NetPulseAttributes>?
     private var lastContentState: NetPulseAttributes.ContentState?
     private var lastUpdateDate: Date?
-    private var pendingUpdateTask: Task<Void, Never>?
+    private var isUpdating: Bool = false
     #endif
 
     public private(set) var isLiveActivityActive: Bool = false
@@ -38,9 +38,6 @@ public final class ActivityManager {
         ispName: String = "Интернет"
     ) {
         #if canImport(ActivityKit)
-        pendingUpdateTask?.cancel()
-        pendingUpdateTask = nil
-
         // Завершаем старые активные сессии перед созданием новой
         for activity in Activity<NetPulseAttributes>.activities {
             Task {
@@ -61,7 +58,7 @@ public final class ActivityManager {
 
         let content = ActivityContent(
             state: initialState,
-            staleDate: Date(timeIntervalSinceNow: isTesting ? 4.0 : 6.0),
+            staleDate: nil,
             relevanceScore: 100.0
         )
 
@@ -83,7 +80,7 @@ public final class ActivityManager {
         #endif
     }
 
-    /// Обновление живых данных реальной скорости в Dynamic Island с умным троттлингом
+    /// Обновление живых данных реальной скорости в Dynamic Island с надежным XPC-шлюзом
     public func updateActivity(
         downloadSpeedText: String,
         uploadSpeedText: String,
@@ -96,7 +93,6 @@ public final class ActivityManager {
     ) {
         #if canImport(ActivityKit)
         guard let activity = currentActivity ?? Activity<NetPulseAttributes>.activities.first else {
-            // Если сессии не было, но вызван update - запускаем
             startActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -142,26 +138,29 @@ public final class ActivityManager {
             return
         }
 
-        // 2. Троттлинг вызовов: защита от исчерпания бюджета обновлений Apple ActivityKit
-        let minInterval: TimeInterval = isTesting ? 1.0 : 1.8
+        // 2. Троттлинг вызовов: защита от перегрузки очереди
+        let minInterval: TimeInterval = isTesting ? 0.8 : 1.0
         let now = Date()
         if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
             return
         }
+
+        // 3. Защита от наложения одновременных XPC-запросов к SpringBoard/ActivityKit
+        guard !isUpdating else { return }
+        isUpdating = true
 
         self.lastContentState = updatedState
         self.lastUpdateDate = now
 
         let content = ActivityContent(
             state: updatedState,
-            staleDate: Date(timeIntervalSinceNow: isTesting ? 4.0 : 6.0),
-            relevanceScore: isTesting ? 100.0 : 50.0
+            staleDate: nil,
+            relevanceScore: isTesting ? 100.0 : 75.0
         )
 
-        // Отменяем предыдущую задачу обновления, если она еще не успела исполниться
-        pendingUpdateTask?.cancel()
-        pendingUpdateTask = Task {
+        Task {
             await activity.update(content)
+            self.isUpdating = false
         }
         #endif
     }
@@ -169,10 +168,9 @@ public final class ActivityManager {
     /// Остановка Live Activity
     public func stopActivity() {
         #if canImport(ActivityKit)
-        pendingUpdateTask?.cancel()
-        pendingUpdateTask = nil
         lastContentState = nil
         lastUpdateDate = nil
+        isUpdating = false
 
         for activity in Activity<NetPulseAttributes>.activities {
             Task {

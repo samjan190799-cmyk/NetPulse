@@ -76,8 +76,21 @@ public final class BandwidthEngine: @unchecked Sendable {
         let now = Date()
         let timeDelta = prevTimestamp != nil ? max(now.timeIntervalSince(prevTimestamp!), 0.2) : 1.0
 
-        let inDelta = currentIn >= prevInBytes ? (currentIn - prevInBytes) : 0
-        let outDelta = currentOut >= prevOutBytes ? (currentOut - prevOutBytes) : 0
+        var inDelta: UInt64 = 0
+        if currentIn >= prevInBytes {
+            inDelta = currentIn - prevInBytes
+        } else if prevInBytes > 0 && currentIn < prevInBytes {
+            // Защита от переполнения 32-битного счетчика
+            inDelta = (UInt64(UInt32.max) - prevInBytes) + currentIn
+        }
+
+        var outDelta: UInt64 = 0
+        if currentOut >= prevOutBytes {
+            outDelta = currentOut - prevOutBytes
+        } else if prevOutBytes > 0 && currentOut < prevOutBytes {
+            // Защита от переполнения 32-битного счетчика
+            outDelta = (UInt64(UInt32.max) - prevOutBytes) + currentOut
+        }
 
         let downloadBytesPerSec = Double(inDelta) / timeDelta
         let uploadBytesPerSec = Double(outDelta) / timeDelta
@@ -117,8 +130,8 @@ public final class BandwidthEngine: @unchecked Sendable {
             let isUp = (flags & IFF_UP) == IFF_UP
             let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
 
-            // Учитываем только активные физические интерфейсы (не loopback)
-            if isUp && !isLoopback {
+            // ВАЖНО: В ядре Darwin (iOS/macOS) только записи с sa_family == AF_LINK содержат struct if_data
+            if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
                 if let data = ptr.pointee.ifa_data {
                     let networkData = data.assumingMemoryBound(to: if_data.self)
                     totalIn += UInt64(networkData.pointee.ifi_ibytes)

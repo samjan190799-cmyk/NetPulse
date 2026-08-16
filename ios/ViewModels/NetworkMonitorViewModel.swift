@@ -69,7 +69,8 @@ public final class NetworkMonitorViewModel {
     private let diagnostics = NetworkDiagnostics()
     private let storage = HistoryStorage()
 
-    private var monitorTask: Task<Void, Never>?
+    private var bandwidthTask: Task<Void, Never>?
+    private var pingTask: Task<Void, Never>?
     private var diagnosticsTask: Task<Void, Never>?
     private var prevLatencies: [String: Double] = [:]
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
@@ -143,14 +144,17 @@ public final class NetworkMonitorViewModel {
             HapticManager.shared.impactLight()
         }
 
-        startPollingTask()
+        startBandwidthTask()
+        startPingTask()
         startDiagnosticsTask()
     }
 
     public func stopMonitoring() {
         isMonitoringActive = false
-        monitorTask?.cancel()
-        monitorTask = nil
+        bandwidthTask?.cancel()
+        bandwidthTask = nil
+        pingTask?.cancel()
+        pingTask = nil
         diagnosticsTask?.cancel()
         diagnosticsTask = nil
 
@@ -165,15 +169,14 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Фоновые задачи опроса
 
-    private func startPollingTask() {
-        monitorTask?.cancel()
-        monitorTask = Task { [weak self] in
+    /// Изолированная задача замера реальной скорости и обновления Dynamic Island (работает стабильно 1.0 сек, не блокируется пингами)
+    private func startBandwidthTask() {
+        bandwidthTask?.cancel()
+        bandwidthTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
-                
-                await self.pollAllHosts()
 
-                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы
+                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы (быстро, ~0.05ms)
                 let snapshot = self.bandwidthEngine.sampleBandwidth()
                 self.liveBandwidth = snapshot
 
@@ -195,6 +198,18 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    /// Изолированная задача параллельного пинга хостов сети
+    private func startPingTask() {
+        pingTask?.cancel()
+        pingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self = self, self.isMonitoringActive else { break }
+                await self.pollAllHosts()
                 try? await Task.sleep(nanoseconds: UInt64(self.pollingInterval * 1_000_000_000))
             }
         }

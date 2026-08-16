@@ -11,14 +11,16 @@ import UIKit
 
 /// Системный хранитель фонового процесса телеметрии для непрерывного обновления Dynamic Island 24/7.
 @MainActor
-public final class BackgroundTelemetryKeeper {
+public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     public static let shared = BackgroundTelemetryKeeper()
 
     private var audioPlayer: AVAudioPlayer?
     private var isRunning: Bool = false
     private var isObservingNotifications: Bool = false
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
     /// Запуск удержания фоновой сессии
     public func startKeepAlive() {
@@ -32,16 +34,17 @@ public final class BackgroundTelemetryKeeper {
             try audioSession.setCategory(
                 .playback,
                 mode: .default,
-                options: [.mixWithOthers, .duckOthers]
+                options: [.mixWithOthers]
             )
             try audioSession.setActive(true)
 
-            // Создаем минимальный беззвучный PCM буфер (0.1 сек тишины)
+            // Создаем стабильный 3.0-секундный беззвучный PCM буфер
             if audioPlayer == nil {
                 let silentData = generateSilentWavData()
                 audioPlayer = try AVAudioPlayer(data: silentData)
-                audioPlayer?.numberOfLoops = -1 // Бесконечный тихий цикл
-                audioPlayer?.volume = 0.001 // Полная тишина
+                audioPlayer?.delegate = self
+                audioPlayer?.numberOfLoops = -1 // Бесконечный цикл
+                audioPlayer?.volume = 0.01 // Минимальная громкость для удержания аудио-потока CoreAudio
                 audioPlayer?.prepareToPlay()
             }
 
@@ -66,6 +69,17 @@ public final class BackgroundTelemetryKeeper {
             // Игнорируем ошибку деактивации
         }
         print("🛑 Фоновый процесс телеметрии NetPulse остановлен")
+    }
+
+    // MARK: - AVAudioPlayerDelegate
+
+    public nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
+        Task { @MainActor in
+            if self.isRunning {
+                self.audioPlayer = nil
+                self.startKeepAlive()
+            }
+        }
     }
 
     // MARK: - Обработка системных прерываний аудиосессии
@@ -127,12 +141,12 @@ public final class BackgroundTelemetryKeeper {
         }
     }
 
-    /// Генерация 0.1-секундного беззвучного WAV-файла в памяти
+    /// Генерация 3.0-секундного беззвучного WAV-файла в памяти (8kHz, 16-bit Mono PCM)
     private func generateSilentWavData() -> Data {
         let sampleRate: Int32 = 8000
         let numChannels: Int16 = 1
         let bitsPerSample: Int16 = 16
-        let numSamples: Int32 = 800 // 0.1 сек при 8kHz
+        let numSamples: Int32 = 24000 // 3.0 сек при 8kHz (надежно для CoreAudio в спящем режиме)
         let dataSize = numSamples * Int32(numChannels) * Int32(bitsPerSample / 8)
         let totalSize = 36 + dataSize
 

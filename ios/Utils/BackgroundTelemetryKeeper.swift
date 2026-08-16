@@ -16,11 +16,14 @@ public final class BackgroundTelemetryKeeper {
 
     private var audioPlayer: AVAudioPlayer?
     private var isRunning: Bool = false
+    private var isObservingNotifications: Bool = false
 
     private init() {}
 
     /// Запуск удержания фоновой сессии
     public func startKeepAlive() {
+        setupObserversIfNeeded()
+
         guard !isRunning else { return }
         isRunning = true
 
@@ -63,6 +66,65 @@ public final class BackgroundTelemetryKeeper {
             // Игнорируем ошибку деактивации
         }
         print("🛑 Фоновый процесс телеметрии NetPulse остановлен")
+    }
+
+    // MARK: - Обработка системных прерываний аудиосессии
+
+    private func setupObserversIfNeeded() {
+        guard !isObservingNotifications else { return }
+        isObservingNotifications = true
+
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleAudioInterruption(notification)
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleRouteChange(notification)
+            }
+        }
+    }
+
+    private func handleAudioInterruption(_ notification: Notification) {
+        guard isRunning,
+              let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+
+        if type == .ended {
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                if audioPlayer?.isPlaying == false {
+                    audioPlayer?.play()
+                }
+                print("🔄 Фоновое аудио-удержание возобновлено после системного прерывания")
+            } catch {
+                print("⚠️ Не удалось возобновить фоновую сессию: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func handleRouteChange(_ notification: Notification) {
+        if isRunning, audioPlayer?.isPlaying == false {
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                audioPlayer?.play()
+            } catch {
+                // Игнорируем
+            }
+        }
     }
 
     /// Генерация 0.1-секундного беззвучного WAV-файла в памяти
@@ -110,3 +172,4 @@ public final class BackgroundTelemetryKeeper {
         return data
     }
 }
+

@@ -437,6 +437,9 @@ public final class NetworkMonitorViewModel {
                 connectionType: systemInfo.connectionType.rawValue,
                 ispName: systemInfo.ispName ?? "Интернет"
             )
+            if !isMonitoringActive {
+                startMonitoring()
+            }
         } else {
             ActivityManager.shared.stopActivity()
             if !isMonitoringActive {

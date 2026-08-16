@@ -18,6 +18,9 @@ public final class ActivityManager {
 
     #if canImport(ActivityKit)
     private var currentActivity: Activity<NetPulseAttributes>?
+    private var lastContentState: NetPulseAttributes.ContentState?
+    private var lastUpdateDate: Date?
+    private var pendingUpdateTask: Task<Void, Never>?
     #endif
 
     public private(set) var isLiveActivityActive: Bool = false
@@ -35,6 +38,9 @@ public final class ActivityManager {
         ispName: String = "Интернет"
     ) {
         #if canImport(ActivityKit)
+        pendingUpdateTask?.cancel()
+        pendingUpdateTask = nil
+
         // Завершаем старые активные сессии перед созданием новой
         for activity in Activity<NetPulseAttributes>.activities {
             Task {
@@ -55,7 +61,7 @@ public final class ActivityManager {
 
         let content = ActivityContent(
             state: initialState,
-            staleDate: Date(timeIntervalSinceNow: 86400),
+            staleDate: Date(timeIntervalSinceNow: isTesting ? 4.0 : 6.0),
             relevanceScore: 100.0
         )
 
@@ -67,6 +73,8 @@ public final class ActivityManager {
             )
             self.currentActivity = activity
             self.isLiveActivityActive = true
+            self.lastContentState = initialState
+            self.lastUpdateDate = Date()
             print("✅ Live Activity успешно запущена в Dynamic Island: \(activity.id)")
         } catch {
             print("❌ Ошибка запуска Live Activity: \(error.localizedDescription)")
@@ -75,7 +83,7 @@ public final class ActivityManager {
         #endif
     }
 
-    /// Обновление живых данных реальной скорости в Dynamic Island
+    /// Обновление живых данных реальной скорости в Dynamic Island с умным троттлингом
     public func updateActivity(
         downloadSpeedText: String,
         uploadSpeedText: String,
@@ -83,11 +91,27 @@ public final class ActivityManager {
         compactUploadText: String,
         isTesting: Bool,
         connectionType: String,
-        ispName: String
+        ispName: String,
+        force: Bool = false
     ) {
         #if canImport(ActivityKit)
         guard let activity = currentActivity ?? Activity<NetPulseAttributes>.activities.first else {
             // Если сессии не было, но вызван update - запускаем
+            startActivity(
+                downloadSpeedText: downloadSpeedText,
+                uploadSpeedText: uploadSpeedText,
+                compactDownloadText: compactDownloadText,
+                compactUploadText: compactUploadText,
+                isTesting: isTesting,
+                connectionType: connectionType,
+                ispName: ispName
+            )
+            return
+        }
+
+        // Если сессия была завершена операционной системой, пересоздаем ее
+        guard activity.activityState == .active else {
+            self.currentActivity = nil
             startActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -113,13 +137,30 @@ public final class ActivityManager {
             ispName: ispName
         )
 
+        // 1. Проверка дублирующегося состояния (не жжем бюджет ActivityKit на одинаковые данные)
+        if !force, let lastState = lastContentState, lastState == updatedState {
+            return
+        }
+
+        // 2. Троттлинг вызовов: защита от исчерпания бюджета обновлений Apple ActivityKit
+        let minInterval: TimeInterval = isTesting ? 1.0 : 1.8
+        let now = Date()
+        if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
+            return
+        }
+
+        self.lastContentState = updatedState
+        self.lastUpdateDate = now
+
         let content = ActivityContent(
             state: updatedState,
-            staleDate: Date(timeIntervalSinceNow: 86400),
+            staleDate: Date(timeIntervalSinceNow: isTesting ? 4.0 : 6.0),
             relevanceScore: isTesting ? 100.0 : 50.0
         )
 
-        Task {
+        // Отменяем предыдущую задачу обновления, если она еще не успела исполниться
+        pendingUpdateTask?.cancel()
+        pendingUpdateTask = Task {
             await activity.update(content)
         }
         #endif
@@ -128,6 +169,11 @@ public final class ActivityManager {
     /// Остановка Live Activity
     public func stopActivity() {
         #if canImport(ActivityKit)
+        pendingUpdateTask?.cancel()
+        pendingUpdateTask = nil
+        lastContentState = nil
+        lastUpdateDate = nil
+
         for activity in Activity<NetPulseAttributes>.activities {
             Task {
                 await activity.end(nil, dismissalPolicy: .immediate)
@@ -138,3 +184,4 @@ public final class ActivityManager {
         #endif
     }
 }
+

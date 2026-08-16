@@ -169,14 +169,14 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Фоновые задачи опроса
 
-    /// Изолированная задача замера реальной скорости и обновления Dynamic Island (работает стабильно 1.0 сек, не блокируется пингами)
+    /// Изолированная задача замера реальной скорости и обновления Dynamic Island (работает стабильно раз в 3.0 сек)
     private func startBandwidthTask() {
         bandwidthTask?.cancel()
         bandwidthTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
 
-                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы (быстро, ~0.05ms)
+                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы за 3-секундное окно (быстро, ~0.05ms)
                 let snapshot = self.bandwidthEngine.sampleBandwidth()
                 self.liveBandwidth = snapshot
 
@@ -184,8 +184,8 @@ public final class NetworkMonitorViewModel {
                 if self.liveActivityEnabled {
                     let dlText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveDownloadSpeed) : snapshot.formattedDownloadSpeed
                     let ulText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveUploadSpeed) : snapshot.formattedUploadSpeed
-                    let compactDl = self.isSpeedtestRunning ? String(format: "↓%.0fM", self.liveDownloadSpeed) : snapshot.compactDownload
-                    let compactUl = self.isSpeedtestRunning ? String(format: "↑%.0fM", self.liveUploadSpeed) : snapshot.compactUpload
+                    let compactDl = self.isSpeedtestRunning ? String(format: "%.0fM", self.liveDownloadSpeed) : snapshot.compactDownload
+                    let compactUl = self.isSpeedtestRunning ? String(format: "%.0fM", self.liveUploadSpeed) : snapshot.compactUpload
 
                     ActivityManager.shared.updateActivity(
                         downloadSpeedText: dlText,
@@ -198,7 +198,7 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3.0 секунды (безопасно для бюджета ActivityKit 24/7)
             }
         }
     }

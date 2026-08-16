@@ -133,13 +133,15 @@ public final class ActivityManager {
             ispName: ispName
         )
 
-        // 1. Проверка дублирующегося состояния (не жжем бюджет ActivityKit на одинаковые данные)
+        // 1. Проверка дублирующегося состояния: если данные не изменились, отправляем heartbeat каждые 10 секунд
         if !force, let lastState = lastContentState, lastState == updatedState {
-            return
+            if let lastDate = lastUpdateDate, Date().timeIntervalSince(lastDate) < 10.0 {
+                return
+            }
         }
 
-        // 2. Троттлинг вызовов: защита от перегрузки очереди
-        let minInterval: TimeInterval = isTesting ? 0.8 : 1.0
+        // 2. Троттлинг вызовов: защита от перегрузки очереди (минимум 2.0 сек между обновлениями)
+        let minInterval: TimeInterval = isTesting ? 1.5 : 2.0
         let now = Date()
         if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
             return

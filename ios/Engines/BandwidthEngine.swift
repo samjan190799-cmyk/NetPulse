@@ -38,21 +38,21 @@ public struct BandwidthSnapshot: Sendable {
 
     public var compactDownload: String {
         if downloadBytesPerSec >= 1_048_576 {
-            return String(format: "↓%.1fM", downloadBytesPerSec / 1_048_576)
+            return String(format: "%.1fM", downloadBytesPerSec / 1_048_576)
         } else if downloadBytesPerSec >= 1024 {
-            return String(format: "↓%.0fK", downloadBytesPerSec / 1024)
+            return String(format: "%.0fK", downloadBytesPerSec / 1024)
         } else {
-            return "↓0K"
+            return "0K"
         }
     }
 
     public var compactUpload: String {
         if uploadBytesPerSec >= 1_048_576 {
-            return String(format: "↑%.1fM", uploadBytesPerSec / 1_048_576)
+            return String(format: "%.1fM", uploadBytesPerSec / 1_048_576)
         } else if uploadBytesPerSec >= 1024 {
-            return String(format: "↑%.0fK", uploadBytesPerSec / 1024)
+            return String(format: "%.0fK", uploadBytesPerSec / 1024)
         } else {
-            return "↑0K"
+            return "0K"
         }
     }
 }

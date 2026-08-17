@@ -11,70 +11,79 @@ import Foundation
 public actor TrafficStorage {
     public static let shared = TrafficStorage()
 
-    private var sessions: [TrafficSession] = []
-    private var dataPoints: [TrafficDataPoint] = []
-    private var budget: TrafficBudget = TrafficBudget()
-
+    private var sessions: [TrafficSession]
+    private var dataPoints: [TrafficDataPoint]
+    private var budget: TrafficBudget
     private var currentActiveSessionId: UUID?
-    private let fileManager = FileManager.default
-    private let storageQueue = DispatchQueue(label: "com.samvel.netpulse.trafficstorage", qos: .utility)
 
-    private var sessionsFileURL: URL {
-        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private static var sessionsFileURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return docs.appendingPathComponent("netpulse_traffic_sessions.json")
     }
 
-    private var dataPointsFileURL: URL {
-        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private static var dataPointsFileURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return docs.appendingPathComponent("netpulse_traffic_datapoints.json")
     }
 
-    private var budgetFileURL: URL {
-        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private static var budgetFileURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return docs.appendingPathComponent("netpulse_traffic_budget.json")
     }
 
     public init() {
-        loadData()
+        let (initialSessions, initialPoints, initialBudget) = Self.loadInitialData()
+        self.sessions = initialSessions
+        self.dataPoints = initialPoints
+        self.budget = initialBudget
+        self.currentActiveSessionId = initialSessions.first(where: { $0.isActive })?.id
     }
 
     // MARK: - Инициализация и загрузка данных
 
-    private func loadData() {
+    private static func loadInitialData() -> ([TrafficSession], [TrafficDataPoint], TrafficBudget) {
+        var loadedSessions: [TrafficSession] = []
+        var loadedPoints: [TrafficDataPoint] = []
+        var loadedBudget: TrafficBudget = TrafficBudget()
+
         // Загрузка сессий
         if let data = try? Data(contentsOf: sessionsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficSession].self, from: data) {
-            self.sessions = decoded
+            loadedSessions = decoded
         }
 
         // Загрузка точек графиков
         if let data = try? Data(contentsOf: dataPointsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficDataPoint].self, from: data) {
-            self.dataPoints = decoded
+            loadedPoints = decoded
         }
 
         // Загрузка бюджета
         if let data = try? Data(contentsOf: budgetFileURL),
            let decoded = try? JSONDecoder().decode(TrafficBudget.self, from: data) {
-            self.budget = decoded
+            loadedBudget = decoded
         }
 
         // Если данных нет, генерируем базовую структуру для демонстрации реальных срезов
-        if sessions.isEmpty {
-            seedInitialDemoSessionsIfNeeded()
+        if loadedSessions.isEmpty {
+            let (demoSessions, demoPoints) = generateDemoData()
+            loadedSessions = demoSessions
+            loadedPoints = demoPoints
         }
+
+        return (loadedSessions, loadedPoints, loadedBudget)
     }
 
     private func saveData() {
         do {
             let sData = try JSONEncoder().encode(sessions)
-            try sData.write(to: sessionsFileURL, options: .atomic)
+            try sData.write(to: Self.sessionsFileURL, options: .atomic)
 
             let pData = try JSONEncoder().encode(dataPoints)
-            try pData.write(to: dataPointsFileURL, options: .atomic)
+            try pData.write(to: Self.dataPointsFileURL, options: .atomic)
 
             let bData = try JSONEncoder().encode(budget)
-            try bData.write(to: budgetFileURL, options: .atomic)
+            try bData.write(to: Self.budgetFileURL, options: .atomic)
         } catch {
             print("⚠️ Ошибка сохранения данных трафика: \(error.localizedDescription)")
         }
@@ -146,7 +155,6 @@ public actor TrafficStorage {
             }
         }
 
-        // Сохраняем раз в 30 секунд или периодически
         saveData()
     }
 
@@ -230,7 +238,7 @@ public actor TrafficStorage {
             csv.append(line)
         }
 
-        let tempDir = fileManager.temporaryDirectory
+        let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent("NetPulse_Traffic_Report_\(UUID().uuidString.prefix(6)).csv")
         try csv.write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
@@ -249,14 +257,15 @@ public actor TrafficStorage {
         )
 
         let data = try encoder.encode(exportPayload)
-        let tempDir = fileManager.temporaryDirectory
+        let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent("NetPulse_Traffic_Report_\(UUID().uuidString.prefix(6)).json")
         try data.write(to: fileURL)
         return fileURL
     }
 
-    // MARK: - Демо-данные для визуализации при первом запуске
-    private func seedInitialDemoSessionsIfNeeded() {
+    // MARK: - Генератор демонстрационных данных
+
+    private static func generateDemoData() -> ([TrafficSession], [TrafficDataPoint]) {
         let now = Date()
         let cal = Calendar.current
 
@@ -267,8 +276,8 @@ public actor TrafficStorage {
                 interfaceName: "en0",
                 startDate: cal.date(byAdding: .hour, value: -3, to: now) ?? now,
                 endDate: now,
-                downloadedBytes: 1_420_000_000, // 1.42 GB
-                uploadedBytes: 310_000_000,    // 310 MB
+                downloadedBytes: 1_420_000_000,
+                uploadedBytes: 310_000_000,
                 peakDownloadBps: 18_500_000,
                 peakUploadBps: 4_200_000,
                 isActive: true
@@ -279,8 +288,8 @@ public actor TrafficStorage {
                 interfaceName: "pdp_ip0",
                 startDate: cal.date(byAdding: .hour, value: -8, to: now) ?? now,
                 endDate: cal.date(byAdding: .hour, value: -3, to: now) ?? now,
-                downloadedBytes: 480_000_000,  // 480 MB
-                uploadedBytes: 95_000_000,     // 95 MB
+                downloadedBytes: 480_000_000,
+                uploadedBytes: 95_000_000,
                 peakDownloadBps: 9_200_000,
                 peakUploadBps: 1_800_000,
                 isActive: false
@@ -291,8 +300,8 @@ public actor TrafficStorage {
                 interfaceName: "en0",
                 startDate: cal.date(byAdding: .day, value: -1, to: now) ?? now,
                 endDate: cal.date(byAdding: .day, value: -1, to: now)?.addingTimeInterval(28800),
-                downloadedBytes: 3_150_000_000, // 3.15 GB
-                uploadedBytes: 890_000_000,    // 890 MB
+                downloadedBytes: 3_150_000_000,
+                uploadedBytes: 890_000_000,
                 peakDownloadBps: 45_000_000,
                 peakUploadBps: 22_000_000,
                 isActive: false
@@ -303,18 +312,14 @@ public actor TrafficStorage {
                 interfaceName: "en0",
                 startDate: cal.date(byAdding: .day, value: -2, to: now) ?? now,
                 endDate: cal.date(byAdding: .day, value: -2, to: now)?.addingTimeInterval(7200),
-                downloadedBytes: 320_000_000,  // 320 MB
-                uploadedBytes: 42_000_000,     // 42 MB
+                downloadedBytes: 320_000_000,
+                uploadedBytes: 42_000_000,
                 peakDownloadBps: 4_500_000,
                 peakUploadBps: 800_000,
                 isActive: false
             )
         ]
 
-        self.sessions = demoSessions
-        self.currentActiveSessionId = demoSessions.first?.id
-
-        // Генерируем точки графиков
         var pts: [TrafficDataPoint] = []
         for i in (0..<24).reversed() {
             if let d = cal.date(byAdding: .hour, value: -i, to: now) {
@@ -330,8 +335,8 @@ public actor TrafficStorage {
                 ))
             }
         }
-        self.dataPoints = pts
-        saveData()
+
+        return (demoSessions, pts)
     }
 }
 

@@ -35,6 +35,13 @@ public final class HapticManager {
         generator.impactOccurred()
     }
 
+    /// Смена выбора в переключателях (Segmented Control, Picker)
+    public func selectionChanged() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.prepare()
+        generator.selectionChanged()
+    }
+
     /// Успешное действие (например, завершение Speedtest)
     public func notificationSuccess() {
         let generator = UINotificationFeedbackGenerator()

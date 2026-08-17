@@ -50,10 +50,13 @@ public struct DashboardView: View {
                         // 1. Компактная плашка текущего подключения
                         ConnectionStatusHeader(info: viewModel.systemInfo)
 
-                        // 2. Быстрые переключатели виджетов (Dynamic Island & HUD)
+                        // 2. Плашка быстрого AI-аудита сети
+                        AIQuickAuditBanner(viewModel: viewModel)
+
+                        // 3. Быстрые переключатели виджетов (Dynamic Island & HUD)
                         WidgetQuickControlsBar(viewModel: viewModel)
 
-                        // 3. Интерактивный замер скорости (Speedtest)
+                        // 4. Интерактивный замер скорости (Speedtest)
                         SpeedtestHeroView(
                             isRunning: viewModel.isSpeedtestRunning,
                             downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
@@ -65,7 +68,7 @@ public struct DashboardView: View {
                             }
                         )
 
-                        // 4. Блок оценки применимости скорости (Для чего подходит сеть)
+                        // 5. Блок оценки применимости скорости (Для чего подходит сеть)
                         NetworkCapabilityCardView(items: capabilities)
                     }
                     .padding(16)
@@ -203,3 +206,86 @@ private struct ConnectionStatusHeader: View {
         }
     }
 }
+
+/// Плашка быстрого запуска AI-аудита сети
+private struct AIQuickAuditBanner: View {
+    @Bindable var viewModel: NetworkMonitorViewModel
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.cyan.opacity(0.2), .blue.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 38, height: 38)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.cyan)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("AI-Диагност NetPulse")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.primary)
+
+                    if let score = viewModel.currentHealthReport?.overallScore {
+                        Text("\(score)/100")
+                            .font(.system(size: 11, weight: .heavy, design: .rounded))
+                            .foregroundStyle(viewModel.currentHealthReport?.statusBadgeColor ?? .green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
+
+                Text(viewModel.currentHealthReport?.statusTitle ?? "Готов к мгновенному анализу задержки и стабильности")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button {
+                Task {
+                    await viewModel.runAIDiagnosticsAudit()
+                }
+            } label: {
+                if viewModel.isAIAnalyzing {
+                    ProgressView()
+                        .tint(.cyan)
+                        .scaleEffect(0.8)
+                } else {
+                    Text("Аудит ✨")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            LinearGradient(colors: [.cyan, .blue], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .clipShape(Capsule())
+                }
+            }
+            .disabled(viewModel.isAIAnalyzing)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.cyan.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+

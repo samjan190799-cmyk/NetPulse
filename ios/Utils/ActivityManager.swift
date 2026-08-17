@@ -11,7 +11,7 @@ import SwiftUI
 import ActivityKit
 #endif
 
-/// Синглтон управления жизненным циклом Live Activity для Dynamic Island.
+/// Синглтон управления жизненным циклом Live Activity для Dynamic Island без замираний.
 @MainActor
 public final class ActivityManager {
     public static let shared = ActivityManager()
@@ -20,7 +20,7 @@ public final class ActivityManager {
     private var currentActivity: Activity<NetPulseAttributes>?
     private var lastContentState: NetPulseAttributes.ContentState?
     private var lastUpdateDate: Date?
-    private var isUpdating: Bool = false
+    private var pendingUpdateTask: Task<Void, Never>?
     #endif
 
     public private(set) var isLiveActivityActive: Bool = false
@@ -56,9 +56,10 @@ public final class ActivityManager {
             ispName: ispName
         )
 
+        // staleDate на 1 час вперед предотвращает замораживание виджета операционной системой
         let content = ActivityContent(
             state: initialState,
-            staleDate: nil,
+            staleDate: Date().addingTimeInterval(3600),
             relevanceScore: 100.0
         )
 
@@ -80,7 +81,7 @@ public final class ActivityManager {
         #endif
     }
 
-    /// Обновление живых данных реальной скорости в Dynamic Island с надежным XPC-шлюзом
+    /// Обновление живых данных реальной скорости в Dynamic Island с надежным неблокирующим конвейером
     public func updateActivity(
         downloadSpeedText: String,
         uploadSpeedText: String,
@@ -92,22 +93,13 @@ public final class ActivityManager {
         force: Bool = false
     ) {
         #if canImport(ActivityKit)
-        guard let activity = currentActivity ?? Activity<NetPulseAttributes>.activities.first else {
-            startActivity(
-                downloadSpeedText: downloadSpeedText,
-                uploadSpeedText: uploadSpeedText,
-                compactDownloadText: compactDownloadText,
-                compactUploadText: compactUploadText,
-                isTesting: isTesting,
-                connectionType: connectionType,
-                ispName: ispName
-            )
-            return
+        var activeActivity = currentActivity
+        if activeActivity == nil || activeActivity?.activityState != .active {
+            activeActivity = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active })
         }
 
-        // Если сессия была завершена операционной системой, пересоздаем ее
-        guard activity.activityState == .active else {
-            self.currentActivity = nil
+        guard let activity = activeActivity else {
+            // Если активности нет, создаем новую
             startActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -133,36 +125,35 @@ public final class ActivityManager {
             ispName: ispName
         )
 
-        // 1. Проверка дублирующегося состояния: если данные не изменились, отправляем heartbeat каждые 10 секунд
+        let now = Date()
+
+        // 1. Проверка дублирующегося состояния: если данные не изменились, отправляем heartbeat каждые 5 секунд
         if !force, let lastState = lastContentState, lastState == updatedState {
-            if let lastDate = lastUpdateDate, Date().timeIntervalSince(lastDate) < 10.0 {
+            if let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < 5.0 {
                 return
             }
         }
 
-        // 2. Троттлинг вызовов: защита от перегрузки очереди (минимум 2.0 сек между обновлениями)
-        let minInterval: TimeInterval = isTesting ? 1.5 : 2.0
-        let now = Date()
+        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (минимум 1.8 сек)
+        let minInterval: TimeInterval = isTesting ? 1.2 : 1.8
         if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
             return
         }
 
-        // 3. Защита от наложения одновременных XPC-запросов к SpringBoard/ActivityKit
-        guard !isUpdating else { return }
-        isUpdating = true
-
         self.lastContentState = updatedState
         self.lastUpdateDate = now
 
+        // Устанавливаем staleDate на 1 час вперед, чтобы виджет никогда не помечался как замерзший
         let content = ActivityContent(
             state: updatedState,
-            staleDate: nil,
-            relevanceScore: isTesting ? 100.0 : 75.0
+            staleDate: Date().addingTimeInterval(3600),
+            relevanceScore: isTesting ? 100.0 : 80.0
         )
 
-        Task {
+        // Неблокирующее обновление: отменяем предыдущую незавершенную задачу и отправляем свежую
+        pendingUpdateTask?.cancel()
+        pendingUpdateTask = Task {
             await activity.update(content)
-            self.isUpdating = false
         }
         #endif
     }
@@ -170,9 +161,10 @@ public final class ActivityManager {
     /// Остановка Live Activity
     public func stopActivity() {
         #if canImport(ActivityKit)
+        pendingUpdateTask?.cancel()
+        pendingUpdateTask = nil
         lastContentState = nil
         lastUpdateDate = nil
-        isUpdating = false
 
         for activity in Activity<NetPulseAttributes>.activities {
             Task {
@@ -181,7 +173,7 @@ public final class ActivityManager {
         }
         self.currentActivity = nil
         self.isLiveActivityActive = false
+        print("🛑 Live Activity остановлена")
         #endif
     }
 }
-

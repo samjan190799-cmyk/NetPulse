@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Главный навигационный контейнер приложения с 3 разделами и плавающим игровым HUD.
+/// Главный навигационный контейнер приложения с 5 разделами (Скорость, Трафик, Диагностика, AI Диагност, Настройки) и плавающим игровым HUD.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel()
 
@@ -19,9 +19,19 @@ public struct ContentView: View {
                         Label("Скорость", systemImage: "gauge.with.dots.needle.67percent")
                     }
 
+                TrafficView(viewModel: viewModel)
+                    .tabItem {
+                        Label("Трафик", systemImage: "arrow.up.arrow.down.square.fill")
+                    }
+
                 DiagnosticsView(viewModel: viewModel)
                     .tabItem {
                         Label("Диагностика", systemImage: "waveform.path.ecg")
+                    }
+
+                AIDiagnosticsView(viewModel: viewModel)
+                    .tabItem {
+                        Label("AI Диагност", systemImage: "sparkles")
                     }
 
                 SettingsView(viewModel: viewModel)
@@ -29,7 +39,7 @@ public struct ContentView: View {
                         Label("Настройки", systemImage: "gearshape.fill")
                     }
             }
-            .tint(.blue)
+            .tint(.cyan)
             .preferredColorScheme(.dark)
 
             // Плавающий игровой HUD поверх экранов

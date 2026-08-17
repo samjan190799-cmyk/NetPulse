@@ -14,6 +14,7 @@ public struct SettingsView: View {
     @State private var newHostName: String = ""
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
+    @State private var showResetTrafficAlert: Bool = false
 
     public var body: some View {
         NavigationStack {
@@ -122,7 +123,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Dynamic Island (Live Activity)")
                                 .font(.system(size: 15, weight: .medium))
-                            Text("Показ скорости в вырезе экрана и на Lock Screen")
+                            Text("Непрерывный показ скорости в вырезе экрана и на Lock Screen 24/7")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }
@@ -144,8 +145,32 @@ public struct SettingsView: View {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
                     Toggle("Звуковые предупреждения", isOn: $viewModel.soundEnabled)
                 }
+
+                // Управление хранилищем трафика
+                Section("Хранилище трафика") {
+                    Button(role: .destructive) {
+                        showResetTrafficAlert = true
+                    } label: {
+                        Label("Сбросить историю трафика", systemImage: "trash")
+                    }
+                }
             }
             .navigationTitle("Настройки")
+            .confirmationDialog(
+                "Сбросить историю трафика?",
+                isPresented: $showResetTrafficAlert,
+                titleVisibility: .visible
+            ) {
+                Button("Очистить все данные", role: .destructive) {
+                    Task {
+                        await viewModel.resetTrafficHistory()
+                    }
+                    HapticManager.shared.notificationWarning()
+                }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
+            }
         }
     }
 }

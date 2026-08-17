@@ -28,10 +28,39 @@ public final class NetworkMonitorViewModel {
         uploadBytesPerSec: 0,
         downloadMbps: 0,
         uploadMbps: 0,
+        wifiDownloadBps: 0,
+        wifiUploadBps: 0,
+        cellularDownloadBps: 0,
+        cellularUploadBps: 0,
         totalReceivedBytes: 0,
         totalSentBytes: 0,
+        wifiReceivedBytes: 0,
+        wifiSentBytes: 0,
+        cellularReceivedBytes: 0,
+        cellularSentBytes: 0,
+        deltaDownloadBytes: 0,
+        deltaUploadBytes: 0,
+        deltaWifiBytes: 0,
+        deltaCellularBytes: 0,
         timestamp: Date()
     )
+
+    // MARK: - Аналитика трафика (Traffic & Sessions)
+    public var trafficSummary: TrafficSummary = TrafficSummary()
+    public var trafficSessions: [TrafficSession] = []
+    public var trafficDataPoints: [TrafficDataPoint] = []
+    public var trafficBudget: TrafficBudget = TrafficBudget()
+    public var selectedTrafficPeriod: TrafficPeriod = .today
+
+    public var currentNetworkTitle: String {
+        if systemInfo.connectionType == .wifi {
+            return systemInfo.ispName ?? "Wi-Fi Сеть"
+        } else if systemInfo.connectionType == .cellular {
+            return systemInfo.ispName ?? "Сотовая связь (5G/LTE)"
+        } else {
+            return systemInfo.connectionType.rawValue
+        }
+    }
 
     // Speedtest
     public var isSpeedtestRunning: Bool = false
@@ -78,6 +107,9 @@ public final class NetworkMonitorViewModel {
     public init() {
         initMetricsForTargets()
         setupBackgroundObservation()
+        Task {
+            await refreshTrafficData(period: .today)
+        }
     }
 
     private func setupBackgroundObservation() {
@@ -119,6 +151,12 @@ public final class NetworkMonitorViewModel {
         if bgTask != .invalid {
             UIApplication.shared.endBackgroundTask(bgTask)
             bgTask = .invalid
+        }
+        if liveActivityEnabled || isMonitoringActive {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
+        }
+        Task {
+            await refreshTrafficData(period: selectedTrafficPeriod)
         }
     }
 
@@ -169,18 +207,33 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Фоновые задачи опроса
 
-    /// Изолированная задача замера реальной скорости и обновления Dynamic Island (работает стабильно раз в 3.0 сек)
+    /// Изолированная задача замера реальной скорости, сохранения трафика и непрерывного обновления Dynamic Island
     private func startBandwidthTask() {
         bandwidthTask?.cancel()
         bandwidthTask = Task { [weak self] in
+            var loopCount = 0
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
 
-                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы за 3-секундное окно (быстро, ~0.05ms)
+                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы
                 let snapshot = self.bandwidthEngine.sampleBandwidth()
                 self.liveBandwidth = snapshot
 
-                // Передача реальной скорости в Dynamic Island
+                // Фиксация расхода в постоянном хранилище TrafficStorage
+                await TrafficStorage.shared.recordTrafficSample(
+                    snapshot: snapshot,
+                    networkName: self.currentNetworkTitle,
+                    connectionType: self.systemInfo.connectionType.rawValue,
+                    interfaceName: self.systemInfo.connectionType == .wifi ? "en0" : "pdp_ip0"
+                )
+
+                // Периодическое обновление данных раздела «Трафик» в UI
+                loopCount += 1
+                if loopCount % 3 == 0 {
+                    await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+                }
+
+                // Передача реальной скорости в Dynamic Island без замираний
                 if self.liveActivityEnabled {
                     let dlText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveDownloadSpeed) : snapshot.formattedDownloadSpeed
                     let ulText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveUploadSpeed) : snapshot.formattedUploadSpeed
@@ -198,7 +251,7 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3.0 секунды (безопасно для бюджета ActivityKit 24/7)
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // Стабильные 2.0 секунды
             }
         }
     }
@@ -320,6 +373,39 @@ public final class NetworkMonitorViewModel {
         }
 
         hostMetrics[address] = metric
+    }
+
+    // MARK: - Методы управления аналитикой трафика
+
+    public func refreshTrafficData(period: TrafficPeriod) async {
+        self.selectedTrafficPeriod = period
+        let summary = await TrafficStorage.shared.getSummary(for: period)
+        let sessions = await TrafficStorage.shared.getSessions(for: period)
+        let points = await TrafficStorage.shared.getDataPoints(for: period)
+        let budget = await TrafficStorage.shared.getBudget()
+
+        self.trafficSummary = summary
+        self.trafficSessions = sessions
+        self.trafficDataPoints = points
+        self.trafficBudget = budget
+    }
+
+    public func updateTrafficBudget(_ newBudget: TrafficBudget) async {
+        await TrafficStorage.shared.updateBudget(newBudget)
+        self.trafficBudget = newBudget
+    }
+
+    public func resetTrafficHistory() async {
+        await TrafficStorage.shared.resetAllData()
+        await refreshTrafficData(period: selectedTrafficPeriod)
+    }
+
+    public func exportTrafficCSV() async -> URL? {
+        try? await TrafficStorage.shared.exportTrafficCSV()
+    }
+
+    public func exportTrafficJSON() async -> URL? {
+        try? await TrafficStorage.shared.exportTrafficJSON()
     }
 
     // MARK: - Алерты
@@ -449,6 +535,7 @@ public final class NetworkMonitorViewModel {
                 uploadSpeedText: snapshot.formattedUploadSpeed,
                 compactDownloadText: snapshot.compactDownload,
                 compactUploadText: snapshot.compactUpload,
+                isTesting: isSpeedtestRunning,
                 connectionType: systemInfo.connectionType.rawValue,
                 ispName: systemInfo.ispName ?? "Интернет"
             )
@@ -516,5 +603,84 @@ public final class NetworkMonitorViewModel {
 
     public func getExportCSVURL() async throws -> URL {
         try await storage.exportSessionToCSV()
+    }
+
+    // MARK: - AI Диагност (Network AI Copilot)
+
+    public var currentHealthReport: NetworkHealthReport?
+    public var aiMessages: [AIMessage] = []
+    public var isAIAnalyzing: Bool = false
+    public var aiProviderConfig: AIProviderConfig = AIProviderConfig()
+
+    public func buildDiagnosticsContext() -> NetworkDiagnosticsContext {
+        NetworkDiagnosticsContext(
+            connectionType: systemInfo.connectionType.rawValue,
+            localIP: systemInfo.localIP,
+            gatewayIP: systemInfo.gatewayIP,
+            publicIP: systemInfo.publicIP,
+            ispName: systemInfo.ispName,
+            dnsServers: systemInfo.dnsServers,
+            averagePingMs: currentAveragePing,
+            jitterMs: currentAverageJitter,
+            packetLossPct: currentPacketLossPct,
+            liveDownloadMbps: liveBandwidth.downloadMbps,
+            liveUploadMbps: liveBandwidth.uploadMbps,
+            speedtestDownloadMbps: lastSpeedtestResult?.downloadMbps,
+            speedtestUploadMbps: lastSpeedtestResult?.uploadMbps,
+            recentAlertsCount: recentAlerts.count,
+            tracerouteHopsCount: tracerouteHops.count
+        )
+    }
+
+    public func runAIDiagnosticsAudit() async {
+        guard !isAIAnalyzing else { return }
+        isAIAnalyzing = true
+        HapticManager.shared.impactMedium()
+
+        let context = buildDiagnosticsContext()
+        let report = AIDiagnosticsEngine.shared.evaluateNetworkHealth(context: context)
+        self.currentHealthReport = report
+
+        if aiMessages.isEmpty {
+            let greeting = """
+            Привет! Я ваш интеллектуальный сетевой помощник **NetPulse AI**. 
+
+            Я только что провел аудит вашего соединения: общий балл качества — **\(report.overallScore) из 100** (\(report.statusTitle)). 
+
+            Вы можете задать мне любой вопрос о задержках, качестве связи в играх, скорости видео или настройке роутера.
+            """
+            aiMessages.append(AIMessage(role: .assistant, content: greeting))
+        }
+
+        isAIAnalyzing = false
+        if hapticsEnabled {
+            HapticManager.shared.notificationSuccess()
+        }
+    }
+
+    public func sendAIMessage(_ text: String) async {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        let userMsg = AIMessage(role: .user, content: text)
+        aiMessages.append(userMsg)
+        isAIAnalyzing = true
+
+        let context = buildDiagnosticsContext()
+        let response = await AIDiagnosticsEngine.shared.askAI(
+            prompt: text,
+            context: context,
+            config: aiProviderConfig
+        )
+
+        aiMessages.append(AIMessage(role: .assistant, content: response))
+        isAIAnalyzing = false
+
+        if hapticsEnabled {
+            HapticManager.shared.impactLight()
+        }
+    }
+
+    public func updateAIConfig(_ newConfig: AIProviderConfig) {
+        self.aiProviderConfig = newConfig
     }
 }

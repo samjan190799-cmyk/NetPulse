@@ -43,6 +43,12 @@
 		A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C12345600000032 /* FloatingGameOverlayView.swift */; };
 		A10000302C12345600000034 /* PiPHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C12345600000034 /* PiPHUDManager.swift */; };
 		A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */; };
+		A10000402C12345600000040 /* TrafficModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000402C12345600000040 /* TrafficModels.swift */; };
+		A10000412C12345600000041 /* TrafficStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000412C12345600000041 /* TrafficStorage.swift */; };
+		A10000422C12345600000042 /* TrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000422C12345600000042 /* TrafficView.swift */; };
+		A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000502C12345600000050 /* AIDiagnosticsModels.swift */; };
+		A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000512C12345600000051 /* AIDiagnosticsEngine.swift */; };
+		A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000522C12345600000052 /* AIDiagnosticsView.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
@@ -113,6 +119,12 @@
 		B10000262C12345600000030 /* ActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ActivityManager.swift; sourceTree = "<group>"; };
 		B10000302C12345600000034 /* PiPHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/PiPHUDManager.swift; sourceTree = "<group>"; };
 		B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/BackgroundTelemetryKeeper.swift; sourceTree = "<group>"; };
+		B10000402C12345600000040 /* TrafficModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TrafficModels.swift; sourceTree = "<group>"; };
+		B10000412C12345600000041 /* TrafficStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/TrafficStorage.swift; sourceTree = "<group>"; };
+		B10000422C12345600000042 /* TrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TrafficView.swift; sourceTree = "<group>"; };
+		B10000502C12345600000050 /* AIDiagnosticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AIDiagnosticsModels.swift; sourceTree = "<group>"; };
+		B10000512C12345600000051 /* AIDiagnosticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AIDiagnosticsEngine.swift; sourceTree = "<group>"; };
+		B10000522C12345600000052 /* AIDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIDiagnosticsView.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -179,6 +191,8 @@
 				B10000092C12345600000009 /* NetworkAlert.swift */,
 				B10000222C1234560000002C /* NetworkCapability.swift */,
 				B10000252C1234560000002F /* NetPulseAttributes.swift */,
+				B10000402C12345600000040 /* TrafficModels.swift */,
+				B10000502C12345600000050 /* AIDiagnosticsModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -192,6 +206,7 @@
 				B100000D2C1234560000000D /* NetworkDiagnostics.swift */,
 				B100000E2C1234560000000E /* TracerouteEngine.swift */,
 				B10000292C12345600000033 /* BandwidthEngine.swift */,
+				B10000512C12345600000051 /* AIDiagnosticsEngine.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -208,6 +223,8 @@
 			isa = PBXGroup;
 			children = (
 				B10000102C12345600000010 /* DashboardView.swift */,
+				B10000422C12345600000042 /* TrafficView.swift */,
+				B10000522C12345600000052 /* AIDiagnosticsView.swift */,
 				B10000242C1234560000002E /* DiagnosticsView.swift */,
 				B10000112C12345600000011 /* SettingsView.swift */,
 				E10000062C12345600000006 /* Components */,
@@ -237,6 +254,7 @@
 			children = (
 				B10000182C12345600000018 /* HapticManager.swift */,
 				B10000192C12345600000019 /* HistoryStorage.swift */,
+				B10000412C12345600000041 /* TrafficStorage.swift */,
 				B10000262C12345600000030 /* ActivityManager.swift */,
 				B10000302C12345600000034 /* PiPHUDManager.swift */,
 				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
@@ -387,6 +405,12 @@
 				A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */,
 				A10000302C12345600000034 /* PiPHUDManager.swift in Sources */,
 				A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */,
+				A10000402C12345600000040 /* TrafficModels.swift in Sources */,
+				A10000412C12345600000041 /* TrafficStorage.swift in Sources */,
+				A10000422C12345600000042 /* TrafficView.swift in Sources */,
+				A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */,
+				A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */,
+				A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -90,6 +90,19 @@ public struct DiagnosticsView: View {
                     }
                 }
 
+                // Кнопка быстрого AI-анализа
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await viewModel.runAIDiagnosticsAudit()
+                        }
+                    } label: {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.cyan)
+                    }
+                }
+
                 // Экспорт отчетов
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {

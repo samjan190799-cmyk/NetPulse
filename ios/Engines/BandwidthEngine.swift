@@ -8,14 +8,33 @@
 import Foundation
 import SystemConfiguration
 
-/// Структура замера пропускной способности сети
+/// Структура детального снимка сетевого трафика
 public struct BandwidthSnapshot: Sendable {
     public let downloadBytesPerSec: Double
     public let uploadBytesPerSec: Double
     public let downloadMbps: Double
     public let uploadMbps: Double
+    
+    // По типам интерфейсов (Wi-Fi vs Cellular)
+    public let wifiDownloadBps: Double
+    public let wifiUploadBps: Double
+    public let cellularDownloadBps: Double
+    public let cellularUploadBps: Double
+    
+    // Накопленные счетчики
     public let totalReceivedBytes: UInt64
     public let totalSentBytes: UInt64
+    public let wifiReceivedBytes: UInt64
+    public let wifiSentBytes: UInt64
+    public let cellularReceivedBytes: UInt64
+    public let cellularSentBytes: UInt64
+    
+    // Дельты за последний интервал
+    public let deltaDownloadBytes: UInt64
+    public let deltaUploadBytes: UInt64
+    public let deltaWifiBytes: UInt64
+    public let deltaCellularBytes: UInt64
+    
     public let timestamp: Date
 
     public var formattedDownloadSpeed: String {
@@ -57,49 +76,56 @@ public struct BandwidthSnapshot: Sendable {
     }
 }
 
+/// Счетчики интерфейсов
+private struct InterfaceByteCounters {
+    var totalIn: UInt64 = 0
+    var totalOut: UInt64 = 0
+    var wifiIn: UInt64 = 0
+    var wifiOut: UInt64 = 0
+    var cellularIn: UInt64 = 0
+    var cellularOut: UInt64 = 0
+}
+
 /// Системный движок замера РЕАЛЬНОГО сетевого трафика всего iPhone через getifaddrs
 public final class BandwidthEngine: @unchecked Sendable {
-    private var prevInBytes: UInt64 = 0
-    private var prevOutBytes: UInt64 = 0
+    private var prevCounters: InterfaceByteCounters
     private var prevTimestamp: Date?
 
     public init() {
-        let (inB, outB) = fetchInterfaceBytes()
-        self.prevInBytes = inB
-        self.prevOutBytes = outB
+        let counters = Self.fetchDetailedInterfaceBytes()
+        self.prevCounters = counters
         self.prevTimestamp = Date()
     }
 
-    /// Получение текущего снимка реальной скорости трафика всего устройства
+    /// Получение текущего снимка реальной скорости трафика всего устройства с разделением по интерфейсам
     public func sampleBandwidth() -> BandwidthSnapshot {
-        let (currentIn, currentOut) = fetchInterfaceBytes()
+        let currentCounters = Self.fetchDetailedInterfaceBytes()
         let now = Date()
         let timeDelta = prevTimestamp != nil ? max(now.timeIntervalSince(prevTimestamp!), 0.2) : 1.0
 
-        var inDelta: UInt64 = 0
-        if currentIn >= prevInBytes {
-            inDelta = currentIn - prevInBytes
-        } else if prevInBytes > 0 && currentIn < prevInBytes {
-            // Защита от переполнения 32-битного счетчика
-            inDelta = (UInt64(UInt32.max) - prevInBytes) + currentIn
-        }
-
-        var outDelta: UInt64 = 0
-        if currentOut >= prevOutBytes {
-            outDelta = currentOut - prevOutBytes
-        } else if prevOutBytes > 0 && currentOut < prevOutBytes {
-            // Защита от переполнения 32-битного счетчика
-            outDelta = (UInt64(UInt32.max) - prevOutBytes) + currentOut
-        }
+        // Дельты
+        let inDelta = Self.computeDelta(prev: prevCounters.totalIn, current: currentCounters.totalIn)
+        let outDelta = Self.computeDelta(prev: prevCounters.totalOut, current: currentCounters.totalOut)
+        
+        let wifiInDelta = Self.computeDelta(prev: prevCounters.wifiIn, current: currentCounters.wifiIn)
+        let wifiOutDelta = Self.computeDelta(prev: prevCounters.wifiOut, current: currentCounters.wifiOut)
+        
+        let cellInDelta = Self.computeDelta(prev: prevCounters.cellularIn, current: currentCounters.cellularIn)
+        let cellOutDelta = Self.computeDelta(prev: prevCounters.cellularOut, current: currentCounters.cellularOut)
 
         let downloadBytesPerSec = Double(inDelta) / timeDelta
         let uploadBytesPerSec = Double(outDelta) / timeDelta
+        
+        let wifiDownloadBps = Double(wifiInDelta) / timeDelta
+        let wifiUploadBps = Double(wifiOutDelta) / timeDelta
+        
+        let cellDownloadBps = Double(cellInDelta) / timeDelta
+        let cellUploadBps = Double(cellOutDelta) / timeDelta
 
         let downloadMbps = (downloadBytesPerSec * 8.0) / 1_000_000.0
         let uploadMbps = (uploadBytesPerSec * 8.0) / 1_000_000.0
 
-        self.prevInBytes = currentIn
-        self.prevOutBytes = currentOut
+        self.prevCounters = currentCounters
         self.prevTimestamp = now
 
         return BandwidthSnapshot(
@@ -107,40 +133,75 @@ public final class BandwidthEngine: @unchecked Sendable {
             uploadBytesPerSec: uploadBytesPerSec,
             downloadMbps: downloadMbps,
             uploadMbps: uploadMbps,
-            totalReceivedBytes: currentIn,
-            totalSentBytes: currentOut,
+            wifiDownloadBps: wifiDownloadBps,
+            wifiUploadBps: wifiUploadBps,
+            cellularDownloadBps: cellDownloadBps,
+            cellularUploadBps: cellUploadBps,
+            totalReceivedBytes: currentCounters.totalIn,
+            totalSentBytes: currentCounters.totalOut,
+            wifiReceivedBytes: currentCounters.wifiIn,
+            wifiSentBytes: currentCounters.wifiOut,
+            cellularReceivedBytes: currentCounters.cellularIn,
+            cellularSentBytes: currentCounters.cellularOut,
+            deltaDownloadBytes: inDelta,
+            deltaUploadBytes: outDelta,
+            deltaWifiBytes: wifiInDelta + wifiOutDelta,
+            deltaCellularBytes: cellInDelta + cellOutDelta,
             timestamp: now
         )
     }
 
-    /// Считывание счетчиков байт сетевых интерфейсов BSD (Wi-Fi, 5G/LTE, Ethernet)
-    private func fetchInterfaceBytes() -> (UInt64, UInt64) {
+    private static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
+        if current >= prev {
+            return current - prev
+        } else if prev > 0 && current < prev {
+            // Защита от переполнения 32-битного системного счетчика ifi_ibytes
+            return (UInt64(UInt32.max) - prev) + current
+        }
+        return 0
+    }
+
+    /// Считывание счетчиков байт сетевых интерфейсов BSD (Wi-Fi: en0/en1, Cellular: pdp_ip0..3)
+    private static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
-            return (0, 0)
+            return InterfaceByteCounters()
         }
         defer { freeifaddrs(ifaddr) }
 
-        var totalIn: UInt64 = 0
-        var totalOut: UInt64 = 0
-
+        var result = InterfaceByteCounters()
         var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
+
         while let ptr = cursor {
             let flags = Int32(ptr.pointee.ifa_flags)
             let isUp = (flags & IFF_UP) == IFF_UP
             let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
 
-            // ВАЖНО: В ядре Darwin (iOS/macOS) только записи с sa_family == AF_LINK содержат struct if_data
+            // В ядре Darwin только записи с sa_family == AF_LINK содержат struct if_data
             if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
                 if let data = ptr.pointee.ifa_data {
                     let networkData = data.assumingMemoryBound(to: if_data.self)
-                    totalIn += UInt64(networkData.pointee.ifi_ibytes)
-                    totalOut += UInt64(networkData.pointee.ifi_obytes)
+                    let inBytes = UInt64(networkData.pointee.ifi_ibytes)
+                    let outBytes = UInt64(networkData.pointee.ifi_obytes)
+                    let ifName = String(cString: ptr.pointee.ifa_name)
+
+                    result.totalIn += inBytes
+                    result.totalOut += outBytes
+
+                    if ifName.hasPrefix("en") {
+                        // Wi-Fi / Ethernet
+                        result.wifiIn += inBytes
+                        result.wifiOut += outBytes
+                    } else if ifName.hasPrefix("pdp_ip") {
+                        // Cellular (5G / LTE)
+                        result.cellularIn += inBytes
+                        result.cellularOut += outBytes
+                    }
                 }
             }
             cursor = ptr.pointee.ifa_next
         }
 
-        return (totalIn, totalOut)
+        return result
     }
 }

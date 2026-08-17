@@ -17,6 +17,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     private var audioPlayer: AVAudioPlayer?
     private var isRunning: Bool = false
     private var isObservingNotifications: Bool = false
+    private var watchdogTimer: Timer?
 
     private override init() {
         super.init()
@@ -26,40 +27,22 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     public func startKeepAlive() {
         setupObserversIfNeeded()
 
-        guard !isRunning else { return }
+        guard !isRunning else {
+            // Если уже работает, проверяем активность плеера
+            ensurePlayerIsActive()
+            return
+        }
         isRunning = true
 
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            // Используем первичную категорию .playback (без mixWithOthers) для наивысшего приоритета фонового исполнения в iOS
-            try audioSession.setCategory(
-                .playback,
-                mode: .default,
-                options: []
-            )
-            try audioSession.setActive(true)
-
-            // Создаем 5.0-секундный инфразвуковой PCM буфер (18 Гц), который абсолютно не слышен уху, но предотвращает переход ЦАП iOS в режим сна
-            if audioPlayer == nil {
-                let silentData = generateInaudibleWavData()
-                audioPlayer = try AVAudioPlayer(data: silentData)
-                audioPlayer?.delegate = self
-                audioPlayer?.numberOfLoops = -1 // Бесконечный цикл
-                audioPlayer?.volume = 0.05
-                audioPlayer?.prepareToPlay()
-            }
-
-            audioPlayer?.play()
-            print("✅ Фоновый процесс телеметрии NetPulse активирован (Dynamic Island будет обновляться непрерывно)")
-        } catch {
-            print("⚠️ Ошибка запуска фонового аудио-удержания: \(error.localizedDescription)")
-        }
+        activateAudioEngine()
+        startWatchdog()
     }
 
     /// Остановка фонового удержания
     public func stopKeepAlive() {
         guard isRunning else { return }
         isRunning = false
+        stopWatchdog()
 
         audioPlayer?.stop()
         audioPlayer = nil
@@ -72,18 +55,80 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         print("🛑 Фоновый процесс телеметрии NetPulse остановлен")
     }
 
+    // MARK: - Активация аудио-рантайма с поддержкой микширования (.mixWithOthers)
+
+    private func activateAudioEngine() {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            // Используем .mixWithOthers + .duckOthers, чтобы фоновый процесс телеметрии НИКОГДА не прерывался
+            // при воспроизведении музыки (Apple Music / Spotify), видео, играх или системных звуках.
+            try audioSession.setCategory(
+                .playback,
+                mode: .default,
+                options: [.mixWithOthers, .duckOthers]
+            )
+            try audioSession.setActive(true)
+
+            if audioPlayer == nil {
+                let silentData = generateInaudibleWavData()
+                audioPlayer = try AVAudioPlayer(data: silentData)
+                audioPlayer?.delegate = self
+                audioPlayer?.numberOfLoops = -1 // Бесконечный непрерывный цикл
+                audioPlayer?.volume = 0.05
+                audioPlayer?.prepareToPlay()
+            }
+
+            audioPlayer?.play()
+            print("✅ Фоновый процесс телеметрии NetPulse активирован (Dynamic Island работает непрерывно с поддержкой фоновой музыки)")
+        } catch {
+            print("⚠️ Ошибка активации аудио-сессии: \(error.localizedDescription)")
+        }
+    }
+
+    private func ensurePlayerIsActive() {
+        guard isRunning else { return }
+        if audioPlayer == nil || audioPlayer?.isPlaying == false {
+            activateAudioEngine()
+        }
+    }
+
+    // MARK: - Сторожевой таймер (Watchdog) для предотвращения засыпания
+
+    private func startWatchdog() {
+        watchdogTimer?.invalidate()
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self, self.isRunning else { return }
+                self.ensurePlayerIsActive()
+            }
+        }
+    }
+
+    private func stopWatchdog() {
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
+    }
+
     // MARK: - AVAudioPlayerDelegate
 
     public nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
         Task { @MainActor in
             if self.isRunning {
                 self.audioPlayer = nil
-                self.startKeepAlive()
+                self.activateAudioEngine()
             }
         }
     }
 
-    // MARK: - Обработка системных прерываний аудиосессии
+    public nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
+            if self.isRunning {
+                self.ensurePlayerIsActive()
+            }
+        }
+    }
+
+    // MARK: - Обработка системных событий аудиосессии
 
     private func setupObserversIfNeeded() {
         guard !isObservingNotifications else { return }
@@ -117,7 +162,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             Task { @MainActor in
                 self?.audioPlayer = nil
                 if self?.isRunning == true {
-                    self?.startKeepAlive()
+                    self?.activateAudioEngine()
                 }
             }
         }
@@ -132,37 +177,34 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         }
 
         if type == .ended {
-            do {
-                try AVAudioSession.sharedInstance().setActive(true)
-                if audioPlayer?.isPlaying == false {
-                    audioPlayer?.play()
+            // Проверяем флаг shouldResume
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                if options.contains(.shouldResume) {
+                    activateAudioEngine()
+                    return
                 }
-                print("🔄 Фоновое аудио-удержание возобновлено после системного прерывания")
-            } catch {
-                print("⚠️ Не удалось возобновить фоновую сессию: \(error.localizedDescription)")
             }
+            activateAudioEngine()
         }
     }
 
     private func handleRouteChange(_ notification: Notification) {
-        if isRunning, audioPlayer?.isPlaying == false {
-            do {
-                try AVAudioSession.sharedInstance().setActive(true)
-                audioPlayer?.play()
-            } catch {
-                // Игнорируем
+        if isRunning {
+            // При смене Bluetooth/AirPods/динамика возобновляем плеер
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.ensurePlayerIsActive()
             }
         }
     }
 
     /// Генерация 5.0-секундного инфразвукового WAV-файла (18 Гц, 8kHz, 16-bit Mono PCM).
-    /// Синусоида 18 Гц не воспринимается человеческим слухом, но аппаратный DMA-контроллер CoreAudio видит реальный аудиопоток и не отключает питание процесса в спящем режиме.
     private func generateInaudibleWavData() -> Data {
         let sampleRate: Double = 8000.0
         let durationSeconds: Double = 5.0
         let numSamples = Int(sampleRate * durationSeconds)
         let frequency: Double = 18.0 // 18 Гц — инфразвук ниже порога слышимости
-        let amplitude: Double = 80.0 // 0.2% от 32767 для непрерывной аппаратной активности DMA
+        let amplitude: Double = 80.0 // 0.2% от 32767
         let bytesPerSample = 2
         let dataSize = Int32(numSamples * bytesPerSample)
         let totalSize = 36 + dataSize
@@ -197,7 +239,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         var subchunk2Size = dataSize
         data.append(Data(bytes: &subchunk2Size, count: 4))
 
-        // Генерация синусоиды инфразвука 18 Гц
+        // Генерация синусоиды 18 Гц
         for i in 0..<numSamples {
             let angle = 2.0 * Double.pi * frequency * Double(i) / sampleRate
             let sampleVal = Int16(amplitude * sin(angle))
@@ -208,4 +250,3 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         return data
     }
 }
-

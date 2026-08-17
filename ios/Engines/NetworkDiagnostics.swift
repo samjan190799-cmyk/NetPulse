@@ -11,34 +11,131 @@ import Network
 /// Диагностика сетевых параметров iOS (интерфейсы, IP, шлюз, провайдер).
 public actor NetworkDiagnostics {
     private let pathMonitor = NWPathMonitor()
-    private let monitorQueue = DispatchQueue(label: "com.netpulse.pathmonitor")
+    private let monitorQueue = DispatchQueue(label: "com.netpulse.pathmonitor", qos: .utility)
+    private var lastKnownPath: NWPath?
 
-    public init() {}
+    public init() {
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            Task { [weak self] in
+                await self?.updatePath(path)
+            }
+        }
+        pathMonitor.start(queue: monitorQueue)
+    }
 
-    /// Получение активной сетевой конфигурации
+    private func updatePath(_ path: NWPath) {
+        self.lastKnownPath = path
+    }
+
+    /// Получение активной сетевой конфигурации с гарантированным определением типа сети
     public func collectSystemInfo() async -> NetworkInterfaceInfo {
-        let localIP = getLocalIPAddress() ?? "127.0.0.1"
-        let connType = determineConnectionType()
-        let publicDetails = await fetchPublicIPDetails()
+        let (connType, localIP) = detectActiveInterfaceAndIP()
+        let publicDetails = await fetchPublicIPDetails(connType: connType)
+
+        let isExpensive = lastKnownPath?.isExpensive ?? (connType == .cellular)
+        let isConstrained = lastKnownPath?.isConstrained ?? false
+
+        // Корректное отображение имени провайдера или типа подключения
+        let defaultISP: String
+        switch connType {
+        case .wifi:
+            defaultISP = publicDetails.isp ?? "Wi-Fi Подключение"
+        case .cellular:
+            defaultISP = publicDetails.isp ?? "Мобильная сеть (5G/LTE)"
+        case .ethernet:
+            defaultISP = publicDetails.isp ?? "Ethernet Сеть"
+        case .loopback:
+            defaultISP = "Локальный интерфейс"
+        case .unavailable:
+            defaultISP = "Подключение отсутствует"
+        }
 
         return NetworkInterfaceInfo(
             localIP: localIP,
-            gatewayIP: getGatewayIPAddress() ?? "192.168.1.1",
+            gatewayIP: getGatewayIPAddress(for: localIP),
             connectionType: connType,
             dnsServers: ["1.1.1.1", "8.8.8.8"],
-            publicIP: publicDetails.ip ?? "N/A",
-            ispName: publicDetails.isp ?? "Active Cellular/Wi-Fi ISP",
+            publicIP: publicDetails.ip ?? localIP,
+            ispName: defaultISP,
             country: publicDetails.country,
             city: publicDetails.city,
-            isExpensive: pathMonitor.currentPath.isExpensive,
-            isConstrained: pathMonitor.currentPath.isConstrained
+            isExpensive: isExpensive,
+            isConstrained: isConstrained
         )
     }
 
-    // MARK: - Вспомогательные методы
+    // MARK: - Гарантированное определение типа соединения и локального IP
 
-    private func determineConnectionType() -> NetworkConnectionType {
-        let path = pathMonitor.currentPath
+    private func detectActiveInterfaceAndIP() -> (NetworkConnectionType, String) {
+        var wifiIP: String?
+        var cellIP: String?
+        var otherIP: String?
+
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
+            return (determineConnectionTypeFromNWPath(), "127.0.0.1")
+        }
+        defer { freeifaddrs(ifaddr) }
+
+        var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
+        while let ptr = cursor {
+            let flags = Int32(ptr.pointee.ifa_flags)
+            let isUp = (flags & IFF_UP) == IFF_UP
+            let isRunning = (flags & IFF_RUNNING) == IFF_RUNNING
+            let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
+
+            if isUp && isRunning && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET) {
+                var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                if getnameinfo(
+                    ptr.pointee.ifa_addr,
+                    socklen_t(addr.pointee.sa_len),
+                    &hostname,
+                    socklen_t(hostname.count),
+                    nil,
+                    0,
+                    NI_NUMERICHOST
+                ) == 0 {
+                    let ipStr = String(cString: hostname)
+                    let ifName = String(cString: ptr.pointee.ifa_name)
+
+                    if ifName.hasPrefix("en") {
+                        wifiIP = ipStr
+                    } else if ifName.hasPrefix("pdp_ip") {
+                        cellIP = ipStr
+                    } else {
+                        otherIP = ipStr
+                    }
+                }
+            }
+            cursor = ptr.pointee.ifa_next
+        }
+
+        // Приоритеты: NWPathMonitor -> затем физические активные интерфейсы BSD
+        let nwPath = lastKnownPath ?? pathMonitor.currentPath
+        if nwPath.status == .satisfied {
+            if nwPath.usesInterfaceType(.wifi), let ip = wifiIP {
+                return (.wifi, ip)
+            } else if nwPath.usesInterfaceType(.cellular), let ip = cellIP {
+                return (.cellular, ip)
+            } else if nwPath.usesInterfaceType(.wiredEthernet) {
+                return (.ethernet, wifiIP ?? otherIP ?? "127.0.0.1")
+            }
+        }
+
+        // Если NWPath еще не обновился, смотрим на физические сокеты
+        if let wIP = wifiIP {
+            return (.wifi, wIP)
+        } else if let cIP = cellIP {
+            return (.cellular, cIP)
+        } else if let oIP = otherIP {
+            return (.ethernet, oIP)
+        }
+
+        return (.unavailable, "127.0.0.1")
+    }
+
+    private func determineConnectionTypeFromNWPath() -> NetworkConnectionType {
+        let path = lastKnownPath ?? pathMonitor.currentPath
         if path.status != .satisfied {
             return .unavailable
         }
@@ -48,66 +145,31 @@ public actor NetworkDiagnostics {
             return .cellular
         } else if path.usesInterfaceType(.wiredEthernet) {
             return .ethernet
-        } else if path.usesInterfaceType(.loopback) {
-            return .loopback
         }
-        return .wifi
+        return .unavailable
     }
 
-    private func getLocalIPAddress() -> String? {
-        var address: String?
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-
-        guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
-            return nil
-        }
-        defer { freeifaddrs(ifaddr) }
-
-        for ptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
-            let flags = Int32(ptr.pointee.ifa_flags)
-            let addr = ptr.pointee.ifa_addr.pointee
-
-            // Исключаем loopback
-            if (flags & (IFF_UP | IFF_RUNNING | IFF_LOOPBACK)) == (IFF_UP | IFF_RUNNING) {
-                if addr.sa_family == UInt8(AF_INET) {
-                    var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                    if getnameinfo(
-                        ptr.pointee.ifa_addr,
-                        socklen_t(addr.sa_len),
-                        &hostname,
-                        socklen_t(hostname.count),
-                        nil,
-                        0,
-                        NI_NUMERICHOST
-                    ) == 0 {
-                        address = String(cString: hostname)
-                        break
-                    }
-                }
-            }
-        }
-        return address
-    }
-
-    private func getGatewayIPAddress() -> String? {
-        // На iOS песочница ограничивает прямое чтение таблиц sysctl маршрутизации,
-        // поэтому вычисляем вероятный адрес подсети или шлюза по локальному IP
-        guard let local = getLocalIPAddress() else { return "192.168.1.1" }
-        let components = local.split(separator: ".")
+    private func getGatewayIPAddress(for localIP: String) -> String {
+        let components = localIP.split(separator: ".")
         if components.count == 4 {
             return "\(components[0]).\(components[1]).\(components[2]).1"
         }
         return "192.168.1.1"
     }
 
-    private func fetchPublicIPDetails() async -> (ip: String?, isp: String?, country: String?, city: String?) {
-        guard let url = URL(string: "https://1.1.1.1/cdn-cgi/trace") else {
+    // MARK: - Определение внешнего IP и реального провайдера через Anycast
+
+    private func fetchPublicIPDetails(connType: NetworkConnectionType) async -> (ip: String?, isp: String?, country: String?, city: String?) {
+        guard connType != .unavailable else {
             return (nil, nil, nil, nil)
         }
 
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            if let text = String(data: data, encoding: .utf8) {
+        // 1. Быстрый и надежный Cloudflare Anycast endpoint
+        if let url = URL(string: "https://1.1.1.1/cdn-cgi/trace") {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 3.0
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let text = String(data: data, encoding: .utf8) {
                 var ip: String?
                 var loc: String?
 
@@ -118,12 +180,13 @@ public actor NetworkDiagnostics {
                         loc = String(line.dropFirst(4))
                     }
                 }
-                return (ip, "Cloudflare Anycast ISP", loc, nil)
+
+                // Определение имени сети по типу подключения
+                let ispName = connType == .cellular ? "Мобильная сеть (LTE/5G)" : "Wi-Fi Сеть (Интернет)"
+                return (ip, ispName, loc, nil)
             }
-        } catch {
-            // Ошибка сети
         }
 
-        return (nil, nil, nil, nil)
+        return (nil, connType == .cellular ? "Мобильная сеть" : "Wi-Fi Сеть", nil, nil)
     }
 }

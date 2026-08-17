@@ -62,6 +62,7 @@ public struct TrafficView: View {
                     sessionsHistorySection
                 }
                 .padding(.vertical)
+                .padding(.bottom, 40)
             }
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("Трафик")
@@ -143,36 +144,48 @@ public struct TrafficView: View {
     // MARK: - Карточка текущей активной сессии в реальном времени
 
     private var activeLiveSessionCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let isConnected = viewModel.systemInfo.connectionType != .unavailable
+        let activeSession = viewModel.trafficSessions.first(where: { $0.isActive })
+
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(isConnected ? Color.green : Color.red)
                         .frame(width: 8, height: 8)
-                    Text("АКТИВНОЕ ПОДКЛЮЧЕНИЕ")
+                    Text(isConnected ? "АКТИВНОЕ ПОДКЛЮЧЕНИЕ" : "НЕТ ПОДКЛЮЧЕНИЯ")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(isConnected ? .green : .red)
                 }
 
                 Spacer()
 
-                Text(viewModel.systemInfo.connectionType.rawValue)
+                Text(isConnected ? viewModel.systemInfo.connectionType.rawValue : "Офлайн")
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isConnected ? .cyan : .secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(uiColor: .tertiarySystemFill))
+                    .background(isConnected ? Color.cyan.opacity(0.12) : Color(uiColor: .tertiarySystemFill))
                     .clipShape(Capsule())
             }
 
             HStack(alignment: .center, spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(Color.blue.opacity(0.15))
+                        .fill(
+                            isConnected
+                                ? (viewModel.systemInfo.connectionType == .wifi ? Color.blue.opacity(0.15) : Color.green.opacity(0.15))
+                                : Color.secondary.opacity(0.15)
+                        )
                         .frame(width: 48, height: 48)
-                    Image(systemName: viewModel.systemInfo.connectionType == .wifi ? "wifi" : "antenna.radiowaves.left.and.right")
+
+                    Image(systemName: iconForConnectionType(viewModel.systemInfo.connectionType))
                         .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(
+                            isConnected
+                                ? (viewModel.systemInfo.connectionType == .wifi ? Color.blue : Color.green)
+                                : Color.secondary
+                        )
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -180,9 +193,15 @@ public struct TrafficView: View {
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.primary)
 
-                    Text("IP: \(viewModel.systemInfo.localIP) • \(viewModel.systemInfo.ispName ?? "Сеть")")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                    if isConnected {
+                        Text("IP: \(viewModel.systemInfo.localIP) • \(viewModel.systemInfo.ispName ?? "Активно")")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Подключите Wi-Fi или сотовые данные")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Spacer()
@@ -190,7 +209,7 @@ public struct TrafficView: View {
 
             Divider()
 
-            // Живая скорость и объем текущей сессии
+            // Живой объем трафика в текущей активной сессии (с момента подключения)
             HStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
@@ -201,8 +220,8 @@ public struct TrafficView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(.secondary)
                     }
-                    Text(TrafficFormatter.formatBytes(viewModel.liveBandwidth.totalReceivedBytes))
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                    Text(TrafficFormatter.formatBytes(activeSession?.downloadedBytes ?? 0))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
                 }
 
@@ -217,8 +236,8 @@ public struct TrafficView: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.cyan)
                     }
-                    Text(TrafficFormatter.formatBytes(viewModel.liveBandwidth.totalSentBytes))
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                    Text(TrafficFormatter.formatBytes(activeSession?.uploadedBytes ?? 0))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(.cyan)
                 }
             }
@@ -230,6 +249,16 @@ public struct TrafficView: View {
                 .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
         )
         .padding(.horizontal)
+    }
+
+    private func iconForConnectionType(_ type: NetworkConnectionType) -> String {
+        switch type {
+        case .wifi: return "wifi"
+        case .cellular: return "antenna.radiowaves.left.and.right"
+        case .ethernet: return "cable.connector"
+        case .loopback: return "arrow.triangle.2.circlepath"
+        case .unavailable: return "wifi.slash"
+        }
     }
 
     // MARK: - Главная сводная карточка (Hero Card)
@@ -412,6 +441,7 @@ public struct TrafficView: View {
                     }
                 }
                 .frame(height: 180)
+                .clipped()
             }
         }
         .padding(16)

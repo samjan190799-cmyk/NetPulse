@@ -53,12 +53,17 @@ public final class NetworkMonitorViewModel {
     public var selectedTrafficPeriod: TrafficPeriod = .today
 
     public var currentNetworkTitle: String {
-        if systemInfo.connectionType == .wifi {
+        switch systemInfo.connectionType {
+        case .wifi:
             return systemInfo.ispName ?? "Wi-Fi Сеть"
-        } else if systemInfo.connectionType == .cellular {
-            return systemInfo.ispName ?? "Сотовая связь (5G/LTE)"
-        } else {
-            return systemInfo.connectionType.rawValue
+        case .cellular:
+            return systemInfo.ispName ?? "Мобильный интернет (5G/LTE)"
+        case .ethernet:
+            return systemInfo.ispName ?? "Ethernet Сеть"
+        case .loopback:
+            return "Локальная петля"
+        case .unavailable:
+            return "Нет подключения"
         }
     }
 
@@ -108,7 +113,9 @@ public final class NetworkMonitorViewModel {
         initMetricsForTargets()
         setupBackgroundObservation()
         Task {
-            await refreshTrafficData(period: .today)
+            let info = await self.diagnostics.collectSystemInfo()
+            self.systemInfo = info
+            await self.refreshTrafficData(period: .today)
         }
     }
 
@@ -152,11 +159,13 @@ public final class NetworkMonitorViewModel {
             UIApplication.shared.endBackgroundTask(bgTask)
             bgTask = .invalid
         }
-        if liveActivityEnabled || isMonitoringActive {
-            BackgroundTelemetryKeeper.shared.startKeepAlive()
-        }
         Task {
-            await refreshTrafficData(period: selectedTrafficPeriod)
+            let info = await self.diagnostics.collectSystemInfo()
+            self.systemInfo = info
+            await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+        }
+        if liveActivityEnabled || isMonitoringActive {
+            BackgroundTelemetryKeeper.shared.stopKeepAlive()
         }
     }
 

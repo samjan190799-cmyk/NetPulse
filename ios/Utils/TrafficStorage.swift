@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Постоянное хранилище истории трафика, аналитики сессий и квот
+/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот (без демо-данных)
 public actor TrafficStorage {
     public static let shared = TrafficStorage()
 
@@ -39,14 +39,14 @@ public actor TrafficStorage {
         self.currentActiveSessionId = initialSessions.first(where: { $0.isActive })?.id
     }
 
-    // MARK: - Инициализация и загрузка данных
+    // MARK: - Инициализация и загрузка только реальных данных
 
     private static func loadInitialData() -> ([TrafficSession], [TrafficDataPoint], TrafficBudget) {
         var loadedSessions: [TrafficSession] = []
         var loadedPoints: [TrafficDataPoint] = []
         var loadedBudget: TrafficBudget = TrafficBudget()
 
-        // Загрузка сессий
+        // Загрузка сохраненных сессий
         if let data = try? Data(contentsOf: sessionsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficSession].self, from: data) {
             loadedSessions = decoded
@@ -58,17 +58,10 @@ public actor TrafficStorage {
             loadedPoints = decoded
         }
 
-        // Загрузка бюджета
+        // Загрузка квоты
         if let data = try? Data(contentsOf: budgetFileURL),
            let decoded = try? JSONDecoder().decode(TrafficBudget.self, from: data) {
             loadedBudget = decoded
-        }
-
-        // Если данных нет, генерируем базовую структуру для демонстрации реальных срезов
-        if loadedSessions.isEmpty {
-            let (demoSessions, demoPoints) = generateDemoData()
-            loadedSessions = demoSessions
-            loadedPoints = demoPoints
         }
 
         return (loadedSessions, loadedPoints, loadedBudget)
@@ -89,7 +82,7 @@ public actor TrafficStorage {
         }
     }
 
-    // MARK: - Управление активной сессией сети
+    // MARK: - Управление активной сессией сети (Реальный замер дельты)
 
     /// Обновление или запуск новой сессии при смене сети / типа подключения
     public func recordTrafficSample(
@@ -129,7 +122,7 @@ public actor TrafficStorage {
             currentActiveSessionId = newSession.id
         } else if let activeId = currentActiveSessionId,
                   let index = sessions.firstIndex(where: { $0.id == activeId }) {
-            // Обновляем текущую сессию
+            // Обновляем текущую сессию реальными переданными байтами
             sessions[index].downloadedBytes += snapshot.deltaDownloadBytes
             sessions[index].uploadedBytes += snapshot.deltaUploadBytes
             sessions[index].peakDownloadBps = max(sessions[index].peakDownloadBps, snapshot.downloadBytesPerSec)
@@ -137,8 +130,8 @@ public actor TrafficStorage {
             sessions[index].endDate = now
         }
 
-        // 3. Записываем точку графика расхода, если был реальный расход
-        if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 || dataPoints.isEmpty {
+        // 3. Записываем реальную точку графика расхода, если была активность
+        if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
             let isWifi = connectionType.contains("Wi-Fi")
             let point = TrafficDataPoint(
                 timestamp: now,
@@ -159,6 +152,13 @@ public actor TrafficStorage {
     }
 
     // MARK: - Запросы и агрегация статистики
+
+    public func getCurrentActiveSession() -> TrafficSession? {
+        if let activeId = currentActiveSessionId {
+            return sessions.first(where: { $0.id == activeId })
+        }
+        return sessions.first(where: { $0.isActive })
+    }
 
     public func getSummary(for period: TrafficPeriod) -> TrafficSummary {
         let cutoffDate = cutoffDate(for: period)
@@ -261,82 +261,6 @@ public actor TrafficStorage {
         let fileURL = tempDir.appendingPathComponent("NetPulse_Traffic_Report_\(UUID().uuidString.prefix(6)).json")
         try data.write(to: fileURL)
         return fileURL
-    }
-
-    // MARK: - Генератор демонстрационных данных
-
-    private static func generateDemoData() -> ([TrafficSession], [TrafficDataPoint]) {
-        let now = Date()
-        let cal = Calendar.current
-
-        let demoSessions: [TrafficSession] = [
-            TrafficSession(
-                networkName: "Домашний Wi-Fi (5 GHz)",
-                connectionType: "Wi-Fi",
-                interfaceName: "en0",
-                startDate: cal.date(byAdding: .hour, value: -3, to: now) ?? now,
-                endDate: now,
-                downloadedBytes: 1_420_000_000,
-                uploadedBytes: 310_000_000,
-                peakDownloadBps: 18_500_000,
-                peakUploadBps: 4_200_000,
-                isActive: true
-            ),
-            TrafficSession(
-                networkName: "Мобильная сеть (5G/LTE)",
-                connectionType: "Cellular (5G/LTE)",
-                interfaceName: "pdp_ip0",
-                startDate: cal.date(byAdding: .hour, value: -8, to: now) ?? now,
-                endDate: cal.date(byAdding: .hour, value: -3, to: now) ?? now,
-                downloadedBytes: 480_000_000,
-                uploadedBytes: 95_000_000,
-                peakDownloadBps: 9_200_000,
-                peakUploadBps: 1_800_000,
-                isActive: false
-            ),
-            TrafficSession(
-                networkName: "Офисный Wi-Fi (Корпоративный)",
-                connectionType: "Wi-Fi",
-                interfaceName: "en0",
-                startDate: cal.date(byAdding: .day, value: -1, to: now) ?? now,
-                endDate: cal.date(byAdding: .day, value: -1, to: now)?.addingTimeInterval(28800),
-                downloadedBytes: 3_150_000_000,
-                uploadedBytes: 890_000_000,
-                peakDownloadBps: 45_000_000,
-                peakUploadBps: 22_000_000,
-                isActive: false
-            ),
-            TrafficSession(
-                networkName: "Публичный Wi-Fi Кафе",
-                connectionType: "Wi-Fi",
-                interfaceName: "en0",
-                startDate: cal.date(byAdding: .day, value: -2, to: now) ?? now,
-                endDate: cal.date(byAdding: .day, value: -2, to: now)?.addingTimeInterval(7200),
-                downloadedBytes: 320_000_000,
-                uploadedBytes: 42_000_000,
-                peakDownloadBps: 4_500_000,
-                peakUploadBps: 800_000,
-                isActive: false
-            )
-        ]
-
-        var pts: [TrafficDataPoint] = []
-        for i in (0..<24).reversed() {
-            if let d = cal.date(byAdding: .hour, value: -i, to: now) {
-                let dl = UInt64.random(in: 10_000_000...150_000_000)
-                let ul = UInt64.random(in: 2_000_000...40_000_000)
-                let isW = i % 3 != 0
-                pts.append(TrafficDataPoint(
-                    timestamp: d,
-                    downloadBytes: dl,
-                    uploadBytes: ul,
-                    wifiBytes: isW ? (dl + ul) : 0,
-                    cellularBytes: !isW ? (dl + ul) : 0
-                ))
-            }
-        }
-
-        return (demoSessions, pts)
     }
 }
 

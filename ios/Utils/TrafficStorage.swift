@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот (без демо-данных)
+/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот с поддержкой фоновой синхронизации
 public actor TrafficStorage {
     public static let shared = TrafficStorage()
 
@@ -15,6 +15,8 @@ public actor TrafficStorage {
     private var dataPoints: [TrafficDataPoint]
     private var budget: TrafficBudget
     private var currentActiveSessionId: UUID?
+
+    private static let kLastHardwareCountersKey = "netpulse_last_hardware_counters"
 
     private static var sessionsFileURL: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -79,6 +81,85 @@ public actor TrafficStorage {
             try bData.write(to: Self.budgetFileURL, options: .atomic)
         } catch {
             print("⚠️ Ошибка сохранения данных трафика: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Фоновая синхронизация с аппаратными счетчиками ядра Darwin BSD (Zero-Loss)
+
+    /// Синхронизация трафика, потраченного пока приложение было свернуто, спало или было закрыто
+    public func reconcileBackgroundHardwareTraffic(
+        currentConnectionType: String,
+        currentNetworkName: String
+    ) {
+        let currentCounters = BandwidthEngine.fetchDetailedInterfaceBytes()
+        let now = Date()
+
+        // 1. Считываем сохраненный срез при предыдущей активности
+        if let savedData = UserDefaults.standard.data(forKey: Self.kLastHardwareCountersKey),
+           let saved = try? JSONDecoder().decode(InterfaceByteCounters.self, from: savedData) {
+            
+            // Вычисляем пропущенные дельты на уровне сетевых интерфейсов ядра
+            let missingTotalIn = BandwidthEngine.computeDelta(prev: saved.totalIn, current: currentCounters.totalIn)
+            let missingTotalOut = BandwidthEngine.computeDelta(prev: saved.totalOut, current: currentCounters.totalOut)
+            
+            let missingWifiIn = BandwidthEngine.computeDelta(prev: saved.wifiIn, current: currentCounters.wifiIn)
+            let missingWifiOut = BandwidthEngine.computeDelta(prev: saved.wifiOut, current: currentCounters.wifiOut)
+            let missingWifiTotal = missingWifiIn + missingWifiOut
+            
+            let missingCellIn = BandwidthEngine.computeDelta(prev: saved.cellularIn, current: currentCounters.cellularIn)
+            let missingCellOut = BandwidthEngine.computeDelta(prev: saved.cellularOut, current: currentCounters.cellularOut)
+            let missingCellTotal = missingCellIn + missingCellOut
+
+            if missingTotalIn > 0 || missingTotalOut > 0 {
+                let isWifi = currentConnectionType.contains("Wi-Fi")
+                let ifName = isWifi ? "en0" : "pdp_ip0"
+
+                if let activeId = currentActiveSessionId,
+                   let index = sessions.firstIndex(where: { $0.id == activeId }) {
+                    sessions[index].downloadedBytes += missingTotalIn
+                    sessions[index].uploadedBytes += missingTotalOut
+                    sessions[index].endDate = now
+                } else {
+                    let backgroundSession = TrafficSession(
+                        networkName: currentNetworkName.isEmpty ? (isWifi ? "Wi-Fi Сеть" : "Мобильный интернет (5G/LTE)") : currentNetworkName,
+                        connectionType: currentConnectionType.isEmpty ? (isWifi ? "Wi-Fi" : "Сотовая связь") : currentConnectionType,
+                        interfaceName: ifName,
+                        startDate: now.addingTimeInterval(-60),
+                        endDate: now,
+                        downloadedBytes: missingTotalIn,
+                        uploadedBytes: missingTotalOut,
+                        peakDownloadBps: Double(missingTotalIn),
+                        peakUploadBps: Double(missingTotalOut),
+                        isActive: true
+                    )
+                    sessions.insert(backgroundSession, at: 0)
+                    currentActiveSessionId = backgroundSession.id
+                }
+
+                // Добавляем точку на график
+                let point = TrafficDataPoint(
+                    timestamp: now,
+                    downloadBytes: missingTotalIn,
+                    uploadBytes: missingTotalOut,
+                    wifiBytes: missingWifiTotal,
+                    cellularBytes: missingCellTotal
+                )
+                dataPoints.append(point)
+                if dataPoints.count > 500 {
+                    dataPoints.removeFirst(dataPoints.count - 500)
+                }
+
+                saveData()
+            }
+        }
+
+        // 2. Обновляем контрольную точку аппаратного счетчика
+        persistHardwareCounters(currentCounters)
+    }
+
+    private func persistHardwareCounters(_ counters: InterfaceByteCounters) {
+        if let encoded = try? JSONEncoder().encode(counters) {
+            UserDefaults.standard.set(encoded, forKey: Self.kLastHardwareCountersKey)
         }
     }
 
@@ -148,7 +229,9 @@ public actor TrafficStorage {
             }
         }
 
+        // Сохраняем текущее состояние и аппаратные счетчики
         saveData()
+        persistHardwareCounters(BandwidthEngine.fetchDetailedInterfaceBytes())
     }
 
     // MARK: - Запросы и агрегация статистики
@@ -207,6 +290,7 @@ public actor TrafficStorage {
         sessions.removeAll()
         dataPoints.removeAll()
         currentActiveSessionId = nil
+        UserDefaults.standard.removeObject(forKey: Self.kLastHardwareCountersKey)
         saveData()
     }
 

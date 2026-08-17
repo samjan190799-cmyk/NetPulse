@@ -46,6 +46,32 @@ public struct TrafficView: View {
                         }
                     }
 
+                    // Баннер фонового мониторинга
+                    HStack(spacing: 8) {
+                        Image(systemName: "bolt.shield.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.cyan)
+
+                        Text("Фоновый учет 24/7 активен")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.primary)
+
+                        Spacer()
+
+                        Text("Ядро Darwin BSD")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+
                     // 2. Карточка текущей активной сессии (Live)
                     activeLiveSessionCard
 

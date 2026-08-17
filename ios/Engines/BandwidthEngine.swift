@@ -76,14 +76,30 @@ public struct BandwidthSnapshot: Sendable {
     }
 }
 
-/// Счетчики интерфейсов
-private struct InterfaceByteCounters {
-    var totalIn: UInt64 = 0
-    var totalOut: UInt64 = 0
-    var wifiIn: UInt64 = 0
-    var wifiOut: UInt64 = 0
-    var cellularIn: UInt64 = 0
-    var cellularOut: UInt64 = 0
+/// Счетчики физических интерфейсов Darwin BSD
+public struct InterfaceByteCounters: Sendable, Codable {
+    public var totalIn: UInt64 = 0
+    public var totalOut: UInt64 = 0
+    public var wifiIn: UInt64 = 0
+    public var wifiOut: UInt64 = 0
+    public var cellularIn: UInt64 = 0
+    public var cellularOut: UInt64 = 0
+
+    public init(
+        totalIn: UInt64 = 0,
+        totalOut: UInt64 = 0,
+        wifiIn: UInt64 = 0,
+        wifiOut: UInt64 = 0,
+        cellularIn: UInt64 = 0,
+        cellularOut: UInt64 = 0
+    ) {
+        self.totalIn = totalIn
+        self.totalOut = totalOut
+        self.wifiIn = wifiIn
+        self.wifiOut = wifiOut
+        self.cellularIn = cellularIn
+        self.cellularOut = cellularOut
+    }
 }
 
 /// Системный движок замера РЕАЛЬНОГО сетевого трафика всего iPhone через getifaddrs
@@ -151,7 +167,7 @@ public final class BandwidthEngine: @unchecked Sendable {
         )
     }
 
-    private static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
+    public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
         if current >= prev {
             return current - prev
         } else if prev > 0 && current < prev {
@@ -162,7 +178,7 @@ public final class BandwidthEngine: @unchecked Sendable {
     }
 
     /// Считывание счетчиков байт сетевых интерфейсов BSD (Wi-Fi: en0/en1, Cellular: pdp_ip0..3)
-    private static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
+    public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
             return InterfaceByteCounters()

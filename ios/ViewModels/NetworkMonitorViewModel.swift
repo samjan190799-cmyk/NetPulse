@@ -85,6 +85,9 @@ public final class NetworkMonitorViewModel {
     public var soundEnabled: Bool = true
     public var hapticsEnabled: Bool = true
 
+    // Фоновый мониторинг трафика (24/7)
+    public var backgroundMonitoringEnabled: Bool = true
+
     // Виджеты: Dynamic Island & Игровой HUD
     public var liveActivityEnabled: Bool = false
     public var floatingHUDEnabled: Bool = false
@@ -115,8 +118,14 @@ public final class NetworkMonitorViewModel {
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
+            // Аппаратная сверка пропущенного трафика с системным ядром
+            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+                currentConnectionType: info.connectionType.rawValue,
+                currentNetworkName: self.currentNetworkTitle
+            )
             await self.refreshTrafficData(period: .today)
         }
+        startMonitoring()
     }
 
     private func setupBackgroundObservation() {
@@ -142,7 +151,7 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleDidEnterBackground() {
-        if liveActivityEnabled || isMonitoringActive {
+        if backgroundMonitoringEnabled || liveActivityEnabled || isMonitoringActive {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
             bgTask = UIApplication.shared.beginBackgroundTask(withName: "NetPulseBackgroundTelemetry") { [weak self] in
                 guard let self else { return }
@@ -150,6 +159,9 @@ public final class NetworkMonitorViewModel {
                     UIApplication.shared.endBackgroundTask(self.bgTask)
                     self.bgTask = .invalid
                 }
+            }
+            if !isMonitoringActive {
+                startBandwidthTask()
             }
         }
     }
@@ -162,9 +174,14 @@ public final class NetworkMonitorViewModel {
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
+            // Моментальная сверка с аппаратными счетчиками за время сна/фона
+            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+                currentConnectionType: info.connectionType.rawValue,
+                currentNetworkName: self.currentNetworkTitle
+            )
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
         }
-        if liveActivityEnabled || isMonitoringActive {
+        if !backgroundMonitoringEnabled && !liveActivityEnabled && !isMonitoringActive {
             BackgroundTelemetryKeeper.shared.stopKeepAlive()
         }
     }

@@ -114,6 +114,28 @@ public struct SettingsView: View {
                     Slider(value: $viewModel.lossCritThreshold, in: 1...20, step: 1)
                 }
 
+                // Фоновый мониторинг трафика (24/7)
+                Section("Фоновая работа и учет трафика") {
+                    Toggle(isOn: $viewModel.backgroundMonitoringEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Фоновый учет 24/7 (Zero-Loss)")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Непрерывный замер трафика при свернутом приложении и автоматическая сверка со счетчиками ядра iOS при закрытии.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Label("Счетчик сетевого адаптера", systemImage: "cpu")
+                            .font(.system(size: 13))
+                        Spacer()
+                        Text("Darwin BSD Kernel")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+                    }
+                }
+
                 // Виджеты и Оверлеи
                 Section("Виджеты и мониторинг") {
                     Toggle(isOn: Binding(

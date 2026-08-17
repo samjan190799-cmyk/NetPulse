@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Observation
+import UIKit
 
 /// Главная модель представления NetPulse на базе макроса @Observable (iOS 17+ / Swift 6).
 @Observable
@@ -118,7 +119,7 @@ public final class NetworkMonitorViewModel {
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
-            // Аппаратная сверка пропущенного трафика с системным ядром
+            // Аппаратная сверка пропущенного трафика с системным ядром Darwin BSD
             await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
                 currentConnectionType: info.connectionType.rawValue,
                 currentNetworkName: self.currentNetworkTitle
@@ -148,18 +149,58 @@ public final class NetworkMonitorViewModel {
                 self?.handleWillEnterForeground()
             }
         }
+
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleDidBecomeActive()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleWillTerminate()
+            }
+        }
+    }
+
+    private func beginBackgroundAssertion() {
+        endBackgroundAssertion()
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "NetPulseBackgroundTelemetry") { [weak self] in
+            Task { @MainActor in
+                self?.endBackgroundAssertion()
+            }
+        }
+    }
+
+    private func endBackgroundAssertion() {
+        if bgTask != .invalid {
+            let taskToClose = bgTask
+            bgTask = .invalid
+            UIApplication.shared.endBackgroundTask(taskToClose)
+        }
     }
 
     private func handleDidEnterBackground() {
+        // 1. Принудительный сброс несохраненных данных трафика на диск
+        Task {
+            await TrafficStorage.shared.flush()
+        }
+
+        // 2. Планирование фонового пробуждения через системный BGTaskScheduler
+        BackgroundTaskManager.shared.scheduleBackgroundFetch()
+
+        // 3. Удержание активной фоновой сессии если включен фоновый режим или Dynamic Island
         if backgroundMonitoringEnabled || liveActivityEnabled || isMonitoringActive {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
-            bgTask = UIApplication.shared.beginBackgroundTask(withName: "NetPulseBackgroundTelemetry") { [weak self] in
-                guard let self else { return }
-                if self.bgTask != .invalid {
-                    UIApplication.shared.endBackgroundTask(self.bgTask)
-                    self.bgTask = .invalid
-                }
-            }
+            beginBackgroundAssertion()
             if !isMonitoringActive {
                 startBandwidthTask()
             }
@@ -167,14 +208,11 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleWillEnterForeground() {
-        if bgTask != .invalid {
-            UIApplication.shared.endBackgroundTask(bgTask)
-            bgTask = .invalid
-        }
+        endBackgroundAssertion()
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
-            // Моментальная сверка с аппаратными счетчиками за время сна/фона
+            // Моментальная сверка с аппаратными счетчиками ядра за время сна/фона (Zero-Loss)
             await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
                 currentConnectionType: info.connectionType.rawValue,
                 currentNetworkName: self.currentNetworkTitle
@@ -183,6 +221,31 @@ public final class NetworkMonitorViewModel {
         }
         if !backgroundMonitoringEnabled && !liveActivityEnabled && !isMonitoringActive {
             BackgroundTelemetryKeeper.shared.stopKeepAlive()
+        }
+    }
+
+    private func handleDidBecomeActive() {
+        Task {
+            let info = await self.diagnostics.collectSystemInfo()
+            self.systemInfo = info
+            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+                currentConnectionType: info.connectionType.rawValue,
+                currentNetworkName: self.currentNetworkTitle
+            )
+            await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+        }
+    }
+
+    private func handleWillTerminate() {
+        endBackgroundAssertion()
+        BackgroundTelemetryKeeper.shared.stopKeepAlive()
+        Task {
+            let info = await self.diagnostics.collectSystemInfo()
+            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+                currentConnectionType: info.connectionType.rawValue,
+                currentNetworkName: self.currentNetworkTitle
+            )
+            await TrafficStorage.shared.flush()
         }
     }
 
@@ -222,7 +285,7 @@ public final class NetworkMonitorViewModel {
         diagnosticsTask?.cancel()
         diagnosticsTask = nil
 
-        if !liveActivityEnabled {
+        if !liveActivityEnabled && !backgroundMonitoringEnabled {
             BackgroundTelemetryKeeper.shared.stopKeepAlive()
         }
 
@@ -239,7 +302,7 @@ public final class NetworkMonitorViewModel {
         bandwidthTask = Task { [weak self] in
             var loopCount = 0
             while !Task.isCancelled {
-                guard let self = self, self.isMonitoringActive else { break }
+                guard let self = self, self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled else { break }
 
                 // Снятие снимка РЕАЛЬНОГО сетевого трафика системы
                 let snapshot = self.bandwidthEngine.sampleBandwidth()
@@ -326,6 +389,7 @@ public final class NetworkMonitorViewModel {
         guard var metric = hostMetrics[address] else { return }
 
         metric.sentCount += 1
+        metric.lastUpdated = Date()
         let prevRtt = prevLatencies[address]
 
         if record.isSuccess, let lat = record.latencyMs {
@@ -351,6 +415,11 @@ public final class NetworkMonitorViewModel {
             if metric.latencyHistory.count > 30 {
                 metric.latencyHistory.removeFirst()
             }
+
+            // Пересчет процента потерь
+            metric.lossRatePct = metric.sentCount > 0 ? (Double(metric.lostCount) / Double(metric.sentCount) * 100.0) : 0.0
+            let lostInWindow = metric.latencyHistory.filter { $0 == nil }.count
+            metric.lossWindowPct = !metric.latencyHistory.isEmpty ? (Double(lostInWindow) / Double(metric.latencyHistory.count) * 100.0) : 0.0
 
             // Оценка статуса хоста
             if lat > latencyCritThreshold {
@@ -382,6 +451,10 @@ public final class NetworkMonitorViewModel {
             if metric.latencyHistory.count > 30 {
                 metric.latencyHistory.removeFirst()
             }
+
+            metric.lossRatePct = metric.sentCount > 0 ? (Double(metric.lostCount) / Double(metric.sentCount) * 100.0) : 0.0
+            let lostInWindow = metric.latencyHistory.filter { $0 == nil }.count
+            metric.lossWindowPct = !metric.latencyHistory.isEmpty ? (Double(lostInWindow) / Double(metric.latencyHistory.count) * 100.0) : 0.0
 
             let lossPct = metric.lossWindowPct
             if lossPct >= lossCritThreshold {
@@ -570,7 +643,7 @@ public final class NetworkMonitorViewModel {
             }
         } else {
             ActivityManager.shared.stopActivity()
-            if !isMonitoringActive {
+            if !isMonitoringActive && !backgroundMonitoringEnabled {
                 BackgroundTelemetryKeeper.shared.stopKeepAlive()
             }
         }

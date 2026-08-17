@@ -59,9 +59,15 @@ public actor SpeedtestEngine {
             return 0.0
         }
 
+        var buffer = [UInt8]()
+        buffer.reserveCapacity(64 * 1024)
+
         for try await byte in asyncBytes {
-            totalBytes += 1
-            if totalBytes % (128 * 1024) == 0 {
+            buffer.append(byte)
+            if buffer.count >= 64 * 1024 {
+                totalBytes += buffer.count
+                buffer.removeAll(keepingCapacity: true)
+
                 let elapsed = clock.now - start
                 let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000.0
                 if seconds > 0.1 {
@@ -70,6 +76,7 @@ public actor SpeedtestEngine {
                 }
             }
         }
+        totalBytes += buffer.count
 
         let elapsed = clock.now - start
         let totalSeconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000.0
@@ -85,7 +92,11 @@ public actor SpeedtestEngine {
     ) async throws -> Double {
         let payloadSize = 3 * 1024 * 1024 // 3 MB
         var payload = Data(count: payloadSize)
-        _ = payload.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, payloadSize, $0.baseAddress!) }
+        _ = payload.withUnsafeMutableBytes { rawBuffer in
+            if let baseAddress = rawBuffer.baseAddress {
+                SecRandomCopyBytes(kSecRandomDefault, payloadSize, baseAddress)
+            }
+        }
 
         var request = URLRequest(url: uploadURL)
         request.httpMethod = "POST"

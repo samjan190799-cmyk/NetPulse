@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот с поддержкой фоновой синхронизации
+/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот с поддержкой фоновой синхронизации и защитой от дискового троттлинга
 public actor TrafficStorage {
     public static let shared = TrafficStorage()
 
@@ -15,6 +15,10 @@ public actor TrafficStorage {
     private var dataPoints: [TrafficDataPoint]
     private var budget: TrafficBudget
     private var currentActiveSessionId: UUID?
+
+    private var hasUnsavedChanges: Bool = false
+    private var lastSavedDate: Date = Date()
+    private var saveTask: Task<Void, Never>?
 
     private static let kLastHardwareCountersKey = "netpulse_last_hardware_counters"
 
@@ -69,7 +73,8 @@ public actor TrafficStorage {
         return (loadedSessions, loadedPoints, loadedBudget)
     }
 
-    private func saveData() {
+    /// Прямая запись на диск без блокировок
+    private func performDiskSave() {
         do {
             let sData = try JSONEncoder().encode(sessions)
             try sData.write(to: Self.sessionsFileURL, options: .atomic)
@@ -79,8 +84,43 @@ public actor TrafficStorage {
 
             let bData = try JSONEncoder().encode(budget)
             try bData.write(to: Self.budgetFileURL, options: .atomic)
+
+            self.hasUnsavedChanges = false
+            self.lastSavedDate = Date()
         } catch {
             print("⚠️ Ошибка сохранения данных трафика: \(error.localizedDescription)")
+        }
+    }
+
+    /// Дебаунсинг дисковой записи: предотвращает 1 запись/сек и исключает разряд батареи и перегрузку I/O
+    private func scheduleDebouncedSave() {
+        hasUnsavedChanges = true
+        let timeSinceLastSave = Date().timeIntervalSince(lastSavedDate)
+
+        // Если прошло более 20 секунд с последнего сохранения, сохраняем сразу
+        if timeSinceLastSave >= 20.0 {
+            saveTask?.cancel()
+            saveTask = nil
+            performDiskSave()
+            return
+        }
+
+        // Иначе планируем сохранение через 15 секунд, если задача еще не висит
+        if saveTask == nil {
+            saveTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                guard !Task.isCancelled else { return }
+                await self?.flush()
+            }
+        }
+    }
+
+    /// Принудительный сброс буфера на диск (при сворачивании, закрытии приложения или изменении квоты)
+    public func flush() {
+        saveTask?.cancel()
+        saveTask = nil
+        if hasUnsavedChanges {
+            performDiskSave()
         }
     }
 
@@ -149,7 +189,7 @@ public actor TrafficStorage {
                     dataPoints.removeFirst(dataPoints.count - 500)
                 }
 
-                saveData()
+                scheduleDebouncedSave()
             }
         }
 
@@ -229,8 +269,8 @@ public actor TrafficStorage {
             }
         }
 
-        // Сохраняем текущее состояние и аппаратные счетчики
-        saveData()
+        // Сохраняем с дебаунсом и обновляем контрольную точку
+        scheduleDebouncedSave()
         persistHardwareCounters(BandwidthEngine.fetchDetailedInterfaceBytes())
     }
 
@@ -283,7 +323,8 @@ public actor TrafficStorage {
 
     public func updateBudget(_ newBudget: TrafficBudget) {
         self.budget = newBudget
-        saveData()
+        hasUnsavedChanges = true
+        performDiskSave()
     }
 
     public func resetAllData() {
@@ -291,7 +332,8 @@ public actor TrafficStorage {
         dataPoints.removeAll()
         currentActiveSessionId = nil
         UserDefaults.standard.removeObject(forKey: Self.kLastHardwareCountersKey)
-        saveData()
+        hasUnsavedChanges = true
+        performDiskSave()
     }
 
     private func cutoffDate(for period: TrafficPeriod) -> Date {

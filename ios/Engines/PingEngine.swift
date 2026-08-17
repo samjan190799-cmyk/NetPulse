@@ -130,30 +130,34 @@ public actor PingEngine {
         let clock = ContinuousClock()
         let startTime = clock.now
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let safeContinuation = SafeContinuation(continuation)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let safeContinuation = SafeContinuation(continuation)
 
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    let duration = clock.now - startTime
-                    let ms = Double(duration.components.attoseconds) / 1_000_000_000_000_000.0 + Double(duration.components.seconds) * 1000.0
-                    connection.cancel()
-                    safeContinuation.resume(returning: (ms * 10).rounded() / 10)
+                connection.stateUpdateHandler = { state in
+                    switch state {
+                    case .ready:
+                        let duration = clock.now - startTime
+                        let ms = Double(duration.components.attoseconds) / 1_000_000_000_000_000.0 + Double(duration.components.seconds) * 1000.0
+                        connection.cancel()
+                        safeContinuation.resume(returning: (ms * 10).rounded() / 10)
 
-                case .failed(let err):
-                    connection.cancel()
-                    safeContinuation.resume(throwing: err)
+                    case .failed(let err):
+                        connection.cancel()
+                        safeContinuation.resume(throwing: err)
 
-                case .cancelled:
-                    safeContinuation.resume(throwing: CancellationError())
+                    case .cancelled:
+                        safeContinuation.resume(throwing: CancellationError())
 
-                default:
-                    break
+                    default:
+                        break
+                    }
                 }
-            }
 
-            connection.start(queue: .global(qos: .userInitiated))
+                connection.start(queue: .global(qos: .userInitiated))
+            }
+        } onCancel: {
+            connection.cancel()
         }
     }
 

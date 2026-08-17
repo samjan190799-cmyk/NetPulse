@@ -9,6 +9,11 @@ import SwiftUI
 
 @main
 struct NetPulseApp: App {
+    init() {
+        // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
+        BackgroundTaskManager.shared.registerBackgroundTasks()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

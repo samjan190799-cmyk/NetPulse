@@ -170,9 +170,15 @@ public final class BandwidthEngine: @unchecked Sendable {
     public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
         if current >= prev {
             return current - prev
-        } else if prev > 0 && current < prev {
-            // Защита от переполнения 32-битного системного счетчика ifi_ibytes
-            return (UInt64(UInt32.max) - prev) + current
+        } else if prev > 0 {
+            // Обработка возможного переполнения 32-битного счетчика BSD ядра (UInt32.max)
+            // или сброса счетчиков при перезапуске сетевого интерфейса/переподключении
+            if prev <= UInt64(UInt32.max) && current <= UInt64(UInt32.max) {
+                return (UInt64(UInt32.max) - prev) &+ current
+            } else {
+                // Если счетчик был сброшен ядром iOS (например, переподключение LTE или смена сети)
+                return current
+            }
         }
         return 0
     }
@@ -195,11 +201,11 @@ public final class BandwidthEngine: @unchecked Sendable {
 
             // В ядре Darwin только записи с sa_family == AF_LINK содержат struct if_data
             if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
-                if let data = ptr.pointee.ifa_data {
+                if let data = ptr.pointee.ifa_data, let ifaNamePtr = ptr.pointee.ifa_name {
                     let networkData = data.assumingMemoryBound(to: if_data.self)
                     let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                     let outBytes = UInt64(networkData.pointee.ifi_obytes)
-                    let ifName = String(cString: ptr.pointee.ifa_name)
+                    let ifName = String(cString: ifaNamePtr)
 
                     result.totalIn += inBytes
                     result.totalOut += outBytes

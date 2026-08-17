@@ -39,8 +39,8 @@ public final class ActivityManager {
     ) {
         #if canImport(ActivityKit)
         // Завершаем старые активные сессии перед созданием новой
-        for activity in Activity<NetPulseAttributes>.activities {
-            Task {
+        Task {
+            for activity in Activity<NetPulseAttributes>.activities {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
@@ -165,14 +165,14 @@ public final class ActivityManager {
         pendingUpdateTask = nil
         lastContentState = nil
         lastUpdateDate = nil
+        self.currentActivity = nil
+        self.isLiveActivityActive = false
 
-        for activity in Activity<NetPulseAttributes>.activities {
-            Task {
+        Task {
+            for activity in Activity<NetPulseAttributes>.activities {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
-        self.currentActivity = nil
-        self.isLiveActivityActive = false
         print("🛑 Live Activity остановлена")
         #endif
     }

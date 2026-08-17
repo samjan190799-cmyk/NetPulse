@@ -9,7 +9,7 @@ import Foundation
 import AVFoundation
 import UIKit
 
-/// Системный хранитель фонового процесса телеметрии для непрерывного обновления Dynamic Island 24/7.
+/// Системный хранитель фонового процесса телеметрии для непрерывного фонового учета трафика и Live Activity 24/7.
 @MainActor
 public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     public static let shared = BackgroundTelemetryKeeper()
@@ -18,6 +18,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     private var isRunning: Bool = false
     private var isObservingNotifications: Bool = false
     private var watchdogTimer: Timer?
+    private var retryTask: Task<Void, Never>?
 
     private override init() {
         super.init()
@@ -28,7 +29,6 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         setupObserversIfNeeded()
 
         guard !isRunning else {
-            // Если уже работает, проверяем активность плеера
             ensurePlayerIsActive()
             return
         }
@@ -43,6 +43,8 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         guard isRunning else { return }
         isRunning = false
         stopWatchdog()
+        retryTask?.cancel()
+        retryTask = nil
 
         audioPlayer?.stop()
         audioPlayer = nil
@@ -55,33 +57,37 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         print("🛑 Фоновый процесс телеметрии NetPulse остановлен")
     }
 
-    // MARK: - Активация аудио-рантайма с поддержкой микширования (.mixWithOthers)
+    // MARK: - Активация аудио-рантайма с чистым микшированием (.mixWithOthers)
 
     private func activateAudioEngine() {
+        guard isRunning else { return }
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            // Используем .mixWithOthers + .duckOthers, чтобы фоновый процесс телеметрии НИКОГДА не прерывался
-            // при воспроизведении музыки (Apple Music / Spotify), видео, играх или системных звуках.
+            // Используем .mixWithOthers БЕЗ .duckOthers, чтобы не приглушать музыку и видео пользователя
             try audioSession.setCategory(
                 .playback,
                 mode: .default,
-                options: [.mixWithOthers, .duckOthers]
+                options: [.mixWithOthers]
             )
             try audioSession.setActive(true)
 
             if audioPlayer == nil {
                 let silentData = generateInaudibleWavData()
-                audioPlayer = try AVAudioPlayer(data: silentData)
-                audioPlayer?.delegate = self
-                audioPlayer?.numberOfLoops = -1 // Бесконечный непрерывный цикл
-                audioPlayer?.volume = 0.05
-                audioPlayer?.prepareToPlay()
+                let player = try AVAudioPlayer(data: silentData)
+                player.delegate = self
+                player.numberOfLoops = -1 // Бесконечный непрерывный цикл
+                player.volume = 0.01 // Минимальная громкость для инфразвука
+                player.prepareToPlay()
+                self.audioPlayer = player
             }
 
-            audioPlayer?.play()
-            print("✅ Фоновый процесс телеметрии NetPulse активирован (Dynamic Island работает непрерывно с поддержкой фоновой музыки)")
+            if audioPlayer?.isPlaying == false {
+                audioPlayer?.play()
+            }
+            print("✅ Фоновый процесс телеметрии NetPulse активен (.mixWithOthers, Zero-Loss)")
         } catch {
             print("⚠️ Ошибка активации аудио-сессии: \(error.localizedDescription)")
+            scheduleReactivationRetry()
         }
     }
 
@@ -92,11 +98,21 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         }
     }
 
+    private func scheduleReactivationRetry() {
+        guard isRunning, retryTask == nil else { return }
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let self = self, self.isRunning else { return }
+            self.retryTask = nil
+            self.activateAudioEngine()
+        }
+    }
+
     // MARK: - Сторожевой таймер (Watchdog) для предотвращения засыпания
 
     private func startWatchdog() {
         watchdogTimer?.invalidate()
-        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self, self.isRunning else { return }
                 self.ensurePlayerIsActive()
@@ -176,8 +192,10 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             return
         }
 
-        if type == .ended {
-            // Проверяем флаг shouldResume
+        switch type {
+        case .began:
+            print("ℹ️ Аудио-сессия телеметрии временно прервана системой")
+        case .ended:
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
                 if options.contains(.shouldResume) {
@@ -185,13 +203,15 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
                     return
                 }
             }
+            // Всегда пробуем восстановить фоновое удержание
             activateAudioEngine()
+        @unknown default:
+            break
         }
     }
 
     private func handleRouteChange(_ notification: Notification) {
         if isRunning {
-            // При смене Bluetooth/AirPods/динамика возобновляем плеер
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 self?.ensurePlayerIsActive()
             }
@@ -203,8 +223,8 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         let sampleRate: Double = 8000.0
         let durationSeconds: Double = 5.0
         let numSamples = Int(sampleRate * durationSeconds)
-        let frequency: Double = 18.0 // 18 Гц — инфразвук ниже порога слышимости
-        let amplitude: Double = 80.0 // 0.2% от 32767
+        let frequency: Double = 18.0 // 18 Гц — инфразвук ниже порога слышимости человека
+        let amplitude: Double = 50.0 // 0.15% от 32767
         let bytesPerSample = 2
         let dataSize = Int32(numSamples * bytesPerSample)
         let totalSize = 36 + dataSize

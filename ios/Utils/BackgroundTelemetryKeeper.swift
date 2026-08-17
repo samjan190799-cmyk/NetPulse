@@ -72,11 +72,11 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             try audioSession.setActive(true)
 
             if audioPlayer == nil {
-                let silentData = generateInaudibleWavData()
+                let silentData = generatePureSilenceWavData()
                 let player = try AVAudioPlayer(data: silentData)
                 player.delegate = self
                 player.numberOfLoops = -1 // Бесконечный непрерывный цикл
-                player.volume = 0.01 // Минимальная громкость для инфразвука
+                player.volume = 0.0 // Полная тишина — нулевая нагрузка на динамики
                 player.prepareToPlay()
                 self.audioPlayer = player
             }
@@ -84,7 +84,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             if audioPlayer?.isPlaying == false {
                 audioPlayer?.play()
             }
-            print("✅ Фоновый процесс телеметрии NetPulse активен (.mixWithOthers, Zero-Loss)")
+            print("✅ Фоновый процесс телеметрии NetPulse активен (.mixWithOthers, Zero-Loss, Pure Silence)")
         } catch {
             print("⚠️ Ошибка активации аудио-сессии: \(error.localizedDescription)")
             scheduleReactivationRetry()
@@ -218,14 +218,15 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    /// Генерация 5.0-секундного инфразвукового WAV-файла (18 Гц, 8kHz, 16-bit Mono PCM).
-    private func generateInaudibleWavData() -> Data {
-        let sampleRate: Double = 8000.0
-        let durationSeconds: Double = 5.0
+    /// Генерация 5.0-секундного файла абсолютной цифровой тишины (0x00 PCM).
+    /// Исключает любые физические колебания динамика и вибрацию корпуса iPhone.
+    private func generatePureSilenceWavData() -> Data {
+        let sampleRate: Int32 = 8000
+        let durationSeconds: Int32 = 5
+        let channels: Int16 = 1 // Mono
+        let bitsPerSample: Int16 = 16
+        let bytesPerSample = Int(bitsPerSample / 8)
         let numSamples = Int(sampleRate * durationSeconds)
-        let frequency: Double = 18.0 // 18 Гц — инфразвук ниже порога слышимости человека
-        let amplitude: Double = 50.0 // 0.15% от 32767
-        let bytesPerSample = 2
         let dataSize = Int32(numSamples * bytesPerSample)
         let totalSize = 36 + dataSize
 
@@ -243,15 +244,15 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         data.append(Data(bytes: &subchunk1Size, count: 4))
         var audioFormat: Int16 = 1 // PCM
         data.append(Data(bytes: &audioFormat, count: 2))
-        var channels: Int16 = 1 // Mono
-        data.append(Data(bytes: &channels, count: 2))
-        var rate = Int32(sampleRate)
+        var numChannels = channels
+        data.append(Data(bytes: &numChannels, count: 2))
+        var rate = sampleRate
         data.append(Data(bytes: &rate, count: 4))
-        var byteRate = Int32(sampleRate) * Int32(channels) * Int32(bytesPerSample)
+        var byteRate = sampleRate * Int32(channels) * Int32(bytesPerSample)
         data.append(Data(bytes: &byteRate, count: 4))
         var blockAlign = Int16(channels * Int16(bytesPerSample))
         data.append(Data(bytes: &blockAlign, count: 2))
-        var bps: Int16 = 16
+        var bps = bitsPerSample
         data.append(Data(bytes: &bps, count: 2))
 
         // data subchunk
@@ -259,13 +260,8 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         var subchunk2Size = dataSize
         data.append(Data(bytes: &subchunk2Size, count: 4))
 
-        // Генерация синусоиды 18 Гц
-        for i in 0..<numSamples {
-            let angle = 2.0 * Double.pi * frequency * Double(i) / sampleRate
-            let sampleVal = Int16(amplitude * sin(angle))
-            var leVal = sampleVal.littleEndian
-            withUnsafeBytes(of: &leVal) { data.append(contentsOf: $0) }
-        }
+        // Абсолютная тишина (нули) — нет акустических или механических колебаний
+        data.append(Data(count: Int(dataSize)))
 
         return data
     }

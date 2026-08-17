@@ -126,7 +126,7 @@ public final class NetworkMonitorViewModel {
             )
             await self.refreshTrafficData(period: .today)
         }
-        startMonitoring()
+        startMonitoring(silent: true)
     }
 
     private func setupBackgroundObservation() {
@@ -261,13 +261,13 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Запуск / Остановка мониторинга
 
-    public func startMonitoring() {
+    public func startMonitoring(silent: Bool = false) {
         guard !isMonitoringActive else { return }
         isMonitoringActive = true
 
         BackgroundTelemetryKeeper.shared.startKeepAlive()
 
-        if hapticsEnabled {
+        if !silent && hapticsEnabled {
             HapticManager.shared.impactLight()
         }
 
@@ -507,7 +507,7 @@ public final class NetworkMonitorViewModel {
         try? await TrafficStorage.shared.exportTrafficJSON()
     }
 
-    // MARK: - Алерты
+    // MARK: - Алерты (Только визуальное отображение в интерфейсе, без фоновой вибрации)
 
     private func triggerAlertIfNeeded(
         address: String,
@@ -519,7 +519,7 @@ public final class NetworkMonitorViewModel {
         guard let host = hostMetrics[address] else { return }
         
         let isDuplicate = recentAlerts.contains { alert in
-            alert.host == host.address && Date().timeIntervalSince(alert.timestamp) < 30
+            alert.host == host.address && Date().timeIntervalSince(alert.timestamp) < 60
         }
 
         guard !isDuplicate else { return }
@@ -539,10 +539,6 @@ public final class NetworkMonitorViewModel {
             recentAlerts.removeLast()
         }
         activeAlert = alert
-
-        if hapticsEnabled {
-            HapticManager.shared.notificationWarning()
-        }
     }
 
     public func dismissAlert() {
@@ -681,9 +677,6 @@ public final class NetworkMonitorViewModel {
             let hops = await self.tracerouteEngine.traceRoute(to: host) { hop in
                 Task { @MainActor in
                     self.tracerouteHops.append(hop)
-                    if self.hapticsEnabled {
-                        HapticManager.shared.impactLight()
-                    }
                 }
             }
             self.tracerouteHops = hops

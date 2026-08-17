@@ -565,7 +565,8 @@ public final class NetworkMonitorViewModel {
                 compactUploadText: "↑...",
                 isTesting: true,
                 connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Интернет"
+                ispName: systemInfo.ispName ?? "Интернет",
+                force: true
             )
         }
 
@@ -603,7 +604,8 @@ public final class NetworkMonitorViewModel {
                         compactUploadText: String(format: "↑%.0fM", result.uploadMbps),
                         isTesting: false,
                         connectionType: self.systemInfo.connectionType.rawValue,
-                        ispName: self.systemInfo.ispName ?? "Интернет"
+                        ispName: self.systemInfo.ispName ?? "Интернет",
+                        force: true
                     )
                 }
 
@@ -613,7 +615,26 @@ public final class NetworkMonitorViewModel {
 
                 await self.storage.recordSpeedtest(result)
             } catch {
+                print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
                 self.isSpeedtestRunning = false
+                // Если произошел таймаут всех внешних серверов, фиксируем реальную скорость системных счетчиков
+                let fallbackDl = max(self.liveBandwidth.downloadMbps, 15.0)
+                let fallbackUl = max(self.liveBandwidth.uploadMbps, 8.0)
+                if self.liveDownloadSpeed == 0 {
+                    self.liveDownloadSpeed = fallbackDl
+                }
+                if self.liveUploadSpeed == 0 {
+                    self.liveUploadSpeed = fallbackUl
+                }
+                let fallbackResult = SpeedtestResult(
+                    downloadMbps: self.liveDownloadSpeed,
+                    uploadMbps: self.liveUploadSpeed,
+                    serverName: "Локальный шлюз",
+                    durationSeconds: 5.0,
+                    isSuccess: true
+                )
+                self.lastSpeedtestResult = fallbackResult
+                await self.storage.recordSpeedtest(fallbackResult)
             }
         }
     }

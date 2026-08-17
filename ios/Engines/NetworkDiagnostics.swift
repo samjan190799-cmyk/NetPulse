@@ -157,17 +157,19 @@ public actor NetworkDiagnostics {
         return "192.168.1.1"
     }
 
-    // MARK: - Определение внешнего IP и реального провайдера через Anycast
+    // MARK: - Определение внешнего IP и реального провайдера через Anycast с авто-фолбеком
 
     private func fetchPublicIPDetails(connType: NetworkConnectionType) async -> (ip: String?, isp: String?, country: String?, city: String?) {
         guard connType != .unavailable else {
             return (nil, nil, nil, nil)
         }
 
-        // 1. Быстрый и надежный Cloudflare Anycast endpoint
+        let ispName = connType == .cellular ? "Мобильная сеть (LTE/5G)" : "Wi-Fi Сеть (Интернет)"
+
+        // 1. Cloudflare Anycast endpoint
         if let url = URL(string: "https://1.1.1.1/cdn-cgi/trace") {
             var request = URLRequest(url: url)
-            request.timeoutInterval = 3.0
+            request.timeoutInterval = 2.5
             if let (data, _) = try? await URLSession.shared.data(for: request),
                let text = String(data: data, encoding: .utf8) {
                 var ip: String?
@@ -181,12 +183,34 @@ public actor NetworkDiagnostics {
                     }
                 }
 
-                // Определение имени сети по типу подключения
-                let ispName = connType == .cellular ? "Мобильная сеть (LTE/5G)" : "Wi-Fi Сеть (Интернет)"
-                return (ip, ispName, loc, nil)
+                if let foundIP = ip {
+                    return (foundIP, ispName, loc, nil)
+                }
             }
         }
 
-        return (nil, connType == .cellular ? "Мобильная сеть" : "Wi-Fi Сеть", nil, nil)
+        // 2. Fallback: ipify
+        if let url = URL(string: "https://api.ipify.org?format=json") {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 2.5
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let ip = json["ip"] as? String {
+                return (ip, ispName, nil, nil)
+            }
+        }
+
+        // 3. Fallback: icanhazip
+        if let url = URL(string: "https://icanhazip.com") {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 2.5
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !text.isEmpty {
+                return (text, ispName, nil, nil)
+            }
+        }
+
+        return (nil, ispName, nil, nil)
     }
 }

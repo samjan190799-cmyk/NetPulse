@@ -8,12 +8,12 @@
 import Foundation
 import Network
 
-/// Потокобезопасная обертка для однократного вызова продолжения (Swift 6 Strict Concurrency).
-private final class SafeContinuation<T>: @unchecked Sendable {
-    private var continuation: CheckedContinuation<T, Error>?
+/// Потокобезопасная обертка для CheckedContinuation во избежание множественного возобновления
+private final class SafeContinuation<T, E: Error>: @unchecked Sendable {
+    private var continuation: CheckedContinuation<T, E>?
     private let lock = NSLock()
 
-    init(_ continuation: CheckedContinuation<T, Error>) {
+    init(_ continuation: CheckedContinuation<T, E>) {
         self.continuation = continuation
     }
 
@@ -24,7 +24,7 @@ private final class SafeContinuation<T>: @unchecked Sendable {
         continuation = nil
     }
 
-    func resume(throwing error: Error) {
+    func resume(throwing error: E) {
         lock.lock()
         defer { lock.unlock() }
         continuation?.resume(throwing: error)
@@ -42,13 +42,17 @@ public actor PingEngine {
 
     /// Проверка одиночного хоста через TCP Connect (Network.framework)
     public func pingTarget(_ target: HostTarget) async -> PingRecord {
-        let hostStr = target.address
-        guard hostStr != "gateway" && !hostStr.isEmpty else {
+        var hostStr = target.address
+        if (hostStr == "gateway" || hostStr.isEmpty) && target.isGateway {
+            hostStr = "192.168.1.1"
+        }
+
+        guard !hostStr.isEmpty else {
             return PingRecord(
                 host: hostStr,
                 targetName: target.name,
                 isSuccess: false,
-                errorMessage: "Шлюз еще не определен"
+                errorMessage: "Хост не указан"
             )
         }
 

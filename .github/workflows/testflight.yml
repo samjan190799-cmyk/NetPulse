@@ -67,27 +67,36 @@ jobs:
           ICONSET="Assets.xcassets/AppIcon.appiconset"
           mkdir -p "$ICONSET"
           
-          # Генерация всех необходимых иконок через встроенный sips
+          # Если мастер-логотип существует в assets/, генерируем все размеры напрямую из него
+          if [ -f "../assets/netpulse_logo.png" ]; then
+            echo "🖼 Генерация иконок из официального мастер-логотипа ../assets/netpulse_logo.png"
+            python3 -c "
+          from PIL import Image
+          master = Image.open('../assets/netpulse_logo.png').convert('RGBA')
+          # Создаем непрозрачный фон для App Store (требование Apple: без альфа-канала)
+          bg = Image.new('RGB', master.size, (10, 13, 20))
+          if master.mode == 'RGBA':
+              bg.paste(master, mask=master.split()[3])
+          else:
+              bg.paste(master)
+          
+          sizes = [20, 29, 40, 57, 58, 60, 76, 80, 87, 114, 120, 152, 167, 180, 1024]
+          for sz in sizes:
+              resized = bg.resize((sz, sz), Image.Resampling.LANCZOS)
+              resized.save(f'$ICONSET/Icon-{sz}.png', 'PNG')
+          print('Все размеры иконок успешно сформированы из netpulse_logo.png')
+          " || true
+          fi
+          
+          # Проверяем наличие ключевых иконок, если нет — генерируем фолбек
           generate_icon() {
             SIZE=$1
             FILENAME=$2
-            sips -z $SIZE $SIZE \
-              --setProperty format png \
-              --canvas $SIZE $SIZE \
-              /System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/Tones/Strum.m4r \
-              --out "$ICONSET/$FILENAME" 2>/dev/null || \
-            python3 -c "
+            if [ ! -f "$ICONSET/$FILENAME" ]; then
+              python3 -c "
           from PIL import Image, ImageDraw, ImageFont
-          import os
-          img = Image.new('RGBA', ($SIZE, $SIZE), (0, 20, 80, 255))
+          img = Image.new('RGB', ($SIZE, $SIZE), (10, 13, 20))
           draw = ImageDraw.Draw(img)
-          # Синий градиентный фон
-          for i in range($SIZE):
-              r = int(0 + i * 10 / $SIZE)
-              g = int(122 + i * 60 / $SIZE)
-              b = int(255 - i * 50 / $SIZE)
-              draw.line([(0, i), ($SIZE, i)], fill=(r, g, b, 255))
-          # Буква N
           font_size = max(int($SIZE * 0.55), 10)
           try:
               font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', font_size)
@@ -98,56 +107,15 @@ jobs:
           h = bbox[3] - bbox[1]
           x = ($SIZE - w) // 2 - bbox[0]
           y = ($SIZE - h) // 2 - bbox[1]
-          draw.text((x, y), 'N', font=font, fill=(255,255,255,255))
+          draw.text((x, y), 'N', font=font, fill=(255,255,255))
           img.save('$ICONSET/$FILENAME', 'PNG')
-          print('Generated $ICONSET/$FILENAME ($SIZE x $SIZE)')
-          " || \
-            # Запасной вариант — ImageMagick
-            convert -size ${SIZE}x${SIZE} \
-              xc:"#007AFF" \
-              -fill white \
-              -pointsize $(($SIZE / 2)) \
-              -gravity Center \
-              -annotate 0 "N" \
-              "$ICONSET/$FILENAME" 2>/dev/null || \
-            # Финальный запасной — создаём минимальный PNG через Python без Pillow
-            python3 -c "
-          import struct, zlib
-          def make_png(w, h, color):
-              def chunk(name, data):
-                  c = zlib.crc32(name + data) & 0xffffffff
-                  return struct.pack('>I', len(data)) + name + data + struct.pack('>I', c)
-              raw = b''
-              r, g, b = color
-              for y in range(h):
-                  raw += b'\\x00'
-                  for x in range(w):
-                      raw += bytes([r, g, b])
-              compressed = zlib.compress(raw)
-              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
-              return b'\\x89PNG\\r\\n\\x1a\\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', compressed) + chunk(b'IEND', b'')
-          with open('$ICONSET/$FILENAME', 'wb') as f:
-              f.write(make_png($SIZE, $SIZE, (0, 122, 255)))
-          print('Minimal PNG: $ICONSET/$FILENAME')
-          "
+          " 2>/dev/null || true
+            fi
           }
           
-          # iPhone иконки
-          generate_icon 20 "Icon-20.png"
-          generate_icon 29 "Icon-29.png"
-          generate_icon 40 "Icon-40.png"
-          generate_icon 57 "Icon-57.png"
-          generate_icon 58 "Icon-58.png"
-          generate_icon 60 "Icon-60.png"
-          generate_icon 76 "Icon-76.png"
-          generate_icon 80 "Icon-80.png"
-          generate_icon 87 "Icon-87.png"
-          generate_icon 114 "Icon-114.png"
-          generate_icon 120 "Icon-120.png"
-          generate_icon 152 "Icon-152.png"
-          generate_icon 167 "Icon-167.png"
-          generate_icon 180 "Icon-180.png"
-          generate_icon 1024 "Icon-1024.png"
+          for s in 20 29 40 57 58 60 76 80 87 114 120 152 167 180 1024; do
+            generate_icon $s "Icon-$s.png"
+          done
           
           echo "=== Сгенерированные иконки ==="
           ls -la "$ICONSET/"

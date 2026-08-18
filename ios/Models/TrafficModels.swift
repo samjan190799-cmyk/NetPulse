@@ -47,6 +47,81 @@ public struct TrafficDataPoint: Identifiable, Codable, Sendable {
     }
 }
 
+// MARK: - Категории назначения трафика
+
+/// Категория активности / назначения сетевого трафика
+public enum TrafficCategory: String, CaseIterable, Identifiable, Codable, Sendable {
+    case videoStreaming = "Видео и Стриминг"
+    case messagingSocial = "Мессенджеры и Соцсети"
+    case webBrowsing = "Веб-серфинг и Данные"
+    case gamingVoip = "Игры и Голосовая связь"
+    case speedtestDiagnostics = "Спидтест и Диагностика"
+    case systemBackground = "Системный и Фоновый"
+
+    public var id: String { rawValue }
+
+    /// SF Symbol иконка для категории
+    public var iconName: String {
+        switch self {
+        case .videoStreaming: return "play.tv.fill"
+        case .messagingSocial: return "bubble.left.and.bubble.right.fill"
+        case .webBrowsing: return "safari.fill"
+        case .gamingVoip: return "gamecontroller.fill"
+        case .speedtestDiagnostics: return "bolt.horizontal.fill"
+        case .systemBackground: return "gearshape.arrow.triangle.2.circlepath"
+        }
+    }
+
+    /// Основной HEX-цвет акцента
+    public var colorHex: String {
+        switch self {
+        case .videoStreaming: return "#FF3B30"       // Красный / YouTube / Streaming
+        case .messagingSocial: return "#007AFF"      // Синий / Telegram / Chat
+        case .webBrowsing: return "#5856D6"          // Фиолетовый / Safari / Web
+        case .gamingVoip: return "#34C759"           // Зеленый / Gaming / Low Latency
+        case .speedtestDiagnostics: return "#FF9500" // Оранжевый / NetPulse Speed
+        case .systemBackground: return "#8E8E93"     // Графитовый / System
+        }
+    }
+
+    /// Описание категории
+    public var categoryDescription: String {
+        switch self {
+        case .videoStreaming: return "YouTube, Twitch, онлайн-кинотеатры и видеопотоки"
+        case .messagingSocial: return "Telegram, WhatsApp, соцсети и чаты"
+        case .webBrowsing: return "Safari, браузеры, загрузка страниц и облачные API"
+        case .gamingVoip: return "Сетевые игры, Discord голосовые вызовы и UDP"
+        case .speedtestDiagnostics: return "Тесты скорости Cloudflare, MTR и опрос хостов"
+        case .systemBackground: return "Фоновая синхронизация iCloud и службы Darwin BSD"
+        }
+    }
+}
+
+/// Статистика расхода по конкретной категории
+public struct TrafficCategoryUsage: Identifiable, Codable, Sendable {
+    public var id: String { category.rawValue }
+    public let category: TrafficCategory
+    public var downloadBytes: UInt64
+    public var uploadBytes: UInt64
+    public var percentage: Double // 0.0 ... 100.0
+
+    public var totalBytes: UInt64 {
+        downloadBytes + uploadBytes
+    }
+
+    public init(
+        category: TrafficCategory,
+        downloadBytes: UInt64 = 0,
+        uploadBytes: UInt64 = 0,
+        percentage: Double = 0.0
+    ) {
+        self.category = category
+        self.downloadBytes = downloadBytes
+        self.uploadBytes = uploadBytes
+        self.percentage = percentage
+    }
+}
+
 /// Сессия подключения к конкретной сети (Wi-Fi точка, сотовая сеть, офисный интернет)
 public struct TrafficSession: Identifiable, Codable, Sendable {
     public let id: UUID
@@ -60,6 +135,7 @@ public struct TrafficSession: Identifiable, Codable, Sendable {
     public var peakDownloadBps: Double
     public var peakUploadBps: Double
     public var isActive: Bool
+    public var categoryUsages: [TrafficCategoryUsage]
 
     public var totalBytes: UInt64 {
         downloadedBytes + uploadedBytes
@@ -85,6 +161,11 @@ public struct TrafficSession: Identifiable, Codable, Sendable {
         }
     }
 
+    /// Главная доминирующая категория в этой сессии
+    public var dominantCategory: TrafficCategory? {
+        categoryUsages.max(by: { $0.totalBytes < $1.totalBytes })?.category
+    }
+
     public init(
         id: UUID = UUID(),
         networkName: String,
@@ -96,7 +177,8 @@ public struct TrafficSession: Identifiable, Codable, Sendable {
         uploadedBytes: UInt64 = 0,
         peakDownloadBps: Double = 0,
         peakUploadBps: Double = 0,
-        isActive: Bool = true
+        isActive: Bool = true,
+        categoryUsages: [TrafficCategoryUsage] = []
     ) {
         self.id = id
         self.networkName = networkName
@@ -109,6 +191,7 @@ public struct TrafficSession: Identifiable, Codable, Sendable {
         self.peakDownloadBps = peakDownloadBps
         self.peakUploadBps = peakUploadBps
         self.isActive = isActive
+        self.categoryUsages = categoryUsages
     }
 }
 
@@ -122,6 +205,7 @@ public struct TrafficSummary: Codable, Sendable {
     public var cellularUpload: UInt64
     public var activeSessionsCount: Int
     public var totalSessionsCount: Int
+    public var categoryBreakdown: [TrafficCategoryUsage]
 
     public var totalTraffic: UInt64 {
         totalDownload + totalUpload
@@ -153,7 +237,8 @@ public struct TrafficSummary: Codable, Sendable {
         cellularDownload: UInt64 = 0,
         cellularUpload: UInt64 = 0,
         activeSessionsCount: Int = 0,
-        totalSessionsCount: Int = 0
+        totalSessionsCount: Int = 0,
+        categoryBreakdown: [TrafficCategoryUsage] = []
     ) {
         self.totalDownload = totalDownload
         self.totalUpload = totalUpload
@@ -163,6 +248,7 @@ public struct TrafficSummary: Codable, Sendable {
         self.cellularUpload = cellularUpload
         self.activeSessionsCount = activeSessionsCount
         self.totalSessionsCount = totalSessionsCount
+        self.categoryBreakdown = categoryBreakdown
     }
 }
 
@@ -230,3 +316,4 @@ public enum TrafficFormatter {
         }
     }
 }
+

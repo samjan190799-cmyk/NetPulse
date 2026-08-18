@@ -47,6 +47,7 @@
 		A10000402C12345600000040 /* TrafficModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000402C12345600000040 /* TrafficModels.swift */; };
 		A10000412C12345600000041 /* TrafficStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000412C12345600000041 /* TrafficStorage.swift */; };
 		A10000422C12345600000042 /* TrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000422C12345600000042 /* TrafficView.swift */; };
+		A10000432C12345600000043 /* TrafficClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000432C12345600000043 /* TrafficClassifier.swift */; };
 		A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000502C12345600000050 /* AIDiagnosticsModels.swift */; };
 		A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000512C12345600000051 /* AIDiagnosticsEngine.swift */; };
 		A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000522C12345600000052 /* AIDiagnosticsView.swift */; };
@@ -124,6 +125,7 @@
 		B10000402C12345600000040 /* TrafficModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TrafficModels.swift; sourceTree = "<group>"; };
 		B10000412C12345600000041 /* TrafficStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/TrafficStorage.swift; sourceTree = "<group>"; };
 		B10000422C12345600000042 /* TrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TrafficView.swift; sourceTree = "<group>"; };
+		B10000432C12345600000043 /* TrafficClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/TrafficClassifier.swift; sourceTree = "<group>"; };
 		B10000502C12345600000050 /* AIDiagnosticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AIDiagnosticsModels.swift; sourceTree = "<group>"; };
 		B10000512C12345600000051 /* AIDiagnosticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AIDiagnosticsEngine.swift; sourceTree = "<group>"; };
 		B10000522C12345600000052 /* AIDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIDiagnosticsView.swift; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 				B100000D2C1234560000000D /* NetworkDiagnostics.swift */,
 				B100000E2C1234560000000E /* TracerouteEngine.swift */,
 				B10000292C12345600000033 /* BandwidthEngine.swift */,
+				B10000432C12345600000043 /* TrafficClassifier.swift */,
 				B10000512C12345600000051 /* AIDiagnosticsEngine.swift */,
 			);
 			name = Engines;
@@ -412,6 +415,7 @@
 				A10000402C12345600000040 /* TrafficModels.swift in Sources */,
 				A10000412C12345600000041 /* TrafficStorage.swift in Sources */,
 				A10000422C12345600000042 /* TrafficView.swift in Sources */,
+				A10000432C12345600000043 /* TrafficClassifier.swift in Sources */,
 				A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */,
 				A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */,
 				A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */,

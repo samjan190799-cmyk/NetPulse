@@ -154,12 +154,28 @@ public actor TrafficStorage {
                 let isWifi = currentConnectionType.contains("Wi-Fi")
                 let ifName = isWifi ? "en0" : "pdp_ip0"
 
+                let bgDistribution = TrafficClassifier.shared.distributeSample(
+                    deltaDownload: missingTotalIn,
+                    deltaUpload: missingTotalOut,
+                    speedBps: Double(missingTotalIn + missingTotalOut),
+                    isSpeedtestActive: false,
+                    isBackground: true
+                )
+
                 if let activeId = currentActiveSessionId,
                    let index = sessions.firstIndex(where: { $0.id == activeId }) {
                     sessions[index].downloadedBytes += missingTotalIn
                     sessions[index].uploadedBytes += missingTotalOut
                     sessions[index].endDate = now
+                    sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
+                        existing: sessions[index].categoryUsages,
+                        additions: bgDistribution
+                    )
                 } else {
+                    let initialCategories = TrafficClassifier.shared.mergeCategoryUsages(
+                        existing: [],
+                        additions: bgDistribution
+                    )
                     let backgroundSession = TrafficSession(
                         networkName: currentNetworkName.isEmpty ? (isWifi ? "Wi-Fi Сеть" : "Мобильный интернет (5G/LTE)") : currentNetworkName,
                         connectionType: currentConnectionType.isEmpty ? (isWifi ? "Wi-Fi" : "Сотовая связь") : currentConnectionType,
@@ -170,7 +186,8 @@ public actor TrafficStorage {
                         uploadedBytes: missingTotalOut,
                         peakDownloadBps: Double(missingTotalIn),
                         peakUploadBps: Double(missingTotalOut),
-                        isActive: true
+                        isActive: true,
+                        categoryUsages: initialCategories
                     )
                     sessions.insert(backgroundSession, at: 0)
                     currentActiveSessionId = backgroundSession.id
@@ -210,7 +227,8 @@ public actor TrafficStorage {
         snapshot: BandwidthSnapshot,
         networkName: String,
         connectionType: String,
-        interfaceName: String
+        interfaceName: String,
+        isSpeedtestActive: Bool = false
     ) {
         let now = Date()
 
@@ -226,8 +244,20 @@ public actor TrafficStorage {
             }
         }
 
+        let sampleDistribution = TrafficClassifier.shared.distributeSample(
+            deltaDownload: snapshot.deltaDownloadBytes,
+            deltaUpload: snapshot.deltaUploadBytes,
+            speedBps: snapshot.downloadBytesPerSec + snapshot.uploadBytesPerSec,
+            isSpeedtestActive: isSpeedtestActive,
+            isBackground: false
+        )
+
         // 2. Создаем новую активную сессию, если ее нет
         if currentActiveSessionId == nil {
+            let initialCategories = TrafficClassifier.shared.mergeCategoryUsages(
+                existing: [],
+                additions: sampleDistribution
+            )
             let newSession = TrafficSession(
                 networkName: networkName,
                 connectionType: connectionType,
@@ -237,7 +267,8 @@ public actor TrafficStorage {
                 uploadedBytes: snapshot.deltaUploadBytes,
                 peakDownloadBps: snapshot.downloadBytesPerSec,
                 peakUploadBps: snapshot.uploadBytesPerSec,
-                isActive: true
+                isActive: true,
+                categoryUsages: initialCategories
             )
             sessions.insert(newSession, at: 0)
             currentActiveSessionId = newSession.id
@@ -249,6 +280,12 @@ public actor TrafficStorage {
             sessions[index].peakDownloadBps = max(sessions[index].peakDownloadBps, snapshot.downloadBytesPerSec)
             sessions[index].peakUploadBps = max(sessions[index].peakUploadBps, snapshot.uploadBytesPerSec)
             sessions[index].endDate = now
+            if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
+                sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
+                    existing: sessions[index].categoryUsages,
+                    additions: sampleDistribution
+                )
+            }
         }
 
         // 3. Записываем реальную точку графика расхода, если была активность
@@ -304,6 +341,11 @@ public actor TrafficStorage {
             }
         }
 
+        summary.categoryBreakdown = TrafficClassifier.shared.aggregateCategoryBreakdown(
+            from: filteredSessions,
+            totalTraffic: summary.totalTraffic
+        )
+
         return summary
     }
 
@@ -355,12 +397,13 @@ public actor TrafficStorage {
     // MARK: - Экспорт отчетов расхода трафика
 
     public func exportTrafficCSV() throws -> URL {
-        var csv = "SessionID,NetworkName,ConnectionType,Interface,StartDate,EndDate,DurationSec,DownloadedBytes,UploadedBytes,TotalBytes,PeakDownloadBps\n"
+        var csv = "SessionID,NetworkName,ConnectionType,Interface,StartDate,EndDate,DurationSec,DownloadedBytes,UploadedBytes,TotalBytes,DominantCategory,PeakDownloadBps\n"
         let df = ISO8601DateFormatter()
 
         for s in sessions {
             let endStr = s.endDate != nil ? df.string(from: s.endDate!) : "Active"
-            let line = "\(s.id.uuidString),\"\(s.networkName)\",\"\(s.connectionType)\",\(s.interfaceName),\(df.string(from: s.startDate)),\(endStr),\(Int(s.duration)),\(s.downloadedBytes),\(s.uploadedBytes),\(s.totalBytes),\(Int(s.peakDownloadBps))\n"
+            let dominant = s.dominantCategory?.rawValue ?? "Не определено"
+            let line = "\(s.id.uuidString),\"\(s.networkName)\",\"\(s.connectionType)\",\(s.interfaceName),\(df.string(from: s.startDate)),\(endStr),\(Int(s.duration)),\(s.downloadedBytes),\(s.uploadedBytes),\(s.totalBytes),\"\(dominant)\",\(Int(s.peakDownloadBps))\n"
             csv.append(line)
         }
 
@@ -397,3 +440,4 @@ private struct TrafficExportPayload: Codable {
     let budget: TrafficBudget
     let sessions: [TrafficSession]
 }
+

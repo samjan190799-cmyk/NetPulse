@@ -78,13 +78,16 @@ public struct TrafficView: View {
                     // 3. Главная сводная карточка расхода трафика
                     heroSummaryCard
 
-                    // 4. График расхода трафика во времени
+                    // 4. На что потрачен трафик (Категории сетевой активности)
+                    trafficCategoriesSection
+
+                    // 5. График расхода трафика во времени
                     trafficChartsSection
 
-                    // 5. Контроль бюджета и лимитов трафика
+                    // 6. Контроль бюджета и лимитов трафика
                     budgetQuotaSection
 
-                    // 6. История сессий («Где и сколько потратил»)
+                    // 7. История сессий («Где и сколько потратил»)
                     sessionsHistorySection
                 }
                 .padding(.vertical)
@@ -410,6 +413,123 @@ public struct TrafficView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    // MARK: - Детализация категорий расхода трафика
+
+    private var trafficCategoriesSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("НА ЧТО ПОТРАЧЕН ТРАФИК")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+
+                    Text("Категории сетевой активности")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.primary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10, weight: .bold))
+                    Text("AI-анализ")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.cyan)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.cyan.opacity(0.12))
+                .clipShape(Capsule())
+            }
+
+            if viewModel.trafficSummary.categoryBreakdown.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.pie.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.secondary)
+                    Text("Ожидание передачи сетевых пакетов...")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+            } else {
+                // Мульти-градиентная сегментированная полоса
+                VStack(spacing: 6) {
+                    GeometryReader { geo in
+                        HStack(spacing: 2) {
+                            ForEach(viewModel.trafficSummary.categoryBreakdown) { item in
+                                let segmentWidth = geo.size.width * CGFloat(item.percentage / 100.0)
+                                if segmentWidth > 2 {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(item.category.swiftUIColor)
+                                        .frame(width: segmentWidth)
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: 10)
+                    .clipShape(Capsule())
+                    .background(Color(uiColor: .tertiarySystemFill).clipShape(Capsule()))
+                }
+
+                // Список категорий
+                VStack(spacing: 8) {
+                    ForEach(viewModel.trafficSummary.categoryBreakdown) { item in
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(item.category.swiftUIColor.opacity(0.15))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: item.category.iconName)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(item.category.swiftUIColor)
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.category.rawValue)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.primary)
+
+                                Text(item.category.categoryDescription)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(TrafficFormatter.formatBytes(item.totalBytes))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+
+                                Text(String(format: "%.1f%%", item.percentage))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(item.category.swiftUIColor)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 1)
+                                    .background(item.category.swiftUIColor.opacity(0.12))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .padding(10)
+                        .background(Color(uiColor: .tertiarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
+        )
+        .padding(.horizontal)
+    }
+
     // MARK: - График расхода трафика (SwiftUI Charts)
 
     private var trafficChartsSection: some View {
@@ -715,6 +835,27 @@ private struct SessionRowCard: View {
             .padding(.vertical, 6)
             .background(Color(uiColor: .tertiarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            // Доминирующие категории трафика в сессии
+            if !session.categoryUsages.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(session.categoryUsages.prefix(3)) { usage in
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(usage.category.swiftUIColor)
+                                .frame(width: 6, height: 6)
+                            Text("\(usage.category.rawValue) • \(TrafficFormatter.formatBytes(usage.totalBytes))")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(usage.category.swiftUIColor.opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                    Spacer()
+                }
+            }
         }
         .padding(12)
         .background(Color(uiColor: .secondarySystemBackground))
@@ -823,3 +964,19 @@ private struct ShareSheet: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+
+// MARK: - Расширение цветов категорий для SwiftUI
+
+extension TrafficCategory {
+    public var swiftUIColor: Color {
+        switch self {
+        case .videoStreaming: return .red
+        case .messagingSocial: return .blue
+        case .webBrowsing: return .purple
+        case .gamingVoip: return .green
+        case .speedtestDiagnostics: return .orange
+        case .systemBackground: return .gray
+        }
+    }
+}
+

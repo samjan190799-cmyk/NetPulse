@@ -308,12 +308,13 @@ public final class NetworkMonitorViewModel {
                 let snapshot = self.bandwidthEngine.sampleBandwidth()
                 self.liveBandwidth = snapshot
 
-                // Фиксация расхода в постоянном хранилище TrafficStorage
+                // Фиксация расхода в постоянном хранилище TrafficStorage с учетом категорий
                 await TrafficStorage.shared.recordTrafficSample(
                     snapshot: snapshot,
                     networkName: self.currentNetworkTitle,
                     connectionType: self.systemInfo.connectionType.rawValue,
-                    interfaceName: self.systemInfo.connectionType == .wifi ? "en0" : "pdp_ip0"
+                    interfaceName: self.systemInfo.connectionType == .wifi ? "en0" : "pdp_ip0",
+                    isSpeedtestActive: self.isSpeedtestRunning
                 )
 
                 // Периодическое обновление данных раздела «Трафик» в UI

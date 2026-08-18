@@ -17,7 +17,6 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     private var audioPlayer: AVAudioPlayer?
     private var isRunning: Bool = false
     private var isObservingNotifications: Bool = false
-    private var watchdogTimer: Timer?
     private var retryTask: Task<Void, Never>?
 
     private override init() {
@@ -35,14 +34,12 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         isRunning = true
 
         activateAudioEngine()
-        startWatchdog()
     }
 
     /// Остановка фонового удержания
     public func stopKeepAlive() {
         guard isRunning else { return }
         isRunning = false
-        stopWatchdog()
         retryTask?.cancel()
         retryTask = nil
 
@@ -75,7 +72,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
                 let silentData = generatePureSilenceWavData()
                 let player = try AVAudioPlayer(data: silentData)
                 player.delegate = self
-                player.numberOfLoops = -1 // Бесконечный непрерывный цикл
+                player.numberOfLoops = -1 // Бесконечный непрерывный цикл без пробуждения CPU
                 player.volume = 0.0 // Полная тишина — нулевая нагрузка на динамики
                 player.prepareToPlay()
                 self.audioPlayer = player
@@ -101,28 +98,11 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     private func scheduleReactivationRetry() {
         guard isRunning, retryTask == nil else { return }
         retryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             guard let self = self, self.isRunning else { return }
             self.retryTask = nil
             self.activateAudioEngine()
         }
-    }
-
-    // MARK: - Сторожевой таймер (Watchdog) для предотвращения засыпания
-
-    private func startWatchdog() {
-        watchdogTimer?.invalidate()
-        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self = self, self.isRunning else { return }
-                self.ensurePlayerIsActive()
-            }
-        }
-    }
-
-    private func stopWatchdog() {
-        watchdogTimer?.invalidate()
-        watchdogTimer = nil
     }
 
     // MARK: - AVAudioPlayerDelegate

@@ -168,19 +168,22 @@ public final class BandwidthEngine: @unchecked Sendable {
     }
 
     public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
-        if current >= prev {
-            return current - prev
-        } else if prev > 0 {
-            // Обработка возможного переполнения 32-битного счетчика BSD ядра (UInt32.max)
-            // или сброса счетчиков при перезапуске сетевого интерфейса/переподключении
-            if prev <= UInt64(UInt32.max) && current <= UInt64(UInt32.max) {
-                return (UInt64(UInt32.max) - prev) &+ current
-            } else {
-                // Если счетчик был сброшен ядром iOS (например, переподключение LTE или смена сети)
-                return current
-            }
+        // Если предыдущая точка не была зафиксирована (базовая точка отсчета) — дельта 0!
+        guard prev > 0 else {
+            return 0
         }
-        return 0
+        if current >= prev {
+            let delta = current - prev
+            // Защита от аномальных выбросов (например, при сбросе/переподключении)
+            // 200 МБ за один интервал (1.6 Гбит/с) — физический максимум для мобильного устройства
+            if delta > 200_000_000 {
+                return 0
+            }
+            return delta
+        } else {
+            // Если счетчик интерфейса сброшен ядром iOS (например, переключение режима самолета)
+            return 0
+        }
     }
 
     /// Считывание счетчиков байт сетевых интерфейсов BSD (Wi-Fi: en0/en1, Cellular: pdp_ip0..3)
@@ -193,6 +196,7 @@ public final class BandwidthEngine: @unchecked Sendable {
 
         var result = InterfaceByteCounters()
         var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
+        var seenInterfaces = Set<String>()
 
         while let ptr = cursor {
             let flags = Int32(ptr.pointee.ifa_flags)
@@ -202,27 +206,32 @@ public final class BandwidthEngine: @unchecked Sendable {
             // В ядре Darwin только записи с sa_family == AF_LINK содержат struct if_data
             if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
                 if let data = ptr.pointee.ifa_data, let ifaNamePtr = ptr.pointee.ifa_name {
-                    let networkData = data.assumingMemoryBound(to: if_data.self)
-                    let inBytes = UInt64(networkData.pointee.ifi_ibytes)
-                    let outBytes = UInt64(networkData.pointee.ifi_obytes)
                     let ifName = String(cString: ifaNamePtr)
 
-                    result.totalIn += inBytes
-                    result.totalOut += outBytes
+                    if !seenInterfaces.contains(ifName) {
+                        seenInterfaces.insert(ifName)
+                        let networkData = data.assumingMemoryBound(to: if_data.self)
+                        let inBytes = UInt64(networkData.pointee.ifi_ibytes)
+                        let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
-                    if ifName.hasPrefix("en") {
-                        // Wi-Fi / Ethernet
-                        result.wifiIn += inBytes
-                        result.wifiOut += outBytes
-                    } else if ifName.hasPrefix("pdp_ip") {
-                        // Cellular (5G / LTE)
-                        result.cellularIn += inBytes
-                        result.cellularOut += outBytes
+                        if ifName.hasPrefix("en") {
+                            // Физический Wi-Fi / Ethernet
+                            result.wifiIn += inBytes
+                            result.wifiOut += outBytes
+                        } else if ifName.hasPrefix("pdp_ip") {
+                            // Физический Cellular (5G / LTE)
+                            result.cellularIn += inBytes
+                            result.cellularOut += outBytes
+                        }
                     }
                 }
             }
             cursor = ptr.pointee.ifa_next
         }
+
+        // Общий трафик строго равен сумме реального Wi-Fi и Cellular (без виртуальных туннелей utun/awdl)
+        result.totalIn = result.wifiIn + result.cellularIn
+        result.totalOut = result.wifiOut + result.cellularOut
 
         return result
     }

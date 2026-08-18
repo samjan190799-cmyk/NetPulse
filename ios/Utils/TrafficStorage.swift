@@ -55,13 +55,20 @@ public actor TrafficStorage {
         // Загрузка сохраненных сессий
         if let data = try? Data(contentsOf: sessionsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficSession].self, from: data) {
-            loadedSessions = decoded
+            // Санация данных: фильтруем микро-сессии с 0 байт и аномальные дубликаты
+            let sanitized = decoded.filter { session in
+                let total = session.downloadedBytes + session.uploadedBytes
+                // Исключаем пустые артефактные сессии
+                return total > 1024 || session.isActive
+            }
+            // Ограничиваем историю максимум 100 наиболее актуальными сессиями
+            loadedSessions = Array(sanitized.prefix(100))
         }
 
         // Загрузка точек графиков
         if let data = try? Data(contentsOf: dataPointsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficDataPoint].self, from: data) {
-            loadedPoints = decoded
+            loadedPoints = Array(decoded.suffix(300))
         }
 
         // Загрузка квоты
@@ -76,10 +83,10 @@ public actor TrafficStorage {
     /// Прямая запись на диск без блокировок
     private func performDiskSave() {
         do {
-            let sData = try JSONEncoder().encode(sessions)
+            let sData = try JSONEncoder().encode(Array(sessions.prefix(100)))
             try sData.write(to: Self.sessionsFileURL, options: .atomic)
 
-            let pData = try JSONEncoder().encode(dataPoints)
+            let pData = try JSONEncoder().encode(Array(dataPoints.suffix(300)))
             try pData.write(to: Self.dataPointsFileURL, options: .atomic)
 
             let bData = try JSONEncoder().encode(budget)
@@ -92,23 +99,22 @@ public actor TrafficStorage {
         }
     }
 
-    /// Дебаунсинг дисковой записи: предотвращает 1 запись/сек и исключает разряд батареи и перегрузку I/O
+    /// Дебаунсинг дисковой записи: предотвращает частую запись и исключает разряд батареи и перегрузку I/O
     private func scheduleDebouncedSave() {
         hasUnsavedChanges = true
         let timeSinceLastSave = Date().timeIntervalSince(lastSavedDate)
 
-        // Если прошло более 20 секунд с последнего сохранения, сохраняем сразу
-        if timeSinceLastSave >= 20.0 {
+        // Сохраняем не чаще чем раз в 30 секунд для сбережения аккумулятора
+        if timeSinceLastSave >= 30.0 {
             saveTask?.cancel()
             saveTask = nil
             performDiskSave()
             return
         }
 
-        // Иначе планируем сохранение через 15 секунд, если задача еще не висит
         if saveTask == nil {
             saveTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                try? await Task.sleep(nanoseconds: 25_000_000_000)
                 guard !Task.isCancelled else { return }
                 await self?.flush()
             }
@@ -135,83 +141,97 @@ public actor TrafficStorage {
         let now = Date()
 
         // 1. Считываем сохраненный срез при предыдущей активности
-        if let savedData = UserDefaults.standard.data(forKey: Self.kLastHardwareCountersKey),
-           let saved = try? JSONDecoder().decode(InterfaceByteCounters.self, from: savedData) {
-            
-            // Вычисляем пропущенные дельты на уровне сетевых интерфейсов ядра
-            let missingTotalIn = BandwidthEngine.computeDelta(prev: saved.totalIn, current: currentCounters.totalIn)
-            let missingTotalOut = BandwidthEngine.computeDelta(prev: saved.totalOut, current: currentCounters.totalOut)
-            
-            let missingWifiIn = BandwidthEngine.computeDelta(prev: saved.wifiIn, current: currentCounters.wifiIn)
-            let missingWifiOut = BandwidthEngine.computeDelta(prev: saved.wifiOut, current: currentCounters.wifiOut)
-            let missingWifiTotal = missingWifiIn + missingWifiOut
-            
-            let missingCellIn = BandwidthEngine.computeDelta(prev: saved.cellularIn, current: currentCounters.cellularIn)
-            let missingCellOut = BandwidthEngine.computeDelta(prev: saved.cellularOut, current: currentCounters.cellularOut)
-            let missingCellTotal = missingCellIn + missingCellOut
-
-            if missingTotalIn > 0 || missingTotalOut > 0 {
-                let isWifi = currentConnectionType.contains("Wi-Fi")
-                let ifName = isWifi ? "en0" : "pdp_ip0"
-
-                let bgDistribution = TrafficClassifier.shared.distributeSample(
-                    deltaDownload: missingTotalIn,
-                    deltaUpload: missingTotalOut,
-                    speedBps: Double(missingTotalIn + missingTotalOut),
-                    isSpeedtestActive: false,
-                    isBackground: true
-                )
-
-                if let activeId = currentActiveSessionId,
-                   let index = sessions.firstIndex(where: { $0.id == activeId }) {
-                    sessions[index].downloadedBytes += missingTotalIn
-                    sessions[index].uploadedBytes += missingTotalOut
-                    sessions[index].endDate = now
-                    sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
-                        existing: sessions[index].categoryUsages,
-                        additions: bgDistribution
-                    )
-                } else {
-                    let initialCategories = TrafficClassifier.shared.mergeCategoryUsages(
-                        existing: [],
-                        additions: bgDistribution
-                    )
-                    let backgroundSession = TrafficSession(
-                        networkName: currentNetworkName.isEmpty ? (isWifi ? "Wi-Fi Сеть" : "Мобильный интернет (5G/LTE)") : currentNetworkName,
-                        connectionType: currentConnectionType.isEmpty ? (isWifi ? "Wi-Fi" : "Сотовая связь") : currentConnectionType,
-                        interfaceName: ifName,
-                        startDate: now.addingTimeInterval(-60),
-                        endDate: now,
-                        downloadedBytes: missingTotalIn,
-                        uploadedBytes: missingTotalOut,
-                        peakDownloadBps: Double(missingTotalIn),
-                        peakUploadBps: Double(missingTotalOut),
-                        isActive: true,
-                        categoryUsages: initialCategories
-                    )
-                    sessions.insert(backgroundSession, at: 0)
-                    currentActiveSessionId = backgroundSession.id
-                }
-
-                // Добавляем точку на график
-                let point = TrafficDataPoint(
-                    timestamp: now,
-                    downloadBytes: missingTotalIn,
-                    uploadBytes: missingTotalOut,
-                    wifiBytes: missingWifiTotal,
-                    cellularBytes: missingCellTotal
-                )
-                dataPoints.append(point)
-                if dataPoints.count > 500 {
-                    dataPoints.removeFirst(dataPoints.count - 500)
-                }
-
-                scheduleDebouncedSave()
-            }
+        guard let savedData = UserDefaults.standard.data(forKey: Self.kLastHardwareCountersKey),
+              let saved = try? JSONDecoder().decode(InterfaceByteCounters.self, from: savedData),
+              (saved.totalIn > 0 || saved.totalOut > 0) else {
+            // Первичная точка отсчета: фиксируем текущее состояние ядра БЕЗ начисления дельты
+            persistHardwareCounters(currentCounters)
+            return
         }
 
-        // 2. Обновляем контрольную точку аппаратного счетчика
+        let isWifi = currentConnectionType.contains("Wi-Fi") || currentConnectionType.lowercased().contains("wifi")
+        let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
+        let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
+        let ifName = isWifi ? "en0" : "pdp_ip0"
+
+        // Вычисляем пропущенные дельты на уровне сетевых интерфейсов ядра
+        let missingWifiIn = BandwidthEngine.computeDelta(prev: saved.wifiIn, current: currentCounters.wifiIn)
+        let missingWifiOut = BandwidthEngine.computeDelta(prev: saved.wifiOut, current: currentCounters.wifiOut)
+        let missingWifiTotal = missingWifiIn + missingWifiOut
+
+        let missingCellIn = BandwidthEngine.computeDelta(prev: saved.cellularIn, current: currentCounters.cellularIn)
+        let missingCellOut = BandwidthEngine.computeDelta(prev: saved.cellularOut, current: currentCounters.cellularOut)
+        let missingCellTotal = missingCellIn + missingCellOut
+
+        let missingTotalIn = isWifi ? missingWifiIn : missingCellIn
+        let missingTotalOut = isWifi ? missingWifiOut : missingCellOut
+
+        // Обновляем контрольную точку аппаратного счетчика
         persistHardwareCounters(currentCounters)
+
+        if missingTotalIn > 0 || missingTotalOut > 0 {
+            let bgDistribution = TrafficClassifier.shared.distributeSample(
+                deltaDownload: missingTotalIn,
+                deltaUpload: missingTotalOut,
+                speedBps: Double(missingTotalIn + missingTotalOut),
+                isSpeedtestActive: false,
+                isBackground: true
+            )
+
+            if let activeId = currentActiveSessionId,
+               let index = sessions.firstIndex(where: { $0.id == activeId }),
+               sessions[index].connectionType == normConnType {
+                sessions[index].downloadedBytes += missingTotalIn
+                sessions[index].uploadedBytes += missingTotalOut
+                sessions[index].endDate = now
+                sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
+                    existing: sessions[index].categoryUsages,
+                    additions: bgDistribution
+                )
+            } else {
+                // Закрываем предыдущую активную сессию если сменился тип сети
+                if let activeId = currentActiveSessionId,
+                   let index = sessions.firstIndex(where: { $0.id == activeId }) {
+                    sessions[index].isActive = false
+                    sessions[index].endDate = now
+                }
+
+                let initialCategories = TrafficClassifier.shared.mergeCategoryUsages(
+                    existing: [],
+                    additions: bgDistribution
+                )
+                let backgroundSession = TrafficSession(
+                    networkName: normNetName,
+                    connectionType: normConnType,
+                    interfaceName: ifName,
+                    startDate: now.addingTimeInterval(-60),
+                    endDate: now,
+                    downloadedBytes: missingTotalIn,
+                    uploadedBytes: missingTotalOut,
+                    peakDownloadBps: Double(missingTotalIn),
+                    peakUploadBps: Double(missingTotalOut),
+                    isActive: true,
+                    categoryUsages: initialCategories
+                )
+                sessions.insert(backgroundSession, at: 0)
+                currentActiveSessionId = backgroundSession.id
+            }
+
+            // Добавляем точку на график
+            let point = TrafficDataPoint(
+                timestamp: now,
+                downloadBytes: missingTotalIn,
+                uploadBytes: missingTotalOut,
+                wifiBytes: isWifi ? (missingTotalIn + missingTotalOut) : 0,
+                cellularBytes: !isWifi ? (missingTotalIn + missingTotalOut) : 0
+            )
+            dataPoints.append(point)
+            if dataPoints.count > 300 {
+                dataPoints.removeFirst(dataPoints.count - 300)
+            }
+
+            scheduleDebouncedSave()
+        }
     }
 
     private func persistHardwareCounters(_ counters: InterfaceByteCounters) {
@@ -231,13 +251,17 @@ public actor TrafficStorage {
         isSpeedtestActive: Bool = false
     ) {
         let now = Date()
+        let isWifi = connectionType.contains("Wi-Fi") || connectionType.lowercased().contains("wifi")
+        let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
+        let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
 
-        // 1. Проверяем, изменилась ли сеть
+        // 1. Проверяем, изменился ли физический тип сети (Wi-Fi <-> Cellular)
         if let activeId = currentActiveSessionId,
            let index = sessions.firstIndex(where: { $0.id == activeId }) {
             let active = sessions[index]
-            if active.networkName != networkName || active.connectionType != connectionType {
-                // Закрываем предыдущую сессию
+            // Сессия меняется ТОЛЬКО если произошел реальный переход между Wi-Fi и Cellular
+            // или текущая сессия длится уже более 24 часов
+            if active.connectionType != normConnType || now.timeIntervalSince(active.startDate) > 86400 {
                 sessions[index].endDate = now
                 sessions[index].isActive = false
                 currentActiveSessionId = nil
@@ -259,9 +283,9 @@ public actor TrafficStorage {
                 additions: sampleDistribution
             )
             let newSession = TrafficSession(
-                networkName: networkName,
-                connectionType: connectionType,
-                interfaceName: interfaceName,
+                networkName: normNetName,
+                connectionType: normConnType,
+                interfaceName: isWifi ? "en0" : "pdp_ip0",
                 startDate: now,
                 downloadedBytes: snapshot.deltaDownloadBytes,
                 uploadedBytes: snapshot.deltaUploadBytes,
@@ -290,7 +314,6 @@ public actor TrafficStorage {
 
         // 3. Записываем реальную точку графика расхода, если была активность
         if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
-            let isWifi = connectionType.contains("Wi-Fi")
             let point = TrafficDataPoint(
                 timestamp: now,
                 downloadBytes: snapshot.deltaDownloadBytes,
@@ -300,9 +323,9 @@ public actor TrafficStorage {
             )
             dataPoints.append(point)
 
-            // Храним максимум 500 последних точек в памяти
-            if dataPoints.count > 500 {
-                dataPoints.removeFirst(dataPoints.count - 500)
+            // Храним максимум 300 последних точек в памяти
+            if dataPoints.count > 300 {
+                dataPoints.removeFirst(dataPoints.count - 300)
             }
         }
 

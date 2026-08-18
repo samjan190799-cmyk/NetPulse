@@ -197,13 +197,25 @@ public final class NetworkMonitorViewModel {
         // 2. Планирование фонового пробуждения через системный BGTaskScheduler
         BackgroundTaskManager.shared.scheduleBackgroundFetch()
 
-        // 3. Удержание активной фоновой сессии если включен фоновый режим или Dynamic Island
-        if backgroundMonitoringEnabled || liveActivityEnabled || isMonitoringActive {
+        // 3. Энергоэффективность: немедленно глушим активный пинг хостов и HTTP-запросы в фоне,
+        // чтобы не нагружать радиомодем и не нагревать телефон
+        pingTask?.cancel()
+        pingTask = nil
+        diagnosticsTask?.cancel()
+        diagnosticsTask = nil
+
+        // 4. Если включен Live Activity (Dynamic Island), поддерживаем легковесную телеметрию
+        if liveActivityEnabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
             beginBackgroundAssertion()
-            if !isMonitoringActive {
-                startBandwidthTask()
-            }
+            startBandwidthTask()
+        } else {
+            // Если Live Activity отключен, полностью останавливаем таймеры и аудиосессию!
+            // Аппаратные счетчики ядра Darwin BSD ведут учет с 0% CPU и 0% нагрева.
+            bandwidthTask?.cancel()
+            bandwidthTask = nil
+            BackgroundTelemetryKeeper.shared.stopKeepAlive()
+            endBackgroundAssertion()
         }
     }
 
@@ -219,8 +231,12 @@ public final class NetworkMonitorViewModel {
             )
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
         }
-        if !backgroundMonitoringEnabled && !liveActivityEnabled && !isMonitoringActive {
-            BackgroundTelemetryKeeper.shared.stopKeepAlive()
+
+        // Возобновляем активные задачи при возвращении пользователя в приложение
+        if isMonitoringActive {
+            startBandwidthTask()
+            startPingTask()
+            startDiagnosticsTask()
         }
     }
 
@@ -265,7 +281,9 @@ public final class NetworkMonitorViewModel {
         guard !isMonitoringActive else { return }
         isMonitoringActive = true
 
-        BackgroundTelemetryKeeper.shared.startKeepAlive()
+        if liveActivityEnabled {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
+        }
 
         if !silent && hapticsEnabled {
             HapticManager.shared.impactLight()
@@ -285,7 +303,7 @@ public final class NetworkMonitorViewModel {
         diagnosticsTask?.cancel()
         diagnosticsTask = nil
 
-        if !liveActivityEnabled && !backgroundMonitoringEnabled {
+        if !liveActivityEnabled {
             BackgroundTelemetryKeeper.shared.stopKeepAlive()
         }
 
@@ -304,6 +322,8 @@ public final class NetworkMonitorViewModel {
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled else { break }
 
+                let isAppInBackground = UIApplication.shared.applicationState == .background
+
                 // Снятие снимка РЕАЛЬНОГО сетевого трафика системы
                 let snapshot = self.bandwidthEngine.sampleBandwidth()
                 self.liveBandwidth = snapshot
@@ -317,10 +337,12 @@ public final class NetworkMonitorViewModel {
                     isSpeedtestActive: self.isSpeedtestRunning
                 )
 
-                // Периодическое обновление данных раздела «Трафик» в UI
-                loopCount += 1
-                if loopCount % 3 == 0 {
-                    await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI
+                if !isAppInBackground {
+                    loopCount += 1
+                    if loopCount % 3 == 0 {
+                        await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+                    }
                 }
 
                 // Передача реальной скорости в Dynamic Island без замираний
@@ -341,7 +363,9 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // Стабильные 2.0 секунды
+                // Адаптивный интервал: 3.5 сек в фоне (для энергосбережения), 2.0 сек на экране
+                let sleepNs: UInt64 = isAppInBackground ? 3_500_000_000 : 2_000_000_000
+                try? await Task.sleep(nanoseconds: sleepNs)
             }
         }
     }

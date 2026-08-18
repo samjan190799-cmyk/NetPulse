@@ -13,6 +13,10 @@ public actor NetworkDiagnostics {
     private let pathMonitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "com.netpulse.pathmonitor", qos: .utility)
     private var lastKnownPath: NWPath?
+    
+    private var cachedPublicDetails: (ip: String?, isp: String?, country: String?, city: String?)?
+    private var lastDetailsFetchDate: Date?
+    private var lastConnectionType: NetworkConnectionType?
 
     public init() {
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -164,6 +168,14 @@ public actor NetworkDiagnostics {
             return (nil, nil, nil, nil)
         }
 
+        // Проверяем актуальность кэша (5 минут) при неизменном типе подключения
+        if let cached = cachedPublicDetails,
+           let lastDate = lastDetailsFetchDate,
+           lastConnectionType == connType,
+           Date().timeIntervalSince(lastDate) < 300.0 {
+            return cached
+        }
+
         let ispName = connType == .cellular ? "Мобильная сеть (LTE/5G)" : "Wi-Fi Сеть (Интернет)"
 
         // 1. Cloudflare Anycast endpoint
@@ -184,7 +196,11 @@ public actor NetworkDiagnostics {
                 }
 
                 if let foundIP = ip {
-                    return (foundIP, ispName, loc, nil)
+                    let result = (foundIP, ispName, loc, nil as String?)
+                    self.cachedPublicDetails = result
+                    self.lastDetailsFetchDate = Date()
+                    self.lastConnectionType = connType
+                    return result
                 }
             }
         }
@@ -196,7 +212,11 @@ public actor NetworkDiagnostics {
             if let (data, _) = try? await URLSession.shared.data(for: request),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let ip = json["ip"] as? String {
-                return (ip, ispName, nil, nil)
+                let result = (ip, ispName, nil as String?, nil as String?)
+                self.cachedPublicDetails = result
+                self.lastDetailsFetchDate = Date()
+                self.lastConnectionType = connType
+                return result
             }
         }
 
@@ -207,10 +227,15 @@ public actor NetworkDiagnostics {
             if let (data, _) = try? await URLSession.shared.data(for: request),
                let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !text.isEmpty {
-                return (text, ispName, nil, nil)
+                let result = (text, ispName, nil as String?, nil as String?)
+                self.cachedPublicDetails = result
+                self.lastDetailsFetchDate = Date()
+                self.lastConnectionType = connType
+                return result
             }
         }
 
-        return (nil, ispName, nil, nil)
+        let fallback = (nil as String?, ispName, nil as String?, nil as String?)
+        return fallback
     }
 }

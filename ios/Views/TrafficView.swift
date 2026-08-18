@@ -8,7 +8,7 @@
 import SwiftUI
 import Charts
 
-/// Главный экран аналитики трафика: где, когда и сколько потрачено (Wi-Fi vs Cellular, история сессий, графики, квоты)
+/// Главный экран аналитики трафика в стиле «Obsidian Mono»
 public struct TrafficView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -50,26 +50,30 @@ public struct TrafficView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "bolt.shield.fill")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
 
                         Text("Фоновый учет 24/7 активен")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(NPTheme.textPrimary)
 
                         Spacer()
 
                         Text("Ядро Darwin BSD")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(NPTheme.accentPrimary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.12))
+                            .background(NPTheme.accentPrimary.opacity(0.08))
                             .clipShape(Capsule())
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .background(NPTheme.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(NPTheme.border, lineWidth: 1)
+                    )
                     .padding(.horizontal)
 
                     // 2. Карточка текущей активной сессии (Live)
@@ -93,7 +97,7 @@ public struct TrafficView: View {
                 .padding(.vertical)
                 .padding(.bottom, 40)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .npScreenBackground()
             .navigationTitle("Трафик")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -130,7 +134,7 @@ public struct TrafficView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .font(.system(size: 18))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
                 }
             }
@@ -180,56 +184,48 @@ public struct TrafficView: View {
             HStack {
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(isConnected ? Color.green : Color.red)
+                        .fill(isConnected ? NPTheme.accentPrimary : NPTheme.semanticCritical)
                         .frame(width: 8, height: 8)
                     Text(isConnected ? "АКТИВНОЕ ПОДКЛЮЧЕНИЕ" : "НЕТ ПОДКЛЮЧЕНИЯ")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(isConnected ? .green : .red)
+                        .foregroundStyle(isConnected ? NPTheme.accentPrimary : NPTheme.semanticCritical)
                 }
 
                 Spacer()
 
                 Text(isConnected ? viewModel.systemInfo.connectionType.rawValue : "Офлайн")
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(isConnected ? .cyan : .secondary)
+                    .foregroundStyle(isConnected ? NPTheme.accentSoft : NPTheme.textSecondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(isConnected ? Color.cyan.opacity(0.12) : Color(uiColor: .tertiarySystemFill))
+                    .background(isConnected ? NPTheme.accentPrimary.opacity(0.08) : NPTheme.cardBackgroundTertiary)
                     .clipShape(Capsule())
             }
 
             HStack(alignment: .center, spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(
-                            isConnected
-                                ? (viewModel.systemInfo.connectionType == .wifi ? Color.blue.opacity(0.15) : Color.green.opacity(0.15))
-                                : Color.secondary.opacity(0.15)
-                        )
+                        .fill(NPTheme.accentPrimary.opacity(0.08))
                         .frame(width: 48, height: 48)
 
                     Image(systemName: iconForConnectionType(viewModel.systemInfo.connectionType))
                         .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(
-                            isConnected
-                                ? (viewModel.systemInfo.connectionType == .wifi ? Color.blue : Color.green)
-                                : Color.secondary
-                        )
+                        .foregroundStyle(isConnected ? NPTheme.accentPrimary : NPTheme.textSecondary)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(viewModel.currentNetworkTitle)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
 
                     if isConnected {
                         Text("IP: \(viewModel.systemInfo.localIP) • \(viewModel.systemInfo.ispName ?? "Активно")")
                             .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     } else {
                         Text("Подключите Wi-Fi или сотовые данные")
                             .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
                 }
 
@@ -237,21 +233,22 @@ public struct TrafficView: View {
             }
 
             Divider()
+                .background(NPTheme.border)
 
-            // Живой объем трафика в текущей активной сессии (с момента подключения)
+            // Живой объем трафика в текущей активной сессии
             HStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(NPTheme.download)
                         Text("СКАЧАНО В СЕССИИ")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
                     Text(TrafficFormatter.formatBytes(activeSession?.downloadedBytes ?? 0))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
                 }
 
                 Spacer()
@@ -260,23 +257,19 @@ public struct TrafficView: View {
                     HStack(spacing: 4) {
                         Text("ОТДАНО В СЕССИИ")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                         Image(systemName: "arrow.up")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.upload)
                     }
                     Text(TrafficFormatter.formatBytes(activeSession?.uploadedBytes ?? 0))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(NPTheme.upload)
                 }
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 18)
         .padding(.horizontal)
     }
 
@@ -298,17 +291,11 @@ public struct TrafficView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ИТОГО ЗА ПЕРИОД: \(selectedPeriod.rawValue.uppercased())")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
 
                     Text(TrafficFormatter.formatBytes(viewModel.trafficSummary.totalTraffic))
                         .font(.system(size: 32, weight: .heavy, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .foregroundStyle(NPTheme.accentGradient)
                 }
 
                 Spacer()
@@ -316,15 +303,15 @@ public struct TrafficView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("\(viewModel.trafficSummary.totalSessionsCount) сессий")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
 
                     Text("Всего точек")
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
             }
 
-            // Двухцветный прогресс-бар: Wi-Fi vs Сотовые данные
+            // Двухцветный прогресс-бар: Wi-Fi (белый) vs Сотовые данные (серебристый)
             VStack(spacing: 6) {
                 GeometryReader { geo in
                     HStack(spacing: 2) {
@@ -332,39 +319,40 @@ public struct TrafficView: View {
                         let cellWidth = geo.size.width * CGFloat(viewModel.trafficSummary.cellularPercentage / 100.0)
 
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.blue)
+                            .fill(NPTheme.accentPrimary)
                             .frame(width: max(wifiWidth, 0))
 
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.orange)
+                            .fill(NPTheme.accentSilver)
                             .frame(width: max(cellWidth, 0))
                     }
                 }
                 .frame(height: 10)
                 .clipShape(Capsule())
-                .background(Color(uiColor: .tertiarySystemFill).clipShape(Capsule()))
+                .background(NPTheme.cardBackgroundTertiary.clipShape(Capsule()))
 
                 // Легенда
                 HStack {
                     HStack(spacing: 4) {
-                        Circle().fill(Color.blue).frame(width: 7, height: 7)
+                        Circle().fill(NPTheme.accentPrimary).frame(width: 7, height: 7)
                         Text("Wi-Fi: \(TrafficFormatter.formatBytes(viewModel.trafficSummary.totalWifi)) (\(String(format: "%.0f", viewModel.trafficSummary.wifiPercentage))%)")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
 
                     Spacer()
 
                     HStack(spacing: 4) {
-                        Circle().fill(Color.orange).frame(width: 7, height: 7)
+                        Circle().fill(NPTheme.accentSilver).frame(width: 7, height: 7)
                         Text("Сотовая: \(TrafficFormatter.formatBytes(viewModel.trafficSummary.totalCellular)) (\(String(format: "%.0f", viewModel.trafficSummary.cellularPercentage))%)")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
                 }
             }
 
             Divider()
+                .background(NPTheme.border)
 
             // Сетка Скачивание / Отдача
             HStack(spacing: 12) {
@@ -372,23 +360,19 @@ public struct TrafficView: View {
                     title: "Скачивание (Down)",
                     value: TrafficFormatter.formatBytes(viewModel.trafficSummary.totalDownload),
                     icon: "arrow.down.circle.fill",
-                    color: .blue
+                    color: NPTheme.download
                 )
 
                 metricTile(
                     title: "Отдача (Up)",
                     value: TrafficFormatter.formatBytes(viewModel.trafficSummary.totalUpload),
                     icon: "arrow.up.circle.fill",
-                    color: .cyan
+                    color: NPTheme.upload
                 )
             }
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 20)
         .padding(.horizontal)
     }
 
@@ -401,15 +385,15 @@ public struct TrafficView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
                 Text(value)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
             }
             Spacer()
         }
         .padding(12)
-        .background(Color(uiColor: .tertiarySystemGroupedBackground))
+        .background(NPTheme.cardBackgroundTertiary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -421,11 +405,11 @@ public struct TrafficView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("НА ЧТО ПОТРАЧЕН ТРАФИК")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
 
                     Text("Категории сетевой активности")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
                 }
 
                 Spacer()
@@ -436,10 +420,10 @@ public struct TrafficView: View {
                     Text("AI-анализ")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                 }
-                .foregroundStyle(.cyan)
+                .foregroundStyle(NPTheme.accentPrimary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.cyan.opacity(0.12))
+                .background(NPTheme.accentPrimary.opacity(0.08))
                 .clipShape(Capsule())
             }
 
@@ -447,15 +431,15 @@ public struct TrafficView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "chart.pie.fill")
                         .font(.system(size: 28))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                     Text("Ожидание передачи сетевых пакетов...")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
             } else {
-                // Мульти-градиентная сегментированная полоса
+                // Мульти-градиентная сегментированная полоса (монохромные оттенки)
                 VStack(spacing: 6) {
                     GeometryReader { geo in
                         HStack(spacing: 2) {
@@ -463,7 +447,7 @@ public struct TrafficView: View {
                                 let segmentWidth = geo.size.width * CGFloat(item.percentage / 100.0)
                                 if segmentWidth > 2 {
                                     RoundedRectangle(cornerRadius: 3)
-                                        .fill(item.category.swiftUIColor)
+                                        .fill(monoColorForCategory(item.category))
                                         .frame(width: segmentWidth)
                                 }
                             }
@@ -471,30 +455,31 @@ public struct TrafficView: View {
                     }
                     .frame(height: 10)
                     .clipShape(Capsule())
-                    .background(Color(uiColor: .tertiarySystemFill).clipShape(Capsule()))
+                    .background(NPTheme.cardBackgroundTertiary.clipShape(Capsule()))
                 }
 
                 // Список категорий
                 VStack(spacing: 8) {
                     ForEach(viewModel.trafficSummary.categoryBreakdown) { item in
+                        let catColor = monoColorForCategory(item.category)
                         HStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .fill(item.category.swiftUIColor.opacity(0.15))
+                                    .fill(catColor.opacity(0.1))
                                     .frame(width: 36, height: 36)
                                 Image(systemName: item.category.iconName)
                                     .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(item.category.swiftUIColor)
+                                    .foregroundStyle(catColor)
                             }
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.category.rawValue)
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(NPTheme.textPrimary)
 
                                 Text(item.category.categoryDescription)
                                     .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(NPTheme.textSecondary)
                                     .lineLimit(1)
                             }
 
@@ -503,31 +488,39 @@ public struct TrafficView: View {
                             VStack(alignment: .trailing, spacing: 2) {
                                 Text(TrafficFormatter.formatBytes(item.totalBytes))
                                     .font(.system(size: 14, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(NPTheme.textPrimary)
 
                                 Text(String(format: "%.1f%%", item.percentage))
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(item.category.swiftUIColor)
+                                    .foregroundStyle(catColor)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 1)
-                                    .background(item.category.swiftUIColor.opacity(0.12))
+                                    .background(catColor.opacity(0.08))
                                     .clipShape(Capsule())
                             }
                         }
                         .padding(10)
-                        .background(Color(uiColor: .tertiarySystemGroupedBackground))
+                        .background(NPTheme.cardBackgroundTertiary)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
             }
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 20)
         .padding(.horizontal)
+    }
+
+    /// Монохромные цвета для категорий трафика (вместо разноцветных)
+    private func monoColorForCategory(_ category: TrafficCategory) -> Color {
+        switch category {
+        case .videoStreaming: return NPTheme.accentPrimary
+        case .messagingSocial: return NPTheme.accentSoft
+        case .webBrowsing: return NPTheme.accentSilver
+        case .gamingVoip: return NPTheme.accentPrimary.opacity(0.7)
+        case .speedtestDiagnostics: return NPTheme.accentSilver.opacity(0.8)
+        case .systemBackground: return NPTheme.textTertiary
+        }
     }
 
     // MARK: - График расхода трафика (SwiftUI Charts)
@@ -537,23 +530,23 @@ public struct TrafficView: View {
             HStack {
                 Text("Динамика расхода данных")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
 
                 Spacer()
 
                 Text(selectedPeriod.rawValue)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
             }
 
             if viewModel.trafficDataPoints.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 32))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                     Text("Накопление данных для графика...")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 160)
@@ -564,14 +557,14 @@ public struct TrafficView: View {
                             x: .value("Время", pt.timestamp, unit: selectedPeriod == .today ? .hour : .day),
                             y: .value("Wi-Fi", Double(pt.wifiBytes) / 1_048_576.0)
                         )
-                        .foregroundStyle(Color.blue.gradient)
+                        .foregroundStyle(NPTheme.accentPrimary.gradient)
                         .position(by: .value("Тип", "Wi-Fi"))
 
                         BarMark(
                             x: .value("Время", pt.timestamp, unit: selectedPeriod == .today ? .hour : .day),
                             y: .value("Сотовая", Double(pt.cellularBytes) / 1_048_576.0)
                         )
-                        .foregroundStyle(Color.orange.gradient)
+                        .foregroundStyle(NPTheme.accentSilver.gradient)
                         .position(by: .value("Тип", "Сотовая"))
                     }
                 }
@@ -591,11 +584,7 @@ public struct TrafficView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 18)
         .padding(.horizontal)
     }
 
@@ -607,9 +596,10 @@ public struct TrafficView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Лимит трафика (Квота)")
                         .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(NPTheme.textPrimary)
                     Text(viewModel.trafficBudget.isEnabled ? "Контроль расхода включен" : "Лимит не установлен")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
 
                 Spacer()
@@ -620,10 +610,10 @@ public struct TrafficView: View {
                 } label: {
                     Text(viewModel.trafficBudget.isEnabled ? "Изменить" : "Настроить")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(NPTheme.accentPrimary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Color.cyan.opacity(0.12))
+                        .background(NPTheme.accentPrimary.opacity(0.08))
                         .clipShape(Capsule())
                 }
             }
@@ -638,23 +628,23 @@ public struct TrafficView: View {
                     HStack {
                         Text("\(TrafficFormatter.formatBytes(used)) из \(TrafficFormatter.formatBytes(viewModel.trafficBudget.limitBytes))")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(isExceeded ? .red : (isWarn ? .yellow : .primary))
+                            .foregroundStyle(isExceeded ? NPTheme.semanticCritical : (isWarn ? NPTheme.semanticWarn : NPTheme.textPrimary))
 
                         Spacer()
 
                         Text("\(String(format: "%.1f", pct))%")
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(isExceeded ? .red : (isWarn ? .yellow : .secondary))
+                            .foregroundStyle(isExceeded ? NPTheme.semanticCritical : (isWarn ? NPTheme.semanticWarn : NPTheme.textSecondary))
                     }
 
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color(uiColor: .tertiarySystemFill))
+                                .fill(NPTheme.cardBackgroundTertiary)
                                 .frame(height: 8)
 
                             Capsule()
-                                .fill(isExceeded ? Color.red : (isWarn ? Color.yellow : Color.cyan))
+                                .fill(isExceeded ? NPTheme.semanticCritical : (isWarn ? NPTheme.semanticWarn : NPTheme.accentPrimary))
                                 .frame(width: min(geo.size.width * CGFloat(pct / 100.0), geo.size.width), height: 8)
                         }
                     }
@@ -664,10 +654,10 @@ public struct TrafficView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(NPTheme.semanticCritical)
                             Text("Установленный лимит трафика превышен!")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(NPTheme.semanticCritical)
                         }
                         .padding(.top, 2)
                     }
@@ -675,11 +665,7 @@ public struct TrafficView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 18)
         .padding(.horizontal)
     }
 
@@ -690,7 +676,7 @@ public struct TrafficView: View {
             HStack {
                 Text("Где и сколько потрачено")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
 
                 Spacer()
 
@@ -715,10 +701,10 @@ public struct TrafficView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 30))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                     Text("В выбранном периоде нет сохраненных сессий")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 30)
@@ -731,16 +717,12 @@ public struct TrafficView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 18)
         .padding(.horizontal)
     }
 }
 
-// MARK: - Карточка одной сессии подключения
+// MARK: - Карточка одной сессии подключения (Obsidian Mono)
 
 private struct SessionRowCard: View {
     let session: TrafficSession
@@ -754,33 +736,33 @@ private struct SessionRowCard: View {
             HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(isWifi ? Color.blue.opacity(0.15) : Color.orange.opacity(0.15))
+                        .fill(isWifi ? NPTheme.accentPrimary.opacity(0.08) : NPTheme.accentSilver.opacity(0.1))
                         .frame(width: 40, height: 40)
                     Image(systemName: isWifi ? "wifi" : "antenna.radiowaves.left.and.right")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(isWifi ? .blue : .orange)
+                        .foregroundStyle(isWifi ? NPTheme.accentPrimary : NPTheme.accentSilver)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(session.networkName)
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(NPTheme.textPrimary)
 
                         if session.isActive {
                             Text("LIVE")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(NPTheme.accentPrimary)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)
-                                .background(Color.green.opacity(0.15))
+                                .background(NPTheme.accentPrimary.opacity(0.1))
                                 .clipShape(Capsule())
                         }
                     }
 
                     Text("\(formatDate(session.startDate)) • \(session.formattedDuration)")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
 
                 Spacer()
@@ -788,11 +770,11 @@ private struct SessionRowCard: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(TrafficFormatter.formatBytes(session.totalBytes))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
 
                     Text(session.interfaceName)
                         .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
             }
 
@@ -801,10 +783,10 @@ private struct SessionRowCard: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(NPTheme.download)
                     Text("↓ \(TrafficFormatter.formatBytes(session.downloadedBytes))")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
 
                 Spacer()
@@ -812,10 +794,10 @@ private struct SessionRowCard: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(NPTheme.upload)
                     Text("↑ \(TrafficFormatter.formatBytes(session.uploadedBytes))")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
 
                 Spacer()
@@ -824,33 +806,33 @@ private struct SessionRowCard: View {
                     HStack(spacing: 3) {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
+                            .foregroundStyle(NPTheme.accentSoft)
                         Text(TrafficFormatter.formatSpeedBps(session.peakDownloadBps))
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
                 }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .background(Color(uiColor: .tertiarySystemGroupedBackground))
+            .background(NPTheme.cardBackgroundTertiary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            // Доминирующие категории трафика в сессии
+            // Доминирующие категории трафика в сессии (монохромные бейджи)
             if !session.categoryUsages.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(session.categoryUsages.prefix(3)) { usage in
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(usage.category.swiftUIColor)
+                                .fill(NPTheme.accentSilver)
                                 .frame(width: 6, height: 6)
                             Text("\(usage.category.rawValue) • \(TrafficFormatter.formatBytes(usage.totalBytes))")
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(NPTheme.textPrimary)
                         }
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(usage.category.swiftUIColor.opacity(0.12))
+                        .background(NPTheme.accentSilver.opacity(0.08))
                         .clipShape(Capsule())
                     }
                     Spacer()
@@ -858,8 +840,7 @@ private struct SessionRowCard: View {
             }
         }
         .padding(12)
-        .background(Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .npCardStyle(cornerRadius: 14)
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -905,7 +886,7 @@ private struct TrafficBudgetSheet: View {
                             Spacer()
                             Text("\(String(format: "%.1f", limitGB)) ГБ")
                                 .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(NPTheme.accentPrimary)
                         }
                         Slider(value: $limitGB, in: 1.0...100.0, step: 1.0)
 
@@ -919,7 +900,7 @@ private struct TrafficBudgetSheet: View {
                             Text("Порог предупреждения")
                             Spacer()
                             Text("\(Int(warningThresholdPct))%")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(NPTheme.textSecondary)
                         }
                         Slider(value: $warningThresholdPct, in: 50...95, step: 5)
                     }
@@ -965,18 +946,17 @@ private struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-// MARK: - Расширение цветов категорий для SwiftUI
+// MARK: - Монохромные цвета категорий для SwiftUI
 
 extension TrafficCategory {
     public var swiftUIColor: Color {
         switch self {
-        case .videoStreaming: return .red
-        case .messagingSocial: return .blue
-        case .webBrowsing: return .purple
-        case .gamingVoip: return .green
-        case .speedtestDiagnostics: return .orange
-        case .systemBackground: return .gray
+        case .videoStreaming: return NPTheme.accentPrimary
+        case .messagingSocial: return NPTheme.accentSoft
+        case .webBrowsing: return NPTheme.accentSilver
+        case .gamingVoip: return NPTheme.accentPrimary.opacity(0.7)
+        case .speedtestDiagnostics: return NPTheme.accentSilver.opacity(0.8)
+        case .systemBackground: return NPTheme.textTertiary
         }
     }
 }
-

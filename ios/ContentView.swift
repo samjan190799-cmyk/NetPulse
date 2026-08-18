@@ -39,7 +39,7 @@ public struct ContentView: View {
                         Label("Настройки", systemImage: "gearshape.fill")
                     }
             }
-            .tint(.cyan)
+            .tint(.white)
             .preferredColorScheme(.dark)
 
             // Плавающий игровой HUD поверх экранов

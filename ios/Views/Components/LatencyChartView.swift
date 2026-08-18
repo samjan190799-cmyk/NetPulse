@@ -16,7 +16,7 @@ public struct ChartDataPoint: Identifiable, Sendable {
     public let latencyMs: Double
 }
 
-/// Интерактивный график задержки Swift Charts.
+/// Интерактивный график задержки Swift Charts в стиле «Obsidian Mono».
 public struct LatencyChartView: View {
     public let hostMetrics: [String: HostMetrics]
 
@@ -44,24 +44,24 @@ public struct LatencyChartView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ДИНАМИКА ЗАДЕРЖКИ RTT")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                     Text("В реальном времени (мс)")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
                 }
                 Spacer()
                 Image(systemName: "waveform.path.ecg")
                     .font(.system(size: 18))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(NPTheme.accentPrimary)
             }
 
             if chartPoints.isEmpty {
                 VStack(spacing: 8) {
                     ProgressView()
-                        .tint(.cyan)
+                        .tint(NPTheme.accentPrimary)
                     Text("Накопление данных мониторинга...")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 180)
             } else {
@@ -82,20 +82,21 @@ public struct LatencyChartView: View {
                             series: .value("Узел", point.targetName)
                         )
                         .foregroundStyle(by: .value("Узел", point.targetName))
-                        .opacity(0.12)
+                        .opacity(0.08)
                         .interpolationMethod(.catmullRom)
                     }
                 }
+                .chartForegroundStyleScale(range: [NPTheme.accentPrimary, NPTheme.accentSilver, NPTheme.accentSoft])
                 .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                            .foregroundStyle(Color.white.opacity(0.08))
+                            .foregroundStyle(NPTheme.border)
                         AxisValueLabel {
                             if let intVal = value.as(Int.self) {
                                 Text("\(intVal) мс")
                                     .font(.system(size: 10, design: .monospaced))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(NPTheme.textSecondary)
                             }
                         }
                     }
@@ -103,7 +104,7 @@ public struct LatencyChartView: View {
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                            .foregroundStyle(Color.white.opacity(0.08))
+                            .foregroundStyle(NPTheme.border)
                     }
                 }
                 .frame(height: 190)
@@ -111,11 +112,6 @@ public struct LatencyChartView: View {
             }
         }
         .padding(16)
-        .background(Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
+        .npCardStyle()
     }
 }

@@ -42,7 +42,8 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                Color(uiColor: .systemBackground)
+                // Фон: глубокий градиент «Obsidian Mono» как в лого
+                NPTheme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -100,7 +101,7 @@ private struct WidgetQuickControlsBar: View {
                 HStack(spacing: 6) {
                     Image(systemName: viewModel.liveActivityEnabled ? "circle.fill" : "circle")
                         .font(.system(size: 8))
-                        .foregroundStyle(viewModel.liveActivityEnabled ? .green : .secondary)
+                        .foregroundStyle(viewModel.liveActivityEnabled ? NPTheme.accentPrimary : NPTheme.textSecondary)
 
                     Image(systemName: "pip.enter")
                         .font(.system(size: 12, weight: .semibold))
@@ -110,12 +111,12 @@ private struct WidgetQuickControlsBar: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(viewModel.liveActivityEnabled ? Color.blue.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
-                .foregroundStyle(viewModel.liveActivityEnabled ? Color.blue : Color.secondary)
+                .background(viewModel.liveActivityEnabled ? NPTheme.accentPrimary.opacity(0.1) : NPTheme.cardBackground)
+                .foregroundStyle(viewModel.liveActivityEnabled ? NPTheme.accentPrimary : NPTheme.textSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(viewModel.liveActivityEnabled ? Color.blue.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                        .stroke(viewModel.liveActivityEnabled ? NPTheme.accentPrimary.opacity(0.2) : NPTheme.border, lineWidth: 1)
                 )
             }
 
@@ -129,7 +130,7 @@ private struct WidgetQuickControlsBar: View {
                 HStack(spacing: 6) {
                     Image(systemName: viewModel.floatingHUDEnabled ? "circle.fill" : "circle")
                         .font(.system(size: 8))
-                        .foregroundStyle(viewModel.floatingHUDEnabled ? .green : .secondary)
+                        .foregroundStyle(viewModel.floatingHUDEnabled ? NPTheme.accentPrimary : NPTheme.textSecondary)
 
                     Image(systemName: "gamecontroller.fill")
                         .font(.system(size: 12, weight: .semibold))
@@ -139,12 +140,12 @@ private struct WidgetQuickControlsBar: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(viewModel.floatingHUDEnabled ? Color.cyan.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
-                .foregroundStyle(viewModel.floatingHUDEnabled ? Color.cyan : Color.secondary)
+                .background(viewModel.floatingHUDEnabled ? NPTheme.accentPrimary.opacity(0.1) : NPTheme.cardBackground)
+                .foregroundStyle(viewModel.floatingHUDEnabled ? NPTheme.accentPrimary : NPTheme.textSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(viewModel.floatingHUDEnabled ? Color.cyan.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                        .stroke(viewModel.floatingHUDEnabled ? NPTheme.accentPrimary.opacity(0.2) : NPTheme.border, lineWidth: 1)
                 )
             }
         }
@@ -159,41 +160,36 @@ private struct ConnectionStatusHeader: View {
         HStack(spacing: 12) {
             Image(systemName: iconForType(info.connectionType))
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.blue)
+                .foregroundStyle(NPTheme.accentPrimary)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(info.ispName ?? "Определение провайдера...")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
                     .lineLimit(1)
 
                 Text("\(info.connectionType.rawValue) • \(info.publicIP ?? "...")")
                     .font(.system(size: 11, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
             }
 
             Spacer()
 
             HStack(spacing: 5) {
                 Circle()
-                    .fill(Color.green)
+                    .fill(NPTheme.accentPrimary)
                     .frame(width: 6, height: 6)
                 Text("АКТИВНО")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(NPTheme.accentPrimary)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Color.green.opacity(0.1))
+            .background(NPTheme.accentPrimary.opacity(0.08))
             .clipShape(Capsule())
         }
         .padding(12)
-        .background(Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
+        .npCardStyle(cornerRadius: 12)
     }
 
     private func iconForType(_ type: NetworkConnectionType) -> String {
@@ -215,40 +211,34 @@ private struct AIQuickAuditBanner: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.cyan.opacity(0.2), .blue.opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(NPTheme.accentPrimary.opacity(0.08))
                     .frame(width: 38, height: 38)
 
                 Image(systemName: "sparkles")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(NPTheme.accentPrimary)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text("AI-Диагност NetPulse")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
 
                     if let score = viewModel.currentHealthReport?.overallScore {
                         Text("\(score)/100")
                             .font(.system(size: 11, weight: .heavy, design: .rounded))
-                            .foregroundStyle(viewModel.currentHealthReport?.statusBadgeColor ?? .green)
+                            .foregroundStyle(NPTheme.accentPrimary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.15))
+                            .background(NPTheme.accentPrimary.opacity(0.1))
                             .clipShape(Capsule())
                     }
                 }
 
                 Text(viewModel.currentHealthReport?.statusTitle ?? "Готов к мгновенному анализу задержки и стабильности")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
                     .lineLimit(1)
             }
 
@@ -261,17 +251,15 @@ private struct AIQuickAuditBanner: View {
             } label: {
                 if viewModel.isAIAnalyzing {
                     ProgressView()
-                        .tint(.cyan)
+                        .tint(NPTheme.accentPrimary)
                         .scaleEffect(0.8)
                 } else {
                     Text("Аудит ✨")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(NPTheme.backgroundDeep)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(
-                            LinearGradient(colors: [.cyan, .blue], startPoint: .leading, endPoint: .trailing)
-                        )
+                        .background(NPTheme.buttonGradient)
                         .clipShape(Capsule())
                 }
             }
@@ -280,12 +268,11 @@ private struct AIQuickAuditBanner: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
+                .fill(NPTheme.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.cyan.opacity(0.2), lineWidth: 1)
+                        .stroke(NPTheme.accentPrimary.opacity(0.08), lineWidth: 1)
                 )
         )
     }
 }
-

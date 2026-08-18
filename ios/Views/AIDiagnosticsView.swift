@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Главный экран AI-Диагноста: Здоровье сети (0-100%), Анализ проблем, Интерактивный чат-консультант
+/// Главный экран AI-Диагноста в стиле «Obsidian Mono»
 public struct AIDiagnosticsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -55,7 +55,7 @@ public struct AIDiagnosticsView: View {
                     }
                 }
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .npScreenBackground()
             .navigationTitle("AI Диагност")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -65,7 +65,7 @@ public struct AIDiagnosticsView: View {
                     } label: {
                         Image(systemName: "slider.horizontal.3")
                             .font(.system(size: 16))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
                 }
             }
@@ -93,12 +93,12 @@ public struct AIDiagnosticsView: View {
     private var providerStatusPill: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(viewModel.aiProviderConfig.selectedProvider == .offlineSmart ? Color.green : Color.blue)
+                .fill(viewModel.aiProviderConfig.selectedProvider == .offlineSmart ? NPTheme.accentPrimary : NPTheme.accentSilver)
                 .frame(width: 7, height: 7)
 
             Text(viewModel.aiProviderConfig.selectedProvider.rawValue)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(NPTheme.textPrimary)
 
             Spacer()
 
@@ -113,13 +113,14 @@ public struct AIDiagnosticsView: View {
                     Text("Обновить аудит")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .foregroundStyle(.cyan)
+                .foregroundStyle(NPTheme.accentPrimary)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .background(NPTheme.cardBackground)
         .clipShape(Capsule())
+        .overlay(Capsule().stroke(NPTheme.border, lineWidth: 1))
         .padding(.horizontal)
     }
 
@@ -138,39 +139,40 @@ public struct AIDiagnosticsView: View {
             )
 
             HStack(spacing: 18) {
-                // Кольцевой индикатор общего балла
+                // Кольцевой индикатор общего балла — белое кольцо с glow
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 8)
+                        .stroke(NPTheme.cardBackgroundTertiary, lineWidth: 8)
                         .frame(width: 84, height: 84)
 
                     Circle()
                         .trim(from: 0.0, to: CGFloat(report.overallScore) / 100.0)
                         .stroke(
-                            report.statusBadgeColor,
+                            NPTheme.accentPrimary,
                             style: StrokeStyle(lineWidth: 8, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
                         .frame(width: 84, height: 84)
+                        .shadow(color: NPTheme.glow, radius: 8)
 
                     VStack(spacing: 0) {
                         Text("\(report.overallScore)")
                             .font(.system(size: 26, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(NPTheme.textPrimary)
                         Text("/100")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.statusTitle)
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(report.statusBadgeColor)
+                        .foregroundStyle(NPTheme.accentPrimary)
 
                     Text(report.summaryText)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                         .lineLimit(3)
                 }
 
@@ -178,70 +180,63 @@ public struct AIDiagnosticsView: View {
             }
 
             Divider()
+                .background(NPTheme.border)
 
-            // Сетка готовности к сценариям
+            // Сетка готовности к сценариям (монохромные бейджи)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 categoryHealthBadge(
                     title: "Гейминг (Ping/Loss)",
                     score: report.gamingScore,
-                    icon: "gamecontroller.fill",
-                    color: .purple
+                    icon: "gamecontroller.fill"
                 )
 
                 categoryHealthBadge(
                     title: "4K/8K Стриминг",
                     score: report.streamingScore,
-                    icon: "play.tv.fill",
-                    color: .blue
+                    icon: "play.tv.fill"
                 )
 
                 categoryHealthBadge(
                     title: "Видеозвонки (Zoom)",
                     score: report.videoCallScore,
-                    icon: "video.fill",
-                    color: .green
+                    icon: "video.fill"
                 )
 
                 categoryHealthBadge(
                     title: "Web & DNS Скорость",
                     score: report.webBrowsingScore,
-                    icon: "globe",
-                    color: .orange
+                    icon: "globe"
                 )
             }
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
-        )
+        .npCardStyle(cornerRadius: 20)
         .padding(.horizontal)
     }
 
-    private func categoryHealthBadge(title: String, score: Int, icon: String, color: Color) -> some View {
+    private func categoryHealthBadge(title: String, score: Int, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundStyle(color)
+                .foregroundStyle(NPTheme.accentSoft)
                 .frame(width: 24, height: 24)
-                .background(color.opacity(0.15))
+                .background(NPTheme.accentPrimary.opacity(0.08))
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
                     .lineLimit(1)
 
                 Text("\(score)%")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
             }
             Spacer()
         }
         .padding(8)
-        .background(Color(uiColor: .tertiarySystemGroupedBackground))
+        .background(NPTheme.cardBackgroundTertiary)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -251,7 +246,7 @@ public struct AIDiagnosticsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Обнаруженные факторы и советы AI")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(NPTheme.textPrimary)
                 .padding(.horizontal)
 
             VStack(spacing: 10) {
@@ -259,51 +254,49 @@ public struct AIDiagnosticsView: View {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: issue.severity == .critical ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
                             .font(.system(size: 18))
-                            .foregroundStyle(issue.severity == .critical ? .red : .yellow)
+                            .foregroundStyle(issue.severity == .critical ? NPTheme.semanticCritical : NPTheme.semanticWarn)
 
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
                                 Text(issue.title)
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(NPTheme.textPrimary)
 
                                 Spacer()
 
                                 Text(issue.component)
                                     .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(NPTheme.textSecondary)
                             }
 
                             Text(issue.description)
                                 .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
                     .padding(12)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .npCardStyle(cornerRadius: 14)
                 }
 
                 ForEach(report.recommendations) { rec in
                     HStack(spacing: 12) {
                         Image(systemName: rec.icon)
                             .font(.system(size: 20))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(rec.title)
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(NPTheme.textPrimary)
 
                             Text(rec.detail)
                                 .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(NPTheme.textSecondary)
                         }
                         Spacer()
                     }
                     .padding(12)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .npCardStyle(cornerRadius: 14)
                 }
             }
             .padding(.horizontal)
@@ -316,7 +309,7 @@ public struct AIDiagnosticsView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Чат с AI-консультантом")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(NPTheme.textPrimary)
                 .padding(.horizontal)
 
             // Быстрые кнопки-промпты
@@ -332,10 +325,10 @@ public struct AIDiagnosticsView: View {
                         } label: {
                             Text(prompt)
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(NPTheme.accentPrimary)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
-                                .background(Color.cyan.opacity(0.12))
+                                .background(NPTheme.accentPrimary.opacity(0.08))
                                 .clipShape(Capsule())
                         }
                     }
@@ -349,10 +342,10 @@ public struct AIDiagnosticsView: View {
                     VStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 28))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                         Text("Задайте вопрос о вашем интернет-соединении или выберите подсказку выше.")
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 30)
                     }
@@ -367,10 +360,10 @@ public struct AIDiagnosticsView: View {
                 if viewModel.isAIAnalyzing {
                     HStack(spacing: 8) {
                         ProgressView()
-                            .tint(.cyan)
+                            .tint(NPTheme.accentPrimary)
                         Text("AI анализирует сетевые метрики...")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                         Spacer()
                     }
                     .padding(.horizontal)
@@ -388,7 +381,7 @@ public struct AIDiagnosticsView: View {
                 .focused($isInputFocused)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color(uiColor: .tertiarySystemGroupedBackground))
+                .background(NPTheme.cardBackgroundTertiary)
                 .clipShape(Capsule())
 
             Button {
@@ -403,20 +396,20 @@ public struct AIDiagnosticsView: View {
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundStyle(inputText.isEmpty ? Color.gray.opacity(0.4) : Color.cyan)
+                    .foregroundStyle(inputText.isEmpty ? NPTheme.textTertiary : NPTheme.accentPrimary)
             }
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAIAnalyzing)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(
-            Color(uiColor: .secondarySystemGroupedBackground)
+            NPTheme.cardBackground
                 .ignoresSafeArea(edges: .bottom)
         )
     }
 }
 
-// MARK: - Пузырь сообщения чата
+// MARK: - Пузырь сообщения чата (Obsidian Mono)
 
 private struct AIMessageBubble: View {
     let message: AIMessage
@@ -434,27 +427,31 @@ private struct AIMessageBubble: View {
                     HStack(spacing: 4) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 11))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                         Text("NetPulse AI")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
                 }
 
                 Text(LocalizedStringKey(message.content))
                     .font(.system(size: 14))
-                    .foregroundStyle(isUser ? .white : .primary)
+                    .foregroundStyle(isUser ? NPTheme.backgroundDeep : NPTheme.textPrimary)
                     .textSelection(.enabled)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
-                isUser ? Color.blue : Color(uiColor: .secondarySystemGroupedBackground)
+                isUser ? NPTheme.accentPrimary : NPTheme.cardBackground
             )
             .clipShape(
                 RoundedRectangle(cornerRadius: 16)
             )
-            .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isUser ? Color.clear : NPTheme.border, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
 
             if !isUser { Spacer(minLength: 40) }
         }
@@ -504,7 +501,7 @@ private struct AIProviderSettingsSheet: View {
                     Section(footer: Text("Встроенный AI выполняет глубокий эвристический анализ RFC 3550, Bufferbloat, DNS и задержек полностью локально без отправки данных в интернет.")) {
                         HStack {
                             Image(systemName: "checkmark.shield.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(NPTheme.accentPrimary)
                             Text("100% Приватность и работа офлайн")
                                 .font(.system(size: 14))
                         }

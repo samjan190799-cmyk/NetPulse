@@ -15,6 +15,7 @@ import ActivityKit
 
 #if canImport(WidgetKit) && canImport(ActivityKit)
 /// Виджет Live Activity и Dynamic Island для отображения реальной скорости загрузки и отдачи в реальном времени.
+/// Стиль: «Obsidian Mono» — монохромные белые/серебристые акценты.
 public struct NetPulseLiveActivityWidget: Widget {
     public init() {}
 
@@ -30,7 +31,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.down")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.white)
                             Text("СКАЧИВАНИЕ")
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(.secondary)
@@ -50,11 +51,11 @@ public struct NetPulseLiveActivityWidget: Widget {
                                 .foregroundStyle(.secondary)
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
                         }
                         Text(context.state.uploadSpeedText)
                             .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
                     }
                     .padding(.trailing, 8)
                 }
@@ -63,7 +64,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(Color.green)
+                                .fill(Color.white)
                                 .frame(width: 6, height: 6)
                             Text(context.state.ispName)
                                 .font(.system(size: 12, weight: .semibold))
@@ -81,7 +82,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                         HStack(spacing: 4) {
                             Image(systemName: "waveform.path")
                                 .font(.system(size: 10))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.white)
                             Text("Реальный сетевой трафик")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
@@ -90,11 +91,11 @@ public struct NetPulseLiveActivityWidget: Widget {
                         if context.state.isTesting {
                             Text("Speedtest активен")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.white)
                         } else {
                             Text("Мониторинг")
                                 .font(.system(size: 11, weight: .regular))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.white.opacity(0.7))
                         }
                     }
                     .padding(.horizontal, 8)
@@ -105,7 +106,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                 HStack(spacing: 2) {
                     Image(systemName: "arrow.down")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.white)
                     Text(context.state.compactDownloadText)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
@@ -115,22 +116,22 @@ public struct NetPulseLiveActivityWidget: Widget {
                 HStack(spacing: 2) {
                     Text(context.state.compactUploadText)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
                     Image(systemName: "arrow.up")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
                 }
             } minimal: {
                 // Минимальный вид
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.white)
             }
         }
     }
 }
 
-/// Баннер на экране блокировки с реальной скоростью
+/// Баннер на экране блокировки с реальной скоростью (Obsidian Mono)
 private struct LockScreenLiveActivityView: View {
     let state: NetPulseAttributes.ContentState
 
@@ -138,7 +139,7 @@ private struct LockScreenLiveActivityView: View {
         HStack(spacing: 16) {
             Image(systemName: "arrow.up.arrow.down.circle.fill")
                 .font(.system(size: 26))
-                .foregroundStyle(.blue)
+                .foregroundStyle(.white)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("NetPulse Трафик")
@@ -149,7 +150,7 @@ private struct LockScreenLiveActivityView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.white)
                         Text(state.downloadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
@@ -158,10 +159,10 @@ private struct LockScreenLiveActivityView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
                         Text(state.uploadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
                     }
                 }
             }
@@ -171,11 +172,11 @@ private struct LockScreenLiveActivityView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(Color.white)
                         .frame(width: 5, height: 5)
                     Text("LIVE")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.white)
                 }
                 Text(state.connectionType)
                     .font(.system(size: 11, weight: .regular))

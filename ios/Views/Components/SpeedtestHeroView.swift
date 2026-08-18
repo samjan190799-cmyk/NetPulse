@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Премиальный блок замера скорости (Speedtest) с интерактивными микро-анимациями в стиле Apple HIG.
+/// Премиальный блок замера скорости (Speedtest) в монохромном стиле «Obsidian Mono» с белым свечением.
 public struct SpeedtestHeroView: View {
     public let isRunning: Bool
     public let downloadMbps: Double
@@ -37,7 +37,7 @@ public struct SpeedtestHeroView: View {
             HStack {
                 Text("СКОРОСТЬ СОЕДИНЕНИЯ")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
                     .tracking(0.5)
 
                 Spacer()
@@ -45,7 +45,7 @@ public struct SpeedtestHeroView: View {
                 if isRunning {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(uploadMbps > 0 ? Color.cyan : Color.blue)
+                            .fill(uploadMbps > 0 ? NPTheme.upload : NPTheme.accentPrimary)
                             .frame(width: 6, height: 6)
                             .scaleEffect(isPulseActive ? 1.3 : 0.8)
                             .opacity(isPulseActive ? 1.0 : 0.5)
@@ -53,25 +53,25 @@ public struct SpeedtestHeroView: View {
 
                         Text(uploadMbps > 0 ? "ОТДАЧА" : "СКАЧИВАНИЕ")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(uploadMbps > 0 ? .cyan : .blue)
+                            .foregroundStyle(uploadMbps > 0 ? NPTheme.upload : NPTheme.accentPrimary)
                             .contentTransition(.opacity)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background((uploadMbps > 0 ? Color.cyan : Color.blue).opacity(0.12))
+                    .background((uploadMbps > 0 ? NPTheme.upload : NPTheme.accentPrimary).opacity(0.1))
                     .clipShape(Capsule())
                     .transition(.scale.combined(with: .opacity))
                 }
             }
 
-            // Центральный анимированный спидометр
+            // Центральный анимированный спидометр с белым свечением
             ZStack {
-                // 1. Внешняя пульсирующая волна при замере
+                // 1. Внешняя пульсирующая волна при замере (белое свечение)
                 if isRunning {
                     Circle()
                         .stroke(
                             LinearGradient(
-                                colors: [.blue.opacity(0.3), .cyan.opacity(0.0)],
+                                colors: [NPTheme.accentPrimary.opacity(0.25), NPTheme.accentPrimary.opacity(0.0)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
@@ -86,45 +86,41 @@ public struct SpeedtestHeroView: View {
                 Circle()
                     .trim(from: 0.15, to: 0.85)
                     .stroke(
-                        Color(uiColor: .tertiarySystemFill),
+                        NPTheme.cardBackgroundTertiary,
                         style: StrokeStyle(lineWidth: 10, lineCap: .round)
                     )
                     .rotationEffect(.degrees(90))
                     .frame(width: 185, height: 185)
 
-                // 3. Активная динамическая дуга с мягким градиентом
+                // 3. Активная дуга — белый градиент с glow (как глиф в лого)
                 Circle()
                     .trim(from: 0.15, to: 0.15 + (0.70 * gaugeProgress))
                     .stroke(
-                        LinearGradient(
-                            colors: [Color.blue, Color(red: 0.2, green: 0.6, blue: 1.0), Color.cyan],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
+                        NPTheme.accentGradient,
                         style: StrokeStyle(lineWidth: 10, lineCap: .round)
                     )
                     .rotationEffect(.degrees(90))
                     .frame(width: 185, height: 185)
                     .animation(.spring(response: 0.45, dampingFraction: 0.7), value: gaugeProgress)
-                    .shadow(color: isRunning ? Color.blue.opacity(0.35) : Color.clear, radius: 8, x: 0, y: 0)
+                    .shadow(color: isRunning ? NPTheme.glowActive : Color.clear, radius: 12, x: 0, y: 0)
 
-                // 4. Центральные цифровые показатели с анимацией смены чисел
+                // 4. Центральные цифровые показатели
                 VStack(spacing: 2) {
                     HStack(alignment: .lastTextBaseline, spacing: 2) {
                         Text(String(format: "%.1f", currentDisplaySpeed))
                             .font(.system(size: 46, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(NPTheme.textPrimary)
                             .contentTransition(.numericText(value: currentDisplaySpeed))
                             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: currentDisplaySpeed)
                     }
 
                     Text("Мбит/с")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
 
                     Text(statusText)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isRunning ? .blue : .secondary)
+                        .foregroundStyle(isRunning ? NPTheme.accentSoft : NPTheme.textSecondary)
                         .padding(.top, 4)
                         .contentTransition(.opacity)
                 }
@@ -173,7 +169,7 @@ public struct SpeedtestHeroView: View {
                 )
             }
 
-            // Интерактивная кнопка запуска с пружинным откликом
+            // Кнопка запуска — белая с чёрным текстом (инвертированная, как глиф в лого)
             Button(action: {
                 HapticManager.shared.impactMedium()
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
@@ -189,7 +185,7 @@ public struct SpeedtestHeroView: View {
                 HStack(spacing: 8) {
                     if isRunning {
                         ProgressView()
-                            .tint(.white)
+                            .tint(NPTheme.backgroundDeep)
                             .scaleEffect(0.9)
                         Text("Измерение скорости...")
                             .font(.system(size: 15, weight: .bold))
@@ -202,27 +198,16 @@ public struct SpeedtestHeroView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(
-                    LinearGradient(
-                        colors: isRunning ? [Color.blue.opacity(0.8), Color.blue] : [Color.blue, Color(red: 0.1, green: 0.4, blue: 0.95)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .foregroundStyle(.white)
+                .background(isRunning ? NPTheme.buttonDisabledGradient : NPTheme.buttonGradient)
+                .foregroundStyle(isRunning ? NPTheme.textSecondary : NPTheme.backgroundDeep)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .scaleEffect(isButtonPressed ? 0.96 : 1.0)
-                .shadow(color: Color.blue.opacity(isRunning ? 0.35 : 0.2), radius: isRunning ? 10 : 6, x: 0, y: 4)
+                .shadow(color: NPTheme.glow, radius: isRunning ? 4 : 10, x: 0, y: 4)
             }
             .disabled(isRunning)
         }
         .padding(18)
-        .background(Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
+        .npCardStyle(cornerRadius: 18)
     }
 
     private var statusText: String {
@@ -236,7 +221,7 @@ public struct SpeedtestHeroView: View {
     }
 }
 
-/// Анимированная плашка отдельной метрики
+/// Анимированная плашка отдельной метрики (Obsidian Mono)
 private struct AnimatedMetricItemBox: View {
     let title: String
     let value: String
@@ -249,13 +234,13 @@ private struct AnimatedMetricItemBox: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isActive ? .blue : .secondary)
+                .foregroundStyle(isActive ? NPTheme.accentPrimary : NPTheme.textSecondary)
                 .scaleEffect(isActive ? 1.15 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
 
             Text(value)
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(isActive ? .blue : .primary)
+                .foregroundStyle(isActive ? NPTheme.accentPrimary : NPTheme.textPrimary)
                 .contentTransition(.numericText(value: numericValue))
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: numericValue)
                 .lineLimit(1)
@@ -263,15 +248,15 @@ private struct AnimatedMetricItemBox: View {
 
             Text(unit)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(NPTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(isActive ? Color.blue.opacity(0.1) : Color(uiColor: .tertiarySystemBackground))
+        .background(isActive ? NPTheme.accentPrimary.opacity(0.06) : NPTheme.cardBackgroundTertiary)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isActive ? Color.blue.opacity(0.3) : Color.white.opacity(0.04), lineWidth: 1)
+                .stroke(isActive ? NPTheme.accentPrimary.opacity(0.15) : NPTheme.border, lineWidth: 1)
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
     }

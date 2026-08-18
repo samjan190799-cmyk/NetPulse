@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Футуристический спидометр для замера скорости сети (Bandwidth & Speedtest).
+/// Футуристический спидометр для замера скорости сети в стиле «Obsidian Mono».
 public struct SpeedtestGaugeView: View {
     public let isRunning: Bool
     public let downloadMbps: Double
@@ -30,15 +30,15 @@ public struct SpeedtestGaugeView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ПРОПУСКНАЯ СПОСОБНОСТЬ")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                     Text("Тест скорости соединения")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
                 }
                 Spacer()
                 Image(systemName: "gauge.with.dots.needle.bottom.100percent")
                     .font(.system(size: 20))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(NPTheme.accentPrimary)
             }
 
             // Круговой индикатор скорости
@@ -47,41 +47,38 @@ public struct SpeedtestGaugeView: View {
                 Circle()
                     .trim(from: 0.15, to: 0.85)
                     .stroke(
-                        Color.white.opacity(0.08),
+                        NPTheme.cardBackgroundTertiary,
                         style: StrokeStyle(lineWidth: 14, lineCap: .round)
                     )
                     .rotationEffect(.degrees(90))
                     .frame(width: 170, height: 170)
 
-                // Активная неоновая дуга
+                // Активная белая дуга с glow
                 Circle()
                     .trim(from: 0.15, to: 0.15 + (0.70 * gaugeProgress))
                     .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: [.cyan, .green, .yellow, .red]),
-                            center: .center
-                        ),
+                        NPTheme.accentGradient,
                         style: StrokeStyle(lineWidth: 14, lineCap: .round)
                     )
                     .rotationEffect(.degrees(90))
                     .frame(width: 170, height: 170)
-                    .shadow(color: .green.opacity(isRunning ? 0.6 : 0.2), radius: 10)
+                    .shadow(color: NPTheme.glow.opacity(isRunning ? 1.0 : 0.4), radius: 10)
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: gaugeProgress)
 
                 // Текст в центре
                 VStack(spacing: 2) {
                     Text(String(format: "%.1f", displaySpeed))
                         .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
                         .contentTransition(.numericText())
 
                     Text("Mbps")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(NPTheme.accentSoft)
 
                     Text(isRunning ? (uploadMbps > 0 ? "Отдача..." : "Скачивание...") : "Готов")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                         .padding(.top, 2)
                 }
             }
@@ -93,23 +90,23 @@ public struct SpeedtestGaugeView: View {
                     title: "Скачивание",
                     value: String(format: "%.1f", downloadMbps),
                     icon: "arrow.down.circle.fill",
-                    color: .green
+                    color: NPTheme.download
                 )
 
                 SpeedStatBox(
                     title: "Отдача",
                     value: String(format: "%.1f", uploadMbps),
                     icon: "arrow.up.circle.fill",
-                    color: .cyan
+                    color: NPTheme.upload
                 )
             }
 
-            // Кнопка запуска
+            // Кнопка запуска — белая (как глиф в лого)
             Button(action: onStartSpeedtest) {
                 HStack(spacing: 8) {
                     if isRunning {
                         ProgressView()
-                            .tint(.white)
+                            .tint(NPTheme.backgroundDeep)
                     } else {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 14, weight: .bold))
@@ -120,16 +117,10 @@ public struct SpeedtestGaugeView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(
-                    LinearGradient(
-                        colors: isRunning ? [Color.gray.opacity(0.4), Color.gray.opacity(0.2)] : [Color.cyan, Color.purple],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .foregroundStyle(.white)
+                .background(isRunning ? NPTheme.buttonDisabledGradient : NPTheme.buttonGradient)
+                .foregroundStyle(isRunning ? NPTheme.textSecondary : NPTheme.backgroundDeep)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: isRunning ? .clear : Color.cyan.opacity(0.3), radius: 8, y: 4)
+                .shadow(color: isRunning ? .clear : NPTheme.glow, radius: 8, y: 4)
             }
             .disabled(isRunning)
         }
@@ -138,7 +129,7 @@ public struct SpeedtestGaugeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(NPTheme.border, lineWidth: 1)
         )
     }
 }
@@ -158,15 +149,15 @@ private struct SpeedStatBox: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
                 Text("\(value) Mbps")
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.white.opacity(0.04))
+        .background(NPTheme.cardBackgroundTertiary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

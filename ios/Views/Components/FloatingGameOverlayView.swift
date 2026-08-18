@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Минималистичный плавающий игровой HUD-виджет с 95% прозрачностью (5% заливка), отображающий реальную скорость загрузки и отдачи.
+/// Минималистичный плавающий игровой HUD-виджет в стиле «Obsidian Mono» с 95% прозрачностью.
 public struct FloatingGameOverlayView: View {
     public let downloadSpeedText: String
     public let uploadSpeedText: String
@@ -22,13 +22,6 @@ public struct FloatingGameOverlayView: View {
     @State private var isCollapsed: Bool = false
     @State private var isDragging: Bool = false
 
-    private var pingColor: Color {
-        guard let p = pingMs else { return .secondary }
-        if p < 50 { return .green }
-        if p < 110 { return .yellow }
-        return .red
-    }
-
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -37,20 +30,20 @@ public struct FloatingGameOverlayView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(NPTheme.accentPrimary)
 
                         Text(downloadSpeedText)
                             .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(NPTheme.accentPrimary)
                             .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
 
                         Image(systemName: "arrow.up")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentSilver)
 
                         Text(uploadSpeedText)
                             .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentSilver)
                             .shadow(color: .black.opacity(0.9), radius: 1, x: 0, y: 1)
                     }
                     .padding(.horizontal, 10)
@@ -61,7 +54,7 @@ public struct FloatingGameOverlayView: View {
                     .clipShape(Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(NPTheme.border, lineWidth: 1)
                     )
                     .onTapGesture {
                         HapticManager.shared.impactLight()
@@ -76,48 +69,48 @@ public struct FloatingGameOverlayView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.down")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(NPTheme.accentPrimary)
 
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(downloadSpeedText)
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(NPTheme.accentPrimary)
                                     .shadow(color: .black.opacity(0.95), radius: 1, x: 0, y: 1)
                                 Text("СКАЧИВАНИЕ")
                                     .font(.system(size: 7, weight: .semibold))
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(NPTheme.textTertiary)
                             }
                         }
 
                         Divider()
                             .frame(height: 18)
-                            .background(Color.white.opacity(0.15))
+                            .background(NPTheme.border)
 
                         // 2. Реальная скорость отдачи
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(NPTheme.accentSilver)
 
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(uploadSpeedText)
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.cyan)
+                                    .foregroundStyle(NPTheme.accentSilver)
                                     .shadow(color: .black.opacity(0.95), radius: 1, x: 0, y: 1)
                                 Text("ОТДАЧА")
                                     .font(.system(size: 7, weight: .semibold))
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(NPTheme.textTertiary)
                             }
                         }
 
-                        // 3. Кнопка выноса в Picture-in-Picture (поверх всех игр и приложений)
+                        // 3. Кнопка PiP
                         Button(action: {
                             HapticManager.shared.impactMedium()
                             onTogglePiP()
                         }) {
                             Image(systemName: "pip.enter")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(NPTheme.accentPrimary)
                                 .padding(5)
                                 .background(Color.black.opacity(0.1))
                                 .clipShape(Circle())
@@ -132,7 +125,7 @@ public struct FloatingGameOverlayView: View {
                         }) {
                             Image(systemName: "chevron.left.2")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(NPTheme.textTertiary)
                                 .padding(4)
                         }
 
@@ -143,7 +136,7 @@ public struct FloatingGameOverlayView: View {
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(NPTheme.textTertiary)
                                 .padding(4)
                         }
                     }
@@ -155,7 +148,7 @@ public struct FloatingGameOverlayView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(NPTheme.border, lineWidth: 1)
                     )
                 }
             }

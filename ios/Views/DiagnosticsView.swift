@@ -17,7 +17,8 @@ public struct DiagnosticsView: View {
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                Color(uiColor: .systemBackground)
+                // Фон: градиент «Obsidian Mono»
+                NPTheme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -36,14 +37,14 @@ public struct DiagnosticsView: View {
                             HStack {
                                 Text("ЦЕЛЕВЫЕ УЗЛЫ МОНИТОРИНГА")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(NPTheme.textSecondary)
                                     .tracking(0.5)
 
                                 Spacer()
 
                                 Text("\(viewModel.targets.count) узлов")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(NPTheme.textSecondary)
                             }
                             .padding(.horizontal, 4)
 
@@ -86,7 +87,7 @@ public struct DiagnosticsView: View {
                     } label: {
                         Image(systemName: viewModel.isMonitoringActive ? "pause.circle" : "play.circle")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(viewModel.isMonitoringActive ? .orange : .blue)
+                            .foregroundStyle(viewModel.isMonitoringActive ? NPTheme.semanticWarn : NPTheme.accentPrimary)
                     }
                 }
 
@@ -99,7 +100,7 @@ public struct DiagnosticsView: View {
                     } label: {
                         Image(systemName: "sparkles")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
                 }
 
@@ -120,7 +121,7 @@ public struct DiagnosticsView: View {
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(NPTheme.textPrimary)
                     }
                 }
             }

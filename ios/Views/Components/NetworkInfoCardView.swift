@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Карточка системной информации и сетевого интерфейса в стиле Apple HIG.
+/// Карточка системной информации и сетевого интерфейса в стиле «Obsidian Mono».
 public struct NetworkInfoCardView: View {
     public let info: NetworkInterfaceInfo
     public let isMonitoring: Bool
@@ -19,34 +19,34 @@ public struct NetworkInfoCardView: View {
                 HStack(spacing: 8) {
                     Image(systemName: iconForConnectionType(info.connectionType))
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(isMonitoring ? .green : .secondary)
+                        .foregroundStyle(isMonitoring ? NPTheme.accentPrimary : NPTheme.textSecondary)
 
                     Text(info.connectionType.rawValue)
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(NPTheme.textPrimary)
                 }
 
                 Spacer()
 
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(isMonitoring ? Color.green : Color.orange)
+                        .fill(isMonitoring ? NPTheme.accentPrimary : NPTheme.semanticWarn)
                         .frame(width: 8, height: 8)
                         .scaleEffect(isMonitoring ? 1.1 : 0.9)
                         .animation(.easeInOut(duration: 0.8).repeatForever(), value: isMonitoring)
 
                     Text(isMonitoring ? "ONLINE" : "PAUSED")
                         .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(isMonitoring ? .green : .orange)
+                        .foregroundStyle(isMonitoring ? NPTheme.accentPrimary : NPTheme.semanticWarn)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(isMonitoring ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
+                .background(isMonitoring ? NPTheme.accentPrimary.opacity(0.08) : NPTheme.semanticWarn.opacity(0.1))
                 .clipShape(Capsule())
             }
 
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(NPTheme.border)
 
             // Сетка параметров
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
@@ -57,12 +57,7 @@ public struct NetworkInfoCardView: View {
             }
         }
         .padding(16)
-        .background(Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
+        .npCardStyle()
     }
 
     private func iconForConnectionType(_ type: NetworkConnectionType) -> String {
@@ -85,18 +80,18 @@ private struct InfoItem: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(NPTheme.textSecondary)
                 .frame(width: 26, height: 26)
-                .background(Color(uiColor: .tertiarySystemBackground))
+                .background(NPTheme.cardBackgroundTertiary)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NPTheme.textSecondary)
                 Text(value)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }

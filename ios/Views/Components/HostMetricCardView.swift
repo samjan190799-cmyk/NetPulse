@@ -8,7 +8,7 @@
 import SwiftUI
 import Charts
 
-/// Карточка целевого узла со статусом, RTT, джиттером RFC 3550 и живыми микро-анимациями.
+/// Карточка целевого узла в стиле «Obsidian Mono»: белые метрики, glow для активных элементов.
 public struct HostMetricCardView: View {
     public let metrics: HostMetrics
     public let onTracerouteTapped: () -> Void
@@ -24,16 +24,16 @@ public struct HostMetricCardView: View {
                         if metrics.isGateway {
                             Image(systemName: "star.fill")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(NPTheme.accentSoft)
                         }
                         Text(metrics.name)
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(NPTheme.textPrimary)
                     }
 
                     Text(metrics.address)
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
 
                 Spacer()
@@ -47,7 +47,7 @@ public struct HostMetricCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ТЕКУЩИЙ RTT")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
 
                     if let rtt = metrics.lastLatencyMs {
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
@@ -59,12 +59,12 @@ public struct HostMetricCardView: View {
 
                             Text("мс")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(NPTheme.textSecondary)
                         }
                     } else {
                         Text(metrics.sentCount > 0 ? "LOST" : "--")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(NPTheme.semanticCritical)
                     }
                 }
 
@@ -76,7 +76,7 @@ public struct HostMetricCardView: View {
             }
 
             Divider()
-                .background(Color.white.opacity(0.08))
+                .background(NPTheme.border)
 
             // Сетка метрик: Min/Avg/Max, Jitter RFC 3550, Loss %
             HStack(spacing: 8) {
@@ -110,9 +110,9 @@ public struct HostMetricCardView: View {
                 }) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                         .padding(8)
-                        .background(Color(uiColor: .tertiarySystemBackground))
+                        .background(NPTheme.cardBackgroundTertiary)
                         .clipShape(Circle())
                         .scaleEffect(isTraceroutePressed ? 0.88 : 1.0)
                         .rotationEffect(.degrees(isTraceroutePressed ? 45 : 0))
@@ -120,8 +120,7 @@ public struct HostMetricCardView: View {
             }
         }
         .padding(16)
-        .background(Color(uiColor: .secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .npCardStyle()
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(strokeColorForStatus(metrics.status), lineWidth: 1)
@@ -130,18 +129,18 @@ public struct HostMetricCardView: View {
     }
 
     private func colorForLatency(_ lat: Double) -> Color {
-        if lat < 60 { return .green }
-        if lat < 140 { return .yellow }
-        return .red
+        if lat < 60 { return NPTheme.accentPrimary }
+        if lat < 140 { return NPTheme.semanticWarn }
+        return NPTheme.semanticCritical
     }
 
     private func strokeColorForStatus(_ status: HostStatus) -> Color {
         switch status {
-        case .ok: return Color.white.opacity(0.06)
-        case .warning: return Color.yellow.opacity(0.35)
-        case .critical: return Color.red.opacity(0.45)
-        case .down: return Color.red.opacity(0.6)
-        case .unknown: return Color.white.opacity(0.06)
+        case .ok: return NPTheme.border
+        case .warning: return NPTheme.semanticWarn.opacity(0.35)
+        case .critical: return NPTheme.semanticCritical.opacity(0.45)
+        case .down: return NPTheme.semanticCritical.opacity(0.6)
+        case .unknown: return NPTheme.border
         }
     }
 
@@ -151,7 +150,7 @@ public struct HostMetricCardView: View {
     }
 }
 
-// MARK: - Вспомогательные компоненты
+// MARK: - Вспомогательные компоненты (Obsidian Mono)
 
 private struct StatusPill: View {
     let status: HostStatus
@@ -172,7 +171,7 @@ private struct StatusPill: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
-        .background(statusColor.opacity(0.12))
+        .background(statusColor.opacity(0.1))
         .clipShape(Capsule())
         .onAppear {
             isBreathing = true
@@ -181,10 +180,10 @@ private struct StatusPill: View {
 
     private var statusColor: Color {
         switch status {
-        case .ok: return .green
-        case .warning: return .yellow
-        case .critical, .down: return .red
-        case .unknown: return .gray
+        case .ok: return NPTheme.accentPrimary
+        case .warning: return NPTheme.semanticWarn
+        case .critical, .down: return NPTheme.semanticCritical
+        case .unknown: return NPTheme.textTertiary
         }
     }
 }
@@ -198,14 +197,14 @@ private struct MetricPill: View {
         VStack(spacing: 2) {
             Text(label)
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(NPTheme.textSecondary)
             Text(value)
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(isAlert ? .red : .primary)
+                .foregroundStyle(isAlert ? NPTheme.semanticCritical : NPTheme.textPrimary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
-        .background(Color.white.opacity(0.04))
+        .background(NPTheme.cardBackgroundTertiary.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -234,7 +233,7 @@ private struct MiniSparklineView: View {
                     }
                 }
                 .stroke(
-                    LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing),
+                    LinearGradient(colors: [NPTheme.accentPrimary, NPTheme.accentSoft], startPoint: .leading, endPoint: .trailing),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
                 )
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: data.count)

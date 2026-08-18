@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Всплывающий экран с интерактивной трассировкой сетевого маршрута (MTR).
+/// Всплывающий экран трассировки маршрута (MTR) в стиле «Obsidian Mono».
 public struct TracerouteSheetView: View {
     public let targetHost: String
     public let hops: [TracerouteHop]
@@ -22,24 +22,24 @@ public struct TracerouteSheetView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("ТРАССИРОВКА ДО УЗЛА")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NPTheme.textSecondary)
                         Text(targetHost)
                             .font(.system(size: 18, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
                     Spacer()
                     if isRunning {
                         HStack(spacing: 6) {
                             ProgressView()
-                                .tint(.cyan)
+                                .tint(NPTheme.accentPrimary)
                             Text("Сканирование...")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(NPTheme.accentSoft)
                         }
                     } else {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
                 }
                 .padding(20)
@@ -66,6 +66,7 @@ public struct TracerouteSheetView: View {
                         dismiss()
                     }
                     .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(NPTheme.accentPrimary)
                 }
             }
         }
@@ -77,23 +78,23 @@ private struct HopRowView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Номер хопа
+            // Номер хопа — белый бейдж с тёмным текстом
             Text("\(hop.hopNumber)")
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
+                .foregroundStyle(NPTheme.backgroundDeep)
                 .frame(width: 28, height: 28)
-                .background(Color.cyan.opacity(0.8))
+                .background(NPTheme.accentPrimary)
                 .clipShape(Circle())
 
             // IP и Hostname
             VStack(alignment: .leading, spacing: 2) {
                 Text(hop.ipAddress ?? "* * *")
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(NPTheme.textPrimary)
                 if let host = hop.hostname {
                     Text(host)
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(NPTheme.textSecondary)
                 }
             }
 
@@ -104,20 +105,19 @@ private struct HopRowView: View {
                 if let lat = hop.latencyMs {
                     Text(String(format: "%.1f мс", lat))
                         .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(lat < 50 ? .green : (lat < 120 ? .yellow : .red))
+                        .foregroundStyle(lat < 50 ? NPTheme.accentPrimary : (lat < 120 ? NPTheme.semanticWarn : NPTheme.semanticCritical))
                 } else {
                     Text("LOST")
                         .font(.system(size: 12, weight: .heavy))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(NPTheme.semanticCritical)
                 }
 
                 Text("Loss: \(Int(hop.lossPercent))%")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(hop.lossPercent > 0 ? .red : .secondary)
+                    .foregroundStyle(hop.lossPercent > 0 ? NPTheme.semanticCritical : NPTheme.textSecondary)
             }
         }
         .padding(14)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .npCardStyle(cornerRadius: 14)
     }
 }

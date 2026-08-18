@@ -84,6 +84,12 @@ jobs:
           for sz in sizes:
               resized = bg.resize((sz, sz), Image.Resampling.LANCZOS)
               resized.save(f'$ICONSET/Icon-{sz}.png', 'PNG')
+              if sz == 1024:
+                  resized.save(f'$ICONSET/AppIcon-1024.png', 'PNG')
+              elif sz == 120:
+                  resized.save(f'$ICONSET/AppIcon-60@2x.png', 'PNG')
+              elif sz == 180:
+                  resized.save(f'$ICONSET/AppIcon-60@3x.png', 'PNG')
           print('Все размеры иконок успешно сформированы из netpulse_logo.png')
           " || true
           fi
@@ -116,14 +122,17 @@ jobs:
           for s in 20 29 40 57 58 60 76 80 87 114 120 152 167 180 1024; do
             generate_icon $s "Icon-$s.png"
           done
+          generate_icon 1024 "AppIcon-1024.png"
+          generate_icon 120 "AppIcon-60@2x.png"
+          generate_icon 180 "AppIcon-60@3x.png"
           
-          echo "=== Сгенерированные иконки ==="
-          ls -la "$ICONSET/"
-
-          # Запись Contents.json со всеми иконками
+          # Запись универсального Contents.json
           cat > "$ICONSET/Contents.json" << 'CONTENTS_EOF'
           {
             "images" : [
+              { "idiom" : "universal", "platform" : "ios", "size" : "1024x1024", "filename" : "AppIcon-1024.png" },
+              { "idiom" : "universal", "platform" : "ios", "scale" : "2x", "size" : "60x60", "filename" : "AppIcon-60@2x.png" },
+              { "idiom" : "universal", "platform" : "ios", "scale" : "3x", "size" : "60x60", "filename" : "AppIcon-60@3x.png" },
               { "idiom" : "iphone", "scale" : "2x", "size" : "20x20",  "filename" : "Icon-40.png"   },
               { "idiom" : "iphone", "scale" : "3x", "size" : "20x20",  "filename" : "Icon-60.png"   },
               { "idiom" : "iphone", "scale" : "2x", "size" : "29x29",  "filename" : "Icon-58.png"   },
@@ -141,12 +150,14 @@ jobs:
               { "idiom" : "ipad",   "scale" : "1x", "size" : "76x76",  "filename" : "Icon-76.png"   },
               { "idiom" : "ipad",   "scale" : "2x", "size" : "76x76",  "filename" : "Icon-152.png"  },
               { "idiom" : "ipad",   "scale" : "2x", "size" : "83.5x83.5", "filename" : "Icon-167.png" },
-              { "idiom" : "ios-marketing", "scale" : "1x", "size" : "1024x1024", "filename" : "Icon-1024.png" }
+              { "idiom" : "ios-marketing", "scale" : "1x", "size" : "1024x1024", "filename" : "AppIcon-1024.png" }
             ],
             "info" : { "author" : "xcode", "version" : 1 }
           }
           CONTENTS_EOF
           
+          echo "=== Сгенерированные иконки ==="
+          ls -la "$ICONSET/"
           echo "✔ Иконки сгенерированы успешно"
 
       - name: "Настройка ключа App Store Connect API"
@@ -192,6 +203,13 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
+          # Внедрение CFBundleIconName в скомпилированный Info.plist архива
+          ARCHIVE_PLIST="build/NetPulse.xcarchive/Products/Applications/NetPulse.app/Info.plist"
+          if [ -f "$ARCHIVE_PLIST" ]; then
+            echo "✔ Внедрение CFBundleIconName в $ARCHIVE_PLIST"
+            plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST" || true
+          fi
+
       - name: "Экспорт и подпись IPA через App Store Connect API"
         working-directory: ./ios
         env:
@@ -217,6 +235,7 @@ jobs:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
+          set -e
           IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
           if [ -z "$IPA_PATH" ]; then
             echo "❌ IPA файл не найден!"

@@ -11,13 +11,18 @@ import SwiftUI
 public struct SettingsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
+    @State private var newHostName: String = ""
+    @State private var newHostAddress: String = ""
+    @State private var newHostPort: String = "443"
+    @State private var showResetTrafficAlert: Bool = false
+
     public var body: some View {
         NavigationStack {
             Form {
-                // 1. Секция мониторинга и интервалов
-                Section(header: Text("Мониторинг"), footer: Text("Интервал определяет частоту отправки ICMP Echo Request пакетов на все целевые узлы")) {
+                // 1. Статус и параметры опроса
+                Section("Мониторинг сети") {
                     HStack {
-                        Text("Статус")
+                        Text("Статус службы")
                         Spacer()
                         HStack(spacing: 5) {
                             Circle()
@@ -29,29 +34,26 @@ public struct SettingsView: View {
                         }
                     }
 
-                    HStack {
-                        Text("Интервал пинга")
-                        Spacer()
-                        Text("\(String(format: "%.1f", viewModel.pingInterval)) сек")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(NPTheme.accentPrimary)
+                    Picker("Интервал проверки", selection: $viewModel.pollingInterval) {
+                        Text("0.5 сек").tag(0.5)
+                        Text("1.0 сек (по умолч.)").tag(1.0)
+                        Text("2.0 сек").tag(2.0)
+                        Text("5.0 сек").tag(5.0)
                     }
-                    Slider(value: $viewModel.pingInterval, in: 0.5...10.0, step: 0.5)
-                        .onChange(of: viewModel.pingInterval) { _, _ in
-                            HapticManager.shared.selectionChanged()
-                        }
-
-                    Stepper("Макс. история (\(viewModel.maxHistorySize))", value: $viewModel.maxHistorySize, in: 20...200, step: 10)
+                    .onChange(of: viewModel.pollingInterval) { _, _ in
+                        HapticManager.shared.selectionChanged()
+                    }
                 }
 
                 // 2. Целевые узлы мониторинга
                 Section(header: Text("Узлы мониторинга"), footer: Text("Добавьте IP-адреса или домены для постоянного мониторинга задержки, джиттера и потерь.")) {
                     ForEach(viewModel.targets) { target in
                         HStack {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(target.name)
                                     .font(.system(size: 14, weight: .semibold))
-                                Text(target.address)
+                                    .foregroundStyle(NPTheme.textPrimary)
+                                Text("\(target.address):\(target.tcpPort)")
                                     .font(.system(size: 12, design: .monospaced))
                                     .foregroundStyle(NPTheme.textSecondary)
                             }
@@ -69,75 +71,134 @@ public struct SettingsView: View {
                             }
                         }
                     }
-                    .onDelete { offsets in
-                        viewModel.removeTargets(at: offsets)
+                    .onDelete { indexSet in
+                        viewModel.targets.remove(atOffsets: indexSet)
                         HapticManager.shared.notificationWarning()
                     }
 
-                    Button {
-                        viewModel.addDefaultTarget()
-                        HapticManager.shared.notificationSuccess()
+                    // Добавление нового узла
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Добавить новый узел")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
+
+                        TextField("Название (например: Мой Сервер)", text: $newHostName)
+                        TextField("IP или Домен (например: 1.1.1.1)", text: $newHostAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        TextField("TCP Порт", text: $newHostPort)
+                            .keyboardType(.numberPad)
+
+                        Button("Добавить узел") {
+                            guard !newHostAddress.isEmpty else { return }
+                            let port = Int(newHostPort) ?? 443
+                            let name = newHostName.isEmpty ? newHostAddress : newHostName
+                            let newTarget = HostTarget(name: name, address: newHostAddress, tcpPort: port)
+                            viewModel.targets.append(newTarget)
+                            newHostName = ""
+                            newHostAddress = ""
+                            newHostPort = "443"
+                            HapticManager.shared.impactMedium()
+                        }
+                        .disabled(newHostAddress.isEmpty)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(NPTheme.accentPrimary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // 3. Пороги сетевых алертов
+                Section("Пороги оповещений") {
+                    HStack {
+                        Text("Предупреждение RTT")
+                        Spacer()
+                        Text("\(Int(viewModel.latencyWarnThreshold)) мс")
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    Slider(value: $viewModel.latencyWarnThreshold, in: 30...300, step: 10)
+
+                    HStack {
+                        Text("Критическая задержка RTT")
+                        Spacer()
+                        Text("\(Int(viewModel.latencyCritThreshold)) мс")
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    Slider(value: $viewModel.latencyCritThreshold, in: 80...500, step: 10)
+
+                    HStack {
+                        Text("Критические потери пакетов")
+                        Spacer()
+                        Text("\(Int(viewModel.lossCritThreshold)) %")
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    Slider(value: $viewModel.lossCritThreshold, in: 1...20, step: 1)
+                }
+
+                // 4. Фоновый мониторинг трафика (24/7)
+                Section("Фоновая работа и учет трафика") {
+                    Toggle(isOn: $viewModel.backgroundMonitoringEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Фоновый учет 24/7 (Zero-Loss)")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Непрерывный замер трафика при свернутом приложении и автоматическая сверка со счетчиками ядра iOS при закрытии.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+
+                    HStack {
+                        Label("Счетчик сетевого адаптера", systemImage: "cpu")
+                            .font(.system(size: 13))
+                        Spacer()
+                        Text("Darwin BSD Kernel")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                    }
+                }
+
+                // 5. Виджеты и Оверлеи
+                Section("Виджеты и мониторинг") {
+                    Toggle(isOn: Binding(
+                        get: { viewModel.liveActivityEnabled },
+                        set: { viewModel.toggleLiveActivity(enabled: $0) }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Dynamic Island (Live Activity)")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Непрерывный показ скорости в вырезе экрана и на Lock Screen 24/7")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+
+                    Toggle(isOn: $viewModel.floatingHUDEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Плавающий игровой оверлей (HUD)")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Мини-виджет поверх экрана, который можно перемещать пальцем")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                }
+
+                // 6. Обратная связь
+                Section("Тактильная отдача и звуки") {
+                    Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
+                    Toggle("Звуковые предупреждения", isOn: $viewModel.soundEnabled)
+                }
+
+                // 7. Управление хранилищем трафика
+                Section("Хранилище трафика") {
+                    Button(role: .destructive) {
+                        showResetTrafficAlert = true
                     } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(NPTheme.accentPrimary)
-                            Text("Добавить узел")
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
+                        Label("Сбросить историю трафика", systemImage: "trash")
                     }
                 }
 
-                // 3. Live Activity (Dynamic Island)
-                Section(header: Text("Live Activity"), footer: Text("Мониторинг скорости в реальном времени на экране блокировки и Dynamic Island (iPhone 14+).")) {
-                    Toggle(isOn: $viewModel.liveActivityEnabled) {
-                        HStack {
-                            Image(systemName: "pip.enter")
-                                .foregroundStyle(NPTheme.accentPrimary)
-                            Text("Dynamic Island Мониторинг")
-                        }
-                    }
-                    .onChange(of: viewModel.liveActivityEnabled) { _, newValue in
-                        viewModel.toggleLiveActivity(enabled: newValue)
-                        HapticManager.shared.impactMedium()
-                    }
-                }
-
-                // 4. Уведомления и алерты
-                Section(header: Text("Уведомления")) {
-                    Toggle(isOn: $viewModel.alertsEnabled) {
-                        HStack {
-                            Image(systemName: "bell.badge.fill")
-                                .foregroundStyle(viewModel.alertsEnabled ? NPTheme.accentPrimary : NPTheme.textSecondary)
-                            Text("Уведомления о проблемах")
-                        }
-                    }
-                    .onChange(of: viewModel.alertsEnabled) { _, _ in
-                        HapticManager.shared.selectionChanged()
-                    }
-
-                    if viewModel.alertsEnabled {
-                        HStack {
-                            Text("Порог задержки (мс)")
-                            Spacer()
-                            Text("\(Int(viewModel.latencyAlertThreshold))")
-                                .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
-                        Slider(value: $viewModel.latencyAlertThreshold, in: 50...500, step: 10)
-
-                        HStack {
-                            Text("Порог потерь (%)")
-                            Spacer()
-                            Text("\(Int(viewModel.lossAlertThreshold))%")
-                                .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
-                        Slider(value: $viewModel.lossAlertThreshold, in: 1...50, step: 1)
-                    }
-                }
-
-                // 5. О приложении
-                Section(header: Text("О приложении")) {
+                // 8. О приложении
+                Section("О приложении") {
                     HStack {
                         Text("Версия")
                         Spacer()
@@ -163,6 +224,21 @@ public struct SettingsView: View {
                 }
             }
             .navigationTitle("Настройки")
+            .confirmationDialog(
+                "Сбросить историю трафика?",
+                isPresented: $showResetTrafficAlert,
+                titleVisibility: .visible
+            ) {
+                Button("Очистить все данные", role: .destructive) {
+                    Task {
+                        await viewModel.resetTrafficHistory()
+                    }
+                    HapticManager.shared.notificationWarning()
+                }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
+            }
         }
     }
 }

@@ -51,6 +51,7 @@
 		A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000502C12345600000050 /* AIDiagnosticsModels.swift */; };
 		A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000512C12345600000051 /* AIDiagnosticsEngine.swift */; };
 		A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000522C12345600000052 /* AIDiagnosticsView.swift */; };
+		A10000602C12345600000060 /* NetPulseTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000602C12345600000060 /* NetPulseTheme.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
@@ -129,6 +130,7 @@
 		B10000502C12345600000050 /* AIDiagnosticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AIDiagnosticsModels.swift; sourceTree = "<group>"; };
 		B10000512C12345600000051 /* AIDiagnosticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AIDiagnosticsEngine.swift; sourceTree = "<group>"; };
 		B10000522C12345600000052 /* AIDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIDiagnosticsView.swift; sourceTree = "<group>"; };
+		B10000602C12345600000060 /* NetPulseTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/NetPulseTheme.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -264,6 +266,7 @@
 				B10000302C12345600000034 /* PiPHUDManager.swift */,
 				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
 				B10000322C12345600000036 /* BackgroundTaskManager.swift */,
+				B10000602C12345600000060 /* NetPulseTheme.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -419,6 +422,7 @@
 				A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */,
 				A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */,
 				A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */,
+				A10000602C12345600000060 /* NetPulseTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

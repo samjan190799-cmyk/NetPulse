@@ -42,9 +42,11 @@ public actor PingEngine {
 
     /// Проверка одиночного хоста через TCP Connect (Network.framework)
     public func pingTarget(_ target: HostTarget) async -> PingRecord {
-        var hostStr = target.address
-        if (hostStr == "gateway" || hostStr.isEmpty) && target.isGateway {
+        let hostStr: String
+        if (target.address == "gateway" || target.address.isEmpty) && target.isGateway {
             hostStr = "192.168.1.1"
+        } else {
+            hostStr = target.address
         }
 
         guard !hostStr.isEmpty else {

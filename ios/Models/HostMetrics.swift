@@ -8,7 +8,7 @@
 import Foundation
 
 /// Статус доступности узла
-public enum HostStatus: String, Codable, Sendable {
+public enum HostStatus: String, Codable, Sendable, Equatable {
     case ok = "OK"
     case warning = "WARN"
     case critical = "CRIT"

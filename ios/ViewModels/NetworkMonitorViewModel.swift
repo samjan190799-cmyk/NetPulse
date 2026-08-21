@@ -73,7 +73,7 @@ public final class NetworkMonitorViewModel {
     public var liveDownloadSpeed: Double = 0.0
     public var liveUploadSpeed: Double = 0.0
     public var lastSpeedtestResult: SpeedtestResult?
-    
+    public var instantAISummary: String?
     // Traceroute
     public var isTracerouteRunning: Bool = false
     public var tracerouteHops: [TracerouteHop] = []
@@ -621,6 +621,16 @@ public final class NetworkMonitorViewModel {
                 self.liveUploadSpeed = result.uploadMbps
                 self.isSpeedtestRunning = false
 
+                // Генерация мгновенного AI-вердикта
+                let summary = AIDiagnosticsEngine.shared.generateSpeedtestSummary(
+                    downloadMbps: result.downloadMbps,
+                    uploadMbps: result.uploadMbps,
+                    pingMs: self.currentAveragePing,
+                    jitterMs: self.currentAverageJitter,
+                    packetLossPct: self.currentPacketLossPct
+                )
+                self.instantAISummary = summary
+
                 if self.liveActivityEnabled {
                     ActivityManager.shared.updateActivity(
                         downloadSpeedText: String(format: "↓ %.1f Мбит/с", result.downloadMbps),
@@ -820,5 +830,41 @@ public final class NetworkMonitorViewModel {
 
     public func updateAIConfig(_ newConfig: AIProviderConfig) {
         self.aiProviderConfig = newConfig
+    }
+
+    // MARK: - Интерактивный мастер устранения неполадок (Fixer Wizard)
+
+    public var isTroubleshootingRunning: Bool = false
+    public var troubleshootingReport: TroubleshootingReport?
+    public var currentTroubleshootingStep: TroubleshootingStep?
+    public var showTroubleshootingSheet: Bool = false
+
+    public func runTroubleshootingWizard() async {
+        guard !isTroubleshootingRunning else { return }
+        isTroubleshootingRunning = true
+        showTroubleshootingSheet = true
+        HapticManager.shared.impactMedium()
+
+        let context = buildDiagnosticsContext()
+        let report = await AIDiagnosticsEngine.shared.runTroubleshootingWizard(context: context) { [weak self] step in
+            Task { @MainActor in
+                self?.currentTroubleshootingStep = step
+            }
+        }
+        self.troubleshootingReport = report
+        self.isTroubleshootingRunning = false
+        if hapticsEnabled {
+            HapticManager.shared.notificationSuccess()
+        }
+    }
+
+    public func copyISPSupportReport() -> String {
+        let context = buildDiagnosticsContext()
+        let report = context.generateISPSupportReport()
+        UIPasteboard.general.string = report
+        if hapticsEnabled {
+            HapticManager.shared.notificationSuccess()
+        }
+        return report
     }
 }

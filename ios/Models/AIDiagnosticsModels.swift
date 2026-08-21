@@ -10,11 +10,23 @@ import SwiftUI
 
 /// Провайдер искусственного интеллекта для сетевого анализа
 public enum AIProviderType: String, CaseIterable, Identifiable, Codable, Sendable {
-    case offlineSmart = "Встроенный AI (Offline)"
-    case gemini = "Google Gemini 2.0"
+    case offlineSmart = "Встроенный AI (Offline Smart)"
+    case gemini = "Google Gemini 2.0 Flash"
     case openai = "OpenAI GPT-4o"
+    case claude = "Anthropic Claude 3.7 Sonnet"
+    case deepseek = "DeepSeek V3 / R1"
 
     public var id: String { rawValue }
+
+    public var defaultModelName: String {
+        switch self {
+        case .offlineSmart: return "Локальная эвристическая модель"
+        case .gemini: return "gemini-2.0-flash"
+        case .openai: return "gpt-4o"
+        case .claude: return "claude-3-7-sonnet-20250219"
+        case .deepseek: return "deepseek-chat"
+        }
+    }
 }
 
 /// Конфигурация подключения к AI-провайдеру
@@ -30,7 +42,7 @@ public struct AIProviderConfig: Codable, Sendable {
     ) {
         self.selectedProvider = selectedProvider
         self.apiKey = apiKey
-        self.customModel = customModel
+        self.customModel = customModel.isEmpty ? selectedProvider.defaultModelName : customModel
     }
 }
 
@@ -238,4 +250,111 @@ public struct NetworkDiagnosticsContext: Sendable {
         self.recentAlertsCount = recentAlertsCount
         self.tracerouteHopsCount = tracerouteHopsCount
     }
+
+    /// Формирование структурированного текстового отчета для отправки в техподдержку интернет-провайдера
+    public func generateISPSupportReport() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let dateStr = formatter.string(from: Date())
+
+        let pingStr = averagePingMs.map { String(format: "%.1f мс", $0) } ?? "N/A"
+        let jitterStr = jitterMs.map { String(format: "%.2f мс (RFC 3550)", $0) } ?? "N/A"
+        let speedStr = speedtestDownloadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? String(format: "%.1f Мбит/с (live)", liveDownloadMbps)
+        let uploadStr = speedtestUploadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? String(format: "%.1f Мбит/с (live)", liveUploadMbps)
+
+        return """
+        ========================================
+        NETPULSE AI — ТЕХНИЧЕСКИЙ ОТЧЕТ ДЛЯ ISP
+        Дата и время: \(dateStr)
+        ========================================
+
+        1. СВЕДЕНИЯ О ПОДКЛЮЧЕНИИ:
+        • Тип сети: \(connectionType)
+        • Провайдер: \(ispName ?? "Не определен")
+        • Публичный IP: \(publicIP ?? "N/A")
+        • Локальный IP: \(localIP)
+        • Основной шлюз: \(gatewayIP ?? "192.168.1.1")
+        • DNS-серверы: \(dnsServers.isEmpty ? "Системный (DHCP)" : dnsServers.joined(separator: ", "))
+
+        2. СЕТЕВЫЕ МЕТРИКИ И СТАБИЛЬНОСТЬ:
+        • Задержка RTT (Ping): \(pingStr)
+        • Джиттер: \(jitterStr)
+        • Потери пакетов (Packet Loss): \(String(format: "%.2f", packetLossPct))%
+        • Скорость скачивания: \(speedStr)
+        • Скорость отдачи: \(uploadStr)
+
+        3. ДИАГНОСТИЧЕСКИЕ ДАННЫЕ:
+        • Активных сетевых алертов: \(recentAlertsCount)
+        • Пройдено узлов трассировки (MTR): \(tracerouteHopsCount)
+        • Движок телеметрии: Darwin Kernel BSD Socket Subsystem
+
+        Сгенерировано автоматически диагностическим модулем NetPulse AI (iOS).
+        ========================================
+        """
+    }
 }
+
+/// Статус отдельного шага интерактивной диагностики
+public enum TroubleshootingStepStatus: String, Codable, Sendable {
+    case pending = "Ожидание"
+    case running = "Проверка..."
+    case success = "В норме"
+    case warning = "Замечание"
+    case critical = "Критично"
+}
+
+/// Шаг в мастере устранения сетевых неполадок
+public struct TroubleshootingStep: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let order: Int
+    public let title: String
+    public let subtitle: String
+    public var status: TroubleshootingStepStatus
+    public var resultDetail: String?
+    public var icon: String
+
+    public init(
+        id: UUID = UUID(),
+        order: Int,
+        title: String,
+        subtitle: String,
+        status: TroubleshootingStepStatus = .pending,
+        resultDetail: String? = nil,
+        icon: String
+    ) {
+        self.id = id
+        self.order = order
+        self.title = title
+        self.subtitle = subtitle
+        self.status = status
+        self.resultDetail = resultDetail
+        self.icon = icon
+    }
+}
+
+/// Результат работы интерактивного мастера
+public struct TroubleshootingReport: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let steps: [TroubleshootingStep]
+    public let conclusion: String
+    public let actionPlan: [String]
+    public let isIssueFound: Bool
+    public let timestamp: Date
+
+    public init(
+        id: UUID = UUID(),
+        steps: [TroubleshootingStep],
+        conclusion: String,
+        actionPlan: [String],
+        isIssueFound: Bool,
+        timestamp: Date = Date()
+    ) {
+        self.id = id
+        self.steps = steps
+        self.conclusion = conclusion
+        self.actionPlan = actionPlan
+        self.isIssueFound = isIssueFound
+        self.timestamp = timestamp
+    }
+}
+

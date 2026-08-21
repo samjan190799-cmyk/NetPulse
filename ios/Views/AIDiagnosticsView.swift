@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Главный экран AI-Диагноста в стиле «Obsidian Mono»
 public struct AIDiagnosticsView: View {
@@ -13,49 +14,82 @@ public struct AIDiagnosticsView: View {
 
     @State private var inputText: String = ""
     @State private var showSettingsSheet: Bool = false
+    @State private var showCopiedReportToast: Bool = false
     @FocusState private var isInputFocused: Bool
 
     private let quickPrompts: [String] = [
         "🎮 Почему лагает онлайн-игра?",
-        "📺 Хватит ли скорости для 4K?",
+        "📺 Хватит ли скорости для 4K/8K?",
         "🌐 Какой DNS самый быстрый?",
-        "📡 Как улучшить сигнал Wi-Fi?",
+        "📊 Анализ Bufferbloat и джиттера",
+        "💼 Оптимизация под Zoom и FaceTime",
+        "📡 Как улучшить Wi-Fi 5/6 GHz?",
         "🔍 Анализ потерь пакетов"
     ]
 
     public var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // 1. Провайдер и статус движка
-                        providerStatusPill
+            ZStack {
+                NPTheme.backgroundGradient
+                    .ignoresSafeArea()
 
-                        // 2. Главная карточка здоровья сети (Health Score 0-100)
-                        networkHealthCard
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 18) {
+                            // 1. Провайдер и статус движка
+                            providerStatusPill
 
-                        // 3. Выявленные проблемы и рекомендации AI
-                        if let report = viewModel.currentHealthReport, !report.identifiedIssues.isEmpty {
-                            issuesAndRecommendationsSection(report: report)
+                            // 2. Быстрые интеллектуальные действия (Мастер проблем и Отчет)
+                            quickActionsHub
+
+                            // 3. Главная карточка здоровья сети (Health Score 0-100)
+                            networkHealthCard
+
+                            // 4. Выявленные проблемы и рекомендации AI
+                            if let report = viewModel.currentHealthReport, !report.identifiedIssues.isEmpty {
+                                issuesAndRecommendationsSection(report: report)
+                            }
+
+                            // 5. Интерактивный диалог с AI
+                            chatHistorySection
+
+                            // Точка для автоскролла вниз
+                            Color.clear
+                                .frame(height: 1)
+                                .id("bottomID")
                         }
-
-                        // 4. Интерактивный диалог с AI
-                        chatHistorySection
-
-                        // Точка для автоскролла вниз
-                        Color.clear
-                            .frame(height: 1)
-                            .id("bottomID")
+                        .padding(.vertical)
                     }
-                    .padding(.vertical)
+                    .onChange(of: viewModel.aiMessages.count) { _, _ in
+                        withAnimation {
+                            proxy.scrollTo("bottomID", anchor: .bottom)
+                        }
+                    }
                 }
-                .onChange(of: viewModel.aiMessages.count) { _, _ in
-                    withAnimation {
-                        proxy.scrollTo("bottomID", anchor: .bottom)
+
+                // Всплывающее уведомление о копировании отчета для ISP
+                if showCopiedReportToast {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(NPTheme.accentPrimary)
+                            Text("Технический отчет для провайдера скопирован")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(NPTheme.textPrimary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(NPTheme.cardBackground)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(NPTheme.accentPrimary.opacity(0.3), lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.3), radius: 10, y: 5)
+                        .padding(.bottom, 70)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+                    .zIndex(10)
                 }
             }
-            .npScreenBackground()
             .navigationTitle("AI Диагност")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -79,6 +113,9 @@ public struct AIDiagnosticsView: View {
                         viewModel.updateAIConfig(newConfig)
                     }
                 )
+            }
+            .sheet(isPresented: $viewModel.showTroubleshootingSheet) {
+                TroubleshootingWizardSheet(viewModel: viewModel)
             }
             .task {
                 if viewModel.currentHealthReport == nil {
@@ -124,7 +161,85 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 2. Карточка здоровья сети (Health Score Card)
+    // MARK: - 2. Быстрые действия AI (Мастер проблем и Отчет)
+
+    private var quickActionsHub: some View {
+        HStack(spacing: 12) {
+            // Кнопка мастера устранения проблем
+            Button {
+                Task {
+                    await viewModel.runTroubleshootingWizard()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "wrench.and.screwdriver.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(NPTheme.backgroundDeep)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Мастер проблем")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(NPTheme.backgroundDeep)
+                        Text("Авто-поиск причин")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(NPTheme.backgroundDeep.opacity(0.8))
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(NPTheme.backgroundDeep.opacity(0.7))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(NPTheme.buttonGradient)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: NPTheme.glow, radius: 6, x: 0, y: 2)
+            }
+
+            // Кнопка генерации отчета для провайдера
+            Button {
+                _ = viewModel.copyISPSupportReport()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    showCopiedReportToast = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    withAnimation {
+                        showCopiedReportToast = false
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.on.clipboard.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(NPTheme.accentPrimary)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Отчет для ISP")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(NPTheme.textPrimary)
+                        Text("Скопировать в буфер")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "square.on.square")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(NPTheme.textTertiary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(NPTheme.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(NPTheme.border, lineWidth: 1)
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - 3. Карточка здоровья сети (Health Score Card)
 
     private var networkHealthCard: some View {
         VStack(spacing: 16) {
@@ -167,7 +282,7 @@ public struct AIDiagnosticsView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.statusTitle)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(NPTheme.accentPrimary)
 
                     Text(report.summaryText)
@@ -240,7 +355,7 @@ public struct AIDiagnosticsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    // MARK: - 3. Карточки проблем и рекомендаций
+    // MARK: - 4. Карточки проблем и рекомендаций
 
     private func issuesAndRecommendationsSection(report: NetworkHealthReport) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -303,7 +418,7 @@ public struct AIDiagnosticsView: View {
         }
     }
 
-    // MARK: - 4. Диалог с AI
+    // MARK: - 5. Диалог с AI
 
     private var chatHistorySection: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -413,6 +528,7 @@ public struct AIDiagnosticsView: View {
 
 private struct AIMessageBubble: View {
     let message: AIMessage
+    @State private var showCopiedNotification: Bool = false
 
     var isUser: Bool {
         message.role == .user
@@ -431,6 +547,25 @@ private struct AIMessageBubble: View {
                         Text("NetPulse AI")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
+
+                        Spacer()
+
+                        Button {
+                            UIPasteboard.general.string = message.content
+                            HapticManager.shared.notificationSuccess()
+                            withAnimation {
+                                showCopiedNotification = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                withAnimation {
+                                    showCopiedNotification = false
+                                }
+                            }
+                        } label: {
+                            Image(systemName: showCopiedNotification ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 11))
+                                .foregroundStyle(showCopiedNotification ? NPTheme.accentPrimary : NPTheme.textTertiary)
+                        }
                     }
                 }
 
@@ -454,6 +589,199 @@ private struct AIMessageBubble: View {
             .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
 
             if !isUser { Spacer(minLength: 40) }
+        }
+    }
+}
+
+// MARK: - Интерактивный мастер устранения неполадок (Sheet)
+
+private struct TroubleshootingWizardSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var viewModel: NetworkMonitorViewModel
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                NPTheme.backgroundGradient
+                    .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Заголовок карточки
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(NPTheme.accentPrimary.opacity(0.1))
+                                    .frame(width: 44, height: 44)
+                                Image(systemName: "wrench.and.screwdriver.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(NPTheme.accentPrimary)
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Мастер устранения проблем")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(NPTheme.textPrimary)
+                                Text("Автоматическая пошаговая проверка каждого сетевого слоя")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
+                        // Шаги проверки
+                        VStack(spacing: 10) {
+                            if let steps = viewModel.troubleshootingReport?.steps {
+                                ForEach(steps) { step in
+                                    troubleshootingStepRow(step: step)
+                                }
+                            } else {
+                                ProgressView("Анализ сетевых узлов...")
+                                    .padding(.vertical, 30)
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        // Итоговый вердикт и рецепт решения
+                        if let report = viewModel.troubleshootingReport {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: report.isIssueFound ? "exclamationmark.triangle.fill" : "checkmark.seal.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(report.isIssueFound ? NPTheme.semanticWarn : NPTheme.accentPrimary)
+
+                                    Text("План оптимизации от AI:")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(NPTheme.textPrimary)
+                                }
+
+                                Text(report.conclusion)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(NPTheme.textSecondary)
+
+                                Divider()
+                                    .background(NPTheme.border)
+
+                                ForEach(Array(report.actionPlan.enumerated()), id: \.offset) { idx, action in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("\(idx + 1).")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundStyle(NPTheme.accentPrimary)
+
+                                        Text(action)
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(NPTheme.textPrimary)
+                                    }
+                                }
+                            }
+                            .padding(16)
+                            .npCardStyle(cornerRadius: 16)
+                            .padding(.horizontal)
+                        }
+
+                        // Кнопка повторного запуска
+                        Button {
+                            Task {
+                                await viewModel.runTroubleshootingWizard()
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Повторить проверку")
+                            }
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(NPTheme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(NPTheme.border, lineWidth: 1))
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 6)
+                        .padding(.bottom, 20)
+                    }
+                }
+            }
+            .navigationTitle("Диагностика неполадок")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Готово") { dismiss() }
+                        .font(.system(size: 15, weight: .bold))
+                }
+            }
+        }
+    }
+
+    private func troubleshootingStepRow(step: TroubleshootingStep) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: step.icon)
+                .font(.system(size: 18))
+                .foregroundStyle(statusColor(step.status))
+                .frame(width: 32, height: 32)
+                .background(statusColor(step.status).opacity(0.1))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(step.title)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.textPrimary)
+                    Spacer()
+                    statusBadge(step.status)
+                }
+
+                if let detail = step.resultDetail {
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(NPTheme.textSecondary)
+                } else {
+                    Text(step.subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(NPTheme.textTertiary)
+                }
+            }
+        }
+        .padding(12)
+        .npCardStyle(cornerRadius: 14)
+    }
+
+    private func statusColor(_ status: TroubleshootingStepStatus) -> Color {
+        switch status {
+        case .pending: return NPTheme.textTertiary
+        case .running: return NPTheme.accentPrimary
+        case .success: return NPTheme.accentPrimary
+        case .warning: return NPTheme.semanticWarn
+        case .critical: return NPTheme.semanticCritical
+        }
+    }
+
+    private func statusBadge(_ status: TroubleshootingStepStatus) -> some View {
+        Group {
+            switch status {
+            case .pending:
+                Text("Ожидание")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(NPTheme.textTertiary)
+            case .running:
+                ProgressView()
+                    .scaleEffect(0.6)
+            case .success:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(NPTheme.accentPrimary)
+                    .font(.system(size: 12))
+            case .warning:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(NPTheme.semanticWarn)
+                    .font(.system(size: 12))
+            case .critical:
+                Image(systemName: "exclamationmark.octagon.fill")
+                    .foregroundStyle(NPTheme.semanticCritical)
+                    .font(.system(size: 12))
+            }
         }
     }
 }
@@ -484,6 +812,9 @@ private struct AIProviderSettingsSheet: View {
                         ForEach(AIProviderType.allCases) { provider in
                             Text(provider.rawValue).tag(provider)
                         }
+                    }
+                    .onChange(of: selectedProvider) { _, newProv in
+                        customModel = newProv.defaultModelName
                     }
                 }
 

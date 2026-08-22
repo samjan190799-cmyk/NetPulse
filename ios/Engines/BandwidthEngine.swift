@@ -213,8 +213,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от аномальных выбросов: максимум 100 МБ за один интервал
-            if delta > 100_000_000 {
+            // Защита от аномальных скачков: максимум 25 МБ за один замер (200 Мбит/с)
+            if delta > 25_000_000 {
                 return 0
             }
             return delta
@@ -250,10 +250,13 @@ public final class BandwidthEngine: @unchecked Sendable {
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
+                        // Строгая привязка к первичным физическим интерфейсам:
+                        // en0: Wi-Fi чип iPhone
+                        // pdp_ip0: Главный сотовый интернет-канал (исключает IMS/MMS вторичные PDP контексты)
                         if ifName == "en0" {
                             result.wifiIn += inBytes
                             result.wifiOut += outBytes
-                        } else if ifName.hasPrefix("pdp_ip") {
+                        } else if ifName == "pdp_ip0" {
                             result.cellularIn += inBytes
                             result.cellularOut += outBytes
                         }

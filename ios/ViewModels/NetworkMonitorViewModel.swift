@@ -101,7 +101,7 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Движки и зависимости
     private let pingEngine = PingEngine(timeout: 2.0)
-    private let bandwidthEngine = BandwidthEngine()
+    private let bandwidthEngine = BandwidthEngine.shared
     private let speedtestEngine = SpeedtestEngine()
     private let tracerouteEngine = TracerouteEngine()
     private let diagnostics = NetworkDiagnostics()

@@ -1000,6 +1000,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
 
 // MARK: - Монохромные цвета категорий для SwiftUI
 
+@MainActor
 extension TrafficCategory {
     public var swiftUIColor: Color {
         switch self {

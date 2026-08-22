@@ -59,6 +59,7 @@ public final class ThemeManager {
 
 /// Централизованные дизайн-токены NetPulse.
 /// Автоматически адаптируются под выбранную тему оформления.
+@MainActor
 public enum NPTheme {
 
     // MARK: - Фон
@@ -275,6 +276,7 @@ public enum NPTheme {
 
 // MARK: - Премиальные модификаторы карточек и поверхностей (2026 Glassmorphism)
 
+@MainActor
 extension View {
     /// Применяет премиальный стеклянный стиль 2026:
     /// полупрозрачная база + верхний зеркальный блик (Specular Highlight) + мягкая тень

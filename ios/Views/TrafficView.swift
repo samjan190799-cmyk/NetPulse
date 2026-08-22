@@ -272,7 +272,7 @@ public struct TrafficView: View {
         .padding(.horizontal)
     }
 
-    private func iconForConnectionType(_ type: ConnectionType) -> String {
+    private func iconForConnectionType(_ type: NetworkConnectionType) -> String {
         switch type {
         case .wifi: return "wifi"
         case .cellular: return "antenna.radiowaves.left.and.right"

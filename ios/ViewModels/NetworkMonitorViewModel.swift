@@ -320,8 +320,8 @@ public final class NetworkMonitorViewModel {
 
                 let isAppInBackground = UIApplication.shared.applicationState == .background
 
-                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы
-                let snapshot = self.bandwidthEngine.sampleBandwidth()
+                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы с изоляцией интернет-канала от моста хотспота
+                let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
                 self.liveBandwidth = snapshot
 
                 // Фиксация расхода в постоянном хранилище TrafficStorage с учетом категорий
@@ -676,7 +676,7 @@ public final class NetworkMonitorViewModel {
         liveActivityEnabled = enabled
         if enabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
-            let snapshot = bandwidthEngine.sampleBandwidth()
+            let snapshot = bandwidthEngine.sampleBandwidth(activeConnectionType: systemInfo.connectionType)
             ActivityManager.shared.startActivity(
                 downloadSpeedText: snapshot.formattedDownloadSpeed,
                 uploadSpeedText: snapshot.formattedUploadSpeed,

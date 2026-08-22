@@ -166,8 +166,8 @@ public actor TrafficStorage {
         let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
         let ifName = isWifi ? "en0" : "pdp_ip0"
 
-        let totalMissingIn = missingWifiIn + missingCellIn
-        let totalMissingOut = missingWifiOut + missingCellOut
+        let totalMissingIn = isWifi ? missingWifiIn : missingCellIn
+        let totalMissingOut = isWifi ? missingWifiOut : missingCellOut
 
         // 3. НЕМЕДЛЕННО обновляем базовую точку в UserDefaults и в BandwidthEngine,
         // чтобы активный цикл не посчитал эти байты второй раз!

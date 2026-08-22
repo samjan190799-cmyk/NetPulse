@@ -124,8 +124,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         self.prevTimestamp = Date()
     }
 
-    /// Получение текущего снимка реальной скорости трафика всего устройства с разделением по интерфейсам
-    public func sampleBandwidth() -> BandwidthSnapshot {
+    /// Получение текущего снимка реальной скорости трафика с защитой от двойного подсчета в режиме модема (Personal Hotspot)
+    public func sampleBandwidth(activeConnectionType: NetworkConnectionType? = nil) -> BandwidthSnapshot {
         lock.lock()
         defer { lock.unlock() }
 
@@ -133,15 +133,41 @@ public final class BandwidthEngine: @unchecked Sendable {
         let now = Date()
         let timeDelta = prevTimestamp != nil ? max(now.timeIntervalSince(prevTimestamp!), 0.2) : 1.0
 
-        // Дельты строго по физическим сетевым интерфейсам
+        // Дельты по физическим сетевым интерфейсам
         let wifiInDelta = Self.computeDelta(prev: prevCounters.wifiIn, current: currentCounters.wifiIn)
         let wifiOutDelta = Self.computeDelta(prev: prevCounters.wifiOut, current: currentCounters.wifiOut)
         
         let cellInDelta = Self.computeDelta(prev: prevCounters.cellularIn, current: currentCounters.cellularIn)
         let cellOutDelta = Self.computeDelta(prev: prevCounters.cellularOut, current: currentCounters.cellularOut)
 
-        let inDelta = wifiInDelta + cellInDelta
-        let outDelta = wifiOutDelta + cellOutDelta
+        // ЗАЩИТА ОТ ДВОЙНОГО УЧЕТА В РЕЖИМЕ МОДЕМА (HOTSPOT):
+        // Если телефон раздает интернет на ноутбук через Hotspot:
+        // - Входящий трафик идет через сотовую сеть (pdp_ip0).
+        // - Исходящий трафик ретранслируется на ноутбук через Wi-Fi точку доступа (en0).
+        // Если их просто сложить, каждый байт посчитается дважды!
+        // Поэтому внешний WAN-трафик определяется строго активным интернет-интерфейсом.
+        let inDelta: UInt64
+        let outDelta: UInt64
+
+        if let conn = activeConnectionType {
+            switch conn {
+            case .cellular:
+                // В режиме сотовой связи внешний интернет идет через LTE/5G
+                inDelta = cellInDelta
+                outDelta = cellOutDelta
+            case .wifi, .ethernet:
+                // В режиме Wi-Fi внешний интернет идет через Wi-Fi
+                inDelta = wifiInDelta
+                outDelta = wifiOutDelta
+            default:
+                inDelta = max(wifiInDelta, cellInDelta)
+                outDelta = max(wifiOutDelta, cellOutDelta)
+            }
+        } else {
+            // Если тип сети не передан явно — выбираем максимальный активный интерфейс
+            inDelta = max(wifiInDelta, cellInDelta)
+            outDelta = max(wifiOutDelta, cellOutDelta)
+        }
 
         let downloadBytesPerSec = Double(inDelta) / timeDelta
         let uploadBytesPerSec = Double(outDelta) / timeDelta
@@ -182,25 +208,22 @@ public final class BandwidthEngine: @unchecked Sendable {
     }
 
     public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
-        // Если предыдущая точка не была зафиксирована (базовая точка отсчета) — дельта 0!
         guard prev > 0 else {
             return 0
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от аномальных выбросов: 100 МБ за один замер (800 Мбит/с за 1 сек) — максимальный реальный предел
+            // Защита от аномальных выбросов: максимум 100 МБ за один интервал
             if delta > 100_000_000 {
                 return 0
             }
             return delta
         } else {
-            // Если счетчик интерфейса сброшен ядром iOS (например, переключение режима самолета)
             return 0
         }
     }
 
     /// Считывание счетчиков байт СТРОГО физических интерфейсов BSD.
-    /// Исключает виртуальные туннели (utun, awdl, llw, lo, en1..5 bluetooth PAN), предотвращая двойной учет.
     public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
@@ -217,7 +240,6 @@ public final class BandwidthEngine: @unchecked Sendable {
             let isUp = (flags & IFF_UP) == IFF_UP
             let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
 
-            // В ядре Darwin только записи с sa_family == AF_LINK содержат struct if_data
             if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
                 if let data = ptr.pointee.ifa_data, let ifaNamePtr = ptr.pointee.ifa_name {
                     let ifName = String(cString: ifaNamePtr)
@@ -228,10 +250,6 @@ public final class BandwidthEngine: @unchecked Sendable {
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
-                        // Строгая фильтрация интерфейсов iOS:
-                        // en0: Физический Wi-Fi контроллер iPhone
-                        // pdp_ip0...pdp_ip3: Физический сотовый модем (5G / LTE)
-                        // Игнорируются: awdl0 (AirDrop), en1..en4 (Bluetooth/P2P), utun* (VPN туннели, удваивающие трафик)
                         if ifName == "en0" {
                             result.wifiIn += inBytes
                             result.wifiOut += outBytes
@@ -245,7 +263,6 @@ public final class BandwidthEngine: @unchecked Sendable {
             cursor = ptr.pointee.ifa_next
         }
 
-        // Общий трафик равен сумме реального Wi-Fi (en0) и сотового (pdp_ip)
         result.totalIn = result.wifiIn + result.cellularIn
         result.totalOut = result.wifiOut + result.cellularOut
 

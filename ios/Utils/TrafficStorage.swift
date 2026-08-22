@@ -70,6 +70,20 @@ public actor TrafficStorage {
             loadedSessions = Array(sanitized.prefix(100))
         }
 
+        // Однократная автоматическая санация ложной отдачи при раздаче интернета на ноутбук (Hotspot)
+        let kHotspotSanitizedKey = "netpulse_hotspot_v3_recalibrated"
+        if !UserDefaults.standard.bool(forKey: kHotspotSanitizedKey) {
+            UserDefaults.standard.set(true, forKey: kHotspotSanitizedKey)
+            loadedSessions = loadedSessions.map { session in
+                var s = session
+                // Если отдача в сотовой сети была ошибочно начислена из-за Wi-Fi моста на ноутбук (почти равна объему скачивания)
+                if s.connectionType.contains("Сотовая") && s.uploadedBytes > 10_000_000 && s.uploadedBytes >= UInt64(Double(s.downloadedBytes) * 0.5) {
+                    s.uploadedBytes = UInt64(Double(s.downloadedBytes) * 0.04) // Реальный TCP ACK трафик ~4%
+                }
+                return s
+            }
+        }
+
         // Загрузка точек графиков
         if let data = try? Data(contentsOf: dataPointsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficDataPoint].self, from: data) {

@@ -192,13 +192,31 @@ public struct TrafficView: View {
 
                 Spacer()
 
-                Text(isConnected ? viewModel.systemInfo.connectionType.rawValue : "Офлайн")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(isConnected ? NPTheme.accentSoft : NPTheme.textSecondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(isConnected ? NPTheme.accentPrimary.opacity(0.12) : NPTheme.cardBackgroundTertiary)
-                    .clipShape(Capsule())
+                HStack(spacing: 8) {
+                    Button {
+                        showResetConfirmation = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Сброс")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(NPTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(NPTheme.cardBackgroundTertiary)
+                        .clipShape(Capsule())
+                    }
+
+                    Text(isConnected ? viewModel.systemInfo.connectionType.rawValue : "Офлайн")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(isConnected ? NPTheme.accentSoft : NPTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(isConnected ? NPTheme.accentPrimary.opacity(0.12) : NPTheme.cardBackgroundTertiary)
+                        .clipShape(Capsule())
+                }
             }
 
             HStack(alignment: .center, spacing: 14) {

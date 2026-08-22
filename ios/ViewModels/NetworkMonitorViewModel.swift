@@ -244,10 +244,6 @@ public final class NetworkMonitorViewModel {
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
-            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
-                currentConnectionType: info.connectionType.rawValue,
-                currentNetworkName: self.currentNetworkTitle
-            )
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
         }
     }

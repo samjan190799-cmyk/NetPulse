@@ -77,7 +77,7 @@ public struct BandwidthSnapshot: Sendable {
 }
 
 /// Счетчики физических интерфейсов Darwin BSD
-public struct InterfaceByteCounters: Sendable, Codable {
+public struct InterfaceByteCounters: Sendable, Codable, Equatable {
     public var totalIn: UInt64 = 0
     public var totalOut: UInt64 = 0
     public var wifiIn: UInt64 = 0
@@ -102,10 +102,13 @@ public struct InterfaceByteCounters: Sendable, Codable {
     }
 }
 
-/// Системный движок замера РЕАЛЬНОГО сетевого трафика всего iPhone через getifaddrs
+/// Системный движок точного замера РЕАЛЬНОГО сетевого трафика через getifaddrs (Darwin BSD)
 public final class BandwidthEngine: @unchecked Sendable {
+    public static let shared = BandwidthEngine()
+
     private var prevCounters: InterfaceByteCounters
     private var prevTimestamp: Date?
+    private let lock = NSLock()
 
     public init() {
         let counters = Self.fetchDetailedInterfaceBytes()
@@ -113,21 +116,32 @@ public final class BandwidthEngine: @unchecked Sendable {
         self.prevTimestamp = Date()
     }
 
+    /// Принудительная синхронизация базовой точки отсчета (вызывается после фоновой сверки)
+    public func resetBaseline(to counters: InterfaceByteCounters? = nil) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.prevCounters = counters ?? Self.fetchDetailedInterfaceBytes()
+        self.prevTimestamp = Date()
+    }
+
     /// Получение текущего снимка реальной скорости трафика всего устройства с разделением по интерфейсам
     public func sampleBandwidth() -> BandwidthSnapshot {
+        lock.lock()
+        defer { lock.unlock() }
+
         let currentCounters = Self.fetchDetailedInterfaceBytes()
         let now = Date()
         let timeDelta = prevTimestamp != nil ? max(now.timeIntervalSince(prevTimestamp!), 0.2) : 1.0
 
-        // Дельты
-        let inDelta = Self.computeDelta(prev: prevCounters.totalIn, current: currentCounters.totalIn)
-        let outDelta = Self.computeDelta(prev: prevCounters.totalOut, current: currentCounters.totalOut)
-        
+        // Дельты строго по физическим сетевым интерфейсам
         let wifiInDelta = Self.computeDelta(prev: prevCounters.wifiIn, current: currentCounters.wifiIn)
         let wifiOutDelta = Self.computeDelta(prev: prevCounters.wifiOut, current: currentCounters.wifiOut)
         
         let cellInDelta = Self.computeDelta(prev: prevCounters.cellularIn, current: currentCounters.cellularIn)
         let cellOutDelta = Self.computeDelta(prev: prevCounters.cellularOut, current: currentCounters.cellularOut)
+
+        let inDelta = wifiInDelta + cellInDelta
+        let outDelta = wifiOutDelta + cellOutDelta
 
         let downloadBytesPerSec = Double(inDelta) / timeDelta
         let uploadBytesPerSec = Double(outDelta) / timeDelta
@@ -174,9 +188,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от аномальных выбросов (например, при сбросе/переподключении)
-            // 200 МБ за один интервал (1.6 Гбит/с) — физический максимум для мобильного устройства
-            if delta > 200_000_000 {
+            // Защита от аномальных выбросов: 100 МБ за один замер (800 Мбит/с за 1 сек) — максимальный реальный предел
+            if delta > 100_000_000 {
                 return 0
             }
             return delta
@@ -186,7 +199,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
     }
 
-    /// Считывание счетчиков байт сетевых интерфейсов BSD (Wi-Fi: en0/en1, Cellular: pdp_ip0..3)
+    /// Считывание счетчиков байт СТРОГО физических интерфейсов BSD.
+    /// Исключает виртуальные туннели (utun, awdl, llw, lo, en1..5 bluetooth PAN), предотвращая двойной учет.
     public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
@@ -214,12 +228,14 @@ public final class BandwidthEngine: @unchecked Sendable {
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
-                        if ifName.hasPrefix("en") {
-                            // Физический Wi-Fi / Ethernet
+                        // Строгая фильтрация интерфейсов iOS:
+                        // en0: Физический Wi-Fi контроллер iPhone
+                        // pdp_ip0...pdp_ip3: Физический сотовый модем (5G / LTE)
+                        // Игнорируются: awdl0 (AirDrop), en1..en4 (Bluetooth/P2P), utun* (VPN туннели, удваивающие трафик)
+                        if ifName == "en0" {
                             result.wifiIn += inBytes
                             result.wifiOut += outBytes
                         } else if ifName.hasPrefix("pdp_ip") {
-                            // Физический Cellular (5G / LTE)
                             result.cellularIn += inBytes
                             result.cellularOut += outBytes
                         }
@@ -229,7 +245,7 @@ public final class BandwidthEngine: @unchecked Sendable {
             cursor = ptr.pointee.ifa_next
         }
 
-        // Общий трафик строго равен сумме реального Wi-Fi и Cellular (без виртуальных туннелей utun/awdl)
+        // Общий трафик равен сумме реального Wi-Fi (en0) и сотового (pdp_ip)
         result.totalIn = result.wifiIn + result.cellularIn
         result.totalOut = result.wifiOut + result.cellularOut
 

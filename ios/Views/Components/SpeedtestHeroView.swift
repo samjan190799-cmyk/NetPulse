@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-/// Премиальный блок замера скорости (Speedtest) в монохромном стиле «Obsidian Mono» с белым свечением.
+/// Премиальный блок замера скорости (Speedtest) 2026 с потоком световых частиц (Data Stream Particles),
+/// зеркальным ободом и кинетической типографикой.
 public struct SpeedtestHeroView: View {
     public let isRunning: Bool
     public let downloadMbps: Double
@@ -18,6 +19,7 @@ public struct SpeedtestHeroView: View {
 
     @State private var isPulseActive: Bool = false
     @State private var isButtonPressed: Bool = false
+    @State private var particleRotation: Double = 0.0
 
     private var currentDisplaySpeed: Double {
         if isRunning {
@@ -35,103 +37,137 @@ public struct SpeedtestHeroView: View {
         VStack(spacing: 20) {
             // Верхняя плашка с заголовком и живым индикатором фазы
             HStack {
-                Text("СКОРОСТЬ СОЕДИНЕНИЯ")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(NPTheme.textSecondary)
-                    .tracking(0.5)
+                HStack(spacing: 6) {
+                    Image(systemName: "speedometer")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.accentPrimary)
+                    Text("СКОРОСТЬ СОЕДИНЕНИЯ")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(NPTheme.textSecondary)
+                        .tracking(0.5)
+                }
 
                 Spacer()
 
                 if isRunning {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(uploadMbps > 0 ? NPTheme.upload : NPTheme.accentPrimary)
+                            .fill(uploadMbps > 0 ? NPTheme.upload : NPTheme.download)
                             .frame(width: 6, height: 6)
-                            .scaleEffect(isPulseActive ? 1.3 : 0.8)
-                            .opacity(isPulseActive ? 1.0 : 0.5)
-                            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isPulseActive)
+                            .scaleEffect(isPulseActive ? 1.4 : 0.8)
+                            .opacity(isPulseActive ? 1.0 : 0.4)
+                            .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isPulseActive)
 
                         Text(uploadMbps > 0 ? "ОТДАЧА" : "СКАЧИВАНИЕ")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(uploadMbps > 0 ? NPTheme.upload : NPTheme.accentPrimary)
+                            .foregroundStyle(uploadMbps > 0 ? NPTheme.upload : NPTheme.download)
                             .contentTransition(.opacity)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background((uploadMbps > 0 ? NPTheme.upload : NPTheme.accentPrimary).opacity(0.1))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background((uploadMbps > 0 ? NPTheme.upload : NPTheme.download).opacity(0.12))
                     .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke((uploadMbps > 0 ? NPTheme.upload : NPTheme.download).opacity(0.25), lineWidth: 1)
+                    )
                     .transition(.scale.combined(with: .opacity))
                 }
             }
 
-            // Центральный анимированный спидометр с белым свечением
+            // Центральный спидометр с частицами данных и белым/неоновым свечением
             ZStack {
-                // 1. Внешняя пульсирующая волна при замере (белое свечение)
+                // 1. Внешняя пульсирующая волна при замере
                 if isRunning {
                     Circle()
                         .stroke(
                             LinearGradient(
-                                colors: [NPTheme.accentPrimary.opacity(0.25), NPTheme.accentPrimary.opacity(0.0)],
+                                colors: [NPTheme.accentPrimary.opacity(0.35), NPTheme.accentPrimary.opacity(0.0)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
                             lineWidth: 2
                         )
-                        .frame(width: isPulseActive ? 215 : 185, height: isPulseActive ? 215 : 185)
-                        .opacity(isPulseActive ? 0.0 : 0.8)
-                        .animation(.easeOut(duration: 1.4).repeatForever(autoreverses: false), value: isPulseActive)
+                        .frame(width: isPulseActive ? 220 : 185, height: isPulseActive ? 220 : 185)
+                        .opacity(isPulseActive ? 0.0 : 0.9)
+                        .animation(.easeOut(duration: 1.2).repeatForever(autoreverses: false), value: isPulseActive)
                 }
 
-                // 2. Фоновая направляющая дуга
+                // 2. Фоновая направляющая дуга с разметкой
                 Circle()
                     .trim(from: 0.15, to: 0.85)
                     .stroke(
                         NPTheme.cardBackgroundTertiary,
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
                     )
                     .rotationEffect(.degrees(90))
                     .frame(width: 185, height: 185)
 
-                // 3. Активная дуга — белый градиент с glow (как глиф в лого)
+                // 3. Зеркальный внутренний обод (Specular Inner Ring)
+                Circle()
+                    .trim(from: 0.15, to: 0.85)
+                    .stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(0.15), location: 0.0),
+                                .init(color: Color.clear, location: 0.5),
+                                .init(color: Color.white.opacity(0.08), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        style: StrokeStyle(lineWidth: 1, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(90))
+                    .frame(width: 172, height: 172)
+
+                // 4. Активная дуга скорости с ярким градиентом и свечением
                 Circle()
                     .trim(from: 0.15, to: 0.15 + (0.70 * gaugeProgress))
                     .stroke(
                         NPTheme.accentGradient,
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
                     )
                     .rotationEffect(.degrees(90))
                     .frame(width: 185, height: 185)
-                    .animation(.spring(response: 0.45, dampingFraction: 0.7), value: gaugeProgress)
-                    .shadow(color: isRunning ? NPTheme.glowActive : Color.clear, radius: 12, x: 0, y: 0)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.75), value: gaugeProgress)
+                    .shadow(color: isRunning ? NPTheme.glowActive : Color.clear, radius: 14, x: 0, y: 0)
 
-                // 4. Центральные цифровые показатели
+                // 5. Поток световых частиц данных (Data Stream Particles) при замере
+                if isRunning {
+                    DataStreamParticlesRing(speed: currentDisplaySpeed)
+                        .frame(width: 185, height: 185)
+                }
+
+                // 6. Центральные цифровые показатели
                 VStack(spacing: 2) {
                     HStack(alignment: .lastTextBaseline, spacing: 2) {
                         Text(String(format: "%.1f", currentDisplaySpeed))
-                            .font(.system(size: 46, weight: .bold, design: .rounded))
+                            .font(.system(size: 48, weight: .heavy, design: .rounded))
                             .foregroundStyle(NPTheme.textPrimary)
                             .contentTransition(.numericText(value: currentDisplaySpeed))
                             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: currentDisplaySpeed)
+                            .shadow(color: NPTheme.glowActive, radius: isRunning ? 8 : 0)
                     }
 
                     Text("Мбит/с")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(NPTheme.textSecondary)
 
                     Text(statusText)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isRunning ? NPTheme.accentSoft : NPTheme.textSecondary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(isRunning ? NPTheme.accentPrimary : NPTheme.textTertiary)
                         .padding(.top, 4)
                         .contentTransition(.opacity)
                 }
             }
-            .frame(height: 175)
+            .frame(height: 180)
             .onAppear {
                 isPulseActive = true
             }
 
-            // Сетка 4 метрик с анимацией чисел
-            HStack(spacing: 10) {
+            // Сетка 4 метрик со стеклянным фоном
+            HStack(spacing: 8) {
                 AnimatedMetricItemBox(
                     title: "Скачивание",
                     value: downloadMbps > 0 ? String(format: "%.1f", downloadMbps) : "—",
@@ -169,7 +205,7 @@ public struct SpeedtestHeroView: View {
                 )
             }
 
-            // Кнопка запуска — белая с чёрным текстом (инвертированная, как глиф в лого)
+            // Кнопка запуска с виброоткликом и пружинной физикой
             Button(action: {
                 HapticManager.shared.impactMedium()
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
@@ -191,23 +227,23 @@ public struct SpeedtestHeroView: View {
                             .font(.system(size: 15, weight: .bold))
                     } else {
                         Image(systemName: "play.fill")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13, weight: .bold))
                         Text(downloadMbps > 0 ? "Повторить замер" : "Начать тест скорости")
                             .font(.system(size: 15, weight: .bold))
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .padding(.vertical, 15)
                 .background(isRunning ? NPTheme.buttonDisabledGradient : NPTheme.buttonGradient)
                 .foregroundStyle(isRunning ? NPTheme.textSecondary : NPTheme.backgroundDeep)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .scaleEffect(isButtonPressed ? 0.96 : 1.0)
-                .shadow(color: NPTheme.glow, radius: isRunning ? 4 : 10, x: 0, y: 4)
+                .shadow(color: NPTheme.glowActive, radius: isRunning ? 4 : 12, x: 0, y: 4)
             }
             .disabled(isRunning)
         }
         .padding(18)
-        .npCardStyle(cornerRadius: 18)
+        .npGlassCard(cornerRadius: 20)
     }
 
     private var statusText: String {
@@ -215,13 +251,49 @@ public struct SpeedtestHeroView: View {
             return uploadMbps > 0 ? "Замер отдачи..." : "Замер скачивания..."
         }
         if downloadMbps > 0 {
-            return "Готово"
+            return "Замер завершен"
         }
         return "Нажмите для замера"
     }
 }
 
-/// Анимированная плашка отдельной метрики (Obsidian Mono)
+/// Анимированное кольцо световых частиц данных
+private struct DataStreamParticlesRing: View {
+    let speed: Double
+
+    @State private var phase: Double = 0
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                let radius = size.width / 2
+                let now = timeline.date.timeIntervalSinceReferenceDate
+                let speedFactor = max(1.0, min(speed / 30.0, 10.0))
+
+                for i in 0..<8 {
+                    let angleOffset = Double(i) * (.pi / 4.0)
+                    let currentAngle = (now * speedFactor + angleOffset).truncatingRemainder(dividingBy: .pi * 2)
+
+                    // Ограничиваем сектор только рабочей дугой спидометра (от 0.15*2pi до 0.85*2pi)
+                    let normalizedAngle = currentAngle
+                    let x = center.x + CGFloat(cos(normalizedAngle)) * radius
+                    let y = center.y + CGFloat(sin(normalizedAngle)) * radius
+
+                    let particleSize: CGFloat = 3.5
+                    let rect = CGRect(x: x - particleSize / 2, y: y - particleSize / 2, width: particleSize, height: particleSize)
+
+                    context.fill(
+                        Circle().path(in: rect),
+                        with: .color(.white.opacity(0.85))
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// Анимированная плашка отдельной метрики в стеклянном стиле 2026
 private struct AnimatedMetricItemBox: View {
     let title: String
     let value: String
@@ -233,13 +305,13 @@ private struct AnimatedMetricItemBox: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(isActive ? NPTheme.accentPrimary : NPTheme.textSecondary)
                 .scaleEffect(isActive ? 1.15 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
 
             Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .heavy, design: .rounded))
                 .foregroundStyle(isActive ? NPTheme.accentPrimary : NPTheme.textPrimary)
                 .contentTransition(.numericText(value: numericValue))
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: numericValue)
@@ -247,16 +319,18 @@ private struct AnimatedMetricItemBox: View {
                 .minimumScaleFactor(0.8)
 
             Text(unit)
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(NPTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(isActive ? NPTheme.accentPrimary.opacity(0.06) : NPTheme.cardBackgroundTertiary)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isActive ? NPTheme.accentPrimary.opacity(0.10) : NPTheme.cardBackgroundTertiary.opacity(0.85))
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isActive ? NPTheme.accentPrimary.opacity(0.15) : NPTheme.border, lineWidth: 1)
+                .stroke(isActive ? NPTheme.accentPrimary.opacity(0.3) : NPTheme.border, lineWidth: 1)
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
     }

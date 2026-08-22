@@ -42,13 +42,13 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                // Фон: глубокий градиент «Obsidian Mono» как в лого
+                // Фон: динамический градиент активной темы
                 NPTheme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // 1. Интерактивный замер скорости (Speedtest)
+                        // 1. Интерактивный замер скорости (Speedtest 2026)
                         SpeedtestHeroView(
                             isRunning: viewModel.isSpeedtestRunning,
                             downloadMbps: viewModel.liveDownloadSpeed > 0 ? viewModel.liveDownloadSpeed : (viewModel.lastSpeedtestResult?.downloadMbps ?? 0.0),
@@ -65,8 +65,8 @@ public struct DashboardView: View {
                             HStack(alignment: .top, spacing: 12) {
                                 ZStack {
                                     Circle()
-                                        .fill(NPTheme.accentPrimary.opacity(0.1))
-                                        .frame(width: 32, height: 32)
+                                        .fill(NPTheme.accentPrimary.opacity(0.12))
+                                        .frame(width: 34, height: 34)
                                     Image(systemName: "sparkles")
                                         .font(.system(size: 14, weight: .bold))
                                         .foregroundStyle(NPTheme.accentPrimary)
@@ -74,23 +74,18 @@ public struct DashboardView: View {
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("AI-вердикт")
-                                        .font(.system(size: 12, weight: .bold))
+                                        .font(.system(size: 12, weight: .heavy))
                                         .foregroundStyle(NPTheme.accentPrimary)
 
                                     Text(aiSummary)
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.system(size: 13, weight: .medium))
                                         .foregroundStyle(NPTheme.textPrimary)
                                         .lineSpacing(2)
                                 }
                                 Spacer()
                             }
                             .padding(14)
-                            .background(NPTheme.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(NPTheme.accentPrimary.opacity(0.18), lineWidth: 1)
-                            )
+                            .npGlassCard(cornerRadius: 14)
                             .transition(.scale.combined(with: .opacity))
                         }
 

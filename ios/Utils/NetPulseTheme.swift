@@ -2,130 +2,324 @@
 //  NetPulseTheme.swift
 //  NetPulse
 //
-//  Дизайн-система «Obsidian Mono» — монохромная палитра,
-//  точно соответствующая стилю логотипа NetPulse.
-//  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
+//  Дизайн-система нового поколения (iOS 17+ / Swift 6.0+) — 2026.
+//  Поддержка динамических тем оформления, стеклянного морфизма (Glassmorphism),
+//  верхних световых бликов (Specular Highlights) и живых градиентов.
 //
 
 import SwiftUI
+import Observation
 
-/// Централизованные дизайн-токены палитры «Obsidian Mono».
-/// Все UI-компоненты ссылаются на эти значения для единообразия.
+/// Доступные темы визуального оформления NetPulse
+public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
+    case obsidianMono = "Obsidian Mono"
+    case cyberNeon = "Cyberpunk Neon"
+    case titaniumFrost = "Titanium Frost"
+    case oledBlack = "OLED Pitch Black"
+
+    public var id: String { rawValue }
+
+    public var description: String {
+        switch self {
+        case .obsidianMono:
+            return "Монохромная стелс-палитра с мягким лунным свечением"
+        case .cyberNeon:
+            return "Электрический циан, неоновый пурпур и киберпанк-контраст"
+        case .titaniumFrost:
+            return "Шлифованный титан с ледяным акцентом и матовым стеклом"
+        case .oledBlack:
+            return "100% глубокий черный фон для экономии батареи на OLED"
+        }
+    }
+}
+
+/// Менеджер тем оформления с реактивным обновлением интерфейса
+@Observable
+@MainActor
+public final class ThemeManager {
+    public static let shared = ThemeManager()
+
+    private let themeKey = "netpulse_selected_theme_v2"
+
+    public var currentTheme: AppTheme {
+        didSet {
+            UserDefaults.standard.set(currentTheme.rawValue, forKey: themeKey)
+        }
+    }
+
+    private init() {
+        if let saved = UserDefaults.standard.string(forKey: themeKey),
+           let theme = AppTheme(rawValue: saved) {
+            self.currentTheme = theme
+        } else {
+            self.currentTheme = .obsidianMono
+        }
+    }
+}
+
+/// Централизованные дизайн-токены NetPulse.
+/// Автоматически адаптируются под выбранную тему оформления.
 public enum NPTheme {
 
     // MARK: - Фон
 
-    /// Самый глубокий фон (как в лого): #07090E
-    public static let backgroundDeep = Color(red: 0.027, green: 0.035, blue: 0.055)
+    /// Самый глубокий фон приложения
+    public static var backgroundDeep: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color(red: 0.027, green: 0.035, blue: 0.055) // #07090E
+        case .cyberNeon:
+            return Color(red: 0.031, green: 0.027, blue: 0.063) // #080710
+        case .titaniumFrost:
+            return Color(red: 0.043, green: 0.051, blue: 0.067) // #0B0D11
+        case .oledBlack:
+            return Color.black
+        }
+    }
 
-    /// Верхний край градиентного фона: #121620
-    public static let backgroundTop = Color(red: 0.071, green: 0.086, blue: 0.125)
+    /// Верхний край градиентного фона
+    public static var backgroundTop: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color(red: 0.071, green: 0.086, blue: 0.125) // #121620
+        case .cyberNeon:
+            return Color(red: 0.078, green: 0.055, blue: 0.141) // #140E24
+        case .titaniumFrost:
+            return Color(red: 0.090, green: 0.110, blue: 0.137) // #171C23
+        case .oledBlack:
+            return Color.black
+        }
+    }
 
-    /// Фон карточек: #0F1218
-    public static let cardBackground = Color(red: 0.059, green: 0.071, blue: 0.094)
+    /// Фон карточек и панелей
+    public static var cardBackground: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color(red: 0.059, green: 0.071, blue: 0.094) // #0F1218
+        case .cyberNeon:
+            return Color(red: 0.075, green: 0.063, blue: 0.125) // #131020
+        case .titaniumFrost:
+            return Color(red: 0.078, green: 0.094, blue: 0.118) // #14181E
+        case .oledBlack:
+            return Color(red: 0.04, green: 0.04, blue: 0.04)
+        }
+    }
 
-    /// Фон вложенных элементов (третичный): #181C26
-    public static let cardBackgroundTertiary = Color(red: 0.094, green: 0.110, blue: 0.149)
+    /// Фон вложенных элементов (третичный)
+    public static var cardBackgroundTertiary: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color(red: 0.094, green: 0.110, blue: 0.149) // #181C26
+        case .cyberNeon:
+            return Color(red: 0.118, green: 0.094, blue: 0.196) // #1E1832
+        case .titaniumFrost:
+            return Color(red: 0.118, green: 0.141, blue: 0.176) // #1E242D
+        case .oledBlack:
+            return Color(red: 0.08, green: 0.08, blue: 0.08)
+        }
+    }
 
     // MARK: - Акценты
 
-    /// Основной акцент — чистый белый (как глиф в лого)
-    public static let accentPrimary = Color.white
+    /// Основной акцентный цвет
+    public static var accentPrimary: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color.white
+        case .cyberNeon:
+            return Color(red: 0.0, green: 0.95, blue: 0.85) // Electric Cyan
+        case .titaniumFrost:
+            return Color(red: 0.40, green: 0.75, blue: 1.0) // Ice Blue
+        case .oledBlack:
+            return Color.white
+        }
+    }
 
-    /// Мягкий белый акцент: #E2E8F0
-    public static let accentSoft = Color(red: 0.886, green: 0.910, blue: 0.941)
+    /// Мягкий акцентный цвет
+    public static var accentSoft: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color(red: 0.886, green: 0.910, blue: 0.941) // #E2E8F0
+        case .cyberNeon:
+            return Color(red: 0.65, green: 0.45, blue: 1.0) // Neon Purple
+        case .titaniumFrost:
+            return Color(red: 0.70, green: 0.85, blue: 0.95) // Frost Tint
+        case .oledBlack:
+            return Color(white: 0.9)
+        }
+    }
 
-    /// Серебристый (для upload, вторичных метрик): #94A3B8
-    public static let accentSilver = Color(red: 0.580, green: 0.639, blue: 0.722)
+    /// Вторичный акцент (для upload, вторичных метрик)
+    public static var accentSilver: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color(red: 0.580, green: 0.639, blue: 0.722) // #94A3B8
+        case .cyberNeon:
+            return Color(red: 0.98, green: 0.35, blue: 0.75) // Cyber Pink
+        case .titaniumFrost:
+            return Color(red: 0.55, green: 0.65, blue: 0.75) // Titanium Slate
+        case .oledBlack:
+            return Color(white: 0.65)
+        }
+    }
 
     // MARK: - Текст
 
-    /// Основной текст — белый
+    /// Основной текст
     public static let textPrimary = Color.white
 
-    /// Вторичный текст: Slate-400 #64748B
+    /// Вторичный текст: Slate-400
     public static let textSecondary = Color(red: 0.392, green: 0.455, blue: 0.545)
 
-    /// Третичный текст: Slate-500 #475569
+    /// Третичный текст: Slate-500
     public static let textTertiary = Color(red: 0.278, green: 0.333, blue: 0.412)
 
     // MARK: - Границы и свечение
 
-    /// Тонкая серебристая обводка карточек
-    public static let border = Color.white.opacity(0.06)
+    /// Тонкая обводка карточек
+    public static var border: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color.white.opacity(0.08)
+        case .cyberNeon:
+            return accentPrimary.opacity(0.18)
+        case .titaniumFrost:
+            return Color.white.opacity(0.12)
+        case .oledBlack:
+            return Color.white.opacity(0.12)
+        }
+    }
 
-    /// Мягкое свечение (glow) — как в лого
-    public static let glow = Color.white.opacity(0.08)
+    /// Мягкое свечение (glow)
+    public static var glow: Color {
+        accentPrimary.opacity(0.12)
+    }
 
     /// Усиленное свечение для активных элементов
-    public static let glowActive = Color.white.opacity(0.15)
+    public static var glowActive: Color {
+        accentPrimary.opacity(0.25)
+    }
 
-    // MARK: - Семантические цвета (минимальные цветные исключения)
+    // MARK: - Семантические цвета
 
-    /// Предупреждение — единственный допустимый тёплый цвет
+    /// Предупреждение
     public static let semanticWarn = Color(red: 1.0, green: 0.655, blue: 0.149) // #FFA726
 
-    /// Критическое состояние — красный
+    /// Критическое состояние
     public static let semanticCritical = Color(red: 0.937, green: 0.325, blue: 0.314) // #EF5350
 
-    /// OK-статус — белый (не зелёный!)
-    public static let semanticOK = Color.white
+    /// OK-статус
+    public static var semanticOK: Color {
+        switch ThemeManager.shared.currentTheme {
+        case .obsidianMono:
+            return Color.white
+        case .cyberNeon:
+            return Color(red: 0.0, green: 0.95, blue: 0.6)
+        case .titaniumFrost:
+            return Color(red: 0.3, green: 0.85, blue: 0.6)
+        case .oledBlack:
+            return Color.white
+        }
+    }
 
     // MARK: - Метрики Download / Upload
 
-    /// Download — белый (вместо синего)
-    public static let download = Color.white
+    /// Download скорость
+    public static var download: Color {
+        accentPrimary
+    }
 
-    /// Upload — серебристый (вместо циана)
-    public static let upload = accentSilver
+    /// Upload скорость
+    public static var upload: Color {
+        accentSilver
+    }
 
     // MARK: - Градиенты
 
-    /// Основной фоновый градиент (как в лого)
-    public static let backgroundGradient = LinearGradient(
-        colors: [backgroundTop, backgroundDeep],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    /// Градиент акцента для дуг и кнопок (белый → мягкий белый)
-    public static let accentGradient = LinearGradient(
-        colors: [accentPrimary, accentSoft],
-        startPoint: .leading,
-        endPoint: .trailing
-    )
-
-    /// Градиент для кнопки запуска (белый)
-    public static let buttonGradient = LinearGradient(
-        colors: [Color.white, accentSoft],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    /// Градиент для неактивной кнопки
-    public static let buttonDisabledGradient = LinearGradient(
-        colors: [Color.white.opacity(0.3), Color.white.opacity(0.15)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-}
-
-// MARK: - Модификаторы карточек
-
-extension View {
-    /// Применяет стиль карточки «Obsidian Mono»: тёмный фон + серебристая обводка
-    public func npCardStyle(cornerRadius: CGFloat = 16) -> some View {
-        self
-            .background(NPTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(NPTheme.border, lineWidth: 1)
-            )
+    /// Основной фоновый градиент
+    public static var backgroundGradient: LinearGradient {
+        LinearGradient(
+            colors: [backgroundTop, backgroundDeep],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
-    /// Применяет полноэкранный фон «Obsidian Mono»
+    /// Градиент акцента для дуг и кнопок
+    public static var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: [accentPrimary, accentSoft],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    /// Градиент для кнопки запуска
+    public static var buttonGradient: LinearGradient {
+        LinearGradient(
+            colors: [accentPrimary, accentSoft],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// Градиент для неактивной кнопки
+    public static var buttonDisabledGradient: LinearGradient {
+        LinearGradient(
+            colors: [accentPrimary.opacity(0.3), accentPrimary.opacity(0.15)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+// MARK: - Премиальные модификаторы карточек и поверхностей (2026 Glassmorphism)
+
+extension View {
+    /// Применяет премиальный стеклянный стиль 2026:
+    /// полупрозрачная база + верхний зеркальный блик (Specular Highlight) + мягкая тень
+    public func npGlassCard(cornerRadius: CGFloat = 16) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(NPTheme.cardBackground.opacity(0.85))
+                    .background(
+                        .ultraThinMaterial,
+                        in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    )
+            )
+            .overlay(
+                // Верхний световой блик (Specular Highlight)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(0.20), location: 0.0),
+                                .init(color: Color.white.opacity(0.05), location: 0.35),
+                                .init(color: NPTheme.border, location: 0.7),
+                                .init(color: Color.clear, location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.25), radius: 8, x: 0, y: 4)
+    }
+
+    /// Совместимый модификатор обычной карточки
+    public func npCardStyle(cornerRadius: CGFloat = 16) -> some View {
+        self.npGlassCard(cornerRadius: cornerRadius)
+    }
+
+    /// Применяет полноэкранный динамический фон
     public func npScreenBackground() -> some View {
         self.background(NPTheme.backgroundGradient.ignoresSafeArea())
+    }
+
+    /// Мягкое атмосферное свечение вокруг элемента
+    public func npAmbientGlow(color: Color = NPTheme.accentPrimary, radius: CGFloat = 12, opacity: Double = 0.15) -> some View {
+        self.shadow(color: color.opacity(opacity), radius: radius, x: 0, y: 0)
     }
 }

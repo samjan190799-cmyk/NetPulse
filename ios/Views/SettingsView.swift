@@ -7,10 +7,11 @@
 
 import SwiftUI
 
-/// Экран настроек приложения NetPulse в стиле «Obsidian Mono»
+/// Экран настроек приложения NetPulse 2026 с переключателем тем оформления
 public struct SettingsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
+    @State private var themeManager = ThemeManager.shared
     @State private var newHostName: String = ""
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
@@ -19,7 +20,34 @@ public struct SettingsView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                // 1. Статус и параметры опроса
+                // 1. Внешний вид и темы оформления
+                Section(header: Text("Внешний вид и стиль"), footer: Text(themeManager.currentTheme.description)) {
+                    Picker("Тема интерфейса", selection: $themeManager.currentTheme) {
+                        ForEach(AppTheme.allCases) { theme in
+                            Text(theme.rawValue).tag(theme)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: themeManager.currentTheme) { _, _ in
+                        HapticManager.shared.selectionChanged()
+                    }
+
+                    // Образцы палитр (Theme Swatches)
+                    HStack(spacing: 8) {
+                        ForEach(AppTheme.allCases) { theme in
+                            ThemeSwatchButton(
+                                theme: theme,
+                                isSelected: themeManager.currentTheme == theme
+                            ) {
+                                themeManager.currentTheme = theme
+                                HapticManager.shared.impactMedium()
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // 2. Статус и параметры опроса
                 Section("Мониторинг сети") {
                     HStack {
                         Text("Статус службы")
@@ -45,7 +73,7 @@ public struct SettingsView: View {
                     }
                 }
 
-                // 2. Целевые узлы мониторинга
+                // 3. Целевые узлы мониторинга
                 Section(header: Text("Узлы мониторинга"), footer: Text("Добавьте IP-адреса или домены для постоянного мониторинга задержки, джиттера и потерь.")) {
                     ForEach(viewModel.targets) { target in
                         HStack {
@@ -107,7 +135,7 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // 3. Пороги сетевых алертов
+                // 4. Пороги сетевых алертов
                 Section("Пороги оповещений") {
                     HStack {
                         Text("Предупреждение RTT")
@@ -134,7 +162,7 @@ public struct SettingsView: View {
                     Slider(value: $viewModel.lossCritThreshold, in: 1...20, step: 1)
                 }
 
-                // 4. Фоновый мониторинг трафика (24/7)
+                // 5. Фоновый мониторинг трафика (24/7)
                 Section("Фоновая работа и учет трафика") {
                     Toggle(isOn: $viewModel.backgroundMonitoringEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -156,7 +184,7 @@ public struct SettingsView: View {
                     }
                 }
 
-                // 5. Виджеты и Оверлеи
+                // 6. Виджеты и Оверлеи
                 Section("Виджеты и мониторинг") {
                     Toggle(isOn: Binding(
                         get: { viewModel.liveActivityEnabled },
@@ -182,13 +210,13 @@ public struct SettingsView: View {
                     }
                 }
 
-                // 6. Обратная связь
+                // 7. Обратная связь
                 Section("Тактильная отдача и звуки") {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
                     Toggle("Звуковые предупреждения", isOn: $viewModel.soundEnabled)
                 }
 
-                // 7. Управление хранилищем трафика
+                // 8. Управление хранилищем трафика
                 Section("Хранилище трафика") {
                     Button(role: .destructive) {
                         showResetTrafficAlert = true
@@ -197,12 +225,12 @@ public struct SettingsView: View {
                     }
                 }
 
-                // 8. О приложении
+                // 9. О приложении
                 Section("О приложении") {
                     HStack {
                         Text("Версия")
                         Spacer()
-                        Text("2.1.0 (Build 2026.08)")
+                        Text("2.2.0 (Build 2026.08)")
                             .foregroundStyle(NPTheme.textSecondary)
                     }
 
@@ -239,6 +267,57 @@ public struct SettingsView: View {
             } message: {
                 Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
             }
+        }
+    }
+}
+
+/// Кнопка быстрого выбора темы со свотчем
+private struct ThemeSwatchButton: View {
+    let theme: AppTheme
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 4) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(swatchBgColor)
+                        .frame(height: 32)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isSelected ? swatchAccentColor : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
+                        )
+
+                    Circle()
+                        .fill(swatchAccentColor)
+                        .frame(width: 10, height: 10)
+                }
+
+                Text(theme.rawValue.components(separatedBy: " ").first ?? theme.rawValue)
+                    .font(.system(size: 9, weight: isSelected ? .bold : .medium))
+                    .foregroundStyle(isSelected ? NPTheme.accentPrimary : NPTheme.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var swatchBgColor: Color {
+        switch theme {
+        case .obsidianMono: return Color(red: 0.027, green: 0.035, blue: 0.055)
+        case .cyberNeon: return Color(red: 0.031, green: 0.027, blue: 0.063)
+        case .titaniumFrost: return Color(red: 0.043, green: 0.051, blue: 0.067)
+        case .oledBlack: return Color.black
+        }
+    }
+
+    private var swatchAccentColor: Color {
+        switch theme {
+        case .obsidianMono: return Color.white
+        case .cyberNeon: return Color(red: 0.0, green: 0.95, blue: 0.85)
+        case .titaniumFrost: return Color(red: 0.40, green: 0.75, blue: 1.0)
+        case .oledBlack: return Color.white
         }
     }
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот с поддержкой фоновой синхронизации и защитой от дискового троттлинга
+/// Постоянное хранилище истории РЕАЛЬНОГО трафика, аналитики сессий и квот с защитой от повторного/двойного учета
 public actor TrafficStorage {
     public static let shared = TrafficStorage()
 
@@ -45,23 +45,28 @@ public actor TrafficStorage {
         self.currentActiveSessionId = initialSessions.first(where: { $0.isActive })?.id
     }
 
-    // MARK: - Инициализация и загрузка только реальных данных
+    // MARK: - Инициализация и санация сохраненных данных
 
     private static func loadInitialData() -> ([TrafficSession], [TrafficDataPoint], TrafficBudget) {
         var loadedSessions: [TrafficSession] = []
         var loadedPoints: [TrafficDataPoint] = []
         var loadedBudget: TrafficBudget = TrafficBudget()
 
-        // Загрузка сохраненных сессий
+        // Загрузка сохраненных сессий с фильтрацией аномалий
         if let data = try? Data(contentsOf: sessionsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficSession].self, from: data) {
-            // Санация данных: фильтруем микро-сессии с 0 байт и аномальные дубликаты
-            let sanitized = decoded.filter { session in
-                let total = session.downloadedBytes + session.uploadedBytes
-                // Исключаем пустые артефактные сессии
-                return total > 1024 || session.isActive
+            let sanitized = decoded.compactMap { session -> TrafficSession? in
+                var s = session
+                // Санация аномальных выбросов (защита от багов с переполнением)
+                if s.downloadedBytes > 200_000_000_000 || s.uploadedBytes > 200_000_000_000 {
+                    return nil
+                }
+                let total = s.downloadedBytes + s.uploadedBytes
+                if total > 1024 || s.isActive {
+                    return s
+                }
+                return nil
             }
-            // Ограничиваем историю максимум 100 наиболее актуальными сессиями
             loadedSessions = Array(sanitized.prefix(100))
         }
 
@@ -99,13 +104,12 @@ public actor TrafficStorage {
         }
     }
 
-    /// Дебаунсинг дисковой записи: предотвращает частую запись и исключает разряд батареи и перегрузку I/O
+    /// Дебаунсинг дисковой записи
     private func scheduleDebouncedSave() {
         hasUnsavedChanges = true
         let timeSinceLastSave = Date().timeIntervalSince(lastSavedDate)
 
-        // Сохраняем не чаще чем раз в 30 секунд для сбережения аккумулятора
-        if timeSinceLastSave >= 30.0 {
+        if timeSinceLastSave >= 20.0 {
             saveTask?.cancel()
             saveTask = nil
             performDiskSave()
@@ -114,14 +118,14 @@ public actor TrafficStorage {
 
         if saveTask == nil {
             saveTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 25_000_000_000)
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
                 guard !Task.isCancelled else { return }
                 await self?.flush()
             }
         }
     }
 
-    /// Принудительный сброс буфера на диск (при сворачивании, закрытии приложения или изменении квоты)
+    /// Принудительный сброс буфера на диск
     public func flush() {
         saveTask?.cancel()
         saveTask = nil
@@ -132,7 +136,7 @@ public actor TrafficStorage {
 
     // MARK: - Фоновая синхронизация с аппаратными счетчиками ядра Darwin BSD (Zero-Loss)
 
-    /// Синхронизация трафика, потраченного пока приложение было свернуто, спало или было закрыто
+    /// Синхронизация трафика, потраченного строго пока приложение спало или было закрыто
     public func reconcileBackgroundHardwareTraffic(
         currentConnectionType: String,
         currentNetworkName: String
@@ -140,40 +144,41 @@ public actor TrafficStorage {
         let currentCounters = BandwidthEngine.fetchDetailedInterfaceBytes()
         let now = Date()
 
-        // 1. Считываем сохраненный срез при предыдущей активности
+        // 1. Считываем сохраненную базовую точку при уходе в фон
         guard let savedData = UserDefaults.standard.data(forKey: Self.kLastHardwareCountersKey),
               let saved = try? JSONDecoder().decode(InterfaceByteCounters.self, from: savedData),
               (saved.totalIn > 0 || saved.totalOut > 0) else {
             // Первичная точка отсчета: фиксируем текущее состояние ядра БЕЗ начисления дельты
             persistHardwareCounters(currentCounters)
+            BandwidthEngine.shared.resetBaseline(to: currentCounters)
             return
         }
+
+        // 2. Вычисляем пропущенные дельты физических интерфейсов
+        let missingWifiIn = BandwidthEngine.computeDelta(prev: saved.wifiIn, current: currentCounters.wifiIn)
+        let missingWifiOut = BandwidthEngine.computeDelta(prev: saved.wifiOut, current: currentCounters.wifiOut)
+
+        let missingCellIn = BandwidthEngine.computeDelta(prev: saved.cellularIn, current: currentCounters.cellularIn)
+        let missingCellOut = BandwidthEngine.computeDelta(prev: saved.cellularOut, current: currentCounters.cellularOut)
 
         let isWifi = currentConnectionType.contains("Wi-Fi") || currentConnectionType.lowercased().contains("wifi")
         let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
         let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
         let ifName = isWifi ? "en0" : "pdp_ip0"
 
-        // Вычисляем пропущенные дельты на уровне сетевых интерфейсов ядра
-        let missingWifiIn = BandwidthEngine.computeDelta(prev: saved.wifiIn, current: currentCounters.wifiIn)
-        let missingWifiOut = BandwidthEngine.computeDelta(prev: saved.wifiOut, current: currentCounters.wifiOut)
-        let missingWifiTotal = missingWifiIn + missingWifiOut
+        let totalMissingIn = missingWifiIn + missingCellIn
+        let totalMissingOut = missingWifiOut + missingCellOut
 
-        let missingCellIn = BandwidthEngine.computeDelta(prev: saved.cellularIn, current: currentCounters.cellularIn)
-        let missingCellOut = BandwidthEngine.computeDelta(prev: saved.cellularOut, current: currentCounters.cellularOut)
-        let missingCellTotal = missingCellIn + missingCellOut
-
-        let missingTotalIn = isWifi ? missingWifiIn : missingCellIn
-        let missingTotalOut = isWifi ? missingWifiOut : missingCellOut
-
-        // Обновляем контрольную точку аппаратного счетчика
+        // 3. НЕМЕДЛЕННО обновляем базовую точку в UserDefaults и в BandwidthEngine,
+        // чтобы активный цикл не посчитал эти байты второй раз!
         persistHardwareCounters(currentCounters)
+        BandwidthEngine.shared.resetBaseline(to: currentCounters)
 
-        if missingTotalIn > 0 || missingTotalOut > 0 {
+        if totalMissingIn > 0 || totalMissingOut > 0 {
             let bgDistribution = TrafficClassifier.shared.distributeSample(
-                deltaDownload: missingTotalIn,
-                deltaUpload: missingTotalOut,
-                speedBps: Double(missingTotalIn + missingTotalOut),
+                deltaDownload: totalMissingIn,
+                deltaUpload: totalMissingOut,
+                speedBps: Double(totalMissingIn + totalMissingOut),
                 isSpeedtestActive: false,
                 isBackground: true
             )
@@ -181,15 +186,14 @@ public actor TrafficStorage {
             if let activeId = currentActiveSessionId,
                let index = sessions.firstIndex(where: { $0.id == activeId }),
                sessions[index].connectionType == normConnType {
-                sessions[index].downloadedBytes += missingTotalIn
-                sessions[index].uploadedBytes += missingTotalOut
+                sessions[index].downloadedBytes += totalMissingIn
+                sessions[index].uploadedBytes += totalMissingOut
                 sessions[index].endDate = now
                 sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
                     existing: sessions[index].categoryUsages,
                     additions: bgDistribution
                 )
             } else {
-                // Закрываем предыдущую активную сессию если сменился тип сети
                 if let activeId = currentActiveSessionId,
                    let index = sessions.firstIndex(where: { $0.id == activeId }) {
                     sessions[index].isActive = false
@@ -206,10 +210,10 @@ public actor TrafficStorage {
                     interfaceName: ifName,
                     startDate: now.addingTimeInterval(-60),
                     endDate: now,
-                    downloadedBytes: missingTotalIn,
-                    uploadedBytes: missingTotalOut,
-                    peakDownloadBps: Double(missingTotalIn),
-                    peakUploadBps: Double(missingTotalOut),
+                    downloadedBytes: totalMissingIn,
+                    uploadedBytes: totalMissingOut,
+                    peakDownloadBps: Double(totalMissingIn),
+                    peakUploadBps: Double(totalMissingOut),
                     isActive: true,
                     categoryUsages: initialCategories
                 )
@@ -220,10 +224,10 @@ public actor TrafficStorage {
             // Добавляем точку на график
             let point = TrafficDataPoint(
                 timestamp: now,
-                downloadBytes: missingTotalIn,
-                uploadBytes: missingTotalOut,
-                wifiBytes: isWifi ? (missingTotalIn + missingTotalOut) : 0,
-                cellularBytes: !isWifi ? (missingTotalIn + missingTotalOut) : 0
+                downloadBytes: totalMissingIn,
+                uploadBytes: totalMissingOut,
+                wifiBytes: isWifi ? (totalMissingIn + totalMissingOut) : 0,
+                cellularBytes: !isWifi ? (totalMissingIn + totalMissingOut) : 0
             )
             dataPoints.append(point)
             if dataPoints.count > 300 {
@@ -234,7 +238,7 @@ public actor TrafficStorage {
         }
     }
 
-    private func persistHardwareCounters(_ counters: InterfaceByteCounters) {
+    public func persistHardwareCounters(_ counters: InterfaceByteCounters) {
         if let encoded = try? JSONEncoder().encode(counters) {
             UserDefaults.standard.set(encoded, forKey: Self.kLastHardwareCountersKey)
         }
@@ -255,12 +259,10 @@ public actor TrafficStorage {
         let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
         let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
 
-        // 1. Проверяем, изменился ли физический тип сети (Wi-Fi <-> Cellular)
+        // 1. Проверяем смену физического типа сети (Wi-Fi <-> Cellular)
         if let activeId = currentActiveSessionId,
            let index = sessions.firstIndex(where: { $0.id == activeId }) {
             let active = sessions[index]
-            // Сессия меняется ТОЛЬКО если произошел реальный переход между Wi-Fi и Cellular
-            // или текущая сессия длится уже более 24 часов
             if active.connectionType != normConnType || now.timeIntervalSince(active.startDate) > 86400 {
                 sessions[index].endDate = now
                 sessions[index].isActive = false
@@ -323,15 +325,22 @@ public actor TrafficStorage {
             )
             dataPoints.append(point)
 
-            // Храним максимум 300 последних точек в памяти
             if dataPoints.count > 300 {
                 dataPoints.removeFirst(dataPoints.count - 300)
             }
         }
 
-        // Сохраняем с дебаунсом и обновляем контрольную точку
+        // 4. Синхронизируем базовую точку счетчиков в UserDefaults, исключая двойной подсчет при переходе в фон
+        let currentCounters = InterfaceByteCounters(
+            totalIn: snapshot.totalReceivedBytes,
+            totalOut: snapshot.totalSentBytes,
+            wifiIn: snapshot.wifiReceivedBytes,
+            wifiOut: snapshot.wifiSentBytes,
+            cellularIn: snapshot.cellularReceivedBytes,
+            cellularOut: snapshot.cellularSentBytes
+        )
+        persistHardwareCounters(currentCounters)
         scheduleDebouncedSave()
-        persistHardwareCounters(BandwidthEngine.fetchDetailedInterfaceBytes())
     }
 
     // MARK: - Запросы и агрегация статистики
@@ -396,7 +405,9 @@ public actor TrafficStorage {
         sessions.removeAll()
         dataPoints.removeAll()
         currentActiveSessionId = nil
-        UserDefaults.standard.removeObject(forKey: Self.kLastHardwareCountersKey)
+        let current = BandwidthEngine.fetchDetailedInterfaceBytes()
+        persistHardwareCounters(current)
+        BandwidthEngine.shared.resetBaseline(to: current)
         hasUnsavedChanges = true
         performDiskSave()
     }
@@ -463,4 +474,3 @@ private struct TrafficExportPayload: Codable {
     let budget: TrafficBudget
     let sessions: [TrafficSession]
 }
-

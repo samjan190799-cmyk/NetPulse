@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Информация о статусе отдельного DNS-узла для отображения в виджете
 public struct WidgetDNSHost: Codable, Sendable, Identifiable {
@@ -129,6 +132,9 @@ public final class WidgetDataManager: @unchecked Sendable {
     public func saveSnapshot(_ data: NetPulseWidgetData) {
         if let encoded = try? JSONEncoder().encode(data) {
             defaults.set(encoded, forKey: dataKey)
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
         }
     }
 

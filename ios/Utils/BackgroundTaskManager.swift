@@ -82,6 +82,24 @@ public final class BackgroundTaskManager: @unchecked Sendable {
                 currentNetworkName: info.ispName ?? info.connectionType.rawValue
             )
             await TrafficStorage.shared.flush()
+
+            // Автовосстановление сессии Dynamic Island при фоновом пробуждении
+            let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
+            if isLiveEnabled {
+                let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
+                await MainActor.run {
+                    ActivityManager.shared.checkAndRestoreActivity(
+                        downloadSpeedText: snapshot.formattedDownloadSpeed,
+                        uploadSpeedText: snapshot.formattedUploadSpeed,
+                        compactDownloadText: snapshot.compactDownload,
+                        compactUploadText: snapshot.compactUpload,
+                        isTesting: false,
+                        connectionType: info.connectionType.rawValue,
+                        ispName: info.ispName ?? "Интернет"
+                    )
+                }
+            }
+
             task.setTaskCompleted(success: true)
         }
 
@@ -102,6 +120,23 @@ public final class BackgroundTaskManager: @unchecked Sendable {
                 currentNetworkName: info.ispName ?? info.connectionType.rawValue
             )
             await TrafficStorage.shared.flush()
+
+            let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
+            if isLiveEnabled {
+                let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
+                await MainActor.run {
+                    ActivityManager.shared.checkAndRestoreActivity(
+                        downloadSpeedText: snapshot.formattedDownloadSpeed,
+                        uploadSpeedText: snapshot.formattedUploadSpeed,
+                        compactDownloadText: snapshot.compactDownload,
+                        compactUploadText: snapshot.compactUpload,
+                        isTesting: false,
+                        connectionType: info.connectionType.rawValue,
+                        ispName: info.ispName ?? "Интернет"
+                    )
+                }
+            }
+
             task.setTaskCompleted(success: true)
         }
 

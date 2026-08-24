@@ -52,6 +52,8 @@
     <false/>
     <key>NSSupportsLiveActivities</key>
     <true/>
+    <key>NSSupportsLiveActivitiesFrequentUpdates</key>
+    <true/>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>NetPulse использует распознавание речи для голосового ввода диагностических вопросов AI-ассистенту.</string>
     <key>NSMicrophoneUsageDescription</key>

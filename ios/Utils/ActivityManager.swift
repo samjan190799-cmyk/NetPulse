@@ -27,6 +27,61 @@ public final class ActivityManager {
 
     private init() {}
 
+    /// Проверка системного разрешения Live Activity в iOS Settings
+    public var areActivitiesEnabled: Bool {
+        #if canImport(ActivityKit)
+        return ActivityAuthorizationInfo().areActivitiesEnabled
+        #else
+        return false
+        #endif
+    }
+
+    /// Восстановление или запуск сессии Dynamic Island
+    public func checkAndRestoreActivity(
+        downloadSpeedText: String = "↓ 0 КБ/с",
+        uploadSpeedText: String = "↑ 0 КБ/с",
+        compactDownloadText: String = "↓0K",
+        compactUploadText: String = "↑0K",
+        isTesting: Bool = false,
+        connectionType: String = "Wi-Fi",
+        ispName: String = "Интернет"
+    ) {
+        #if canImport(ActivityKit)
+        guard areActivitiesEnabled else {
+            print("⚠️ Live Activities отключены пользователем в настройках iOS")
+            return
+        }
+
+        // Если активная сессия уже существует в системе — подключаемся к ней
+        if let existing = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active }) {
+            self.currentActivity = existing
+            self.isLiveActivityActive = true
+            updateActivity(
+                downloadSpeedText: downloadSpeedText,
+                uploadSpeedText: uploadSpeedText,
+                compactDownloadText: compactDownloadText,
+                compactUploadText: compactUploadText,
+                isTesting: isTesting,
+                connectionType: connectionType,
+                ispName: ispName,
+                force: true
+            )
+            return
+        }
+
+        // Иначе создаем новую сессию
+        startActivity(
+            downloadSpeedText: downloadSpeedText,
+            uploadSpeedText: uploadSpeedText,
+            compactDownloadText: compactDownloadText,
+            compactUploadText: compactUploadText,
+            isTesting: isTesting,
+            connectionType: connectionType,
+            ispName: ispName
+        )
+        #endif
+    }
+
     /// Запуск Live Activity в Dynamic Island с реальной скоростью загрузки и отдачи
     public func startActivity(
         downloadSpeedText: String = "↓ 0 КБ/с",
@@ -38,11 +93,27 @@ public final class ActivityManager {
         ispName: String = "Интернет"
     ) {
         #if canImport(ActivityKit)
-        // Завершаем старые активные сессии перед созданием новой
-        Task {
-            for activity in Activity<NetPulseAttributes>.activities {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            }
+        guard areActivitiesEnabled else {
+            print("⚠️ Live Activities отключены в системе")
+            self.isLiveActivityActive = false
+            return
+        }
+
+        // 1. Проверяем, есть ли уже активная сессия
+        if let active = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active }) {
+            self.currentActivity = active
+            self.isLiveActivityActive = true
+            updateActivity(
+                downloadSpeedText: downloadSpeedText,
+                uploadSpeedText: uploadSpeedText,
+                compactDownloadText: compactDownloadText,
+                compactUploadText: compactUploadText,
+                isTesting: isTesting,
+                connectionType: connectionType,
+                ispName: ispName,
+                force: true
+            )
+            return
         }
 
         let attributes = NetPulseAttributes(sessionTitle: "Мониторинг NetPulse")
@@ -56,10 +127,10 @@ public final class ActivityManager {
             ispName: ispName
         )
 
-        // staleDate на 1 час вперед предотвращает замораживание виджета операционной системой
+        // staleDate на 4 часа вперед предотвращает замораживание виджета операционной системой
         let content = ActivityContent(
             state: initialState,
-            staleDate: Date().addingTimeInterval(3600),
+            staleDate: Date().addingTimeInterval(14400),
             relevanceScore: 100.0
         )
 
@@ -99,7 +170,7 @@ public final class ActivityManager {
         }
 
         guard let activity = activeActivity else {
-            // Если активности нет, создаем новую
+            // Если сессия отсутствует, создаем новую
             startActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -134,8 +205,8 @@ public final class ActivityManager {
             }
         }
 
-        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (минимум 1.8 сек)
-        let minInterval: TimeInterval = isTesting ? 1.2 : 1.8
+        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (минимум 1.5 сек)
+        let minInterval: TimeInterval = isTesting ? 1.0 : 1.5
         if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
             return
         }
@@ -143,14 +214,12 @@ public final class ActivityManager {
         self.lastContentState = updatedState
         self.lastUpdateDate = now
 
-        // Устанавливаем staleDate на 1 час вперед, чтобы виджет никогда не помечался как замерзший
         let content = ActivityContent(
             state: updatedState,
-            staleDate: Date().addingTimeInterval(3600),
+            staleDate: Date().addingTimeInterval(14400),
             relevanceScore: isTesting ? 100.0 : 80.0
         )
 
-        // Неблокирующее обновление: отменяем предыдущую незавершенную задачу и отправляем свежую
         pendingUpdateTask?.cancel()
         pendingUpdateTask = Task {
             await activity.update(content)

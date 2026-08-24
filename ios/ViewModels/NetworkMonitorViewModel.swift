@@ -90,11 +90,27 @@ public final class NetworkMonitorViewModel {
     public var hapticsEnabled: Bool = true
 
     // Фоновый мониторинг трафика (24/7)
-    public var backgroundMonitoringEnabled: Bool = true
+    private static let kLiveActivityKey = "netpulse_live_activity_enabled"
+    private static let kFloatingHUDKey = "netpulse_floating_hud_enabled"
+    private static let kBackgroundMonitoringKey = "netpulse_background_monitoring_enabled"
+
+    public var backgroundMonitoringEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(backgroundMonitoringEnabled, forKey: Self.kBackgroundMonitoringKey)
+        }
+    }
 
     // Виджеты: Dynamic Island & Игровой HUD
-    public var liveActivityEnabled: Bool = false
-    public var floatingHUDEnabled: Bool = false
+    public var liveActivityEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(liveActivityEnabled, forKey: Self.kLiveActivityKey)
+        }
+    }
+    public var floatingHUDEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(floatingHUDEnabled, forKey: Self.kFloatingHUDKey)
+        }
+    }
 
     // Настройки порогов
     public var latencyWarnThreshold: Double = 100.0
@@ -117,6 +133,14 @@ public final class NetworkMonitorViewModel {
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
 
     public init() {
+        let savedLive = UserDefaults.standard.object(forKey: Self.kLiveActivityKey) as? Bool ?? true
+        let savedHUD = UserDefaults.standard.bool(forKey: Self.kFloatingHUDKey)
+        let savedBg = UserDefaults.standard.object(forKey: Self.kBackgroundMonitoringKey) as? Bool ?? true
+
+        self.liveActivityEnabled = savedLive
+        self.floatingHUDEnabled = savedHUD
+        self.backgroundMonitoringEnabled = savedBg
+
         initMetricsForTargets()
         setupBackgroundObservation()
         Task {
@@ -128,8 +152,38 @@ public final class NetworkMonitorViewModel {
                 currentNetworkName: self.currentNetworkTitle
             )
             await self.refreshTrafficData(period: .today)
+            self.syncWidgetData()
         }
         startMonitoring(silent: true)
+    }
+
+    public func toggleLiveActivity(enabled: Bool) {
+        self.liveActivityEnabled = enabled
+        if enabled {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
+            ActivityManager.shared.startActivity(
+                downloadSpeedText: liveBandwidth.formattedDownloadSpeed,
+                uploadSpeedText: liveBandwidth.formattedUploadSpeed,
+                compactDownloadText: liveBandwidth.compactDownload,
+                compactUploadText: liveBandwidth.compactUpload,
+                isTesting: isSpeedtestRunning,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет"
+            )
+            startBandwidthTask()
+            syncWidgetData()
+            if hapticsEnabled {
+                HapticManager.shared.notificationSuccess()
+            }
+        } else {
+            ActivityManager.shared.stopActivity()
+            if !backgroundMonitoringEnabled {
+                BackgroundTelemetryKeeper.shared.stopKeepAlive()
+            }
+            if hapticsEnabled {
+                HapticManager.shared.impactLight()
+            }
+        }
     }
 
     private func setupBackgroundObservation() {
@@ -233,6 +287,7 @@ public final class NetworkMonitorViewModel {
                 currentNetworkName: self.currentNetworkTitle
             )
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+            self.syncWidgetData()
         }
 
         // Возобновляем активные задачи при возвращении пользователя в приложение
@@ -248,6 +303,7 @@ public final class NetworkMonitorViewModel {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+            self.syncWidgetData()
         }
     }
 
@@ -282,6 +338,15 @@ public final class NetworkMonitorViewModel {
 
         if liveActivityEnabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
+            ActivityManager.shared.checkAndRestoreActivity(
+                downloadSpeedText: liveBandwidth.formattedDownloadSpeed,
+                uploadSpeedText: liveBandwidth.formattedUploadSpeed,
+                compactDownloadText: liveBandwidth.compactDownload,
+                compactUploadText: liveBandwidth.compactUpload,
+                isTesting: isSpeedtestRunning,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет"
+            )
         }
 
         if !silent && hapticsEnabled {
@@ -336,11 +401,12 @@ public final class NetworkMonitorViewModel {
                     isSpeedtestActive: self.isSpeedtestRunning
                 )
 
-                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI
+                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI и виджеты
                 if !isAppInBackground {
                     loopCount += 1
                     if loopCount % 3 == 0 {
                         await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+                        self.syncWidgetData()
                     }
                 }
 

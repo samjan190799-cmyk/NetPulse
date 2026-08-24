@@ -54,6 +54,8 @@ public struct DashboardView: View {
         return evaluator.evaluateAll()
     }
 
+    @State private var showGlossarySheet: Bool = false
+
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
@@ -117,6 +119,22 @@ public struct DashboardView: View {
             }
             .navigationTitle("NetPulse")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        HapticManager.shared.impactLight()
+                        showGlossarySheet = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    .npMinHitTarget()
+                }
+            }
+            .sheet(isPresented: $showGlossarySheet) {
+                NetworkGlossarySheetView()
+            }
             .onAppear {
                 if !viewModel.isMonitoringActive {
                     viewModel.startMonitoring()

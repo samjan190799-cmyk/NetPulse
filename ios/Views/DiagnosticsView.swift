@@ -14,6 +14,7 @@ public struct DiagnosticsView: View {
     @State private var csvExportURL: URL?
     @State private var isExporting = false
     @State private var quickHostInput: String = ""
+    @State private var showGlossarySheet: Bool = false
 
     public var body: some View {
         NavigationStack {
@@ -26,7 +27,10 @@ public struct DiagnosticsView: View {
                         // 1. Системная сетевая карточка
                         NetworkInfoCardView(
                             info: viewModel.systemInfo,
-                            isMonitoring: viewModel.isMonitoringActive
+                            isMonitoring: viewModel.isMonitoringActive,
+                            onInfoTap: {
+                                showGlossarySheet = true
+                            }
                         )
 
                         // 2. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
@@ -74,6 +78,19 @@ public struct DiagnosticsView: View {
                     .npMinHitTarget()
                 }
 
+                // Кнопка справочника сети
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        HapticManager.shared.impactLight()
+                        showGlossarySheet = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    .npMinHitTarget()
+                }
+
                 // Кнопка быстрого AI-анализа
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -110,6 +127,9 @@ public struct DiagnosticsView: View {
                     .npMinHitTarget()
                 }
             }
+            .sheet(isPresented: $showGlossarySheet) {
+                NetworkGlossarySheetView()
+            }
             .sheet(isPresented: $viewModel.showTracerouteSheet) {
                 TracerouteSheetView(
                     targetHost: viewModel.selectedTracerouteTarget,
@@ -129,10 +149,26 @@ public struct DiagnosticsView: View {
 
     private var proUtilitiesHub: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("ПРОФЕССИОНАЛЬНЫЕ УТИЛИТЫ")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(NPTheme.textTertiary)
-                .tracking(0.5)
+            HStack {
+                Text("ПРОФЕССИОНАЛЬНЫЕ УТИЛИТЫ")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(NPTheme.textTertiary)
+                    .tracking(0.5)
+
+                Spacer()
+
+                Button {
+                    HapticManager.shared.impactLight()
+                    showGlossarySheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                        Text("Справка")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(NPTheme.accentPrimary)
+                }
+            }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
@@ -179,14 +215,14 @@ public struct DiagnosticsView: View {
     }
 
     private func proUtilityTile(title: String, subtitle: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             ZStack {
                 Circle()
                     .fill(color.opacity(0.15))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 34, height: 34)
 
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(color)
             }
 
@@ -194,6 +230,8 @@ public struct DiagnosticsView: View {
                 Text(title)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(NPTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
 
                 Text(subtitle)
                     .font(.system(size: 10))
@@ -201,13 +239,14 @@ public struct DiagnosticsView: View {
                     .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 2)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(NPTheme.textTertiary)
         }
-        .padding(12)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 12)
         .npGlassCard(cornerRadius: 14)
     }
 
@@ -278,6 +317,15 @@ public struct DiagnosticsView: View {
                     .tracking(0.5)
 
                 Spacer()
+
+                Button {
+                    HapticManager.shared.impactLight()
+                    showGlossarySheet = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 13))
+                        .foregroundStyle(NPTheme.textTertiary)
+                }
 
                 Text("\(viewModel.targets.count) узлов")
                     .font(.system(size: 12, weight: .medium))

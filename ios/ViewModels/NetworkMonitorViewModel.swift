@@ -483,13 +483,16 @@ public final class NetworkMonitorViewModel {
             let lossPct = metric.lossWindowPct
             if lossPct >= lossCritThreshold {
                 metric.status = .down
-                triggerAlertIfNeeded(
-                    address: address,
-                    message: "Потеря пакетов: \(String(format: "%.0f", lossPct))%",
-                    severity: .critical,
-                    currentVal: lossPct,
-                    threshVal: lossCritThreshold
-                )
+                // Не выводим тревожный алерт о 100% потере пакетов для сотового шлюза оператора (Carrier CGNAT штатно блокирует сокеты)
+                if !(metric.isGateway && systemInfo.connectionType == .cellular) {
+                    triggerAlertIfNeeded(
+                        address: address,
+                        message: "Потеря пакетов: \(String(format: "%.0f", lossPct))%",
+                        severity: .critical,
+                        currentVal: lossPct,
+                        threshVal: lossCritThreshold
+                    )
+                }
             } else {
                 metric.status = .warning
             }

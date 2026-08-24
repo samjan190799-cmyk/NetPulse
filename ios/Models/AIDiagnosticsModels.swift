@@ -206,6 +206,8 @@ public struct NetworkHealthReport: Identifiable, Codable, Sendable {
     public let recommendations: [NetworkRecommendation]
     public let timestamp: Date
 
+    public var healthScore: Int { overallScore }
+
     public var statusBadgeColor: Color {
         if overallScore >= 85 {
             return .green

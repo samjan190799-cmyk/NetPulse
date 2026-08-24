@@ -724,7 +724,7 @@ public final class NetworkMonitorViewModel {
 
     public var currentHealthScore: Int {
         if let report = currentHealthReport {
-            return report.healthScore
+            return report.overallScore
         }
         var score = 100
         if let ping = currentAveragePing, ping > 50 {

@@ -64,6 +64,7 @@ jobs:
       - name: "Генерация иконок приложения"
         working-directory: ./ios
         run: |
+          python3 -m pip install --upgrade Pillow --quiet || true
           ICONSET="Assets.xcassets/AppIcon.appiconset"
           mkdir -p "$ICONSET"
           

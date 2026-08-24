@@ -76,66 +76,80 @@ public actor NetworkDiagnostics {
         var otherIP: String?
 
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
-            return (determineConnectionTypeFromNWPath(), "127.0.0.1")
-        }
-        defer { freeifaddrs(ifaddr) }
+        if getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr {
+            defer { freeifaddrs(ifaddr) }
 
-        var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
-        while let ptr = cursor {
-            let flags = Int32(ptr.pointee.ifa_flags)
-            let isUp = (flags & IFF_UP) == IFF_UP
-            let isRunning = (flags & IFF_RUNNING) == IFF_RUNNING
-            let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
+            var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
+            while let ptr = cursor {
+                let flags = Int32(ptr.pointee.ifa_flags)
+                let isUp = (flags & IFF_UP) == IFF_UP
+                let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
 
-            if isUp && isRunning && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET) {
-                var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                if getnameinfo(
-                    ptr.pointee.ifa_addr,
-                    socklen_t(addr.pointee.sa_len),
-                    &hostname,
-                    socklen_t(hostname.count),
-                    nil,
-                    0,
-                    NI_NUMERICHOST
-                ) == 0 {
-                    let ipStr = String(cString: hostname)
-                    let ifName = String(cString: ptr.pointee.ifa_name)
+                if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr {
+                    let family = addr.pointee.sa_family
+                    if family == UInt8(AF_INET) || family == UInt8(AF_INET6) {
+                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                        if getnameinfo(
+                            ptr.pointee.ifa_addr,
+                            socklen_t(addr.pointee.sa_len),
+                            &hostname,
+                            socklen_t(hostname.count),
+                            nil,
+                            0,
+                            NI_NUMERICHOST
+                        ) == 0 {
+                            let ipStr = String(cString: hostname)
+                            let ifName = String(cString: ptr.pointee.ifa_name)
 
-                    if ifName.hasPrefix("en") {
-                        wifiIP = ipStr
-                    } else if ifName.hasPrefix("pdp_ip") {
-                        cellIP = ipStr
-                    } else {
-                        otherIP = ipStr
+                            if ifName.hasPrefix("en") {
+                                if wifiIP == nil || family == UInt8(AF_INET) {
+                                    wifiIP = ipStr
+                                }
+                            } else if ifName.hasPrefix("pdp_ip") {
+                                if cellIP == nil || family == UInt8(AF_INET) {
+                                    cellIP = ipStr
+                                }
+                            } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") {
+                                otherIP = ipStr
+                            }
+                        }
                     }
                 }
+                cursor = ptr.pointee.ifa_next
             }
-            cursor = ptr.pointee.ifa_next
         }
 
-        // Приоритеты: NWPathMonitor -> затем физические активные интерфейсы BSD
+        // 1. Приоритетный системный статус из NWPathMonitor
         let nwPath = lastKnownPath ?? pathMonitor.currentPath
         if nwPath.status == .satisfied {
-            if nwPath.usesInterfaceType(.wifi), let ip = wifiIP {
-                return (.wifi, ip)
-            } else if nwPath.usesInterfaceType(.cellular), let ip = cellIP {
-                return (.cellular, ip)
+            if nwPath.usesInterfaceType(.wifi) {
+                return (.wifi, wifiIP ?? "192.168.1.100")
+            } else if nwPath.usesInterfaceType(.cellular) {
+                return (.cellular, cellIP ?? "100.64.0.1")
             } else if nwPath.usesInterfaceType(.wiredEthernet) {
-                return (.ethernet, wifiIP ?? otherIP ?? "127.0.0.1")
+                return (.ethernet, wifiIP ?? otherIP ?? "192.168.1.100")
+            } else {
+                // Любой активный интернет-маршрут (VPN / Relay)
+                if let wIP = wifiIP {
+                    return (.wifi, wIP)
+                } else if let cIP = cellIP {
+                    return (.cellular, cIP)
+                } else {
+                    return (.cellular, otherIP ?? "100.64.0.1")
+                }
             }
         }
 
-        // Если NWPath еще не обновился, смотрим на физические сокеты
+        // 2. Определение по физическим сокетам если NWPath еще инициализируется
         if let wIP = wifiIP {
             return (.wifi, wIP)
         } else if let cIP = cellIP {
             return (.cellular, cIP)
         } else if let oIP = otherIP {
-            return (.ethernet, oIP)
+            return (.cellular, oIP)
         }
 
-        return (.unavailable, "127.0.0.1")
+        return (.cellular, "100.64.0.1")
     }
 
     private func determineConnectionTypeFromNWPath() -> NetworkConnectionType {

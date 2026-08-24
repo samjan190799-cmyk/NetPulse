@@ -31,18 +31,28 @@ public enum LANDeviceType: String, CaseIterable, Codable, Sendable {
         case .unknown: return "server.rack"
         }
     }
+
+    public var systemIcon: String { icon }
 }
 
 /// Открытый сетевой порт устройства
 public struct LANOpenPort: Identifiable, Codable, Sendable, Hashable {
     public var id: UInt16 { portNumber }
     public let portNumber: UInt16
+    public var port: UInt16 { portNumber }
     public let serviceName: String
+    public let serviceDescription: String
     public let isCriticalSecurityRisk: Bool
 
-    public init(portNumber: UInt16, serviceName: String, isCriticalSecurityRisk: Bool = false) {
+    public init(
+        portNumber: UInt16,
+        serviceName: String,
+        serviceDescription: String = "",
+        isCriticalSecurityRisk: Bool = false
+    ) {
         self.portNumber = portNumber
         self.serviceName = serviceName
+        self.serviceDescription = serviceDescription.isEmpty ? serviceName : serviceDescription
         self.isCriticalSecurityRisk = isCriticalSecurityRisk
     }
 }
@@ -56,6 +66,7 @@ public struct LANDevice: Identifiable, Codable, Sendable {
     public var vendorName: String?
     public var deviceType: LANDeviceType
     public var latencyMs: Double
+    public var responseTimeMs: Double? { latencyMs > 0 ? latencyMs : nil }
     public var openPorts: [LANOpenPort]
     public var isGateway: Bool
     public var isCurrentDevice: Bool
@@ -71,10 +82,7 @@ public struct LANDevice: Identifiable, Codable, Sendable {
         if isCurrentDevice {
             return "Этот iPhone"
         }
-        if let vendor = vendorName, !vendor.isEmpty {
-            return "\(vendor) (\(deviceType.rawValue))"
-        }
-        return "Устройство (\(ipAddress))"
+        return "Узел \(ipAddress)"
     }
 
     public init(
@@ -83,7 +91,7 @@ public struct LANDevice: Identifiable, Codable, Sendable {
         hostname: String? = nil,
         vendorName: String? = nil,
         deviceType: LANDeviceType = .unknown,
-        latencyMs: Double = 1.0,
+        latencyMs: Double = 0.0,
         openPorts: [LANOpenPort] = [],
         isGateway: Bool = false,
         isCurrentDevice: Bool = false,

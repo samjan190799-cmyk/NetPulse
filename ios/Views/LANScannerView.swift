@@ -329,10 +329,13 @@ public struct LANScannerView: View {
             let found = await LANScannerEngine.shared.scanSubnet(
                 localIP: viewModel.systemInfo.localIP,
                 gatewayIP: viewModel.systemInfo.gatewayIP
-            ) { progress, count in
+            ) { current, total, newDevice in
                 Task { @MainActor in
-                    self.scanProgress = progress
-                    self.scannedHostCount = count
+                    self.scannedHostCount = current
+                    self.scanProgress = total > 0 ? Double(current) / Double(total) : 0.0
+                    if let dev = newDevice, !self.devices.contains(where: { $0.ipAddress == dev.ipAddress }) {
+                        self.devices.append(dev)
+                    }
                 }
             }
 

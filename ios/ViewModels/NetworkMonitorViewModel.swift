@@ -410,12 +410,39 @@ public final class NetworkMonitorViewModel {
                     }
                 }
 
-                // Передача реальной скорости в Dynamic Island без замираний
+                // Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
                 if self.liveActivityEnabled {
-                    let dlText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveDownloadSpeed) : snapshot.formattedDownloadSpeed
-                    let ulText = self.isSpeedtestRunning ? String(format: "%.1f Мбит/с", self.liveUploadSpeed) : snapshot.formattedUploadSpeed
-                    let compactDl = self.isSpeedtestRunning ? String(format: "%.0fM", self.liveDownloadSpeed) : snapshot.compactDownload
-                    let compactUl = self.isSpeedtestRunning ? String(format: "%.0fM", self.liveUploadSpeed) : snapshot.compactUpload
+                    let pingText = self.currentAveragePing != nil ? String(format: "%.0f ms", self.currentAveragePing!) : "Live"
+                    
+                    let dlText: String
+                    let ulText: String
+                    let compactDl: String
+                    let compactUl: String
+
+                    if self.isSpeedtestRunning {
+                        dlText = String(format: "%.1f Мбит/с", self.liveDownloadSpeed)
+                        ulText = String(format: "%.1f Мбит/с", self.liveUploadSpeed)
+                        compactDl = String(format: "%.0fM", self.liveDownloadSpeed)
+                        compactUl = String(format: "%.0fM", self.liveUploadSpeed)
+                    } else if snapshot.downloadBytesPerSec >= 1024 || snapshot.uploadBytesPerSec >= 1024 {
+                        // Идет активная передача данных
+                        dlText = snapshot.formattedDownloadSpeed
+                        ulText = snapshot.formattedUploadSpeed
+                        compactDl = snapshot.compactDownload
+                        compactUl = snapshot.compactUpload
+                    } else if let lastTest = self.lastSpeedtestResult, lastTest.downloadMbps > 0.1 {
+                        // В режиме ожидания показываем измеренную скорость канала и живой пинг сети
+                        dlText = String(format: "%.1f Мбит/с", lastTest.downloadMbps)
+                        ulText = pingText
+                        compactDl = String(format: "%.0fM", lastTest.downloadMbps)
+                        compactUl = pingText
+                    } else {
+                        // Первичный режим ожидания (до первого замера)
+                        dlText = self.systemInfo.connectionType.rawValue
+                        ulText = pingText
+                        compactDl = self.systemInfo.connectionType == .wifi ? "Wi-Fi" : "5G/LTE"
+                        compactUl = pingText
+                    }
 
                     ActivityManager.shared.updateActivity(
                         downloadSpeedText: dlText,

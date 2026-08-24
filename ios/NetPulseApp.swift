@@ -31,7 +31,7 @@ struct NetPulseApp: App {
     }
 
     private func restoreLiveActivityIfNeeded() {
-        let isLiveEnabled = UserDefaults.standard.object(forKey: "netpulse_live_activity_enabled") as? Bool ?? true
+        let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
         if isLiveEnabled {
             Task { @MainActor in
                 let info = await NetworkDiagnostics().collectSystemInfo()
@@ -45,6 +45,10 @@ struct NetPulseApp: App {
                     connectionType: info.connectionType.rawValue,
                     ispName: info.ispName ?? "Интернет"
                 )
+            }
+        } else {
+            Task { @MainActor in
+                ActivityManager.shared.stopActivity()
             }
         }
     }

@@ -754,32 +754,7 @@ public final class NetworkMonitorViewModel {
         }
     }
 
-    // MARK: - Управление виджетами
-
-    public func toggleLiveActivity(enabled: Bool) {
-        liveActivityEnabled = enabled
-        if enabled {
-            BackgroundTelemetryKeeper.shared.startKeepAlive()
-            let snapshot = bandwidthEngine.sampleBandwidth(activeConnectionType: systemInfo.connectionType)
-            ActivityManager.shared.startActivity(
-                downloadSpeedText: snapshot.formattedDownloadSpeed,
-                uploadSpeedText: snapshot.formattedUploadSpeed,
-                compactDownloadText: snapshot.compactDownload,
-                compactUploadText: snapshot.compactUpload,
-                isTesting: isSpeedtestRunning,
-                connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Интернет"
-            )
-            if !isMonitoringActive {
-                startMonitoring()
-            }
-        } else {
-            ActivityManager.shared.stopActivity()
-            if !isMonitoringActive && !backgroundMonitoringEnabled {
-                BackgroundTelemetryKeeper.shared.stopKeepAlive()
-            }
-        }
-    }
+    // MARK: - Метрики и сводки
 
     public var currentAveragePing: Double? {
         let isCellular = systemInfo.connectionType == .cellular

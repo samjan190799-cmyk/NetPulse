@@ -102,7 +102,7 @@ public struct ContentView: View {
 
 /// Системный мост UIView для инициализации AVPictureInPictureController
 private struct PiPAnchorRepresentable: UIViewRepresentable {
-    @ObservedObject var viewModel: NetworkMonitorViewModel
+    var viewModel: NetworkMonitorViewModel
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
@@ -126,7 +126,7 @@ private struct PiPAnchorRepresentable: UIViewRepresentable {
 
 /// Выпадающее компактное Picture-in-Picture окно поверх игр и других приложений
 private struct PiPHUDContentView: View {
-    @ObservedObject var viewModel: NetworkMonitorViewModel
+    var viewModel: NetworkMonitorViewModel
 
     var body: some View {
         HStack(spacing: 8) {

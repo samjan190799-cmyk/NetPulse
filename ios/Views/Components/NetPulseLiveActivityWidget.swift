@@ -15,7 +15,7 @@ import ActivityKit
 
 #if canImport(WidgetKit) && canImport(ActivityKit)
 /// Виджет Live Activity и Dynamic Island для отображения реальной скорости загрузки и отдачи в реальном времени.
-/// Стиль: «Obsidian Mono» — монохромные белые/серебристые акценты.
+/// Стиль: «Obsidian Mono» — чисто белые стрелки и монохромные контрастные акценты.
 public struct NetPulseLiveActivityWidget: Widget {
     public init() {}
 
@@ -38,7 +38,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                         }
                         Text(context.state.downloadSpeedText)
                             .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
                     }
                     .padding(.leading, 8)
                 }
@@ -51,11 +51,11 @@ public struct NetPulseLiveActivityWidget: Widget {
                                 .foregroundStyle(.secondary)
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
+                                .foregroundStyle(.white)
                         }
                         Text(context.state.uploadSpeedText)
                             .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
+                            .foregroundStyle(.white)
                     }
                     .padding(.trailing, 8)
                 }
@@ -68,7 +68,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                                 .frame(width: 6, height: 6)
                             Text(context.state.ispName)
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(.white)
                                 .lineLimit(1)
                         }
                         Text(context.state.connectionType)
@@ -95,39 +95,52 @@ public struct NetPulseLiveActivityWidget: Widget {
                         } else {
                             Text("Мониторинг")
                                 .font(.system(size: 11, weight: .regular))
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(.white.opacity(0.8))
                         }
                     }
                     .padding(.horizontal, 8)
                     .padding(.top, 4)
                 }
             } compactLeading: {
-                // Компактный вид (слева от выреза) - РЕАЛЬНАЯ СКОРОСТЬ СКАЧИВАНИЯ
-                HStack(spacing: 2) {
+                // Компактный вид слева (скачивание с белой стрелкой и цифрами)
+                HStack(spacing: 2.5) {
                     Image(systemName: "arrow.down")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 9, weight: .heavy))
                         .foregroundStyle(.white)
-                    Text(context.state.compactDownloadText)
+                    Text(cleanSpeed(context.state.compactDownloadText))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
                         .foregroundStyle(.white)
                 }
             } compactTrailing: {
-                // Компактный вид (справа от выреза) - РЕАЛЬНАЯ СКОРОСТЬ ОТДАЧИ
-                HStack(spacing: 2) {
-                    Text(context.state.compactUploadText)
+                // Компактный вид справа (отдача с белой стрелкой и цифрами)
+                HStack(spacing: 2.5) {
+                    Text(cleanSpeed(context.state.compactUploadText))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(.white)
                 }
             } minimal: {
-                // Минимальный вид
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white)
+                // Минимальный вид (когда в островке активны 2 индикатора одновременно)
+                HStack(spacing: 2) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 8, weight: .heavy))
+                        .foregroundStyle(.white)
+                    Text(cleanSpeed(context.state.compactDownloadText))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                }
             }
         }
+    }
+
+    private func cleanSpeed(_ text: String) -> String {
+        let s = text.replacingOccurrences(of: "↓", with: "").replacingOccurrences(of: "↑", with: "").trimmingCharacters(in: .whitespaces)
+        return s.isEmpty ? "0K" : s
     }
 }
 
@@ -147,22 +160,22 @@ private struct LockScreenLiveActivityView: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 12) {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.white)
                         Text(state.downloadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
                     }
 
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
+                            .foregroundStyle(.white)
                         Text(state.uploadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(red: 0.58, green: 0.64, blue: 0.72))
+                            .foregroundStyle(.white)
                     }
                 }
             }

@@ -30,14 +30,14 @@ public struct NetPulseLiveActivityWidget: Widget {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.down")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.white)
                             Text("СКАЧИВАНИЕ")
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(.secondary)
                         }
                         Text(context.state.downloadSpeedText)
                             .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
                     }
                     .padding(.leading, 8)
                 }
@@ -50,11 +50,11 @@ public struct NetPulseLiveActivityWidget: Widget {
                                 .foregroundStyle(.secondary)
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(.white)
                         }
                         Text(context.state.uploadSpeedText)
                             .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(.white)
                     }
                     .padding(.trailing, 8)
                 }
@@ -63,11 +63,11 @@ public struct NetPulseLiveActivityWidget: Widget {
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(Color.green)
+                                .fill(Color.white)
                                 .frame(width: 6, height: 6)
                             Text(context.state.ispName)
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(.white)
                                 .lineLimit(1)
                         }
                         Text(context.state.connectionType)
@@ -81,7 +81,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                         HStack(spacing: 4) {
                             Image(systemName: "waveform.path")
                                 .font(.system(size: 10))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.white)
                             Text("Реальный сетевой трафик")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
@@ -90,43 +90,56 @@ public struct NetPulseLiveActivityWidget: Widget {
                         if context.state.isTesting {
                             Text("Speedtest активен")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.white)
                         } else {
                             Text("Мониторинг")
                                 .font(.system(size: 11, weight: .regular))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.white.opacity(0.8))
                         }
                     }
                     .padding(.horizontal, 8)
                     .padding(.top, 4)
                 }
             } compactLeading: {
-                // Компактный вид (слева от выреза) - РЕАЛЬНАЯ СКОРОСТЬ СКАЧИВАНИЯ
-                HStack(spacing: 2) {
+                // Компактный вид слева (скачивание с белой стрелкой и цифрами)
+                HStack(spacing: 2.5) {
                     Image(systemName: "arrow.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.blue)
-                    Text(context.state.compactDownloadText)
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(.white)
+                    Text(cleanSpeed(context.state.compactDownloadText))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
                         .foregroundStyle(.white)
                 }
             } compactTrailing: {
-                // Компактный вид (справа от выреза) - РЕАЛЬНАЯ СКОРОСТЬ ОТДАЧИ
-                HStack(spacing: 2) {
-                    Text(context.state.compactUploadText)
+                // Компактный вид справа (отдача с белой стрелкой и цифрами)
+                HStack(spacing: 2.5) {
+                    Text(cleanSpeed(context.state.compactUploadText))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.cyan)
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.cyan)
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(.white)
                 }
             } minimal: {
-                // Минимальный вид
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.blue)
+                // Минимальный вид (когда в островке активны 2 индикатора одновременно)
+                HStack(spacing: 2) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 8, weight: .heavy))
+                        .foregroundStyle(.white)
+                    Text(cleanSpeed(context.state.compactDownloadText))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                }
             }
         }
+    }
+
+    private func cleanSpeed(_ text: String) -> String {
+        let s = text.replacingOccurrences(of: "↓", with: "").replacingOccurrences(of: "↑", with: "").trimmingCharacters(in: .whitespaces)
+        return s.isEmpty ? "0K" : s
     }
 }
 
@@ -138,7 +151,7 @@ private struct LockScreenLiveActivityView: View {
         HStack(spacing: 16) {
             Image(systemName: "arrow.up.arrow.down.circle.fill")
                 .font(.system(size: 26))
-                .foregroundStyle(.blue)
+                .foregroundStyle(.white)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("NetPulse Трафик")
@@ -146,22 +159,22 @@ private struct LockScreenLiveActivityView: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 12) {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.down")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.white)
                         Text(state.downloadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
                     }
 
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(.white)
                         Text(state.uploadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(.white)
                     }
                 }
             }
@@ -171,11 +184,11 @@ private struct LockScreenLiveActivityView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(Color.white)
                         .frame(width: 5, height: 5)
                     Text("LIVE")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.white)
                 }
                 Text(state.connectionType)
                     .font(.system(size: 11, weight: .regular))

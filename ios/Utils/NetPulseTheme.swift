@@ -274,12 +274,41 @@ public enum NPTheme {
     }
 }
 
+// MARK: - Интерактивный пружинный стиль кнопок (Apple HIG Spring Physics)
+
+/// Стиль интерактивных кнопок с пружинным масштабированием и тактильным откликом
+public struct NPPressableButtonStyle: ButtonStyle {
+    public let scale: CGFloat
+    public let hapticFeedback: Bool
+
+    public init(scale: CGFloat = 0.96, hapticFeedback: Bool = true) {
+        self.scale = scale
+        self.hapticFeedback = hapticFeedback
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1.0)
+            .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.8), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed && hapticFeedback {
+                    HapticManager.shared.impactLight()
+                }
+            }
+    }
+}
+
 // MARK: - Премиальные модификаторы карточек и поверхностей (2026 Glassmorphism)
 
 @MainActor
 extension View {
-    /// Применяет премиальный стеклянный стиль 2026:
-    /// полупрозрачная база + верхний зеркальный блик (Specular Highlight) + мягкая тень
+    /// Применяет интерактивный пружинный стиль нажатия
+    public func npPressable(scale: CGFloat = 0.96) -> some View {
+        self.buttonStyle(NPPressableButtonStyle(scale: scale))
+    }
+
+    /// Применяет премиальный стеклянный стиль Apple HIG:
+    /// полупрозрачная база + системный ultraThinMaterial + зеркальный блик (Specular Highlight) + мягкая тень
     public func npGlassCard(cornerRadius: CGFloat = 16) -> some View {
         self
             .background(
@@ -324,4 +353,11 @@ extension View {
     public func npAmbientGlow(color: Color = NPTheme.accentPrimary, radius: CGFloat = 12, opacity: Double = 0.15) -> some View {
         self.shadow(color: color.opacity(opacity), radius: radius, x: 0, y: 0)
     }
+
+    /// Гарантирует минимальную зону касания Apple (44x44pt)
+    public func npMinHitTarget() -> some View {
+        self.frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+    }
 }
+

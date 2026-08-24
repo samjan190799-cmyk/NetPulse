@@ -36,6 +36,7 @@ public struct FloatingGameOverlayView: View {
 
                         Text(downloadSpeedText)
                             .font(.system(size: 11, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(NPTheme.accentPrimary)
 
                         if let ping = pingMs {
@@ -45,6 +46,7 @@ public struct FloatingGameOverlayView: View {
 
                             Text(String(format: "%.0fms", ping))
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .monospacedDigit()
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
@@ -79,6 +81,7 @@ public struct FloatingGameOverlayView: View {
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(downloadSpeedText)
                                         .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                        .monospacedDigit()
                                         .foregroundStyle(NPTheme.accentPrimary)
                                     Text("DOWN")
                                         .font(.system(size: 7, weight: .bold))
@@ -99,6 +102,7 @@ public struct FloatingGameOverlayView: View {
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(uploadSpeedText)
                                         .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                        .monospacedDigit()
                                         .foregroundStyle(NPTheme.accentSilver)
                                     Text("UP")
                                         .font(.system(size: 7, weight: .bold))
@@ -115,6 +119,7 @@ public struct FloatingGameOverlayView: View {
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(pingMs != nil ? String(format: "%.0f ms", pingMs!) : "—")
                                         .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                        .monospacedDigit()
                                         .foregroundStyle(pingColor)
                                     Text("PING")
                                         .font(.system(size: 7, weight: .bold))

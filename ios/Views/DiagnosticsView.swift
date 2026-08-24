@@ -29,10 +29,13 @@ public struct DiagnosticsView: View {
                             isMonitoring: viewModel.isMonitoringActive
                         )
 
-                        // 2. График задержки (Swift Charts)
+                        // 2. Блок быстрого пинга произвольного хоста / IP
+                        quickPingSection
+
+                        // 3. График задержки (Swift Charts)
                         LatencyChartView(hostMetrics: viewModel.hostMetrics)
 
-                        // 3. Секция целевых узлов (DNS / Шлюз)
+                        // 4. Секция целевых узлов (DNS / Шлюз)
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text("ЦЕЛЕВЫЕ УЗЛЫ МОНИТОРИНГА")
@@ -140,6 +143,64 @@ public struct DiagnosticsView: View {
         }
     }
 
+    // MARK: - Быстрый пинг любого узла (Apple HIG 2026)
+
+    @State private var quickHostInput: String = ""
+
+    private var quickPingSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(NPTheme.accentPrimary)
+
+                TextField("Быстрый пинг (например: google.com, 1.1.1.1)", text: $quickHostInput)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(NPTheme.textPrimary)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                if !quickHostInput.isEmpty {
+                    Button {
+                        quickHostInput = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(NPTheme.textTertiary)
+                    }
+                    .npMinHitTarget()
+                }
+
+                Button {
+                    let cleaned = quickHostInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !cleaned.isEmpty else { return }
+                    HapticManager.shared.impactMedium()
+                    if !viewModel.targets.contains(where: { $0.address.lowercased() == cleaned.lowercased() }) {
+                        let newTarget = HostTarget(name: cleaned, address: cleaned, tcpPort: 443)
+                        viewModel.targets.append(newTarget)
+                    }
+                    viewModel.startTraceroute(for: cleaned)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("Пинг")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(quickHostInput.isEmpty ? NPTheme.cardBackgroundTertiary : NPTheme.accentPrimary)
+                    .foregroundStyle(quickHostInput.isEmpty ? NPTheme.textTertiary : NPTheme.backgroundDeep)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(NPPressableButtonStyle(scale: 0.94))
+                .disabled(quickHostInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(12)
+            .npGlassCard(cornerRadius: 14)
+        }
+    }
+
     private func prepareJSONExport() {
         Task {
             if let url = try? await viewModel.getExportJSONURL() {
@@ -170,3 +231,4 @@ private struct ShareSheet: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+

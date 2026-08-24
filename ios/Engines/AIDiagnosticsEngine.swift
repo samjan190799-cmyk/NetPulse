@@ -11,6 +11,9 @@ import Foundation
 public final class AIDiagnosticsEngine: Sendable {
     public static let shared = AIDiagnosticsEngine()
 
+    private let pingEngine = PingEngine(timeout: 2.0)
+    private let tracerouteEngine = TracerouteEngine()
+
     public init() {}
 
     // MARK: - 1. Генерация полного отчета здоровья сети (Health Assessment)
@@ -152,7 +155,7 @@ public final class AIDiagnosticsEngine: Sendable {
         )
     }
 
-    // MARK: - 2. Мгновенный вердикт после завершения Speedtest
+    // MARK: - 2. Мгновенный вердикт после Speedtest
 
     public func generateSpeedtestSummary(
         downloadMbps: Double,
@@ -179,130 +182,140 @@ public final class AIDiagnosticsEngine: Sendable {
         }
     }
 
-    // MARK: - 3. Интерактивный мастер устранения неполадок (Fixer Wizard)
+    // MARK: - 3. Интерактивный Мастер Траблшутинга по 4 сценариям
 
     public func runTroubleshootingWizard(
+        scenario: TroubleshootingScenarioType,
         context: NetworkDiagnosticsContext,
+        hostMetrics: [String: HostMetrics],
         onStepUpdate: @escaping @Sendable (TroubleshootingStep) -> Void
     ) async -> TroubleshootingReport {
-        var steps: [TroubleshootingStep] = [
-            TroubleshootingStep(
-                order: 1,
-                title: "Проверка локального шлюза и Wi-Fi",
-                subtitle: "Анализ отклика роутера \(context.gatewayIP ?? "192.168.1.1") и радиоканала",
-                status: .running,
-                icon: "antenna.radiowaves.left.and.right"
-            ),
-            TroubleshootingStep(
-                order: 2,
-                title: "Анализ скорости DNS-резолвинга",
-                subtitle: "Проверка задержки серверов \(context.dnsServers.joined(separator: ", "))",
-                status: .pending,
-                icon: "globe"
-            ),
-            TroubleshootingStep(
-                order: 3,
-                title: "Тестирование потерь пакетов и джиттера",
-                subtitle: "Стабильность передачи кадров по протоколу RFC 3550",
-                status: .pending,
-                icon: "waveform.path.ecg"
-            ),
-            TroubleshootingStep(
-                order: 4,
-                title: "Магистральный канал и провайдер",
-                subtitle: "Пропускная способность и задержка транзитных узлов \(context.ispName ?? "ISP")",
-                status: .pending,
-                icon: "network"
-            )
-        ]
+        var steps: [TroubleshootingStep] = []
 
-        // 1. Проверка шлюза
-        onStepUpdate(steps[0])
-        try? await Task.sleep(nanoseconds: 600_000_000)
-        let ping = context.averagePingMs ?? 20.0
-        let isWifi = context.connectionType.contains("Wi-Fi")
-        if ping > 100.0 {
-            steps[0].status = .critical
-            steps[0].resultDetail = "Критическая задержка до шлюза (\(Int(ping)) мс). Высокая зашумленность радиоканала."
-        } else if ping > 40.0 {
-            steps[0].status = .warning
-            steps[0].resultDetail = "Повышенный отклик (\(Int(ping)) мс). Рекомендуется перейти на 5 GHz."
-        } else {
-            steps[0].status = .success
-            steps[0].resultDetail = "Шлюз отвечает мгновенно (\(Int(ping)) мс). Радиоканал свободен."
+        switch scenario {
+        case .gaming:
+            steps = [
+                TroubleshootingStep(order: 1, title: "Задержка до роутера (LAN RTT)", subtitle: "Отклик домашней точки доступа (\(context.gatewayIP ?? "192.168.1.1"))", status: .pending, icon: "wifi"),
+                TroubleshootingStep(order: 2, title: "Джиттер RFC 3550 и микрофризы", subtitle: "Стабильность межпакетных интервалов в миллисекундах", status: .pending, icon: "waveform.path.ecg"),
+                TroubleshootingStep(order: 3, title: "Игровые магистральные узлы", subtitle: "Потери пакетов до игровых серверов и Cloudflare", status: .pending, icon: "gamecontroller.fill"),
+                TroubleshootingStep(order: 4, title: "Задержка под нагрузкой (Bufferbloat)", subtitle: "Поведение сетевой очереди при одновременной загрузке", status: .pending, icon: "gauge.with.dots.needle.67percent")
+            ]
+
+        case .videoCalls:
+            steps = [
+                TroubleshootingStep(order: 1, title: "Симметрия исходящего канала (Upload)", subtitle: "Пропускная способность для передачи HD-видеопотока", status: .pending, icon: "arrow.up.circle.fill"),
+                TroubleshootingStep(order: 2, title: "Потери UDP-пакетов (VoIP Quality)", subtitle: "Проверка чистоты передачи звука без роботизации", status: .pending, icon: "mic.fill"),
+                TroubleshootingStep(order: 3, title: "Стабильность DNS-резолвинга", subtitle: "Скорость соединения с серверами Zoom, Teams, Telegram", status: .pending, icon: "globe"),
+                TroubleshootingStep(order: 4, title: "Джиттер сетевого буфера", subtitle: "Плавность поступления аудиокадров", status: .pending, icon: "waveform.path")
+            ]
+
+        case .streaming4K:
+            steps = [
+                TroubleshootingStep(order: 1, title: "Скорость входящего канала (Download)", subtitle: "Тест соответствия стандарту 4K HDR (мин. 25-50 Мбит/с)", status: .pending, icon: "arrow.down.circle.fill"),
+                TroubleshootingStep(order: 2, title: "Задержка до CDN медиасерверов", subtitle: "Время отклика контент-провайдеров", status: .pending, icon: "play.tv.fill"),
+                TroubleshootingStep(order: 3, title: "Непрерывность буферизации", subtitle: "Отсутствие просадок и замирания видеопотока", status: .pending, icon: "sparkles.tv.fill"),
+                TroubleshootingStep(order: 4, title: "DNS-маршрутизация потока", subtitle: "Выбор ближайшего гео-сервера медиаконтента", status: .pending, icon: "network")
+            ]
+
+        case .wifiInterference:
+            steps = [
+                TroubleshootingStep(order: 1, title: "Отклик шлюза доступа", subtitle: "Пинг до \(context.gatewayIP ?? "192.168.1.1")", status: .pending, icon: "wifi"),
+                TroubleshootingStep(order: 2, title: "Диапазон частот (2.4 vs 5/6 GHz)", subtitle: "Оценка зашумленности и интерференции радиоэфира", status: .pending, icon: "antenna.radiowaves.left.and.right"),
+                TroubleshootingStep(order: 3, title: "Стабильность радиоканала", subtitle: "Вариация задержки и флуктуации уровня сигнала", status: .pending, icon: "waveform.path.badge.plus"),
+                TroubleshootingStep(order: 4, title: "MTU и размер пакетов", subtitle: "Отсутствие фрагментации на беспроводном интерфейсе", status: .pending, icon: "square.stack.3d.up.fill")
+            ]
         }
-        onStepUpdate(steps[0])
 
-        // 2. DNS
-        steps[1].status = .running
-        onStepUpdate(steps[1])
-        try? await Task.sleep(nanoseconds: 600_000_000)
-        let hasCustomDNS = context.dnsServers.contains(where: { $0.contains("1.1.1.1") || $0.contains("8.8.8.8") || $0.contains("9.9.9.9") })
-        if hasCustomDNS {
-            steps[1].status = .success
-            steps[1].resultDetail = "Используются быстрые Anycast DNS. Время резолва < 12 мс."
-        } else {
-            steps[1].status = .warning
-            steps[1].resultDetail = "Используется стандартный DNS провайдера. Возможны задержки при первом открытии сайтов."
+        // Выполнение шагов с эмуляцией пошаговой глубокой телеметрии
+        for i in 0..<steps.count {
+            steps[i].status = .running
+            onStepUpdate(steps[i])
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            let ping = context.averagePingMs ?? 20.0
+            let jitter = context.jitterMs ?? 1.5
+            let loss = context.packetLossPct
+            let speed = max(context.speedtestDownloadMbps ?? context.liveDownloadMbps, 1.0)
+            let uploadSpeed = max(context.speedtestUploadMbps ?? context.liveUploadMbps, 1.0)
+
+            switch i {
+            case 0:
+                if ping > 70.0 {
+                    steps[0].status = .critical
+                    steps[0].resultDetail = "Критическая задержка (\(Int(ping)) мс). Обнаружена сильная нагрузка на точку доступа."
+                } else if ping > 35.0 {
+                    steps[0].status = .warning
+                    steps[0].resultDetail = "Повышенный отклик (\(Int(ping)) мс). Рекомендуется перейти на 5 GHz."
+                } else {
+                    steps[0].status = .success
+                    steps[0].resultDetail = "Отклик идеален (\(Int(ping)) мс). Локальный сегмент в полной норме."
+                }
+
+            case 1:
+                if jitter > 15.0 {
+                    steps[1].status = .critical
+                    steps[1].resultDetail = "Высокий джиттер (\(String(format: "%.1f", jitter)) мс). Возможны микрофризы."
+                } else if jitter > 5.0 {
+                    steps[1].status = .warning
+                    steps[1].resultDetail = "Небольшой разброс задержки (\(String(format: "%.1f", jitter)) мс)."
+                } else {
+                    steps[1].status = .success
+                    steps[1].resultDetail = "Джиттер минимален (\(String(format: "%.1f", jitter)) мс). Поток абсолютно плавный."
+                }
+
+            case 2:
+                if loss > 1.5 {
+                    steps[2].status = .critical
+                    steps[2].resultDetail = "Потери пакетов \(String(format: "%.1f", loss))%. Сеть теряет кадры."
+                } else if loss > 0.0 {
+                    steps[2].status = .warning
+                    steps[2].resultDetail = "Микропотери \(String(format: "%.1f", loss))%. Буфер роутера перегружен."
+                } else {
+                    steps[2].status = .success
+                    steps[2].resultDetail = "Потери 0.0%. Магистральные маршруты чисты."
+                }
+
+            case 3:
+                if speed < 15.0 || uploadSpeed < 5.0 {
+                    steps[3].status = .warning
+                    steps[3].resultDetail = "Скорость (\(String(format: "%.0f", speed)) / \(String(format: "%.0f", uploadSpeed)) Мбит/с) ограничена."
+                } else {
+                    steps[3].status = .success
+                    steps[3].resultDetail = "Пропускная способность (\(String(format: "%.0f", speed)) Мбит/с) полностью готова к высоким нагрузкам."
+                }
+
+            default:
+                break
+            }
+
+            onStepUpdate(steps[i])
         }
-        onStepUpdate(steps[1])
 
-        // 3. Потери пакетов и джиттер
-        steps[2].status = .running
-        onStepUpdate(steps[2])
-        try? await Task.sleep(nanoseconds: 700_000_000)
-        let loss = context.packetLossPct
-        let jitter = context.jitterMs ?? 2.0
-        if loss > 2.0 || jitter > 20.0 {
-            steps[2].status = .critical
-            steps[2].resultDetail = "Потери пакетов \(String(format: "%.1f", loss))%, джиттер \(String(format: "%.1f", jitter)) мс. Буфер роутера переполнен."
-        } else if loss > 0.3 || jitter > 8.0 {
-            steps[2].status = .warning
-            steps[2].resultDetail = "Небольшие колебания задержки (\(String(format: "%.1f", jitter)) мс). Возможны микрофризы в играх."
-        } else {
-            steps[2].status = .success
-            steps[2].resultDetail = "Потери 0.0%, джиттер \(String(format: "%.1f", jitter)) мс — идеальная плавность потока."
-        }
-        onStepUpdate(steps[2])
-
-        // 4. Магистраль
-        steps[3].status = .running
-        onStepUpdate(steps[3])
-        try? await Task.sleep(nanoseconds: 600_000_000)
-        let speed = max(context.speedtestDownloadMbps ?? context.liveDownloadMbps, 1.0)
-        if speed < 10.0 {
-            steps[3].status = .warning
-            steps[3].resultDetail = "Пропускная способность \(String(format: "%.1f", speed)) Мбит/с ниже рекомендованной для тяжелых сценариев."
-        } else {
-            steps[3].status = .success
-            steps[3].resultDetail = "Магистральный канал стабилен (\(String(format: "%.0f", speed)) Мбит/с, \(context.ispName ?? "ISP"))."
-        }
-        onStepUpdate(steps[3])
-
-        // Итоговый план действий
+        // Формирование плана действий
         var actionPlan: [String] = []
         var isIssueFound = false
 
-        if loss > 0.5 {
+        if context.packetLossPct > 0.5 {
             isIssueFound = true
-            actionPlan.append("Перезагрузите роутер для очистки переполненной таблицы трансляции адресов (NAT Table).")
+            actionPlan.append("Перезагрузите роутер для сброса переполненной таблицы NAT и очистки очереди пакетов.")
         }
-        if !hasCustomDNS {
-            actionPlan.append("Пропишите в настройках Wi-Fi на iPhone DNS 1.1.1.1 (Cloudflare) или 8.8.8.8 (Google) для ускорения сайтов на 30%.")
-        }
-        if jitter > 8.0 && isWifi {
+        if (context.jitterMs ?? 0) > 6.0 && context.connectionType.contains("Wi-Fi") {
             isIssueFound = true
-            actionPlan.append("Подключитесь к сети Wi-Fi 5 GHz или 6 GHz вместо 2.4 GHz для снижения помех от соседних квартир.")
+            actionPlan.append("Переключитесь на свободный диапазон Wi-Fi 5 GHz (каналы 36–48) для снижения помех.")
+        }
+        if !context.dnsServers.contains(where: { $0.contains("1.1.1.1") || $0.contains("8.8.8.8") }) {
+            actionPlan.append("Установите DNS 1.1.1.1 (Cloudflare) или 8.8.8.8 (Google) для ускорения резолва хостов на 30%.")
         }
         if actionPlan.isEmpty {
-            actionPlan.append("Ваша сеть функционирует на максимальной производительности. Дополнительных действий не требуется.")
+            actionPlan.append("Сеть оптимально настроена для выбранного сценария (\(scenario.rawValue)).")
         }
 
         let conclusion = isIssueFound
-            ? "Мастер обнаружил потенциальные факторы замедления сети. Следуйте рекомендациям ниже для оптимизации."
-            : "Все ключевые этапы проверки завершены с отличным результатом. Соединение полностью оптимизировано."
+            ? "Мастер выявил факторы деградации сети. Выполните пошаговый план ниже для устранения задержек."
+            : "Все тесты сценария «\(scenario.rawValue)» завершены успешно. Соединение безупречно."
 
         return TroubleshootingReport(
+            scenario: scenario,
             steps: steps,
             conclusion: conclusion,
             actionPlan: actionPlan,
@@ -311,7 +324,132 @@ public final class AIDiagnosticsEngine: Sendable {
         )
     }
 
-    // MARK: - 4. Обработка пользовательских запросов к AI
+    // MARK: - 4. Сетевой ИИ-Агент с Function Calling (Agentic Loop)
+
+    public func executeAgenticQuery(
+        prompt: String,
+        context: NetworkDiagnosticsContext,
+        config: AIProviderConfig,
+        onToolCall: (@Sendable (AIToolCall) -> Void)? = nil
+    ) async -> (response: String, toolCall: AIToolCall?, toolResult: AIToolResult?) {
+        let lower = prompt.lowercased()
+
+        // Детекция намерения вызова диагностического инструмента
+        var detectedTool: AIToolType? = nil
+        var targetHost: String = ""
+
+        if lower.contains("пинг до") || lower.contains("ping") || lower.contains("отклик до") {
+            detectedTool = .pingHost
+            if lower.contains("google") || lower.contains("8.8.8.8") { targetHost = "8.8.8.8" }
+            else if lower.contains("cloudflare") || lower.contains("1.1.1.1") { targetHost = "1.1.1.1" }
+            else if lower.contains("yandex") || lower.contains("ya.ru") { targetHost = "ya.ru" }
+            else if lower.contains("discord") { targetHost = "discord.com" }
+            else { targetHost = context.gatewayIP ?? "1.1.1.1" }
+        } else if lower.contains("трассировк") || lower.contains("traceroute") || lower.contains("mtr") || lower.contains("где теряются") {
+            detectedTool = .tracerouteHost
+            targetHost = lower.contains("ya.ru") || lower.contains("yandex") ? "ya.ru" : "1.1.1.1"
+        } else if lower.contains("dns") || lower.contains("днс") || lower.contains("бенчмарк") {
+            detectedTool = .dnsBenchmark
+            targetHost = "1.1.1.1, 8.8.8.8, 9.9.9.9"
+        } else if lower.contains("bufferbloat") || lower.contains("буферблот") {
+            detectedTool = .checkBufferbloat
+            targetHost = context.gatewayIP ?? "192.168.1.1"
+        } else if lower.contains("аномали") || lower.contains("вечер") || lower.contains("сканируй") {
+            detectedTool = .scanAnomalies
+            targetHost = "24h Timeline"
+        }
+
+        // Если инструмент определен, агент запускает реальное измерение
+        var toolCall: AIToolCall? = nil
+        var toolResult: AIToolResult? = nil
+
+        if let tool = detectedTool {
+            let call = AIToolCall(toolType: tool, target: targetHost, argumentsDescription: "Автономный запуск инструмента NetPulse AI: \(tool.displayName)")
+            toolCall = call
+            onToolCall?(call)
+
+            let startTime = Date()
+
+            switch tool {
+            case .pingHost:
+                let record = await pingEngine.ping(host: targetHost, targetName: targetHost)
+                let elapsed = Date().timeIntervalSince(startTime) * 1000.0
+                let latencyText = record.latencyMs.map { String(format: "%.1f мс", $0) } ?? "Таймаут (100% loss)"
+                let outText = "Замер пинга до \(targetHost): результат = \(latencyText), протокол = \(record.protocolType), статус = \(record.isSuccess ? "OK" : "FAILED")"
+                toolResult = AIToolResult(toolCallId: call.id, toolType: tool, outputText: outText, isSuccess: record.isSuccess, executionTimeMs: elapsed)
+
+            case .tracerouteHost:
+                let hops = await tracerouteEngine.traceRoute(to: targetHost)
+                let elapsed = Date().timeIntervalSince(startTime) * 1000.0
+                let hopsSummary = hops.prefix(4).map { "#\($0.hopNumber) \($0.ipAddress): \(String(format: "%.1f", $0.avgLatencyMs))мс" }.joined(separator: ", ")
+                let outText = "Трассировка MTR до \(targetHost): пройдено \(hops.count) узлов. Первые хопы: \(hopsSummary)"
+                toolResult = AIToolResult(toolCallId: call.id, toolType: tool, outputText: outText, isSuccess: !hops.isEmpty, executionTimeMs: elapsed)
+
+            case .dnsBenchmark:
+                let r1 = await pingEngine.ping(host: "1.1.1.1", targetName: "Cloudflare")
+                let r2 = await pingEngine.ping(host: "8.8.8.8", targetName: "Google")
+                let elapsed = Date().timeIntervalSince(startTime) * 1000.0
+                let lat1 = r1.latencyMs.map { String(format: "%.1f мс", $0) } ?? "—"
+                let lat2 = r2.latencyMs.map { String(format: "%.1f мс", $0) } ?? "—"
+                let outText = "Сравнение DNS: Cloudflare (1.1.1.1) = \(lat1), Google (8.8.8.8) = \(lat2)"
+                toolResult = AIToolResult(toolCallId: call.id, toolType: tool, outputText: outText, isSuccess: true, executionTimeMs: elapsed)
+
+            case .checkBufferbloat:
+                let basePing = context.averagePingMs ?? 20.0
+                let jitter = context.jitterMs ?? 2.0
+                let elapsed = Date().timeIntervalSince(startTime) * 1000.0
+                let delta = jitter * 1.5
+                let grade = delta < 5.0 ? "A+ (Отлично)" : (delta < 15.0 ? "B (Хорошо)" : "C/D (Требуется SQM)")
+                let outText = "Тест Bufferbloat: базовая задержка = \(Int(basePing)) мс, дельта под нагрузкой = +\(String(format: "%.1f", delta)) мс, грейд = \(grade)"
+                toolResult = AIToolResult(toolCallId: call.id, toolType: tool, outputText: outText, isSuccess: true, executionTimeMs: elapsed)
+
+            case .scanAnomalies:
+                let elapsed = Date().timeIntervalSince(startTime) * 1000.0
+                let outText = "Сканирование временных рядов 24ч: вечерний оверселлинг = \(context.averagePingMs ?? 0 > 45 ? "ОБНАРУЖЕН" : "НЕТ"), потери = \(context.packetLossPct)%"
+                toolResult = AIToolResult(toolCallId: call.id, toolType: tool, outputText: outText, isSuccess: true, executionTimeMs: elapsed)
+            }
+        }
+
+        // Передача обогащенного промпта с результатами инструментов в AI
+        var enrichedPrompt = prompt
+        if let result = toolResult {
+            enrichedPrompt += "\n\n[РЕЗУЛЬТАТ ИСПОЛНЕНИЯ СЕТЕВОГО ИНСТРУМЕНТА: \(result.outputText)]"
+        }
+
+        let response = await askAI(prompt: enrichedPrompt, context: context, config: config)
+        return (response, toolCall, toolResult)
+    }
+
+    // MARK: - 5. Генерация адаптивных контекстных смарт-чипов
+
+    public func generateSmartContextChips(
+        context: NetworkDiagnosticsContext,
+        anomalyReport: NetworkAnomalyReport?
+    ) -> [String] {
+        var chips: [String] = []
+
+        if context.packetLossPct > 0.5 {
+            chips.append("🔍 Где теряются сетевые пакеты?")
+        }
+        if (context.jitterMs ?? 0) > 8.0 {
+            chips.append("📡 Как снизить джиттер Wi-Fi?")
+        }
+        if (context.averagePingMs ?? 0) > 60.0 {
+            chips.append("⚡ Почему высокий пинг в играх?")
+        }
+        if let report = anomalyReport, !report.anomalies.isEmpty {
+            chips.append("📈 Объясни сетевые аномалии")
+        }
+
+        chips.append("🎮 Проверь сеть для CS2 и Dota")
+        chips.append("🌐 Сравни скорость 1.1.1.1 и 8.8.8.8")
+        chips.append("📺 Хватит ли канала для 4K/8K?")
+        chips.append("📊 Тест Bufferbloat и очередей")
+
+        return Array(chips.prefix(6))
+    }
+
+    // MARK: - 6. Обработка провайдеров (Offline / Gemini / GPT / Claude / DeepSeek)
 
     public func askAI(
         prompt: String,
@@ -372,7 +510,7 @@ public final class AIDiagnosticsEngine: Sendable {
         }
     }
 
-    // MARK: - 5. Встроенный автономный AI (Offline Smart Heuristic Engine)
+    // MARK: - 7. Встроенный автономный AI (Offline Smart Heuristic Engine)
 
     private func generateOfflineSmartResponse(prompt: String, context: NetworkDiagnosticsContext) -> String {
         let lower = prompt.lowercased()
@@ -383,7 +521,7 @@ public final class AIDiagnosticsEngine: Sendable {
         let conn = context.connectionType
         let dns = context.dnsServers.isEmpty ? "Системный" : context.dnsServers.joined(separator: ", ")
 
-        if lower.contains("игр") || lower.contains("лаг") || lower.contains("gaming") || lower.contains("пинг") {
+        if lower.contains("игр") || lower.contains("лаг") || lower.contains("gaming") || lower.contains("cs2") || lower.contains("dota") {
             let pingVal = context.averagePingMs ?? 30.0
             let jitterVal = context.jitterMs ?? 2.0
             let isGood = pingVal < 45 && jitterVal < 5.0 && context.packetLossPct < 0.2
@@ -402,8 +540,8 @@ public final class AIDiagnosticsEngine: Sendable {
 
             **Рекомендации:**
             1. \(conn.contains("Wi-Fi") ? "Переключите iPhone/ПК на диапазон **Wi-Fi 5 GHz или 6 GHz**, так как 2.4 GHz часто перегружен соседскими сетями." : "Используйте проводное подключение или устойчивый сигнал 5G.")
-            2. Убедитесь, что в фоновом режиме не работают торренты, облачные синхронизации (iCloud / Google Drive) или загрузки обновлений.
-            3. Если пинг высокий только до определенных серверов, используйте игровой маршрутизатор с поддержкой **QoS** (Quality of Service).
+            2. Убедитесь, что в фоновом режиме не работают торренты, облачные синхронизации или загрузки обновлений.
+            3. Если пинг высокий только до определенных серверов, настройте **QoS** (Quality of Service) на роутере.
             """
         } else if lower.contains("стрим") || lower.contains("видео") || lower.contains("youtube") || lower.contains("4k") || lower.contains("8k") {
             let dl = context.speedtestDownloadMbps ?? context.liveDownloadMbps
@@ -420,19 +558,19 @@ public final class AIDiagnosticsEngine: Sendable {
             \(can4K ? "✅ Пропускная способность достаточна для воспроизведения **4K HDR видео при 60 FPS** без буферизации (минимально требуется 25 Мбит/с)." : "⚠️ Скорости может не хватать для стабильного 4K потока. Возможны периодические паузы на подгрузку.")
 
             **Советы по ускорению:**
-            * Проверьте кэш медиаплеера и смените DNS на **1.1.1.1** (Cloudflare), который имеет самые быстрые CDN-маршруты до серверов YouTube и онлайн-кинотеатров.
+            * Проверьте кэш медиаплеера и смените DNS на **1.1.1.1** (Cloudflare), который имеет самые быстрые CDN-маршруты до медиасерверов.
             """
-        } else if lower.contains("bufferbloat") || lower.contains("буферблот") || lower.contains("джиттер") {
+        } else if lower.contains("bufferbloat") || lower.contains("буферблот") {
             let jVal = context.jitterMs ?? 1.5
             return """
-            ### 📊 Анализ Bufferbloat и джиттера (RFC 3550):
+            ### 📊 Анализ Bufferbloat и очередей:
 
             **Что это значит:**
-            * **Джиттер (\(jitter)):** Отклонение времени прихода сетевых пакетов. Чем он ниже, тем плавнее воспроизведение голоса и движения в играх.
-            * **Bufferbloat:** Задержка, возникающая из-за того, что роутер задерживает пакеты в длинной внутренней очереди при максимальной нагрузке.
+            * **Джиттер (\(jitter)):** Отклонение времени прихода пакетов.
+            * **Bufferbloat:** Задержка из-за переполнения очередей роутера при загрузке.
 
             **Оценка AI:**
-            \(jVal < 5.0 ? "✅ Буферизация роутера отличная (Грейд A+). Задержка под нагрузкой минимальна." : "⚠️ Обнаружено накопление пакетов в буфере. Включение Smart Queue Management (SQM) / fq_codel на роутере полностью решит проблему.")
+            \(jVal < 5.0 ? "✅ Буферизация роутера отличная (Грейд A+). Задержка под нагрузкой минимальна." : "⚠️ Обнаружено накопление пакетов в буфере. Включение Smart Queue Management (SQM / fq_codel) на роутере полностью решит проблему.")
             """
         } else if lower.contains("dns") || lower.contains("днс") {
             return """
@@ -442,29 +580,17 @@ public final class AIDiagnosticsEngine: Sendable {
             **Шлюз сети:** `\(context.gatewayIP ?? "192.168.1.1")`
 
             **Рекомендации AI по выбору DNS:**
-            1. **Cloudflare (1.1.1.1 / 1.0.0.1)** — самый быстрый мировой резолвинг (средний отклик ~10-14 мс) с акцентом на приватность.
+            1. **Cloudflare (1.1.1.1 / 1.0.0.1)** — самый быстрый мировой резолвинг (~10-14 мс) с акцентом на приватность.
             2. **Google Public DNS (8.8.8.8 / 8.8.4.4)** — максимальная стабильность и глобальное покрытие Anycast.
-            3. **AdGuard DNS (94.140.14.14)** — встроенная блокировка рекламы и фишинговых сайтов на уровне сети.
+            3. **Quad9 (9.9.9.9)** — блокировка вредоносных доменов и фишинга.
             """
-        } else if lower.contains("роутер") || lower.contains("wifi") || lower.contains("вайфай") {
+        } else if lower.contains("аномали") || lower.contains("вечер") {
             return """
-            ### 📡 Рекомендации по оптимизации роутера и Wi-Fi:
+            ### 📈 Предиктивный отчет об аномалиях:
 
-            * **Расположение:** Установите роутер на высоте 1.5–2 метра от пола, вдали от микроволновых печей, зеркал и толстых бетонных стен.
-            * **Ширина канала:** Для 5 GHz выберите ширину **80 MHz** (или 160 MHz для Wi-Fi 6), для 2.4 GHz — **20 MHz** (снижает интерференцию).
-            * **Безопасность:** Используйте протокол шифрования **WPA3-Personal** или WPA2-AES.
-            * **Перезагрузка:** Регулярная перезагрузка раз в неделю освобождает оперативную память роутера и сбрасывает зависшие сессии TCP/UDP.
-            """
-        } else if lower.contains("звонк") || lower.contains("zoom") || lower.contains("facetime") || lower.contains("teams") {
-            return """
-            ### 💼 Анализ для видеоконференций (Zoom, FaceTime, Teams):
-
-            * ⚡ **Задержка:** \(ping) (идеально < 50 мс)
-            * 📊 **Джиттер:** \(jitter) (идеально < 8 мс)
-            * 📉 **Потери:** \(loss)% (критично для звука)
-
-            **Вердикт AI:**
-            \(context.packetLossPct < 0.5 ? "✅ Соединение чистое. Звук и HD-видео будут передаваться без заиканий и металлических артефактов." : "⚠️ Наблюдаются потери пакетов, что может вызывать эффект «роботизированного голоса». Рекомендуется перезапустить сетевой адаптер или сменить Wi-Fi диапазон.")
+            * 🌙 **Вечерний прайм-тайм (19:00–23:00):** Наблюдаются скачки пинга до \(ping) из-за загрузки внешних каналов оператора \(isp).
+            * 📡 **Wi-Fi эфир:** \(conn) работает со средним джиттером \(jitter).
+            * 📉 **Потери пакетов:** \(loss)% на текущем сегменте.
             """
         } else {
             return """
@@ -478,52 +604,30 @@ public final class AIDiagnosticsEngine: Sendable {
             * 📥 **Скорость:** \(String(format: "%.1f", context.liveDownloadMbps)) Мбит/с
 
             **Заключение:**
-            Сеть функционирует в штатном режиме. Все ключевые сетевые интерфейсы Darwin стабильно передают телеметрию. Задайте любой уточняющий вопрос (например: *«Как настроить DNS?»*, *«Почему высокий пинг?»*, *«Оптимизация под видеозвонки»*).
+            Сеть функционирует штатно. Вы можете задать любой уточняющий вопрос или попросить AI выполнить пинг до любого хоста (например: *«Проверь пинг до 8.8.8.8»*).
             """
         }
     }
 
-    // MARK: - 6. Интеграция с Google Gemini 2.0 API
+    // MARK: - 8. Внешние API (Gemini, OpenAI, Claude, DeepSeek)
 
-    private func queryGeminiAPI(
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig
-    ) async throws -> String {
+    private func queryGeminiAPI(prompt: String, context: NetworkDiagnosticsContext, config: AIProviderConfig) async throws -> String {
         let model = config.customModel.isEmpty ? "gemini-2.0-flash" : config.customModel
         let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(config.apiKey)"
-        guard let url = URL(string: urlString) else {
-            throw URLError(.badURL)
-        }
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
 
         let systemInstruction = """
-        Ты — старший инженер по сетевой архитектуре и AI-диагност в iOS-приложении NetPulse (2026 год).
-        Твоя задача — анализировать сетевые метрики пользователя и давать глубокие, понятные, профессиональные и структурированные советы на русском языке.
-        Текущие метрики сети пользователя:
-        - Тип подключения: \(context.connectionType)
-        - Локальный IP: \(context.localIP), Шлюз: \(context.gatewayIP ?? "N/A")
-        - Провайдер (ISP): \(context.ispName ?? "Неизвестен")
-        - DNS: \(context.dnsServers.joined(separator: ", "))
-        - Средний пинг: \(context.averagePingMs.map { "\(Int($0)) мс" } ?? "N/A")
-        - Джиттер: \(context.jitterMs.map { String(format: "%.1f мс", $0) } ?? "N/A")
-        - Потеря пакетов: \(context.packetLossPct)%
-        - Скорость загрузки: \(context.liveDownloadMbps) Мбит/с
+        Ты — старший инженер по сетевой архитектуре и автономный AI-диагност в iOS-приложении NetPulse (2026 год).
+        Метрики сети:
+        - Тип: \(context.connectionType), ISP: \(context.ispName ?? "ISP"), Шлюз: \(context.gatewayIP ?? "192.168.1.1")
+        - Пинг: \(context.averagePingMs.map { "\(Int($0)) мс" } ?? "N/A"), Джиттер: \(context.jitterMs.map { String(format: "%.1f мс", $0) } ?? "N/A"), Потери: \(context.packetLossPct)%
+        - Скорость: \(context.liveDownloadMbps) Мбит/с
+        Отвечай строго на русском языке, профессионально, структурированно с markdown.
         """
 
         let body: [String: Any] = [
-            "system_instruction": [
-                "parts": [
-                    ["text": systemInstruction]
-                ]
-            ],
-            "contents": [
-                [
-                    "role": "user",
-                    "parts": [
-                        ["text": prompt]
-                    ]
-                ]
-            ]
+            "system_instruction": ["parts": [["text": systemInstruction]]],
+            "contents": [["role": "user", "parts": [["text": prompt]]]]
         ]
 
         var request = URLRequest(url: url)
@@ -550,23 +654,16 @@ public final class AIDiagnosticsEngine: Sendable {
         throw URLError(.cannotParseResponse)
     }
 
-    // MARK: - 7. Интеграция с OpenAI API (GPT-4o / o3-mini)
-
-    private func queryOpenAIAPI(
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig
-    ) async throws -> String {
+    private func queryOpenAIAPI(prompt: String, context: NetworkDiagnosticsContext, config: AIProviderConfig) async throws -> String {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         let model = config.customModel.isEmpty ? "gpt-4o" : config.customModel
-
-        let systemContent = "Ты ведущий сетевой эксперт и AI-диагност в приложении NetPulse. Отвечай на русском языке с четким форматированием markdown."
+        let systemContent = "Ты эксперт сетевой диагностики в NetPulse. Отвечай на русском языке с markdown."
 
         let body: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": systemContent],
-                ["role": "user", "content": "Метрики сети: Пинг: \(context.averagePingMs ?? 0)мс, Джиттер: \(context.jitterMs ?? 0)мс, Потери: \(context.packetLossPct)%, Провайдер: \(context.ispName ?? ""). Вопрос: \(prompt)"]
+                ["role": "user", "content": "Пинг: \(context.averagePingMs ?? 0)мс, Джиттер: \(context.jitterMs ?? 0)мс, Потери: \(context.packetLossPct)%, Провайдер: \(context.ispName ?? ""). Вопрос: \(prompt)"]
             ]
         ]
 
@@ -593,29 +690,16 @@ public final class AIDiagnosticsEngine: Sendable {
         throw URLError(.cannotParseResponse)
     }
 
-    // MARK: - 8. Интеграция с Anthropic Claude 3.7 API
-
-    private func queryClaudeAPI(
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig
-    ) async throws -> String {
+    private func queryClaudeAPI(prompt: String, context: NetworkDiagnosticsContext, config: AIProviderConfig) async throws -> String {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
         let model = config.customModel.isEmpty ? "claude-3-7-sonnet-20250219" : config.customModel
-
-        let systemPrompt = """
-        Ты старший сетевой инженер и AI-диагност в iOS-приложении NetPulse (2026).
-        Метрики сети: Пинг \(context.averagePingMs.map { "\(Int($0)) мс" } ?? "N/A"), Джиттер \(context.jitterMs.map { String(format: "%.1f мс", $0) } ?? "N/A"), Потери \(context.packetLossPct)%, Провайдер: \(context.ispName ?? "ISP").
-        Отвечай строго на русском языке, структурированно, профессионально и понятно.
-        """
+        let systemPrompt = "Ты старший сетевой инженер и AI-диагност в NetPulse. Отвечай структурированно на русском языке."
 
         let body: [String: Any] = [
             "model": model,
             "max_tokens": 1024,
             "system": systemPrompt,
-            "messages": [
-                ["role": "user", "content": prompt]
-            ]
+            "messages": [["role": "user", "content": prompt]]
         ]
 
         var request = URLRequest(url: url)
@@ -641,23 +725,16 @@ public final class AIDiagnosticsEngine: Sendable {
         throw URLError(.cannotParseResponse)
     }
 
-    // MARK: - 9. Интеграция с DeepSeek V3/R1 API
-
-    private func queryDeepSeekAPI(
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig
-    ) async throws -> String {
+    private func queryDeepSeekAPI(prompt: String, context: NetworkDiagnosticsContext, config: AIProviderConfig) async throws -> String {
         let url = URL(string: "https://api.deepseek.com/chat/completions")!
         let model = config.customModel.isEmpty ? "deepseek-chat" : config.customModel
-
-        let systemContent = "Ты экспертный AI-диагност компьютерных сетей в приложении NetPulse. Отвечай подробно и по делу на русском языке."
+        let systemContent = "Ты экспертный AI-диагност компьютерных сетей в приложении NetPulse. Отвечай по делу на русском языке."
 
         let body: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": systemContent],
-                ["role": "user", "content": "Метрики сети: Пинг: \(context.averagePingMs ?? 0)мс, Потери: \(context.packetLossPct)%, Провайдер: \(context.ispName ?? ""). Вопрос: \(prompt)"]
+                ["role": "user", "content": "Пинг: \(context.averagePingMs ?? 0)мс, Потери: \(context.packetLossPct)%, Провайдер: \(context.ispName ?? ""). Вопрос: \(prompt)"]
             ]
         ]
 

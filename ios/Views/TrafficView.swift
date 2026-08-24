@@ -377,6 +377,7 @@ public struct TrafficView: View {
                     .foregroundStyle(NPTheme.textSecondary)
                 Text(value)
                     .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
                     .foregroundStyle(NPTheme.textPrimary)
             }
             Spacer()
@@ -384,6 +385,8 @@ public struct TrafficView: View {
         .padding(12)
         .background(NPTheme.cardBackgroundTertiary.opacity(0.85))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
     }
 
     // MARK: - 24-Часовая тепловая карта активности трафика (Traffic Heatmap)

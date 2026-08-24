@@ -53,9 +53,14 @@
 		A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000522C12345600000052 /* AIDiagnosticsView.swift */; };
 		A10000602C12345600000060 /* NetPulseTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000602C12345600000060 /* NetPulseTheme.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
+		A10000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
+		A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */; };
+		A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000812C12345600000081 /* SpeechRecognizerManager.swift */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
 		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* NetPulseAttributes.swift */; };
+		A20000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
+		A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */; };
 		A20000042C12345600000004 /* NetPulseWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000012C12345600000001 /* NetPulseWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -132,11 +137,15 @@
 		B10000522C12345600000052 /* AIDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIDiagnosticsView.swift; sourceTree = "<group>"; };
 		B10000602C12345600000060 /* NetPulseTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/NetPulseTheme.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10000702C12345600000070 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/WidgetDataManager.swift; sourceTree = "<group>"; };
+		B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AINetworkAnomalyDetector.swift; sourceTree = "<group>"; };
+		B10000812C12345600000081 /* SpeechRecognizerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SpeechRecognizerManager.swift; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
 		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NetPulseWidgets/Info.plist; sourceTree = "<group>"; };
 		B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
 		B20000052C12345600000005 /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseAttributes.swift; sourceTree = "<group>"; };
+		B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseHomeScreenWidget.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,6 +188,7 @@
 			children = (
 				B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */,
 				B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */,
+				B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */,
 				B20000052C12345600000005 /* NetPulseAttributes.swift */,
 				B20000032C12345600000003 /* Info.plist */,
 			);
@@ -199,6 +209,7 @@
 				B10000252C1234560000002F /* NetPulseAttributes.swift */,
 				B10000402C12345600000040 /* TrafficModels.swift */,
 				B10000502C12345600000050 /* AIDiagnosticsModels.swift */,
+				B10000702C12345600000070 /* WidgetDataManager.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -214,6 +225,7 @@
 				B10000292C12345600000033 /* BandwidthEngine.swift */,
 				B10000432C12345600000043 /* TrafficClassifier.swift */,
 				B10000512C12345600000051 /* AIDiagnosticsEngine.swift */,
+				B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -267,6 +279,7 @@
 				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
 				B10000322C12345600000036 /* BackgroundTaskManager.swift */,
 				B10000602C12345600000060 /* NetPulseTheme.swift */,
+				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -423,6 +436,9 @@
 				A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */,
 				A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */,
 				A10000602C12345600000060 /* NetPulseTheme.swift in Sources */,
+				A10000702C12345600000070 /* WidgetDataManager.swift in Sources */,
+				A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */,
+				A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -433,6 +449,8 @@
 				A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */,
 				A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */,
 				A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */,
+				A20000702C12345600000070 /* WidgetDataManager.swift in Sources */,
+				A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -21,7 +21,10 @@ public struct SettingsView: View {
         NavigationStack {
             Form {
                 // 1. Внешний вид и темы оформления
-                Section(header: Text("Внешний вид и стиль"), footer: Text(themeManager.currentTheme.description)) {
+                Section(
+                    header: Label("Внешний вид и стиль", systemImage: "paintpalette.fill"),
+                    footer: Text(themeManager.currentTheme.description)
+                ) {
                     Picker("Тема интерфейса", selection: $themeManager.currentTheme) {
                         ForEach(AppTheme.allCases) { theme in
                             Text(theme.rawValue).tag(theme)
@@ -48,7 +51,7 @@ public struct SettingsView: View {
                 }
 
                 // 2. Статус и параметры опроса
-                Section("Мониторинг сети") {
+                Section(header: Label("Мониторинг сети", systemImage: "waveform.path.ecg")) {
                     HStack {
                         Text("Статус службы")
                         Spacer()
@@ -300,7 +303,10 @@ private struct ThemeSwatchButton: View {
                     .lineLimit(1)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(NPPressableButtonStyle(scale: 0.92))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Тема: \(theme.rawValue)")
+        .accessibilityHint(isSelected ? "Активная тема" : "Дважды коснитесь для переключения")
     }
 
     private var swatchBgColor: Color {

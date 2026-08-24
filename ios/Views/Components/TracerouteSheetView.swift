@@ -240,21 +240,26 @@ private struct NodeHopRowView: View {
                         if let lat = hop.latencyMs {
                             Text(String(format: "%.1f мс", lat))
                                 .font(.system(size: 15, weight: .heavy, design: .rounded))
+                                .monospacedDigit()
                                 .foregroundStyle(statusColor)
                         } else {
                             Text("LOST")
                                 .font(.system(size: 12, weight: .heavy))
+                                .monospacedDigit()
                                 .foregroundStyle(NPTheme.semanticCritical)
                         }
 
                         Text("Loss: \(Int(hop.lossPercent))%")
                             .font(.system(size: 10, weight: .bold))
+                            .monospacedDigit()
                             .foregroundStyle(hop.lossPercent > 0 ? NPTheme.semanticCritical : NPTheme.textSecondary)
                     }
                 }
             }
             .padding(12)
             .npGlassCard(cornerRadius: 14)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Узел \(hop.hopNumber): \(hop.ipAddress ?? "таймаут"), задержка \(hop.latencyMs != nil ? String(format: "%.1f мс", hop.latencyMs!) : "потеря пакета")")
         }
         .padding(.bottom, isLast ? 0 : 8)
     }

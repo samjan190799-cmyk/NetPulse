@@ -41,6 +41,7 @@ public struct SpeedtestHeroView: View {
                     Image(systemName: "speedometer")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(NPTheme.accentPrimary)
+                        .symbolEffect(.pulse, isActive: isRunning)
                     Text("СКОРОСТЬ СОЕДИНЕНИЯ")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(NPTheme.textSecondary)
@@ -60,6 +61,7 @@ public struct SpeedtestHeroView: View {
 
                         Text(uploadMbps > 0 ? "ОТДАЧА" : "СКАЧИВАНИЕ")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .monospacedDigit()
                             .foregroundStyle(uploadMbps > 0 ? NPTheme.upload : NPTheme.download)
                             .contentTransition(.opacity)
                     }
@@ -144,6 +146,7 @@ public struct SpeedtestHeroView: View {
                     HStack(alignment: .lastTextBaseline, spacing: 2) {
                         Text(String(format: "%.1f", currentDisplaySpeed))
                             .font(.system(size: 48, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(NPTheme.textPrimary)
                             .contentTransition(.numericText(value: currentDisplaySpeed))
                             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: currentDisplaySpeed)
@@ -165,6 +168,9 @@ public struct SpeedtestHeroView: View {
             .onAppear {
                 isPulseActive = true
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Текущая скорость соединения")
+            .accessibilityValue("\(String(format: "%.1f", currentDisplaySpeed)) Мегабит в секунду, статус: \(statusText)")
 
             // Сетка 4 метрик со стеклянным фоном
             HStack(spacing: 8) {
@@ -205,17 +211,9 @@ public struct SpeedtestHeroView: View {
                 )
             }
 
-            // Кнопка запуска с виброоткликом и пружинной физикой
+            // Кнопка запуска с виброоткликом и пружинной физикой Apple HIG
             Button(action: {
                 HapticManager.shared.impactMedium()
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
-                    isButtonPressed = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isButtonPressed = false
-                    }
-                }
                 onStartSpeedtest()
             }) {
                 HStack(spacing: 8) {
@@ -237,10 +235,11 @@ public struct SpeedtestHeroView: View {
                 .background(isRunning ? NPTheme.buttonDisabledGradient : NPTheme.buttonGradient)
                 .foregroundStyle(isRunning ? NPTheme.textSecondary : NPTheme.backgroundDeep)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .scaleEffect(isButtonPressed ? 0.96 : 1.0)
                 .shadow(color: NPTheme.glowActive, radius: isRunning ? 4 : 12, x: 0, y: 4)
             }
+            .buttonStyle(NPPressableButtonStyle(scale: 0.96))
             .disabled(isRunning)
+            .accessibilityLabel(downloadMbps > 0 ? "Повторить замер скорости" : "Начать тест скорости")
         }
         .padding(18)
         .npGlassCard(cornerRadius: 20)
@@ -307,11 +306,13 @@ private struct AnimatedMetricItemBox: View {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(isActive ? NPTheme.accentPrimary : NPTheme.textSecondary)
+                .symbolEffect(.bounce, value: isActive)
                 .scaleEffect(isActive ? 1.15 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
 
             Text(value)
                 .font(.system(size: 14, weight: .heavy, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(isActive ? NPTheme.accentPrimary : NPTheme.textPrimary)
                 .contentTransition(.numericText(value: numericValue))
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: numericValue)
@@ -333,5 +334,8 @@ private struct AnimatedMetricItemBox: View {
                 .stroke(isActive ? NPTheme.accentPrimary.opacity(0.3) : NPTheme.border, lineWidth: 1)
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value) \(unit)")
     }
 }
+

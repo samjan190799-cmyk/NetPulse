@@ -147,10 +147,11 @@ private struct CapabilityRow: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(isExpanded ? levelColor.opacity(0.15) : Color.clear, lineWidth: 1)
             )
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isPressed)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(NPPressableButtonStyle(scale: 0.98, hapticFeedback: false))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.title), готовность: \(item.level.rawValue)")
+        .accessibilityHint(isExpanded ? "Дважды коснитесь, чтобы свернуть подробности" : "Дважды коснитесь, чтобы раскрыть технические требования")
     }
 
     private func scoreRatio(for level: CapabilityLevel) -> CGFloat {

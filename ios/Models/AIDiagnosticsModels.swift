@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 
+// MARK: - 1. Провайдеры и конфигурация AI
+
 /// Провайдер искусственного интеллекта для сетевого анализа
 public enum AIProviderType: String, CaseIterable, Identifiable, Codable, Sendable {
     case offlineSmart = "Встроенный AI (Offline Smart)"
@@ -45,6 +47,80 @@ public struct AIProviderConfig: Codable, Sendable {
         self.customModel = customModel.isEmpty ? selectedProvider.defaultModelName : customModel
     }
 }
+
+// MARK: - 2. Модели вызова функций (Tool / Function Calling)
+
+/// Типы инструментов, которые сетевой AI-агент может вызывать в реальном времени
+public enum AIToolType: String, Codable, Sendable, CaseIterable {
+    case pingHost = "tool_ping"
+    case tracerouteHost = "tool_traceroute"
+    case dnsBenchmark = "tool_dns_benchmark"
+    case checkBufferbloat = "tool_bufferbloat"
+    case scanAnomalies = "tool_scan_anomalies"
+
+    public var displayName: String {
+        switch self {
+        case .pingHost: return "Пинг узла"
+        case .tracerouteHost: return "Трассировка MTR"
+        case .dnsBenchmark: return "DNS Бенчмарк"
+        case .checkBufferbloat: return "Тест Bufferbloat"
+        case .scanAnomalies: return "Анализ аномалий"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .pingHost: return "network"
+        case .tracerouteHost: return "point.topleft.down.to.point.bottomright.curvepath"
+        case .dnsBenchmark: return "globe.europe.africa.fill"
+        case .checkBufferbloat: return "gauge.with.dots.needle.67percent"
+        case .scanAnomalies: return "waveform.path.ecg"
+        }
+    }
+}
+
+/// Вызов инструмента со стороны нейросети
+public struct AIToolCall: Identifiable, Codable, Sendable {
+    public let id: String
+    public let toolType: AIToolType
+    public let target: String
+    public let argumentsDescription: String
+
+    public init(id: String = UUID().uuidString, toolType: AIToolType, target: String, argumentsDescription: String) {
+        self.id = id
+        self.toolType = toolType
+        self.target = target
+        self.argumentsDescription = argumentsDescription
+    }
+}
+
+/// Результат исполнения вызова инструмента приложением
+public struct AIToolResult: Identifiable, Codable, Sendable {
+    public let id: String
+    public let toolCallId: String
+    public let toolType: AIToolType
+    public let outputText: String
+    public let isSuccess: Bool
+    public let executionTimeMs: Double
+
+    public init(
+        id: String = UUID().uuidString,
+        toolCallId: String,
+        toolType: AIToolType,
+        outputText: String,
+        isSuccess: Bool = true,
+        executionTimeMs: Double = 0.0
+    ) {
+        self.id = id
+        self.toolCallId = toolCallId
+        self.toolType = toolType
+        self.outputText = outputText
+        self.isSuccess = isSuccess
+        self.executionTimeMs = executionTimeMs
+    }
+}
+
+// MARK: - 3. Проблемы, рекомендации и здоровье сети
 
 /// Уровень критичности обнаруженной сетевой проблемы
 public enum IssueSeverity: String, Codable, Sendable {
@@ -151,8 +227,8 @@ public struct NetworkHealthReport: Identifiable, Codable, Sendable {
         webBrowsingScore: Int,
         statusTitle: String,
         summaryText: String,
-        identifiedIssues: [NetworkIssue] = [],
-        recommendations: [NetworkRecommendation] = [],
+        identifiedIssues: [NetworkIssue],
+        recommendations: [NetworkRecommendation],
         timestamp: Date = Date()
     ) {
         self.id = id
@@ -169,35 +245,234 @@ public struct NetworkHealthReport: Identifiable, Codable, Sendable {
     }
 }
 
-/// Роль отправителя сообщения в чате
-public enum MessageRole: String, Codable, Sendable {
-    case user
-    case assistant
-    case system
+// MARK: - 4. Сообщения диалога с поддержкой Tool Execution
+
+/// Роль автора сообщения в чате с AI
+public enum AIMessageRole: String, Codable, Sendable {
+    case user = "user"
+    case assistant = "assistant"
+    case tool = "tool"
 }
 
-/// Сообщение в интеллектуальном диалоге с AI
+/// Сообщение диалога с AI-диагностом
 public struct AIMessage: Identifiable, Codable, Sendable {
     public let id: UUID
-    public let role: MessageRole
+    public let role: AIMessageRole
     public let content: String
     public let timestamp: Date
-    public let suggestedPrompts: [String]
+    public let toolCall: AIToolCall?
+    public let toolResult: AIToolResult?
 
     public init(
         id: UUID = UUID(),
-        role: MessageRole,
+        role: AIMessageRole,
         content: String,
         timestamp: Date = Date(),
-        suggestedPrompts: [String] = []
+        toolCall: AIToolCall? = nil,
+        toolResult: AIToolResult? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
-        self.suggestedPrompts = suggestedPrompts
+        self.toolCall = toolCall
+        self.toolResult = toolResult
     }
 }
+
+// MARK: - 5. Интерактивный Мастер Траблшутинга (Guided Troubleshooting)
+
+/// Категории сценариев для пошагового мастера диагностики
+public enum TroubleshootingScenarioType: String, CaseIterable, Identifiable, Codable, Sendable {
+    case gaming = "Киберспорт и Онлайн-игры"
+    case videoCalls = "Видеозвонки (Zoom/FaceTime)"
+    case streaming4K = "4K/8K HDR Стриминг"
+    case wifiInterference = "Wi-Fi Помехи и Диапазоны"
+
+    public var id: String { rawValue }
+
+    public var icon: String {
+        switch self {
+        case .gaming: return "gamecontroller.fill"
+        case .videoCalls: return "video.fill"
+        case .streaming4K: return "tv.fill"
+        case .wifiInterference: return "wifi.exclamationmark"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .gaming: return "Диагностика RTT, джиттера, Bufferbloat и игровых серверов (CS2, Dota, Valorant)."
+        case .videoCalls: return "Проверка симметрии отдачи, потерь UDP-пакетов и стабильности микрофона."
+        case .streaming4K: return "Анализ пропускной способности, CDN-задержки и стабильности буфера."
+        case .wifiInterference: return "Замер задержки шлюза, радиопомех и сравнение 2.4 vs 5/6 GHz."
+        }
+    }
+}
+
+/// Статус отдельного шага интерактивной диагностики
+public enum TroubleshootingStepStatus: String, Codable, Sendable {
+    case pending = "Ожидание"
+    case running = "Проверка..."
+    case success = "В норме"
+    case warning = "Замечание"
+    case critical = "Критично"
+}
+
+/// Шаг в мастере устранения сетевых неполадок
+public struct TroubleshootingStep: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let order: Int
+    public let title: String
+    public let subtitle: String
+    public var status: TroubleshootingStepStatus
+    public var resultDetail: String?
+    public var icon: String
+
+    public init(
+        id: UUID = UUID(),
+        order: Int,
+        title: String,
+        subtitle: String,
+        status: TroubleshootingStepStatus = .pending,
+        resultDetail: String? = nil,
+        icon: String
+    ) {
+        self.id = id
+        self.order = order
+        self.title = title
+        self.subtitle = subtitle
+        self.status = status
+        self.resultDetail = resultDetail
+        self.icon = icon
+    }
+}
+
+/// Результат работы интерактивного мастера
+public struct TroubleshootingReport: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let scenario: TroubleshootingScenarioType
+    public let steps: [TroubleshootingStep]
+    public let conclusion: String
+    public let actionPlan: [String]
+    public let isIssueFound: Bool
+    public let timestamp: Date
+
+    public init(
+        id: UUID = UUID(),
+        scenario: TroubleshootingScenarioType = .gaming,
+        steps: [TroubleshootingStep],
+        conclusion: String,
+        actionPlan: [String],
+        isIssueFound: Bool,
+        timestamp: Date = Date()
+    ) {
+        self.id = id
+        self.scenario = scenario
+        self.steps = steps
+        self.conclusion = conclusion
+        self.actionPlan = actionPlan
+        self.isIssueFound = isIssueFound
+        self.timestamp = timestamp
+    }
+}
+
+// MARK: - 6. Предиктивная аналитика сетевых аномалий
+
+/// Тип обнаруженной сетевой аномалии
+public enum NetworkAnomalyType: String, Codable, Sendable {
+    case eveningCongestion = "Вечерний оверселлинг провайдера"
+    case wifiInterference = "Деградация радиоэфира Wi-Fi"
+    case budgetExhaustion = "Риск исчерпания лимита трафика"
+    case dnsDegradation = "Нестабильность DNS-резолвинга"
+    case packetLossSpike = "Всплеск потерь пакетов на узле"
+
+    public var icon: String {
+        switch self {
+        case .eveningCongestion: return "moon.stars.fill"
+        case .wifiInterference: return "antenna.radiowaves.left.and.right"
+        case .budgetExhaustion: return "chart.line.uptrend.xyaxis"
+        case .dnsDegradation: return "globe.badge.chevron.backward"
+        case .packetLossSpike: return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+/// Элемент обнаруженной сетевой аномалии
+public struct NetworkAnomalyItem: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let type: NetworkAnomalyType
+    public let title: String
+    public let description: String
+    public let severity: IssueSeverity
+    public let detectedAt: Date
+    public let metricValue: String
+    public let suggestedFix: String
+
+    public init(
+        id: UUID = UUID(),
+        type: NetworkAnomalyType,
+        title: String,
+        description: String,
+        severity: IssueSeverity,
+        detectedAt: Date = Date(),
+        metricValue: String,
+        suggestedFix: String
+    ) {
+        self.id = id
+        self.type = type
+        self.title = title
+        self.description = description
+        self.severity = severity
+        self.detectedAt = detectedAt
+        self.metricValue = metricValue
+        self.suggestedFix = suggestedFix
+    }
+}
+
+/// Полный отчет по сетевым аномалиям
+public struct NetworkAnomalyReport: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let anomalies: [NetworkAnomalyItem]
+    public let overallRiskLevel: IssueSeverity
+    public let analyzedHours: Int
+    public let generatedAt: Date
+
+    public init(
+        id: UUID = UUID(),
+        anomalies: [NetworkAnomalyItem],
+        overallRiskLevel: IssueSeverity = .info,
+        analyzedHours: Int = 24,
+        generatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.anomalies = anomalies
+        self.overallRiskLevel = overallRiskLevel
+        self.analyzedHours = analyzedHours
+        self.generatedAt = generatedAt
+    }
+}
+
+// MARK: - 7. Шаблоны официальных претензий провайдеру (ISP Dispute Letter)
+
+/// Шаблон официальной претензии в техподдержку интернет-провайдера
+public enum ISPDisputeTemplate: String, CaseIterable, Identifiable, Codable, Sendable {
+    case packetLossAndLatency = "Потеря пакетов и высокая задержка RTT"
+    case speedMismatch = "Несоответствие заявленной тарифной скорости"
+    case routingAndMTR = "Сбои магистральной маршрутизации (MTR)"
+
+    public var id: String { rawValue }
+
+    public var icon: String {
+        switch self {
+        case .packetLossAndLatency: return "waveform.path.badge.minus"
+        case .speedMismatch: return "speedometer"
+        case .routingAndMTR: return "point.topleft.down.to.point.bottomright.curvepath"
+        }
+    }
+}
+
+// MARK: - 8. Контекст диагностики сети
 
 /// Контекст текущего состояния сети для передачи в AI
 public struct NetworkDiagnosticsContext: Sendable {
@@ -252,7 +527,7 @@ public struct NetworkDiagnosticsContext: Sendable {
     }
 
     /// Формирование структурированного текстового отчета для отправки в техподдержку интернет-провайдера
-    public func generateISPSupportReport() -> String {
+    public func generateISPSupportReport(template: ISPDisputeTemplate = .packetLossAndLatency) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         let dateStr = formatter.string(from: Date())
@@ -262,99 +537,55 @@ public struct NetworkDiagnosticsContext: Sendable {
         let speedStr = speedtestDownloadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? String(format: "%.1f Мбит/с (live)", liveDownloadMbps)
         let uploadStr = speedtestUploadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? String(format: "%.1f Мбит/с (live)", liveUploadMbps)
 
+        let reasonTitle: String
+        let legalReference: String
+
+        switch template {
+        case .packetLossAndLatency:
+            reasonTitle = "ПРЕТЕНЗИЯ: Систематическая потеря сетевых пакетов и недопустимый джиттер"
+            legalReference = "Нарушение требований качества передачи данных по протоколам TCP/UDP (ITU-T Rec. Y.1541, класс QoS 1)."
+        case .speedMismatch:
+            reasonTitle = "ПРЕТЕНЗИЯ: Несоответствие фактической скорости тарифному плану"
+            legalReference = "Несоблюдение гарантированной полосы пропускания интернет-канала по договору оказания услуг связи."
+        case .routingAndMTR:
+            reasonTitle = "ПРЕТЕНЗИЯ: Деградация магистральной маршрутизации и потери на узлах оператора"
+            legalReference = "Сбой транзитных пиринговых стыков и переполнение очередей на промежуточных L3-маршрутизаторах."
+        }
+
         return """
-        ========================================
-        NETPULSE AI — ТЕХНИЧЕСКИЙ ОТЧЕТ ДЛЯ ISP
-        Дата и время: \(dateStr)
-        ========================================
+        ================================================================
+        NETPULSE AI — ОФИЦИАЛЬНАЯ ПРЕТЕНЗИЯ В ТЕХНИЧЕСКУЮ СЛУЖБУ ISP
+        Тема: \(reasonTitle)
+        Дата фиксации: \(dateStr)
+        Нормативная база: \(legalReference)
+        ================================================================
 
-        1. СВЕДЕНИЯ О ПОДКЛЮЧЕНИИ:
-        • Тип сети: \(connectionType)
-        • Провайдер: \(ispName ?? "Не определен")
-        • Публичный IP: \(publicIP ?? "N/A")
-        • Локальный IP: \(localIP)
-        • Основной шлюз: \(gatewayIP ?? "192.168.1.1")
-        • DNS-серверы: \(dnsServers.isEmpty ? "Системный (DHCP)" : dnsServers.joined(separator: ", "))
+        1. СВЕДЕНИЯ ОБ АБОНЕНТЕ И ПОДКЛЮЧЕНИИ:
+        • Оператор связи (ISP): \(ispName ?? "Не определен")
+        • Тип сетевого интерфейса: \(connectionType)
+        • Публичный IP-адрес: \(publicIP ?? "N/A")
+        • Локальный IP абонента: \(localIP)
+        • Основной шлюз доступа (Default Gateway): \(gatewayIP ?? "192.168.1.1")
+        • Активные DNS-серверы: \(dnsServers.isEmpty ? "Системный (DHCP)" : dnsServers.joined(separator: ", "))
 
-        2. СЕТЕВЫЕ МЕТРИКИ И СТАБИЛЬНОСТЬ:
-        • Задержка RTT (Ping): \(pingStr)
-        • Джиттер: \(jitterStr)
-        • Потери пакетов (Packet Loss): \(String(format: "%.2f", packetLossPct))%
-        • Скорость скачивания: \(speedStr)
-        • Скорость отдачи: \(uploadStr)
+        2. РЕЗУЛЬТАТЫ ИЗМЕРЕНИЙ И ДИАГНОСТИКИ:
+        • Задержка приема-передачи (RTT / Ping): \(pingStr)
+        • Межпакетный джиттер (Jitter RFC 3550): \(jitterStr)
+        • Коэффициент потери пакетов (Packet Loss): \(String(format: "%.2f", packetLossPct))%
+        • Скорость входящего трафика (Download): \(speedStr)
+        • Скорость исходящего трафика (Upload): \(uploadStr)
 
-        3. ДИАГНОСТИЧЕСКИЕ ДАННЫЕ:
-        • Активных сетевых алертов: \(recentAlertsCount)
-        • Пройдено узлов трассировки (MTR): \(tracerouteHopsCount)
-        • Движок телеметрии: Darwin Kernel BSD Socket Subsystem
+        3. ТЕХНИЧЕСКИЕ ДЕТАЛИ И СТАБИЛЬНОСТЬ:
+        • Зафиксировано сетевых аномалий / алертов: \(recentAlertsCount)
+        • Число пройденных узлов маршрутизации (MTR): \(tracerouteHopsCount)
+        • Аппаратный источник телеметрии: Darwin Kernel BSD Socket Subsystem
 
-        Сгенерировано автоматически диагностическим модулем NetPulse AI (iOS).
-        ========================================
+        4. ТРЕБОВАНИЕ АБОНЕНТА:
+        Прошу провести проверку кабельной линии связи, порта коммутатора доступа и магистральных стыков.
+        Принять меры по стабилизации параметров RTT, устранению потерь пакетов и восстановлению заявленной скорости.
+
+        Документ сформирован автоматически диагностическим модулем NetPulse AI (iOS 2026).
+        ================================================================
         """
     }
 }
-
-/// Статус отдельного шага интерактивной диагностики
-public enum TroubleshootingStepStatus: String, Codable, Sendable {
-    case pending = "Ожидание"
-    case running = "Проверка..."
-    case success = "В норме"
-    case warning = "Замечание"
-    case critical = "Критично"
-}
-
-/// Шаг в мастере устранения сетевых неполадок
-public struct TroubleshootingStep: Identifiable, Codable, Sendable {
-    public let id: UUID
-    public let order: Int
-    public let title: String
-    public let subtitle: String
-    public var status: TroubleshootingStepStatus
-    public var resultDetail: String?
-    public var icon: String
-
-    public init(
-        id: UUID = UUID(),
-        order: Int,
-        title: String,
-        subtitle: String,
-        status: TroubleshootingStepStatus = .pending,
-        resultDetail: String? = nil,
-        icon: String
-    ) {
-        self.id = id
-        self.order = order
-        self.title = title
-        self.subtitle = subtitle
-        self.status = status
-        self.resultDetail = resultDetail
-        self.icon = icon
-    }
-}
-
-/// Результат работы интерактивного мастера
-public struct TroubleshootingReport: Identifiable, Codable, Sendable {
-    public let id: UUID
-    public let steps: [TroubleshootingStep]
-    public let conclusion: String
-    public let actionPlan: [String]
-    public let isIssueFound: Bool
-    public let timestamp: Date
-
-    public init(
-        id: UUID = UUID(),
-        steps: [TroubleshootingStep],
-        conclusion: String,
-        actionPlan: [String],
-        isIssueFound: Bool,
-        timestamp: Date = Date()
-    ) {
-        self.id = id
-        self.steps = steps
-        self.conclusion = conclusion
-        self.actionPlan = actionPlan
-        self.isIssueFound = isIssueFound
-        self.timestamp = timestamp
-    }
-}
-

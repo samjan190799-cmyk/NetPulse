@@ -36,6 +36,8 @@ public struct AlertsBannerView: View {
                     .font(.system(size: 16))
                     .foregroundStyle(NPTheme.textSecondary)
             }
+            .npMinHitTarget()
+            .accessibilityLabel("Закрыть оповещение")
         }
         .padding(14)
         .background(.ultraThinMaterial)

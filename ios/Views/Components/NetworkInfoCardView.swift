@@ -91,10 +91,14 @@ private struct InfoItem: View {
                     .foregroundStyle(NPTheme.textSecondary)
                 Text(value)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
                     .foregroundStyle(NPTheme.textPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
     }
 }
+

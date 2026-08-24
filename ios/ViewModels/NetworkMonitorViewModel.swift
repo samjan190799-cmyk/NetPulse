@@ -9,6 +9,9 @@ import Foundation
 import SwiftUI
 import Observation
 import UIKit
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Главная модель представления NetPulse на базе макроса @Observable (iOS 17+ / Swift 6).
 @Observable
@@ -508,6 +511,8 @@ public final class NetworkMonitorViewModel {
         self.trafficSessions = sessions
         self.trafficDataPoints = points
         self.trafficBudget = budget
+
+        self.syncWidgetData()
     }
 
     public func updateTrafficBudget(_ newBudget: TrafficBudget) async {
@@ -645,6 +650,7 @@ public final class NetworkMonitorViewModel {
                 }
 
                 await self.storage.recordSpeedtest(result)
+                self.syncWidgetData()
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
                 self.isSpeedtestRunning = false
@@ -666,6 +672,7 @@ public final class NetworkMonitorViewModel {
                 )
                 self.lastSpeedtestResult = fallbackResult
                 await self.storage.recordSpeedtest(fallbackResult)
+                self.syncWidgetData()
             }
         }
     }
@@ -715,6 +722,56 @@ public final class NetworkMonitorViewModel {
         return (losses.reduce(0, +) / Double(losses.count) * 10).rounded() / 10
     }
 
+    public var currentHealthScore: Int {
+        if let report = currentHealthReport {
+            return report.healthScore
+        }
+        var score = 100
+        if let ping = currentAveragePing, ping > 50 {
+            score -= min(Int((ping - 50) * 0.4), 30)
+        }
+        if let jitter = currentAverageJitter, jitter > 10 {
+            score -= min(Int((jitter - 10) * 1.5), 25)
+        }
+        if currentPacketLossPct > 0 {
+            score -= min(Int(currentPacketLossPct * 5), 40)
+        }
+        return max(score, 10)
+    }
+
+    /// Синхронизация снимка сетевых показателей с домашними виджетами и экраном блокировки
+    public func syncWidgetData() {
+        let dnsSnapshot: [WidgetDNSHost] = targets.prefix(4).map { target in
+            let metrics = hostMetrics[target.address]
+            return WidgetDNSHost(
+                name: target.name,
+                address: target.address,
+                latencyMs: metrics?.lastLatencyMs,
+                isOK: (metrics?.status ?? .ok) == .ok
+            )
+        }
+
+        let widgetData = NetPulseWidgetData(
+            downloadSpeedMbps: liveDownloadSpeed > 0 ? liveDownloadSpeed : (lastSpeedtestResult?.downloadMbps ?? liveBandwidth.downloadMbps),
+            uploadSpeedMbps: liveUploadSpeed > 0 ? liveUploadSpeed : (lastSpeedtestResult?.uploadMbps ?? liveBandwidth.uploadMbps),
+            pingMs: currentAveragePing,
+            jitterMs: currentAverageJitter,
+            lossPercent: currentPacketLossPct,
+            ispName: systemInfo.ispName ?? "Wi-Fi Сеть",
+            connectionType: systemInfo.connectionType.rawValue,
+            todayTrafficBytes: trafficSummary.totalTraffic,
+            budgetTotalBytes: trafficBudget.monthlyLimitBytes > 0 ? trafficBudget.monthlyLimitBytes : 5_368_709_120,
+            healthScore: currentHealthScore,
+            dnsHosts: dnsSnapshot,
+            lastUpdated: Date()
+        )
+
+        WidgetDataManager.shared.saveSnapshot(widgetData)
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
     // MARK: - Traceroute (MTR)
 
     public func startTraceroute(for host: String) {
@@ -749,12 +806,17 @@ public final class NetworkMonitorViewModel {
         try await storage.exportSessionToCSV()
     }
 
-    // MARK: - AI Диагност (Network AI Copilot)
+    // MARK: - AI Диагност (Network AI Copilot & Agent)
 
     public var currentHealthReport: NetworkHealthReport?
+    public var currentAnomalyReport: NetworkAnomalyReport?
     public var aiMessages: [AIMessage] = []
     public var isAIAnalyzing: Bool = false
+    public var activeToolCall: AIToolCall? = nil
     public var aiProviderConfig: AIProviderConfig = AIProviderConfig()
+    public var selectedTroubleshootingScenario: TroubleshootingScenarioType = .gaming
+    public var selectedDisputeTemplate: ISPDisputeTemplate = .packetLossAndLatency
+    public var showDisputeSheet: Bool = false
 
     public func buildDiagnosticsContext() -> NetworkDiagnosticsContext {
         NetworkDiagnosticsContext(
@@ -776,6 +838,11 @@ public final class NetworkMonitorViewModel {
         )
     }
 
+    public var smartContextChips: [String] {
+        let context = buildDiagnosticsContext()
+        return AIDiagnosticsEngine.shared.generateSmartContextChips(context: context, anomalyReport: currentAnomalyReport)
+    }
+
     public func runAIDiagnosticsAudit() async {
         guard !isAIAnalyzing else { return }
         isAIAnalyzing = true
@@ -785,13 +852,22 @@ public final class NetworkMonitorViewModel {
         let report = AIDiagnosticsEngine.shared.evaluateNetworkHealth(context: context)
         self.currentHealthReport = report
 
+        // Сканирование предиктивных сетевых аномалий
+        let anomalies = AINetworkAnomalyDetector.shared.analyzeAnomalies(
+            context: context,
+            hostMetrics: hostMetrics,
+            trafficSummary: trafficSummary,
+            budget: trafficBudget
+        )
+        self.currentAnomalyReport = anomalies
+
         if aiMessages.isEmpty {
             let greeting = """
-            Привет! Я ваш интеллектуальный сетевой помощник **NetPulse AI**. 
+            Привет! Я ваш интеллектуальный сетевой диагност **NetPulse AI** (2026). 
 
-            Я только что провел аудит вашего соединения: общий балл качества — **\(report.overallScore) из 100** (\(report.statusTitle)). 
+            Я провел аудит соединения: индекс здоровья сети — **\(report.overallScore) из 100** (\(report.statusTitle)). 
 
-            Вы можете задать мне любой вопрос о задержках, качестве связи в играх, скорости видео или настройке роутера.
+            Я умею выполнять реальные замеры в процессе диалога (Tool Calling), находить вечерние просадки, запускать пошаговый мастер траблшутинга и формировать официальные претензии оператору.
             """
             aiMessages.append(AIMessage(role: .assistant, content: greeting))
         }
@@ -810,13 +886,25 @@ public final class NetworkMonitorViewModel {
         isAIAnalyzing = true
 
         let context = buildDiagnosticsContext()
-        let response = await AIDiagnosticsEngine.shared.askAI(
+        
+        let (response, toolCall, toolResult) = await AIDiagnosticsEngine.shared.executeAgenticQuery(
             prompt: text,
             context: context,
             config: aiProviderConfig
-        )
+        ) { [weak self] call in
+            Task { @MainActor in
+                self?.activeToolCall = call
+            }
+        }
 
-        aiMessages.append(AIMessage(role: .assistant, content: response))
+        self.activeToolCall = nil
+        let assistantMsg = AIMessage(
+            role: .assistant,
+            content: response,
+            toolCall: toolCall,
+            toolResult: toolResult
+        )
+        aiMessages.append(assistantMsg)
         isAIAnalyzing = false
 
         if hapticsEnabled {
@@ -835,14 +923,20 @@ public final class NetworkMonitorViewModel {
     public var currentTroubleshootingStep: TroubleshootingStep?
     public var showTroubleshootingSheet: Bool = false
 
-    public func runTroubleshootingWizard() async {
+    public func runTroubleshootingWizard(scenario: TroubleshootingScenarioType? = nil) async {
         guard !isTroubleshootingRunning else { return }
+        let targetScenario = scenario ?? selectedTroubleshootingScenario
+        self.selectedTroubleshootingScenario = targetScenario
         isTroubleshootingRunning = true
         showTroubleshootingSheet = true
         HapticManager.shared.impactMedium()
 
         let context = buildDiagnosticsContext()
-        let report = await AIDiagnosticsEngine.shared.runTroubleshootingWizard(context: context) { [weak self] step in
+        let report = await AIDiagnosticsEngine.shared.runTroubleshootingWizard(
+            scenario: targetScenario,
+            context: context,
+            hostMetrics: hostMetrics
+        ) { [weak self] step in
             Task { @MainActor in
                 self?.currentTroubleshootingStep = step
             }
@@ -854,9 +948,9 @@ public final class NetworkMonitorViewModel {
         }
     }
 
-    public func copyISPSupportReport() -> String {
+    public func copyISPSupportReport(template: ISPDisputeTemplate = .packetLossAndLatency) -> String {
         let context = buildDiagnosticsContext()
-        let report = context.generateISPSupportReport()
+        let report = context.generateISPSupportReport(template: template)
         UIPasteboard.general.string = report
         if hapticsEnabled {
             HapticManager.shared.notificationSuccess()

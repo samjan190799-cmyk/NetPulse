@@ -53,6 +53,7 @@ public struct HostMetricCardView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text(String(format: "%.1f", rtt))
                                 .font(.system(size: 26, weight: .heavy, design: .rounded))
+                                .monospacedDigit()
                                 .foregroundStyle(colorForLatency(rtt))
                                 .contentTransition(.numericText(value: rtt))
                                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: rtt)
@@ -64,6 +65,7 @@ public struct HostMetricCardView: View {
                     } else {
                         Text(metrics.sentCount > 0 ? "LOST" : "--")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(NPTheme.semanticCritical)
                     }
                 }
@@ -97,26 +99,23 @@ public struct HostMetricCardView: View {
                 )
 
                 Button(action: {
-                    HapticManager.shared.impactLight()
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
-                        isTraceroutePressed = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            isTraceroutePressed = false
-                        }
-                    }
+                    HapticManager.shared.impactMedium()
                     onTracerouteTapped()
                 }) {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(NPTheme.textSecondary)
-                        .padding(8)
-                        .background(NPTheme.cardBackgroundTertiary)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(NPTheme.accentPrimary)
+                        .frame(width: 36, height: 36)
+                        .background(NPTheme.accentPrimary.opacity(0.12))
                         .clipShape(Circle())
-                        .scaleEffect(isTraceroutePressed ? 0.88 : 1.0)
-                        .rotationEffect(.degrees(isTraceroutePressed ? 45 : 0))
+                        .overlay(
+                            Circle()
+                                .stroke(NPTheme.accentPrimary.opacity(0.25), lineWidth: 1)
+                        )
                 }
+                .buttonStyle(NPPressableButtonStyle(scale: 0.90))
+                .npMinHitTarget()
+                .accessibilityLabel("Запустить MTR трассировку до \(metrics.name)")
             }
         }
         .padding(16)
@@ -126,6 +125,8 @@ public struct HostMetricCardView: View {
                 .stroke(strokeColorForStatus(metrics.status), lineWidth: 1)
         )
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: metrics.status)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(metrics.name), адрес \(metrics.address), текущая задержка \(metrics.lastLatencyMs != nil ? String(format: "%.1f", metrics.lastLatencyMs!) : "нет ответа") миллисекунд, статус \(metrics.status.rawValue)")
     }
 
     private func colorForLatency(_ lat: Double) -> Color {

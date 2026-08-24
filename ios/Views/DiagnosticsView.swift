@@ -7,17 +7,17 @@
 
 import SwiftUI
 
-/// Экран детальной сетевой диагностики, мониторинга узлов и MTR-трассировки.
+/// Экран детальной сетевой диагностики, мониторинга узлов, MTR-трассировки и Pro-утилит (2026).
 public struct DiagnosticsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
     @State private var jsonExportURL: URL?
     @State private var csvExportURL: URL?
     @State private var isExporting = false
+    @State private var quickHostInput: String = ""
 
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                // Фон: градиент «Obsidian Mono»
                 NPTheme.backgroundGradient
                     .ignoresSafeArea()
 
@@ -29,38 +29,17 @@ public struct DiagnosticsView: View {
                             isMonitoring: viewModel.isMonitoringActive
                         )
 
-                        // 2. Блок быстрого пинга произвольного хоста / IP
+                        // 2. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
+                        proUtilitiesHub
+
+                        // 3. Блок быстрого пинга произвольного хоста / IP
                         quickPingSection
 
-                        // 3. График задержки (Swift Charts)
+                        // 4. График задержки (Swift Charts)
                         LatencyChartView(hostMetrics: viewModel.hostMetrics)
 
-                        // 4. Секция целевых узлов (DNS / Шлюз)
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text("ЦЕЛЕВЫЕ УЗЛЫ МОНИТОРИНГА")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(NPTheme.textSecondary)
-                                    .tracking(0.5)
-
-                                Spacer()
-
-                                Text("\(viewModel.targets.count) узлов")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                            .padding(.horizontal, 4)
-
-                            LazyVStack(spacing: 10) {
-                                ForEach(viewModel.targets) { target in
-                                    if let metrics = viewModel.hostMetrics[target.address] {
-                                        HostMetricCardView(metrics: metrics) {
-                                            viewModel.startTraceroute(for: target.address)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // 5. Секция целевых узлов (DNS / Шлюз)
+                        targetsSection
                     }
                     .padding(16)
                     .padding(.bottom, 32)
@@ -92,6 +71,7 @@ public struct DiagnosticsView: View {
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(viewModel.isMonitoringActive ? NPTheme.semanticWarn : NPTheme.accentPrimary)
                     }
+                    .npMinHitTarget()
                 }
 
                 // Кнопка быстрого AI-анализа
@@ -105,6 +85,7 @@ public struct DiagnosticsView: View {
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
                     }
+                    .npMinHitTarget()
                 }
 
                 // Экспорт отчетов
@@ -126,6 +107,7 @@ public struct DiagnosticsView: View {
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(NPTheme.textPrimary)
                     }
+                    .npMinHitTarget()
                 }
             }
             .sheet(isPresented: $viewModel.showTracerouteSheet) {
@@ -143,9 +125,93 @@ public struct DiagnosticsView: View {
         }
     }
 
-    // MARK: - Быстрый пинг любого узла (Apple HIG 2026)
+    // MARK: - 2. Секция Pro-утилит (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
 
-    @State private var quickHostInput: String = ""
+    private var proUtilitiesHub: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("ПРОФЕССИОНАЛЬНЫЕ УТИЛИТЫ")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(NPTheme.textTertiary)
+                .tracking(0.5)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
+                    proUtilityTile(
+                        title: "DNS Гонка",
+                        subtitle: "12+ Anycast узлов",
+                        icon: "bolt.shield.fill",
+                        color: NPTheme.accentPrimary
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: GamingRadarView(viewModel: viewModel)) {
+                    proUtilityTile(
+                        title: "Gaming Радар",
+                        subtitle: "CS2, Dota, Valorant",
+                        icon: "gamecontroller.fill",
+                        color: Color.mint
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: BufferbloatView(viewModel: viewModel)) {
+                    proUtilityTile(
+                        title: "Bufferbloat",
+                        subtitle: "RFC 8290 SQM тест",
+                        icon: "gauge.with.dots.needle.67percent",
+                        color: Color.yellow
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: LANScannerView(viewModel: viewModel)) {
+                    proUtilityTile(
+                        title: "LAN Сканер",
+                        subtitle: "Устройства и порты",
+                        icon: "wifi.router.fill",
+                        color: Color.cyan
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+            }
+        }
+    }
+
+    private func proUtilityTile(title: String, subtitle: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(color)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(NPTheme.textPrimary)
+
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(NPTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(NPTheme.textTertiary)
+        }
+        .padding(12)
+        .npGlassCard(cornerRadius: 14)
+    }
+
+    // MARK: - 3. Быстрый пинг любого узла
 
     private var quickPingSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -201,6 +267,36 @@ public struct DiagnosticsView: View {
         }
     }
 
+    // MARK: - 5. Секция целевых узлов
+
+    private var targetsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("ЦЕЛЕВЫЕ УЗЛЫ МОНИТОРИНГА")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(NPTheme.textSecondary)
+                    .tracking(0.5)
+
+                Spacer()
+
+                Text("\(viewModel.targets.count) узлов")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(NPTheme.textSecondary)
+            }
+            .padding(.horizontal, 4)
+
+            LazyVStack(spacing: 10) {
+                ForEach(viewModel.targets) { target in
+                    if let metrics = viewModel.hostMetrics[target.address] {
+                        HostMetricCardView(metrics: metrics) {
+                            viewModel.startTraceroute(for: target.address)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private func prepareJSONExport() {
         Task {
             if let url = try? await viewModel.getExportJSONURL() {
@@ -231,4 +327,3 @@ private struct ShareSheet: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
-

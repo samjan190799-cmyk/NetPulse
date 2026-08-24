@@ -56,6 +56,18 @@
 		A10000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
 		A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */; };
 		A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000812C12345600000081 /* SpeechRecognizerManager.swift */; };
+		A10000902C12345600000090 /* DNSBenchmarkModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000902C12345600000090 /* DNSBenchmarkModels.swift */; };
+		A10000912C12345600000091 /* GamingRadarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000912C12345600000091 /* GamingRadarModels.swift */; };
+		A10000922C12345600000092 /* BufferbloatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000922C12345600000092 /* BufferbloatModels.swift */; };
+		A10000932C12345600000093 /* LANDeviceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000932C12345600000093 /* LANDeviceModels.swift */; };
+		A10000942C12345600000094 /* DNSBenchmarkEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000942C12345600000094 /* DNSBenchmarkEngine.swift */; };
+		A10000952C12345600000095 /* GamingRadarEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000952C12345600000095 /* GamingRadarEngine.swift */; };
+		A10000962C12345600000096 /* BufferbloatEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000962C12345600000096 /* BufferbloatEngine.swift */; };
+		A10000972C12345600000097 /* LANScannerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000972C12345600000097 /* LANScannerEngine.swift */; };
+		A10000982C12345600000098 /* DNSBenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000982C12345600000098 /* DNSBenchmarkView.swift */; };
+		A10000992C12345600000099 /* GamingRadarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000992C12345600000099 /* GamingRadarView.swift */; };
+		A100009A2C1234560000009A /* BufferbloatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100009A2C1234560000009A /* BufferbloatView.swift */; };
+		A100009B2C1234560000009B /* LANScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100009B2C1234560000009B /* LANScannerView.swift */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
 		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* NetPulseAttributes.swift */; };
@@ -140,6 +152,18 @@
 		B10000702C12345600000070 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/WidgetDataManager.swift; sourceTree = "<group>"; };
 		B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AINetworkAnomalyDetector.swift; sourceTree = "<group>"; };
 		B10000812C12345600000081 /* SpeechRecognizerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SpeechRecognizerManager.swift; sourceTree = "<group>"; };
+		B10000902C12345600000090 /* DNSBenchmarkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/DNSBenchmarkModels.swift; sourceTree = "<group>"; };
+		B10000912C12345600000091 /* GamingRadarModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/GamingRadarModels.swift; sourceTree = "<group>"; };
+		B10000922C12345600000092 /* BufferbloatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/BufferbloatModels.swift; sourceTree = "<group>"; };
+		B10000932C12345600000093 /* LANDeviceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/LANDeviceModels.swift; sourceTree = "<group>"; };
+		B10000942C12345600000094 /* DNSBenchmarkEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/DNSBenchmarkEngine.swift; sourceTree = "<group>"; };
+		B10000952C12345600000095 /* GamingRadarEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/GamingRadarEngine.swift; sourceTree = "<group>"; };
+		B10000962C12345600000096 /* BufferbloatEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/BufferbloatEngine.swift; sourceTree = "<group>"; };
+		B10000972C12345600000097 /* LANScannerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/LANScannerEngine.swift; sourceTree = "<group>"; };
+		B10000982C12345600000098 /* DNSBenchmarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DNSBenchmarkView.swift; sourceTree = "<group>"; };
+		B10000992C12345600000099 /* GamingRadarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/GamingRadarView.swift; sourceTree = "<group>"; };
+		B100009A2C1234560000009A /* BufferbloatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/BufferbloatView.swift; sourceTree = "<group>"; };
+		B100009B2C1234560000009B /* LANScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/LANScannerView.swift; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
 		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NetPulseWidgets/Info.plist; sourceTree = "<group>"; };
@@ -210,6 +234,10 @@
 				B10000402C12345600000040 /* TrafficModels.swift */,
 				B10000502C12345600000050 /* AIDiagnosticsModels.swift */,
 				B10000702C12345600000070 /* WidgetDataManager.swift */,
+				B10000902C12345600000090 /* DNSBenchmarkModels.swift */,
+				B10000912C12345600000091 /* GamingRadarModels.swift */,
+				B10000922C12345600000092 /* BufferbloatModels.swift */,
+				B10000932C12345600000093 /* LANDeviceModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -226,6 +254,10 @@
 				B10000432C12345600000043 /* TrafficClassifier.swift */,
 				B10000512C12345600000051 /* AIDiagnosticsEngine.swift */,
 				B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */,
+				B10000942C12345600000094 /* DNSBenchmarkEngine.swift */,
+				B10000952C12345600000095 /* GamingRadarEngine.swift */,
+				B10000962C12345600000096 /* BufferbloatEngine.swift */,
+				B10000972C12345600000097 /* LANScannerEngine.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -246,6 +278,10 @@
 				B10000522C12345600000052 /* AIDiagnosticsView.swift */,
 				B10000242C1234560000002E /* DiagnosticsView.swift */,
 				B10000112C12345600000011 /* SettingsView.swift */,
+				B10000982C12345600000098 /* DNSBenchmarkView.swift */,
+				B10000992C12345600000099 /* GamingRadarView.swift */,
+				B100009A2C1234560000009A /* BufferbloatView.swift */,
+				B100009B2C1234560000009B /* LANScannerView.swift */,
 				E10000062C12345600000006 /* Components */,
 			);
 			name = Views;
@@ -439,6 +475,18 @@
 				A10000702C12345600000070 /* WidgetDataManager.swift in Sources */,
 				A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */,
 				A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */,
+				A10000902C12345600000090 /* DNSBenchmarkModels.swift in Sources */,
+				A10000912C12345600000091 /* GamingRadarModels.swift in Sources */,
+				A10000922C12345600000092 /* BufferbloatModels.swift in Sources */,
+				A10000932C12345600000093 /* LANDeviceModels.swift in Sources */,
+				A10000942C12345600000094 /* DNSBenchmarkEngine.swift in Sources */,
+				A10000952C12345600000095 /* GamingRadarEngine.swift in Sources */,
+				A10000962C12345600000096 /* BufferbloatEngine.swift in Sources */,
+				A10000972C12345600000097 /* LANScannerEngine.swift in Sources */,
+				A10000982C12345600000098 /* DNSBenchmarkView.swift in Sources */,
+				A10000992C12345600000099 /* GamingRadarView.swift in Sources */,
+				A100009A2C1234560000009A /* BufferbloatView.swift in Sources */,
+				A100009B2C1234560000009B /* LANScannerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

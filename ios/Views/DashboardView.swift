@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Главный экран: Замер скорости (Speedtest) и оценка возможностей сети.
+/// Главный экран: Замер скорости (Speedtest), быстрые Pro-инструменты и оценка возможностей сети.
 public struct DashboardView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -42,12 +42,11 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                // Фон: динамический градиент активной темы
                 NPTheme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 18) {
                         // 1. Интерактивный замер скорости (Speedtest 2026)
                         SpeedtestHeroView(
                             isRunning: viewModel.isSpeedtestRunning,
@@ -89,7 +88,10 @@ public struct DashboardView: View {
                             .transition(.scale.combined(with: .opacity))
                         }
 
-                        // 2. Блок оценки применимости скорости (Для чего подходит сеть)
+                        // 2. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN)
+                        quickToolsSection
+
+                        // 3. Блок оценки применимости скорости (Для чего подходит сеть)
                         NetworkCapabilityCardView(items: capabilities)
                     }
                     .padding(.horizontal, 16)
@@ -105,5 +107,68 @@ public struct DashboardView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Быстрые инструменты на дашборде
+
+    private var quickToolsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
+                    quickDashboardChip(
+                        title: "DNS Гонка",
+                        icon: "bolt.shield.fill",
+                        color: NPTheme.accentPrimary
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: GamingRadarView(viewModel: viewModel)) {
+                    quickDashboardChip(
+                        title: "Gaming Радар",
+                        icon: "gamecontroller.fill",
+                        color: Color.mint
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: BufferbloatView(viewModel: viewModel)) {
+                    quickDashboardChip(
+                        title: "Bufferbloat",
+                        icon: "gauge.with.dots.needle.67percent",
+                        color: Color.yellow
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: LANScannerView(viewModel: viewModel)) {
+                    quickDashboardChip(
+                        title: "LAN Сканер",
+                        icon: "wifi.router.fill",
+                        color: Color.cyan
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+            }
+        }
+    }
+
+    private func quickDashboardChip(title: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(color)
+
+            Text(title)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(NPTheme.textPrimary)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(NPTheme.textTertiary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .npGlassCard(cornerRadius: 12)
     }
 }

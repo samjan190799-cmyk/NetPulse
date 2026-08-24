@@ -428,21 +428,21 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // Адаптивный интервал: 2.5 сек в фоне (для энергосбережения), 1.0 сек на экране
-                let sleepNs: UInt64 = isAppInBackground ? 2_500_000_000 : 1_000_000_000
+                // Адаптивный интервал: 3.5 сек в фоне, 1.5 сек на экране для нулевого нагрева устройства
+                let sleepNs: UInt64 = isAppInBackground ? 3_500_000_000 : 1_500_000_000
                 try? await Task.sleep(nanoseconds: sleepNs)
             }
         }
     }
 
-    /// Изолированная задача параллельного пинга хостов сети
+    /// Изолированная задача параллельного пинга хостов сети (энергоэффективная)
     private func startPingTask() {
         pingTask?.cancel()
         pingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
                 await self.pollAllHosts()
-                try? await Task.sleep(nanoseconds: UInt64(self.pollingInterval * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // каждые 3 секунды
             }
         }
     }
@@ -454,7 +454,7 @@ public final class NetworkMonitorViewModel {
                 guard let self = self, self.isMonitoringActive else { break }
                 let info = await self.diagnostics.collectSystemInfo()
                 self.systemInfo = info
-                try? await Task.sleep(nanoseconds: 10_000_000_000) // каждые 10 секунд
+                try? await Task.sleep(nanoseconds: 15_000_000_000) // каждые 15 секунд
             }
         }
     }

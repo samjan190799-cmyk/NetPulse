@@ -20,51 +20,51 @@ public struct GamingRadarView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            ZStack {
-                NPTheme.backgroundGradient
-                    .ignoresSafeArea()
+        ZStack {
+            NPTheme.backgroundGradient
+                .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 1. Селектор игр (Горизонтальная карусель)
-                        gameSelectorCarousel
+            ScrollView {
+                VStack(spacing: 16) {
+                    // 1. Селектор игр (Горизонтальная карусель)
+                    gameSelectorCarousel
 
-                        // 2. Карточка лучшего сервера для матча (Matchmaking Advisor)
-                        bestServerHeroCard
+                    // 2. Карточка лучшего сервера для матча (Matchmaking Advisor)
+                    bestServerHeroCard
 
-                        // 3. Список дата-центров выбранной игры
-                        clustersListSection
+                    // 3. Список дата-центров выбранной игры
+                    clustersListSection
 
-                        // 4. Пояснение киберспортивных критериев задержки (RFC 3550)
-                        gamingAdviceCard
-                    }
-                    .padding(.vertical)
+                    // 4. Пояснение киберспортивных критериев задержки (RFC 3550)
+                    gamingAdviceCard
                 }
+                .padding(.vertical)
+                .padding(.bottom, 32)
             }
-            .navigationTitle("Gaming Радар")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        scanClusters()
-                    } label: {
-                        if isScanning {
-                            ProgressView()
-                                .tint(NPTheme.accentPrimary)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
+        }
+        .navigationTitle("Gaming Радар")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    scanClusters()
+                } label: {
+                    if isScanning {
+                        ProgressView()
+                            .tint(NPTheme.accentPrimary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
-                    .disabled(isScanning)
-                    .npMinHitTarget()
                 }
+                .disabled(isScanning)
+                .npMinHitTarget()
             }
-            .task {
-                scanClusters()
-            }
+        }
+        .task {
+            scanClusters()
         }
     }
 

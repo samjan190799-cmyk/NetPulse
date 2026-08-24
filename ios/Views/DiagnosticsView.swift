@@ -42,7 +42,7 @@ public struct DiagnosticsView: View {
                         targetsSection
                     }
                     .padding(16)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 90)
                 }
 
                 // Всплывающий баннер алертов

@@ -91,6 +91,20 @@ public struct BufferbloatReport: Identifiable, Codable, Sendable {
     public let uploadSpeedMbps: Double
     public let recommendations: [String]
 
+    public var dynamicVerdictTitle: String {
+        if (grade == .aPlus || grade == .a) && unloadedPingMs > 75.0 {
+            return "Буферизация низкая (A+), высокий базовый RTT"
+        }
+        return grade.title
+    }
+
+    public var dynamicVerdictDescription: String {
+        if (grade == .aPlus || grade == .a) && unloadedPingMs > 75.0 {
+            return "Буфер очередей не переполняется под нагрузкой (+0..5 мс). Однако базовая задержка вашей мобильной/сотовой сети (\(Int(unloadedPingMs)) мс) высока для соревновательных онлайн-игр."
+        }
+        return grade.descriptionText
+    }
+
     public init(
         id: UUID = UUID(),
         timestamp: Date = Date(),

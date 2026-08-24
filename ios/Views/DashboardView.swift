@@ -11,22 +11,37 @@ import SwiftUI
 public struct DashboardView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
+    private var isCellular: Bool {
+        viewModel.systemInfo.connectionType == .cellular
+    }
+
     private var currentPing: Double? {
-        if let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), let lat = gw.lastLatencyMs {
+        // На сотовой сети локальный шлюз (роутер) отсутствует — берем публичные хосты
+        if !isCellular, let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), let lat = gw.lastLatencyMs, lat > 0 {
             return lat
         }
-        let latencies = viewModel.hostMetrics.values.compactMap { $0.lastLatencyMs }
-        guard !latencies.isEmpty else { return nil }
-        return latencies.reduce(0, +) / Double(latencies.count)
+        let reachableLatencies = viewModel.hostMetrics.values
+            .filter { !($0.isGateway && isCellular) }
+            .compactMap { $0.lastLatencyMs }
+            .filter { $0 > 0 }
+        guard !reachableLatencies.isEmpty else {
+            return viewModel.lastSpeedtestResult?.pingMs
+        }
+        return (reachableLatencies.reduce(0, +) / Double(reachableLatencies.count) * 10).rounded() / 10
     }
 
     private var currentJitter: Double? {
-        if let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }) {
+        if !isCellular, let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), gw.jitterMs > 0 {
             return gw.jitterMs
         }
-        let jitters = viewModel.hostMetrics.values.map { $0.jitterMs }.filter { $0 > 0 }
-        guard !jitters.isEmpty else { return nil }
-        return jitters.reduce(0, +) / Double(jitters.count)
+        let reachableJitters = viewModel.hostMetrics.values
+            .filter { !($0.isGateway && isCellular) }
+            .map { $0.jitterMs }
+            .filter { $0 > 0 }
+        guard !reachableJitters.isEmpty else {
+            return viewModel.lastSpeedtestResult?.jitterMs ?? 1.5
+        }
+        return (reachableJitters.reduce(0, +) / Double(reachableJitters.count) * 10).rounded() / 10
     }
 
     private var capabilities: [CapabilityItem] {
@@ -42,6 +57,7 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
+                // Фон: динамический градиент активной темы
                 NPTheme.backgroundGradient
                     .ignoresSafeArea()
 
@@ -96,7 +112,7 @@ public struct DashboardView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 90) // Безопасный отступ для плавающего таб-бара
                 }
             }
             .navigationTitle("NetPulse")

@@ -7,14 +7,14 @@
 
 import SwiftUI
 
-/// Экран сканера локальной сети и аудита безопасности Wi-Fi
+/// Экран сканера локальной сети (Wi-Fi Audit & Device Discovery)
 public struct LANScannerView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
-    @State private var isScanning: Bool = false
-    @State private var scannedProgress: Int = 0
-    @State private var totalHosts: Int = 254
     @State private var devices: [LANDevice] = []
+    @State private var isScanning: Bool = false
+    @State private var scanProgress: Double = 0.0
+    @State private var scannedHostCount: Int = 0
     @State private var selectedDevice: LANDevice?
 
     private var securityRiskCount: Int {
@@ -22,57 +22,57 @@ public struct LANScannerView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            ZStack {
-                NPTheme.backgroundGradient
-                    .ignoresSafeArea()
+        ZStack {
+            NPTheme.backgroundGradient
+                .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 1. Сводная карточка подсети и статус безопасности
-                        subnetSummaryHeroCard
+            ScrollView {
+                VStack(spacing: 16) {
+                    // 1. Сводная карточка подсети и статус безопасности
+                    subnetSummaryHeroCard
 
-                        // 2. Индикатор прогресса сканирования подсети
-                        if isScanning {
-                            scanProgressCard
-                        }
-
-                        // 3. Список обнаруженных устройств
-                        devicesListSection
-
-                        // 4. Пояснение безопасности домашней сети
-                        securityNoticeCard
+                    // 2. Индикатор прогресса сканирования подсети
+                    if isScanning {
+                        scanProgressCard
                     }
-                    .padding(.vertical)
+
+                    // 3. Список обнаруженных устройств
+                    devicesListSection
+
+                    // 4. Пояснение безопасности домашней сети
+                    securityNoticeCard
                 }
+                .padding(.vertical)
+                .padding(.bottom, 32)
             }
-            .navigationTitle("LAN Сканер")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        startScan()
-                    } label: {
-                        if isScanning {
-                            ProgressView()
-                                .tint(NPTheme.accentPrimary)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
-                    }
-                    .disabled(isScanning)
-                    .npMinHitTarget()
-                }
-            }
-            .sheet(item: $selectedDevice) { dev in
-                LANDeviceDetailSheet(device: dev)
-            }
-            .task {
-                if devices.isEmpty {
+        }
+        .navigationTitle("LAN Сканер")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
                     startScan()
+                } label: {
+                    if isScanning {
+                        ProgressView()
+                            .tint(NPTheme.accentPrimary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                    }
                 }
+                .disabled(isScanning)
+                .npMinHitTarget()
+            }
+        }
+        .sheet(item: $selectedDevice) { dev in
+            LANDeviceDetailSheet(device: dev)
+        }
+        .task {
+            if devices.isEmpty {
+                startScan()
             }
         }
     }
@@ -145,29 +145,32 @@ public struct LANScannerView: View {
                         .clipShape(Capsule())
                 }
                 .disabled(isScanning)
+                .buttonStyle(NPPressableButtonStyle(scale: 0.94))
             }
         }
         .padding(16)
-        .npGlassCard(cornerRadius: 20)
+        .npGlassCard(cornerRadius: 18)
         .padding(.horizontal)
     }
 
     // MARK: - 2. Индикатор прогресса
 
     private var scanProgressCard: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Сканирование адресов 1...\(totalHosts)...")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(NPTheme.textSecondary)
+                Text("Сканирование IP-адресов...")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(NPTheme.textPrimary)
+
                 Spacer()
-                Text("\(scannedProgress)/\(totalHosts)")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+
+                Text("\(scannedHostCount)/254")
+                    .font(.system(size: 11, design: .monospaced))
                     .monospacedDigit()
-                    .foregroundStyle(NPTheme.accentPrimary)
+                    .foregroundStyle(NPTheme.textSecondary)
             }
 
-            ProgressView(value: Double(scannedProgress), total: Double(totalHosts))
+            ProgressView(value: scanProgress)
                 .tint(NPTheme.accentPrimary)
         }
         .padding(14)
@@ -175,107 +178,135 @@ public struct LANScannerView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 3. Список обнаруженных устройств
+    // MARK: - 3. Список устройств
 
     private var devicesListSection: some View {
-        VStack(spacing: 10) {
-            ForEach(devices) { device in
-                Button {
-                    selectedDevice = device
-                    HapticManager.shared.impactLight()
-                } label: {
-                    deviceRow(device: device)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("НАЙДЕННЫЕ УЗЛЫ (\(devices.count)):")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(NPTheme.textTertiary)
+                .tracking(0.5)
+                .padding(.horizontal)
+
+            if devices.isEmpty && !isScanning {
+                VStack(spacing: 8) {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 32))
+                        .foregroundStyle(NPTheme.textTertiary)
+                    Text("Нажмите «Сканировать», чтобы найти устройства в вашей Wi-Fi сети")
+                        .font(.system(size: 12))
+                        .foregroundStyle(NPTheme.textSecondary)
+                        .multilineTextAlignment(.center)
                 }
-                .buttonStyle(NPPressableButtonStyle())
+                .frame(maxWidth: .infinity)
+                .padding(24)
+                .npGlassCard(cornerRadius: 16)
+                .padding(.horizontal)
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(devices) { device in
+                        deviceRow(device)
+                    }
+                }
+                .padding(.horizontal)
             }
         }
-        .padding(.horizontal)
     }
 
-    private func deviceRow(device: LANDevice) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(device.isGateway ? NPTheme.accentPrimary.opacity(0.15) : Color.white.opacity(0.06))
-                    .frame(width: 42, height: 42)
+    private func deviceRow(_ device: LANDevice) -> some View {
+        Button {
+            selectedDevice = device
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(device.isCurrentDevice ? NPTheme.accentPrimary.opacity(0.18) : Color.white.opacity(0.06))
+                        .frame(width: 40, height: 40)
 
-                Image(systemName: device.deviceType.icon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(device.isGateway ? NPTheme.accentPrimary : NPTheme.textPrimary)
-            }
+                    Image(systemName: device.deviceType.systemIcon)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(device.isCurrentDevice ? NPTheme.accentPrimary : NPTheme.textPrimary)
+                }
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(device.displayName)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(NPTheme.textPrimary)
-                        .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(device.displayName)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(NPTheme.textPrimary)
 
-                    if device.isGateway {
-                        Text("ROUTER")
-                            .font(.system(size: 8, weight: .heavy))
-                            .foregroundStyle(NPTheme.accentPrimary)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(NPTheme.accentPrimary.opacity(0.15))
-                            .clipShape(Capsule())
+                        if device.isCurrentDevice {
+                            Text("ЭТО УСТРОЙСТВО")
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundStyle(NPTheme.backgroundDeep)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(NPTheme.accentPrimary)
+                                .clipShape(Capsule())
+                        } else if device.isGateway {
+                            Text("РОУТЕР")
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundStyle(NPTheme.textPrimary)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.3))
+                                .clipShape(Capsule())
+                        }
                     }
 
-                    if device.isCurrentDevice {
-                        Text("THIS IPHONE")
-                            .font(.system(size: 8, weight: .heavy))
-                            .foregroundStyle(NPTheme.accentSilver)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Capsule())
+                    HStack(spacing: 6) {
+                        Text(device.ipAddress)
+                            .font(.system(size: 11, design: .monospaced))
+                            .monospacedDigit()
+                            .foregroundStyle(NPTheme.textSecondary)
+
+                        if let vendor = device.vendorName {
+                            Text("• \(vendor)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(NPTheme.textTertiary)
+                        }
                     }
                 }
 
-                HStack(spacing: 6) {
-                    Text(device.ipAddress)
-                        .font(.system(size: 11, design: .monospaced))
-                        .monospacedDigit()
-                        .foregroundStyle(NPTheme.textSecondary)
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let ping = device.responseTimeMs {
+                        Text(String(format: "%.1f мс", ping))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .monospacedDigit()
+                            .foregroundStyle(ping < 20 ? NPTheme.accentPrimary : NPTheme.semanticWarn)
+                    }
 
                     if !device.openPorts.isEmpty {
-                        Text("• \(device.openPorts.count) порт(ов)")
-                            .font(.system(size: 10))
-                            .foregroundStyle(NPTheme.textTertiary)
+                        Text("\(device.openPorts.count) порт(ов)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(device.openPorts.contains(where: { $0.isCriticalSecurityRisk }) ? NPTheme.semanticWarn : NPTheme.textTertiary)
                     }
                 }
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.1f мс", device.latencyMs))
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(NPTheme.accentPrimary)
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(NPTheme.textTertiary)
             }
+            .padding(12)
+            .npGlassCard(cornerRadius: 14)
         }
-        .padding(12)
-        .npGlassCard(cornerRadius: 14)
+        .buttonStyle(NPPressableButtonStyle(scale: 0.98))
     }
 
-    // MARK: - 4. Карточка безопасности
+    // MARK: - 4. Безопасность домашней сети
 
     private var securityNoticeCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "shield.lefthalf.filled")
+                Image(systemName: "shield.lefthalf.filled.trianglebadge.exclamationmark")
                     .foregroundStyle(NPTheme.accentPrimary)
-                Text("Аудит безопасности домашнего Wi-Fi")
+                Text("Аудит безопасности локальной сети")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(NPTheme.textPrimary)
             }
 
-            Text("Если вы видите неизвестные IP-адреса в списке — возможно, к вашему Wi-Fi подключены соседи или незащищенные IoT-гаджеты. Рекомендуется сменить пароль сети на WPA3 и отключить WPS.")
+            Text("Сканер находит потенциально уязвимые порты (например, незащищенный порт 22 SSH, 80 HTTP админки или 554 RTSP видеопотока камер). Неизвестные устройства могут быть несанкционированными подключениями к вашему Wi-Fi.")
                 .font(.system(size: 11))
                 .foregroundStyle(NPTheme.textSecondary)
         }
@@ -284,41 +315,38 @@ public struct LANScannerView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - Сканирование
+    // MARK: - Запуск сканирования
 
     private func startScan() {
         guard !isScanning else { return }
         isScanning = true
-        scannedProgress = 0
+        scanProgress = 0.0
+        scannedHostCount = 0
         devices = []
         HapticManager.shared.impactMedium()
 
         Task {
-            let res = await LANScannerEngine.shared.scanSubnet(
+            let found = await LANScannerEngine.shared.scanSubnet(
                 localIP: viewModel.systemInfo.localIP,
                 gatewayIP: viewModel.systemInfo.gatewayIP
-            ) { scanned, total, dev in
+            ) { progress, count in
                 Task { @MainActor in
-                    self.scannedProgress = scanned
-                    self.totalHosts = total
-                    if let dev = dev, !devices.contains(where: { $0.id == dev.id }) {
-                        self.devices.append(dev)
-                    }
+                    self.scanProgress = progress
+                    self.scannedHostCount = count
                 }
             }
 
-            self.devices = res
+            self.devices = found
             self.isScanning = false
             HapticManager.shared.notificationSuccess()
         }
     }
 }
 
-// MARK: - Детальный лист информации об устройстве
-
+/// Модальный экран детальной информации об устройстве
 private struct LANDeviceDetailSheet: View {
-    @Environment(\.dismiss) private var dismiss
     let device: LANDevice
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -328,111 +356,82 @@ private struct LANDeviceDetailSheet: View {
 
                 ScrollView {
                     VStack(spacing: 16) {
-                        // Верхняя карточка устройства
-                        HStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(NPTheme.accentPrimary.opacity(0.12))
-                                    .frame(width: 54, height: 54)
+                        // Карточка устройства
+                        VStack(spacing: 10) {
+                            Image(systemName: device.deviceType.systemIcon)
+                                .font(.system(size: 40))
+                                .foregroundStyle(NPTheme.accentPrimary)
 
-                                Image(systemName: device.deviceType.icon)
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(NPTheme.accentPrimary)
-                            }
+                            Text(device.displayName)
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(NPTheme.textPrimary)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(device.displayName)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(NPTheme.textPrimary)
-
-                                Text(device.deviceType.rawValue)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                            Spacer()
+                            Text(device.ipAddress)
+                                .font(.system(size: 14, design: .monospaced))
+                                .monospacedDigit()
+                                .foregroundStyle(NPTheme.textSecondary)
                         }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-
-                        // Таблица сетевых атрибутов
-                        VStack(spacing: 8) {
-                            attributeRow(title: "IP-Адрес", value: device.ipAddress)
-                            if let mac = device.macAddress {
-                                attributeRow(title: "MAC-Адрес", value: mac)
-                            }
-                            if let vendor = device.vendorName {
-                                attributeRow(title: "Производитель", value: vendor)
-                            }
-                            attributeRow(title: "Отклик (RTT)", value: String(format: "%.1f мс", device.latencyMs))
-                        }
-                        .padding(14)
-                        .npGlassCard(cornerRadius: 16)
-                        .padding(.horizontal)
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .npGlassCard(cornerRadius: 18)
 
                         // Открытые порты
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 10) {
                             Text("ОТКРЫТЫЕ ПОРТЫ И СЛУЖБЫ:")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(NPTheme.textTertiary)
-                                .tracking(0.5)
 
                             if device.openPorts.isEmpty {
-                                Text("Открытых TCP-портов не обнаружено (Устройство закрыто файрволом).")
+                                Text("На устройстве не обнаружено открытых публичных портов.")
                                     .font(.system(size: 12))
                                     .foregroundStyle(NPTheme.textSecondary)
-                                    .padding(12)
+                                    .padding(14)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                     .npGlassCard(cornerRadius: 12)
                             } else {
-                                VStack(spacing: 6) {
-                                    ForEach(device.openPorts) { port in
-                                        HStack {
-                                            Text("Порт \(port.portNumber)")
-                                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                                .monospacedDigit()
+                                ForEach(device.openPorts) { port in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Порт \(port.port) — \(port.serviceName)")
+                                                .font(.system(size: 13, weight: .bold))
                                                 .foregroundStyle(NPTheme.textPrimary)
 
-                                            Spacer()
-
-                                            Text(port.serviceName)
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(port.isCriticalSecurityRisk ? NPTheme.semanticWarn : NPTheme.accentPrimary)
+                                            Text(port.serviceDescription)
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(NPTheme.textSecondary)
                                         }
-                                        .padding(10)
-                                        .background(Color.white.opacity(0.04))
-                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                                        Spacer()
+
+                                        if port.isCriticalSecurityRisk {
+                                            Text("ВНИМАНИЕ")
+                                                .font(.system(size: 9, weight: .black))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 3)
+                                                .background(Color.red)
+                                                .clipShape(Capsule())
+                                        }
                                     }
+                                    .padding(12)
+                                    .npGlassCard(cornerRadius: 12)
                                 }
-                                .padding(12)
-                                .npGlassCard(cornerRadius: 14)
                             }
                         }
-                        .padding(.horizontal)
                     }
-                    .padding(.vertical)
+                    .padding()
                 }
             }
-            .navigationTitle("Устройство сети")
+            .navigationTitle("Параметры устройства")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Готово") { dismiss() }
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(NPTheme.accentPrimary)
+                    Button("Закрыть") {
+                        dismiss()
+                    }
+                    .foregroundStyle(NPTheme.accentPrimary)
                 }
             }
-        }
-    }
-
-    private func attributeRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13))
-                .foregroundStyle(NPTheme.textSecondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .monospacedDigit()
-                .foregroundStyle(NPTheme.textPrimary)
         }
     }
 }

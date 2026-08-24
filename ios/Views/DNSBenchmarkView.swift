@@ -31,82 +31,82 @@ public struct DNSBenchmarkView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            ZStack {
-                NPTheme.backgroundGradient
-                    .ignoresSafeArea()
+        ZStack {
+            NPTheme.backgroundGradient
+                .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 1. Верхний интерактивный подиум и кнопка старта
-                        benchmarkHeaderCard
+            ScrollView {
+                VStack(spacing: 16) {
+                    // 1. Верхний интерактивный подиум и кнопка старта
+                    benchmarkHeaderCard
 
-                        // 2. Селектор категорий (Смарт-фильтры)
-                        categoryFilterSelector
+                    // 2. Селектор категорий (Смарт-фильтры)
+                    categoryFilterSelector
 
-                        // 3. Список серверов в реальном времени с медалями
-                        serversListSection
+                    // 3. Список серверов в реальном времени с медалями
+                    serversListSection
 
-                        // 4. Пояснительная карточка DoH/DoT и безопасности
-                        securityExplanationCard
-                    }
-                    .padding(.vertical)
+                    // 4. Пояснительная карточка DoH/DoT и безопасности
+                    securityExplanationCard
                 }
+                .padding(.vertical)
+                .padding(.bottom, 32)
+            }
 
-                // Всплывающий тост об успешном копировании IP
-                if showCopiedToast {
-                    VStack {
-                        Spacer()
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(NPTheme.accentPrimary)
-                            Text("DNS-адрес скопирован в буфер обмена")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(NPTheme.textPrimary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(NPTheme.cardBackground)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(NPTheme.accentPrimary.opacity(0.35), lineWidth: 1))
-                        .shadow(color: Color.black.opacity(0.4), radius: 10, y: 5)
-                        .padding(.bottom, 30)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+            // Всплывающий тост об успешном копировании IP
+            if showCopiedToast {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(NPTheme.accentPrimary)
+                        Text("DNS-адрес скопирован в буфер обмена")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(NPTheme.textPrimary)
                     }
-                    .zIndex(10)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(NPTheme.cardBackground)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(NPTheme.accentPrimary.opacity(0.35), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.4), radius: 10, y: 5)
+                    .padding(.bottom, 30)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                .zIndex(10)
             }
-            .navigationTitle("DNS Бенчмарк")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        startBenchmark()
-                    } label: {
-                        if isRunning {
-                            ProgressView()
-                                .tint(NPTheme.accentPrimary)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
-                    }
-                    .disabled(isRunning)
-                    .npMinHitTarget()
-                }
-            }
-            .sheet(item: $selectedProviderForConfig) { provider in
-                DNSConfigExportSheet(provider: provider)
-            }
-            .task {
-                if benchmarkResults.isEmpty {
-                    // Инициализация дефолтного каталога
-                    benchmarkResults = DNSProviderInfo.defaultCatalog.map {
-                        DNSBenchmarkResult(provider: $0)
-                    }
+        }
+        .navigationTitle("DNS Бенчмарк")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
                     startBenchmark()
+                } label: {
+                    if isRunning {
+                        ProgressView()
+                            .tint(NPTheme.accentPrimary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                    }
                 }
+                .disabled(isRunning)
+                .npMinHitTarget()
+            }
+        }
+        .sheet(item: $selectedProviderForConfig) { provider in
+            DNSConfigExportSheet(provider: provider)
+        }
+        .task {
+            if benchmarkResults.isEmpty {
+                // Инициализация дефолтного каталога
+                benchmarkResults = DNSProviderInfo.defaultCatalog.map {
+                    DNSBenchmarkResult(provider: $0)
+                }
+                startBenchmark()
             }
         }
     }

@@ -94,7 +94,7 @@ public struct TrafficView: View {
                     sessionsHistorySection
                 }
                 .padding(.vertical)
-                .padding(.bottom, 40)
+                .padding(.bottom, 90)
             }
             .npScreenBackground()
             .navigationTitle("Трафик")

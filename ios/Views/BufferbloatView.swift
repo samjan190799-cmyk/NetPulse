@@ -17,53 +17,53 @@ public struct BufferbloatView: View {
     @State private var report: BufferbloatReport?
 
     public var body: some View {
-        NavigationStack {
-            ZStack {
-                NPTheme.backgroundGradient
-                    .ignoresSafeArea()
+        ZStack {
+            NPTheme.backgroundGradient
+                .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 1. Главная карточка с грейдом A+...F
-                        gradeHeroCard
+            ScrollView {
+                VStack(spacing: 16) {
+                    // 1. Главная карточка с грейдом A+...F
+                    gradeHeroCard
 
-                        // 2. Фазы тестирования (Индикатор текущего этапа)
-                        testingPhasesCard
+                    // 2. Фазы тестирования (Индикатор текущего этапа)
+                    testingPhasesCard
 
-                        // 3. Детальное сравнение ненагруженного и нагруженного пинга
-                        if let r = report {
-                            metricsComparisonSection(report: r)
-                        }
-
-                        // 4. Персональные рекомендации по настройке роутера
-                        if let r = report {
-                            recommendationsCard(report: r)
-                        } else {
-                            bufferbloatIntroCard
-                        }
+                    // 3. Детальное сравнение ненагруженного и нагруженного пинга
+                    if let r = report {
+                        metricsComparisonSection(report: r)
                     }
-                    .padding(.vertical)
+
+                    // 4. Персональные рекомендации по настройке роутера
+                    if let r = report {
+                        recommendationsCard(report: r)
+                    } else {
+                        bufferbloatIntroCard
+                    }
                 }
+                .padding(.vertical)
+                .padding(.bottom, 32)
             }
-            .navigationTitle("Bufferbloat Тест")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        startBufferbloatTest()
-                    } label: {
-                        if isRunning {
-                            ProgressView()
-                                .tint(NPTheme.accentPrimary)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(NPTheme.accentPrimary)
-                        }
+        }
+        .navigationTitle("Bufferbloat Тест")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar) // Скрываем таб-бар на детальном экране
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    startBufferbloatTest()
+                } label: {
+                    if isRunning {
+                        ProgressView()
+                            .tint(NPTheme.accentPrimary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
                     }
-                    .disabled(isRunning)
-                    .npMinHitTarget()
                 }
+                .disabled(isRunning)
+                .npMinHitTarget()
             }
         }
     }
@@ -84,11 +84,12 @@ public struct BufferbloatView: View {
                 }
 
                 VStack(spacing: 4) {
-                    Text(r.grade.title)
-                        .font(.system(size: 17, weight: .bold))
+                    Text(r.dynamicVerdictTitle)
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
+                        .multilineTextAlignment(.center)
 
-                    Text(r.grade.descriptionText)
+                    Text(r.dynamicVerdictDescription)
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                         .multilineTextAlignment(.center)

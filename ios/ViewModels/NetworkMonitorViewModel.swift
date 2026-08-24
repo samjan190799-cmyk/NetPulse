@@ -705,19 +705,25 @@ public final class NetworkMonitorViewModel {
     }
 
     public var currentAveragePing: Double? {
-        let latencies = hostMetrics.values.compactMap { $0.lastLatencyMs }
-        guard !latencies.isEmpty else { return nil }
+        let isCellular = systemInfo.connectionType == .cellular
+        let relevantHosts = hostMetrics.values.filter { !($0.isGateway && isCellular) }
+        let latencies = relevantHosts.compactMap { $0.lastLatencyMs }.filter { $0 > 0 }
+        guard !latencies.isEmpty else { return lastSpeedtestResult?.pingMs }
         return (latencies.reduce(0, +) / Double(latencies.count) * 10).rounded() / 10
     }
 
     public var currentAverageJitter: Double? {
-        let jitters = hostMetrics.values.map { $0.jitterMs }.filter { $0 > 0 }
-        guard !jitters.isEmpty else { return nil }
+        let isCellular = systemInfo.connectionType == .cellular
+        let relevantHosts = hostMetrics.values.filter { !($0.isGateway && isCellular) }
+        let jitters = relevantHosts.map { $0.jitterMs }.filter { $0 > 0 }
+        guard !jitters.isEmpty else { return lastSpeedtestResult?.jitterMs }
         return (jitters.reduce(0, +) / Double(jitters.count) * 10).rounded() / 10
     }
 
     public var currentPacketLossPct: Double {
-        let losses = hostMetrics.values.map { $0.lossWindowPct }
+        let isCellular = systemInfo.connectionType == .cellular
+        let relevantHosts = hostMetrics.values.filter { !($0.isGateway && isCellular) }
+        let losses = relevantHosts.map { $0.lossWindowPct }
         guard !losses.isEmpty else { return 0.0 }
         return (losses.reduce(0, +) / Double(losses.count) * 10).rounded() / 10
     }

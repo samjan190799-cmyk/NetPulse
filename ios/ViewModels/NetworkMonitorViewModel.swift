@@ -428,8 +428,8 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // Адаптивный интервал: 3.5 сек в фоне (для энергосбережения), 2.0 сек на экране
-                let sleepNs: UInt64 = isAppInBackground ? 3_500_000_000 : 2_000_000_000
+                // Адаптивный интервал: 2.5 сек в фоне (для энергосбережения), 1.0 сек на экране
+                let sleepNs: UInt64 = isAppInBackground ? 2_500_000_000 : 1_000_000_000
                 try? await Task.sleep(nanoseconds: sleepNs)
             }
         }

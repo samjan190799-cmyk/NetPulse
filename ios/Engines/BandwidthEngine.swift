@@ -152,19 +152,18 @@ public final class BandwidthEngine: @unchecked Sendable {
         if let conn = activeConnectionType {
             switch conn {
             case .cellular:
-                // В режиме сотовой связи внешний интернет идет через LTE/5G
-                inDelta = cellInDelta
-                outDelta = cellOutDelta
+                // В режиме сотовой связи берем сотовую дельту (с защитой от смены контекста eSIM)
+                inDelta = cellInDelta > 0 ? cellInDelta : max(wifiInDelta, cellInDelta)
+                outDelta = cellOutDelta > 0 ? cellOutDelta : max(wifiOutDelta, cellOutDelta)
             case .wifi, .ethernet:
-                // В режиме Wi-Fi внешний интернет идет через Wi-Fi
-                inDelta = wifiInDelta
-                outDelta = wifiOutDelta
+                // В режиме Wi-Fi берем Wi-Fi дельту
+                inDelta = wifiInDelta > 0 ? wifiInDelta : max(wifiInDelta, cellInDelta)
+                outDelta = wifiOutDelta > 0 ? wifiOutDelta : max(wifiOutDelta, cellOutDelta)
             default:
                 inDelta = max(wifiInDelta, cellInDelta)
                 outDelta = max(wifiOutDelta, cellOutDelta)
             }
         } else {
-            // Если тип сети не передан явно — выбираем максимальный активный интерфейс
             inDelta = max(wifiInDelta, cellInDelta)
             outDelta = max(wifiOutDelta, cellOutDelta)
         }
@@ -213,8 +212,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от аномальных скачков: максимум 25 МБ за один замер (200 Мбит/с)
-            if delta > 25_000_000 {
+            // Защита от переполнения: до 150 МБ за интервал (1.2 Гбит/с)
+            if delta > 150_000_000 {
                 return 0
             }
             return delta
@@ -223,7 +222,7 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
     }
 
-    /// Считывание счетчиков байт СТРОГО физических интерфейсов BSD.
+    /// Считывание счетчиков байт ВСЕХ физических и виртуальных интерфейсов BSD (en*, pdp_ip*, utun*).
     public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
@@ -250,13 +249,17 @@ public final class BandwidthEngine: @unchecked Sendable {
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
-                        // Строгая привязка к первичным физическим интерфейсам:
-                        // en0: Wi-Fi чип iPhone
-                        // pdp_ip0: Главный сотовый интернет-канал (исключает IMS/MMS вторичные PDP контексты)
-                        if ifName == "en0" {
+                        // Поддержка всех типов сетевых адаптеров iOS (Dual SIM, eSIM, Wi-Fi 6, VPN)
+                        if ifName.hasPrefix("en") {
+                            // Wi-Fi / Ethernet адаптеры (en0, en1, en2...)
                             result.wifiIn += inBytes
                             result.wifiOut += outBytes
-                        } else if ifName == "pdp_ip0" {
+                        } else if ifName.hasPrefix("pdp_ip") {
+                            // Сотовые каналы 5G/LTE (pdp_ip0, pdp_ip1, pdp_ip2, pdp_ip3...)
+                            result.cellularIn += inBytes
+                            result.cellularOut += outBytes
+                        } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") {
+                            // VPN, Cloudflare WARP и Apple Private Relay
                             result.cellularIn += inBytes
                             result.cellularOut += outBytes
                         }

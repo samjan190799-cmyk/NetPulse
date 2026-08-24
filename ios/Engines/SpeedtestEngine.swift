@@ -16,7 +16,7 @@ public struct SpeedtestServer: Sendable {
 }
 
 /// Высокопроизводительный мультипоточный (Multi-Stream) движок замера скорости (Bandwidth & Speedtest) для iOS.
-/// Использует параллельные потоки (4–6 TCP сокетов) с замером чистого времени передачи после TTFB (First Byte Arrival),
+/// Использует параллельные потоки (4 TCP сокета) с нативной пакетной буферизацией URLSession,
 /// скользящее окно и алгоритмы Ookla/Cloudflare Speed Standard.
 public final class SpeedtestEngine: Sendable {
 
@@ -117,8 +117,7 @@ public final class SpeedtestEngine: Sendable {
                 }
             }
 
-            // Ожидание завершения потоков или истечения таймера
-            _ = await group.next()
+            await group.waitForAll()
         }
 
         return tracker.finalCalculatedSpeedMbps()
@@ -127,39 +126,33 @@ public final class SpeedtestEngine: Sendable {
     private func runSingleDownloadWorker(url: URL, tracker: MultiStreamByteTracker, durationLimit: Double) async {
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
-        request.setValue("bytes=0-50000000", forHTTPHeaderField: "Range")
         request.timeoutInterval = durationLimit + 2.0
 
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 6.0
+        config.timeoutIntervalForRequest = 4.0
         config.timeoutIntervalForResource = durationLimit + 2.0
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         let session = URLSession(configuration: config)
 
-        do {
-            let (asyncBytes, response) = try await session.bytes(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) || httpResponse.statusCode == 206 else {
-                return
+        let workerStart = ContinuousClock().now
+
+        while !Task.isCancelled && !tracker.isTimedOut(limit: durationLimit) {
+            let elapsed = ContinuousClock().now - workerStart
+            let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+            if secs >= durationLimit {
+                break
             }
 
-            tracker.markFirstByteReceived()
-            var chunkBytes: Int64 = 0
-
-            for try await byte in asyncBytes {
-                if Task.isCancelled || tracker.isTimedOut(limit: durationLimit) {
+            do {
+                let (data, response) = try await session.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) || httpResponse.statusCode == 206 else {
                     break
                 }
-                chunkBytes += 1
-                if chunkBytes >= 16384 { // Запись пачками по 16 КБ для минимизации блокировок
-                    tracker.addBytes(chunkBytes)
-                    chunkBytes = 0
-                }
+                tracker.markFirstByteReceived()
+                tracker.addBytes(Int64(data.count))
+            } catch {
+                break
             }
-            if chunkBytes > 0 {
-                tracker.addBytes(chunkBytes)
-            }
-        } catch {
-            // При ошибке одного потока остальные продолжают работу
         }
         session.invalidateAndCancel()
     }
@@ -199,7 +192,7 @@ public final class SpeedtestEngine: Sendable {
                 }
             }
 
-            _ = await group.next()
+            await group.waitForAll()
         }
 
         return tracker.finalCalculatedSpeedMbps()
@@ -207,7 +200,7 @@ public final class SpeedtestEngine: Sendable {
 
     private func runSingleUploadWorker(url: URL, payload: Data, tracker: MultiStreamByteTracker, durationLimit: Double) async {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 5.0
+        config.timeoutIntervalForRequest = 4.0
         config.timeoutIntervalForResource = durationLimit + 2.0
         let session = URLSession(configuration: config)
 
@@ -218,7 +211,7 @@ public final class SpeedtestEngine: Sendable {
 
         let workerStart = ContinuousClock().now
 
-        while !Task.isCancelled {
+        while !Task.isCancelled && !tracker.isTimedOut(limit: durationLimit) {
             let elapsed = ContinuousClock().now - workerStart
             let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
             if secs >= durationLimit {
@@ -226,11 +219,12 @@ public final class SpeedtestEngine: Sendable {
             }
 
             do {
-                tracker.markFirstByteReceived()
                 let (_, response) = try await session.upload(for: request, from: payload)
-                if let httpResponse = response as? HTTPURLResponse, (200...399).contains(httpResponse.statusCode) {
-                    tracker.addBytes(Int64(payload.count))
+                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                    break
                 }
+                tracker.markFirstByteReceived()
+                tracker.addBytes(Int64(payload.count))
             } catch {
                 break
             }
@@ -325,7 +319,7 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
             let elapsed = ContinuousClock().now - start
             let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
             samples.append((time: seconds, bytes: totalBytes))
-            // Храним только последние 20 сэмплов для скользящего окна
+            // Храним только последние 25 сэмплов для скользящего окна
             if samples.count > 25 {
                 samples.removeFirst(5)
             }
@@ -344,7 +338,16 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
     func currentTransferRateMbps() -> Double {
         lock.lock()
         defer { lock.unlock() }
-        guard let start = firstByteInstant, samples.count >= 2 else { return 0.0 }
+        guard let start = firstByteInstant, samples.count >= 2 else {
+            if let start = firstByteInstant {
+                let elapsed = ContinuousClock().now - start
+                let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+                if seconds > 0.1 && totalBytes > 0 {
+                    return ((Double(totalBytes) * 8.0) / (seconds * 1_000_000.0) * 10).rounded() / 10
+                }
+            }
+            return 0.0
+        }
         let latest = samples.last!
         let oldest = samples.first!
         let timeDelta = latest.time - oldest.time
@@ -371,7 +374,6 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
         let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
         guard seconds > 0.1 else { return 0.0 }
 
-        // Если есть сэмплы скользящего окна, исключаем TCP slow-start фазу (первые 15% времени)
         if samples.count >= 6 {
             let midIndex = samples.count / 3
             let subSamples = Array(samples[midIndex...])

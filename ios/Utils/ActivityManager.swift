@@ -205,8 +205,8 @@ public final class ActivityManager {
             }
         }
 
-        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (минимум 1.0 сек)
-        let minInterval: TimeInterval = isTesting ? 0.8 : 1.0
+        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (0.3 сек во время теста, 1.0 сек в мониторинге)
+        let minInterval: TimeInterval = isTesting ? 0.3 : 1.0
         if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
             return
         }

@@ -93,9 +93,9 @@ public final class AIDiagnosticsEngine: Sendable {
                 component: isWifi ? "Wi-Fi / Роутер" : "Сотовая вышка"
             ))
             recommendations.append(NetworkRecommendation(
-                icon: "arrow.counterclockwise.circle.fill",
-                title: "Перезагрузка роутера",
-                detail: "Очистит переполненный буфер NAT и перераспределит радиочастотный канал.",
+                icon: isWifi ? "arrow.counterclockwise.circle.fill" : "airplane.circle.fill",
+                title: isWifi ? "Перезагрузка роутера" : "Сброс сотовой сессии (Авиарежим)",
+                detail: isWifi ? "Очистит переполненный буфер NAT и перераспределит радиочастотный канал." : "Включите и выключите Авиарежим на 5 секунд для переподключения к наименее загруженному сектору сотовой вышки.",
                 actionType: .restartRouter
             ))
         }

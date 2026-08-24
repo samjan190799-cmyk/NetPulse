@@ -112,7 +112,7 @@ public actor DNSBenchmarkEngine {
             var isResumed = false
             let lock = NSLock()
 
-            let resumeOnce: (Double?) -> Void = { result in
+            let resumeOnce: @Sendable (Double?) -> Void = { result in
                 lock.lock()
                 defer { lock.unlock() }
                 if !isResumed {

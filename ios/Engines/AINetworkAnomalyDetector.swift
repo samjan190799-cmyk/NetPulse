@@ -70,11 +70,25 @@ public final class AINetworkAnomalyDetector: Sendable {
             let averageDailyUsage = Double(usedBytes) / Double(max(dayOfMonth, 1))
             let projectedMonthlyUsage = averageDailyUsage * Double(daysInMonth)
 
-            if projectedMonthlyUsage > Double(limitBytes) {
-                let daysLeftUntilExhaustion = max(1, Int(Double(limitBytes - usedBytes) / averageDailyUsage))
+            if usedBytes >= limitBytes {
+                let overageMb = Double(usedBytes - limitBytes) / 1_048_576.0
+                anomalies.append(
+                    NetworkAnomalyItem(
+                        type: .budgetExhaustion,
+                        title: "Месячный лимит трафика исчерпан",
+                        description: "Установленный лимит пакета данных (\(String(format: "%.1f", Double(limitBytes) / 1_073_741_824.0)) ГБ) полностью израсходован. Перерасход: \(String(format: "%.1f", overageMb)) МБ.",
+                        severity: .critical,
+                        metricValue: "100% лимита",
+                        suggestedFix: "Подключите дополнительный пакет трафика у оператора или переключитесь на Wi-Fi."
+                    )
+                )
+            } else if projectedMonthlyUsage > Double(limitBytes) {
+                let remainingBytes = limitBytes - usedBytes
+                let daysLeftUntilExhaustion = max(1, Int(Double(remainingBytes) / max(averageDailyUsage, 1.0)))
                 let exhaustedDate = calendar.date(byAdding: .day, value: daysLeftUntilExhaustion, to: Date()) ?? Date()
 
                 let df = DateFormatter()
+                df.locale = Locale(identifier: "ru_RU")
                 df.dateFormat = "d MMMM"
                 let dateFormatted = df.string(from: exhaustedDate)
 

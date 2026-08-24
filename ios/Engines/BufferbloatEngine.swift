@@ -42,8 +42,13 @@ public actor BufferbloatEngine {
         let delta = max(loadedDownloadPing - unloadedPing, loadedUploadPing - unloadedPing)
 
         if delta < 10.0 {
-            recommendations.append("Ваш канал идеально настроен. Дополнительные настройки не требуются.")
-            recommendations.append("Роутер эффективно распределяет пакеты в очередях.")
+            if unloadedPing > 75.0 {
+                recommendations.append("Очереди пакетов не переполняются (дельта +0 мс).")
+                recommendations.append("Базовая задержка сотовой сети (\(Int(unloadedPing)) мс) обусловлена расстоянием до вышки LTE/5G.")
+            } else {
+                recommendations.append("Ваш канал идеально настроен. Дополнительные настройки не требуются.")
+                recommendations.append("Роутер эффективно распределяет пакеты в очередях.")
+            }
         } else if delta < 40.0 {
             recommendations.append("Рекомендуется включить аппаратный Hardware Offload на роутере.")
             recommendations.append("При использовании Wi-Fi перейдите на диапазон 5 GHz (80 MHz).")

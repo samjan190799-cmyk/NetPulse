@@ -395,6 +395,7 @@ public final class NetworkMonitorViewModel {
 
     private func pollAllHosts() async {
         let currentTargets = targets.filter { $0.isEnabled }
+        var batchResults: [(String, PingRecord)] = []
         await withTaskGroup(of: (String, PingRecord).self) { group in
             for target in currentTargets {
                 group.addTask {
@@ -404,13 +405,20 @@ public final class NetworkMonitorViewModel {
             }
 
             for await (address, record) in group {
-                self.processPingRecord(address: address, record: record)
+                batchResults.append((address, record))
             }
         }
+
+        // Единовременное батч-обновление словаря метрик за 1 такт для идеальной плавности 120 FPS
+        var updated = hostMetrics
+        for (address, record) in batchResults {
+            processPingRecord(address: address, record: record, in: &updated)
+        }
+        self.hostMetrics = updated
     }
 
-    private func processPingRecord(address: String, record: PingRecord) {
-        guard var metric = hostMetrics[address] else { return }
+    private func processPingRecord(address: String, record: PingRecord, in dict: inout [String: HostMetrics]) {
+        guard var metric = dict[address] else { return }
 
         metric.sentCount += 1
         metric.lastUpdated = Date()
@@ -434,9 +442,9 @@ public final class NetworkMonitorViewModel {
             let totalLat = (metric.avgLatencyMs ?? lat) * Double(metric.receivedCount - 1) + lat
             metric.avgLatencyMs = totalLat / Double(metric.receivedCount)
 
-            // Добавление в историю Sparkline
+            // Добавление в историю Sparkline (ограничено 24 точками для экономии памяти)
             metric.latencyHistory.append(lat)
-            if metric.latencyHistory.count > 30 {
+            if metric.latencyHistory.count > 24 {
                 metric.latencyHistory.removeFirst()
             }
 
@@ -472,7 +480,7 @@ public final class NetworkMonitorViewModel {
             metric.lostCount += 1
             metric.lastLatencyMs = nil
             metric.latencyHistory.append(nil)
-            if metric.latencyHistory.count > 30 {
+            if metric.latencyHistory.count > 24 {
                 metric.latencyHistory.removeFirst()
             }
 
@@ -498,7 +506,7 @@ public final class NetworkMonitorViewModel {
             }
         }
 
-        hostMetrics[address] = metric
+        dict[address] = metric
     }
 
     // MARK: - Методы управления аналитикой трафика

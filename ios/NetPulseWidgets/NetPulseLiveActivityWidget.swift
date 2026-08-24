@@ -63,15 +63,15 @@ public struct NetPulseLiveActivityWidget: Widget {
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(Color.white)
+                                .fill(Color.green)
                                 .frame(width: 6, height: 6)
-                            Text(context.state.ispName)
+                            Text(cleanISP(context.state.ispName))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
                         }
-                        Text(context.state.connectionType)
-                            .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        Text(cleanConnType(context.state.connectionType))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -140,6 +140,20 @@ public struct NetPulseLiveActivityWidget: Widget {
     private func cleanSpeed(_ text: String) -> String {
         let s = text.replacingOccurrences(of: "↓", with: "").replacingOccurrences(of: "↑", with: "").trimmingCharacters(in: .whitespaces)
         return s.isEmpty ? "0K" : s
+    }
+
+    private func cleanISP(_ text: String) -> String {
+        if text.isEmpty || text == "Подключение отсутствует" || text == "Интернет" {
+            return "Мобильный интернет"
+        }
+        return text
+    }
+
+    private func cleanConnType(_ text: String) -> String {
+        if text.isEmpty || text == "Нет соединения" || text == "Поиск сети..." {
+            return "5G / LTE"
+        }
+        return text
     }
 }
 

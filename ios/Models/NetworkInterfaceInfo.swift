@@ -10,10 +10,10 @@ import Foundation
 /// Тип активного сетевого подключения
 public enum NetworkConnectionType: String, Codable, Sendable {
     case wifi = "Wi-Fi"
-    case cellular = "Cellular (5G/LTE)"
+    case cellular = "Мобильная сеть (5G/LTE)"
     case ethernet = "Ethernet"
     case loopback = "Loopback"
-    case unavailable = "Нет соединения"
+    case unavailable = "Поиск сети..."
 }
 
 /// Информация о локальной сетевой конфигурации и провайдере
@@ -32,10 +32,10 @@ public struct NetworkInterfaceInfo: Codable, Sendable {
     public init(
         localIP: String = "127.0.0.1",
         gatewayIP: String? = nil,
-        connectionType: NetworkConnectionType = .unavailable,
+        connectionType: NetworkConnectionType = .cellular,
         dnsServers: [String] = [],
         publicIP: String? = nil,
-        ispName: String? = nil,
+        ispName: String? = "Мобильный интернет",
         country: String? = nil,
         city: String? = nil,
         isExpensive: Bool = false,

@@ -372,7 +372,7 @@ public final class AIDiagnosticsEngine: Sendable {
 
             switch tool {
             case .pingHost:
-                let record = await pingEngine.ping(host: targetHost, targetName: targetHost)
+                let record = await pingEngine.pingTarget(HostTarget(name: targetHost, address: targetHost))
                 let elapsed = Date().timeIntervalSince(startTime) * 1000.0
                 let latencyText = record.latencyMs.map { String(format: "%.1f мс", $0) } ?? "Таймаут (100% loss)"
                 let outText = "Замер пинга до \(targetHost): результат = \(latencyText), протокол = \(record.protocolType), статус = \(record.isSuccess ? "OK" : "FAILED")"
@@ -381,13 +381,13 @@ public final class AIDiagnosticsEngine: Sendable {
             case .tracerouteHost:
                 let hops = await tracerouteEngine.traceRoute(to: targetHost)
                 let elapsed = Date().timeIntervalSince(startTime) * 1000.0
-                let hopsSummary = hops.prefix(4).map { "#\($0.hopNumber) \($0.ipAddress): \(String(format: "%.1f", $0.avgLatencyMs))мс" }.joined(separator: ", ")
+                let hopsSummary = hops.prefix(4).map { "#\($0.hopNumber) \($0.ipAddress ?? "—"): \(String(format: "%.1f", $0.latencyMs ?? 0))мс" }.joined(separator: ", ")
                 let outText = "Трассировка MTR до \(targetHost): пройдено \(hops.count) узлов. Первые хопы: \(hopsSummary)"
                 toolResult = AIToolResult(toolCallId: call.id, toolType: tool, outputText: outText, isSuccess: !hops.isEmpty, executionTimeMs: elapsed)
 
             case .dnsBenchmark:
-                let r1 = await pingEngine.ping(host: "1.1.1.1", targetName: "Cloudflare")
-                let r2 = await pingEngine.ping(host: "8.8.8.8", targetName: "Google")
+                let r1 = await pingEngine.pingTarget(HostTarget(name: "Cloudflare", address: "1.1.1.1"))
+                let r2 = await pingEngine.pingTarget(HostTarget(name: "Google", address: "8.8.8.8"))
                 let elapsed = Date().timeIntervalSince(startTime) * 1000.0
                 let lat1 = r1.latencyMs.map { String(format: "%.1f мс", $0) } ?? "—"
                 let lat2 = r2.latencyMs.map { String(format: "%.1f мс", $0) } ?? "—"

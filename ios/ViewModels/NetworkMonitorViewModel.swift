@@ -759,8 +759,8 @@ public final class NetworkMonitorViewModel {
             lossPercent: currentPacketLossPct,
             ispName: systemInfo.ispName ?? "Wi-Fi Сеть",
             connectionType: systemInfo.connectionType.rawValue,
-            todayTrafficBytes: trafficSummary.totalTraffic,
-            budgetTotalBytes: trafficBudget.monthlyLimitBytes > 0 ? trafficBudget.monthlyLimitBytes : 5_368_709_120,
+            todayTrafficBytes: Int64(trafficSummary.totalTraffic),
+            budgetTotalBytes: trafficBudget.limitBytes > 0 ? Int64(trafficBudget.limitBytes) : 5_368_709_120,
             healthScore: currentHealthScore,
             dnsHosts: dnsSnapshot,
             lastUpdated: Date()

@@ -61,9 +61,9 @@ public final class AINetworkAnomalyDetector: Sendable {
         }
 
         // 3. Предиктивный прогноз исчерпания лимита трафика (Data Budget Depletion Forecast)
-        if let budget = budget, budget.monthlyLimitBytes > 0, let summary = trafficSummary {
+        if let budget = budget, budget.limitBytes > 0, let summary = trafficSummary {
             let usedBytes = summary.totalTraffic
-            let limitBytes = budget.monthlyLimitBytes
+            let limitBytes = budget.limitBytes
             let dayOfMonth = calendar.component(.day, from: Date())
             let daysInMonth = calendar.range(of: .day, in: .month, for: Date())?.count ?? 30
 

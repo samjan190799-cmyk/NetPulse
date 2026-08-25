@@ -108,19 +108,19 @@ public struct NetPulseLiveActivityWidget: Widget {
             } compactLeading: {
                 // Компактный вид слева (скачивание со стрелкой или иконка сети)
                 HStack(spacing: 2.5) {
-                    Image(systemName: context.state.isTesting ? "arrow.down" : "arrow.down")
+                    Image(systemName: "arrow.down")
                         .font(.system(size: 9, weight: .heavy))
                         .foregroundStyle(Color.cyan)
-                    Text(cleanSpeed(context.state.compactDownloadText))
+                    Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                 }
             } compactTrailing: {
-                // Компактный вид справа: при замере стрелка отдачи, в покое — пинг с зеленой точкой
+                // Компактный вид справа: при замере стрелка отдачи, в обычном режиме — живой пинг с цветной точкой
                 HStack(spacing: 2.5) {
                     if context.state.isTesting {
-                        Text(cleanSpeed(context.state.compactUploadText))
+                        Text(cleanUpload(context.state.compactUploadText))
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
@@ -129,9 +129,9 @@ public struct NetPulseLiveActivityWidget: Widget {
                             .foregroundStyle(Color.green)
                     } else {
                         Circle()
-                            .fill(Color.green)
+                            .fill(pingColor(context.state.pingMs))
                             .frame(width: 5, height: 5)
-                        Text(cleanSpeed(context.state.compactUploadText))
+                        Text(cleanPing(context.state.compactUploadText, ping: context.state.pingMs))
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .monospacedDigit()
                             .foregroundStyle(.white)
@@ -143,13 +143,50 @@ public struct NetPulseLiveActivityWidget: Widget {
                     Image(systemName: "gauge.with.dots.needle.67percent")
                         .font(.system(size: 8, weight: .heavy))
                         .foregroundStyle(Color.cyan)
-                    Text(cleanSpeed(context.state.compactDownloadText))
+                    Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                 }
             }
         }
+    }
+
+    private func cleanDownload(_ text: String) -> String {
+        let s = text.replacingOccurrences(of: "↓", with: "")
+            .replacingOccurrences(of: "↑", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        return s.isEmpty ? "0 B" : s
+    }
+
+    private func cleanUpload(_ text: String) -> String {
+        let s = text.replacingOccurrences(of: "↓", with: "")
+            .replacingOccurrences(of: "↑", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        return s.isEmpty ? "0 B" : s
+    }
+
+    private func cleanPing(_ text: String, ping: Double?) -> String {
+        let s = text.replacingOccurrences(of: "↓", with: "")
+            .replacingOccurrences(of: "↑", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        if s.contains("ms") || s.contains("мс") {
+            return s
+        }
+        if let p = ping, p > 0 {
+            return String(format: "%.0fms", p)
+        }
+        if s.isEmpty || s == "0K" || s == "0" {
+            return "Live"
+        }
+        return s
+    }
+
+    private func pingColor(_ ping: Double?) -> Color {
+        guard let p = ping else { return .green }
+        if p < 50 { return .green }
+        if p < 120 { return .yellow }
+        return .red
     }
 
     private func cleanSpeed(_ text: String) -> String {

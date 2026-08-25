@@ -10,6 +10,7 @@ import SwiftUI
 /// Премиальный плавающий игровой HUD-виджет 2.0 (2026) с живым спарклайном задержки,
 /// магнитной физикой краев экрана (Magnetic Edge Snapping) и ультратонким стеклом.
 public struct FloatingGameOverlayView: View {
+    @Binding public var isCollapsed: Bool
     public let downloadSpeedText: String
     public let uploadSpeedText: String
     public let pingMs: Double?
@@ -20,7 +21,6 @@ public struct FloatingGameOverlayView: View {
 
     @State private var offset: CGSize = CGSize(width: 16, height: 75)
     @State private var dragTranslation: CGSize = .zero
-    @State private var isCollapsed: Bool = false
     @State private var isDragging: Bool = false
     @State private var pingHistory: [Double] = [24, 26, 25, 23, 28, 24, 25, 27, 24, 23]
 
@@ -54,7 +54,7 @@ public struct FloatingGameOverlayView: View {
                     .padding(.vertical, 6)
                     .background(
                         Capsule()
-                            .fill(Color.black.opacity(0.35))
+                            .fill(Color.black.opacity(0.4))
                             .background(.ultraThinMaterial, in: Capsule())
                     )
                     .overlay(
@@ -198,7 +198,7 @@ public struct FloatingGameOverlayView: View {
                 y: offset.height + dragTranslation.height
             )
             .gesture(
-                DragGesture()
+                DragGesture(minimumDistance: 8)
                     .onChanged { value in
                         isDragging = true
                         dragTranslation = value.translation

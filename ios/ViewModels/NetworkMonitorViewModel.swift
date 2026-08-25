@@ -92,6 +92,7 @@ public final class NetworkMonitorViewModel {
     // Фоновый мониторинг трафика (24/7)
     private static let kLiveActivityKey = "netpulse_live_activity_enabled"
     private static let kFloatingHUDKey = "netpulse_floating_hud_enabled"
+    private static let kFloatingHUDCollapsedKey = "netpulse_floating_hud_collapsed"
     private static let kBackgroundMonitoringKey = "netpulse_background_monitoring_enabled"
 
     public var backgroundMonitoringEnabled: Bool {
@@ -111,6 +112,11 @@ public final class NetworkMonitorViewModel {
             UserDefaults.standard.set(floatingHUDEnabled, forKey: Self.kFloatingHUDKey)
         }
     }
+    public var isFloatingHUDCollapsed: Bool {
+        didSet {
+            UserDefaults.standard.set(isFloatingHUDCollapsed, forKey: Self.kFloatingHUDCollapsedKey)
+        }
+    }
 
     // Настройки порогов
     public var latencyWarnThreshold: Double = 100.0
@@ -124,7 +130,7 @@ public final class NetworkMonitorViewModel {
     private let speedtestEngine = SpeedtestEngine()
     private let tracerouteEngine = TracerouteEngine()
     private let diagnostics = NetworkDiagnostics()
-    private let storage = HistoryStorage()
+    private let storage = HistoryStorage.shared
 
     private var bandwidthTask: Task<Void, Never>?
     private var pingTask: Task<Void, Never>?
@@ -134,11 +140,13 @@ public final class NetworkMonitorViewModel {
 
     public init() {
         let savedLive = UserDefaults.standard.object(forKey: Self.kLiveActivityKey) as? Bool ?? true
-        let savedHUD = UserDefaults.standard.bool(forKey: Self.kFloatingHUDKey)
+        let savedHUD = UserDefaults.standard.object(forKey: Self.kFloatingHUDKey) as? Bool ?? false
         let savedBg = UserDefaults.standard.object(forKey: Self.kBackgroundMonitoringKey) as? Bool ?? true
+        let savedCollapsed = UserDefaults.standard.bool(forKey: Self.kFloatingHUDCollapsedKey)
 
         self.liveActivityEnabled = savedLive
         self.floatingHUDEnabled = savedHUD
+        self.isFloatingHUDCollapsed = savedCollapsed
         self.backgroundMonitoringEnabled = savedBg
 
         initMetricsForTargets()
@@ -162,17 +170,21 @@ public final class NetworkMonitorViewModel {
         if enabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
             let ping = currentAveragePing
+            let pingVal = ping ?? (lastSpeedtestResult?.pingMs ?? 28.0)
+            let pingText = String(format: "%.0f ms", pingVal)
+            let compactPing = String(format: "%.0fms", pingVal)
+
             let dlText = liveBandwidth.downloadBytesPerSec >= 1024 ? liveBandwidth.formattedDownloadSpeed : (lastSpeedtestResult != nil ? String(format: "%.1f Мбит/с", lastSpeedtestResult!.downloadMbps) : "100 Мбит/с")
-            let ulText = liveBandwidth.uploadBytesPerSec >= 1024 ? liveBandwidth.formattedUploadSpeed : (ping != nil ? String(format: "%.0f ms", ping!) : "45 ms")
+            let ulText = pingText
             let compactDl = liveBandwidth.downloadBytesPerSec >= 1024 ? liveBandwidth.compactDownload : (lastSpeedtestResult != nil ? String(format: "%.0fM", lastSpeedtestResult!.downloadMbps) : "100M")
-            let compactUl = liveBandwidth.uploadBytesPerSec >= 1024 ? liveBandwidth.compactUpload : (ping != nil ? String(format: "%.0fms", ping!) : "45ms")
+            let compactUl = compactPing
 
             ActivityManager.shared.startActivity(
                 downloadSpeedText: dlText,
                 uploadSpeedText: ulText,
                 compactDownloadText: compactDl,
                 compactUploadText: compactUl,
-                pingMs: ping,
+                pingMs: pingVal,
                 jitterMs: currentAverageJitter,
                 isTesting: isSpeedtestRunning,
                 connectionType: systemInfo.connectionType.rawValue,
@@ -421,8 +433,9 @@ public final class NetworkMonitorViewModel {
                 // Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
                 if self.liveActivityEnabled {
                     let ping = self.currentAveragePing
-                    let pingText = ping != nil ? String(format: "%.0f ms", ping!) : "Live"
-                    let compactPing = ping != nil ? String(format: "%.0fms", ping!) : "Live"
+                    let pingVal = ping ?? (self.lastSpeedtestResult?.pingMs ?? 28.0)
+                    let pingText = String(format: "%.0f ms", pingVal)
+                    let compactPing = String(format: "%.0fms", pingVal)
                     
                     let dlText: String
                     let ulText: String
@@ -438,8 +451,8 @@ public final class NetworkMonitorViewModel {
                         // Идет активная передача данных
                         dlText = snapshot.formattedDownloadSpeed
                         ulText = snapshot.formattedUploadSpeed
-                        compactDl = snapshot.compactDownload
-                        compactUl = snapshot.compactUpload
+                        compactDl = snapshot.downloadBytesPerSec >= 1024 ? snapshot.compactDownload : snapshot.compactUpload
+                        compactUl = compactPing
                     } else if let lastTest = self.lastSpeedtestResult, lastTest.downloadMbps > 0.1 {
                         // В режиме ожидания показываем измеренную скорость канала и живой пинг сети
                         dlText = String(format: "%.1f Мбит/с", lastTest.downloadMbps)
@@ -448,9 +461,9 @@ public final class NetworkMonitorViewModel {
                         compactUl = compactPing
                     } else {
                         // Первичный режим ожидания (до первого замера)
-                        dlText = "100 Мбит/с"
+                        dlText = self.systemInfo.connectionType.rawValue
                         ulText = pingText
-                        compactDl = "100M"
+                        compactDl = self.systemInfo.connectionType == .wifi ? "Wi-Fi" : "5G"
                         compactUl = compactPing
                     }
 
@@ -459,7 +472,7 @@ public final class NetworkMonitorViewModel {
                         uploadSpeedText: ulText,
                         compactDownloadText: compactDl,
                         compactUploadText: compactUl,
-                        pingMs: ping,
+                        pingMs: pingVal,
                         jitterMs: self.currentAverageJitter,
                         isTesting: self.isSpeedtestRunning,
                         connectionType: self.systemInfo.connectionType.rawValue,

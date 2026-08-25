@@ -69,6 +69,7 @@ public struct ContentView: View {
 
                 // Плавающий игровой HUD внутри приложения
                 FloatingGameOverlayView(
+                    isCollapsed: $viewModel.isFloatingHUDCollapsed,
                     downloadSpeedText: viewModel.isSpeedtestRunning ? String(format: "%.1f Мбит/с", viewModel.liveDownloadSpeed) : viewModel.liveBandwidth.formattedDownloadSpeed,
                     uploadSpeedText: viewModel.isSpeedtestRunning ? String(format: "%.1f Мбит/с", viewModel.liveUploadSpeed) : viewModel.liveBandwidth.formattedUploadSpeed,
                     pingMs: viewModel.currentAveragePing,

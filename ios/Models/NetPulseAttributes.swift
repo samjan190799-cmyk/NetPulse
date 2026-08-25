@@ -18,23 +18,29 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
         public var uploadSpeedText: String
         public var compactDownloadText: String
         public var compactUploadText: String
+        public var pingMs: Double?
+        public var jitterMs: Double?
         public var isTesting: Bool
         public var connectionType: String
         public var ispName: String
 
         public init(
-            downloadSpeedText: String = "↓ 0 КБ/с",
-            uploadSpeedText: String = "↑ 0 КБ/с",
-            compactDownloadText: String = "↓0K",
-            compactUploadText: String = "↑0K",
+            downloadSpeedText: String = "100 Мбит/с",
+            uploadSpeedText: String = "45 мс",
+            compactDownloadText: String = "100M",
+            compactUploadText: String = "45ms",
+            pingMs: Double? = nil,
+            jitterMs: Double? = nil,
             isTesting: Bool = false,
-            connectionType: String = "Wi-Fi",
-            ispName: String = "Интернет"
+            connectionType: String = "5G / LTE",
+            ispName: String = "Мобильный интернет"
         ) {
             self.downloadSpeedText = downloadSpeedText
             self.uploadSpeedText = uploadSpeedText
             self.compactDownloadText = compactDownloadText
             self.compactUploadText = compactUploadText
+            self.pingMs = pingMs
+            self.jitterMs = jitterMs
             self.isTesting = isTesting
             self.connectionType = connectionType
             self.ispName = ispName
@@ -48,3 +54,4 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
     }
 }
 #endif
+

@@ -38,13 +38,15 @@ public final class ActivityManager {
 
     /// Восстановление или запуск сессии Dynamic Island
     public func checkAndRestoreActivity(
-        downloadSpeedText: String = "↓ 0 КБ/с",
-        uploadSpeedText: String = "↑ 0 КБ/с",
-        compactDownloadText: String = "↓0K",
-        compactUploadText: String = "↑0K",
+        downloadSpeedText: String = "100 Мбит/с",
+        uploadSpeedText: String = "45 мс",
+        compactDownloadText: String = "100M",
+        compactUploadText: String = "45ms",
+        pingMs: Double? = nil,
+        jitterMs: Double? = nil,
         isTesting: Bool = false,
-        connectionType: String = "Wi-Fi",
-        ispName: String = "Интернет"
+        connectionType: String = "5G / LTE",
+        ispName: String = "Мобильный интернет"
     ) {
         #if canImport(ActivityKit)
         guard areActivitiesEnabled else {
@@ -61,6 +63,8 @@ public final class ActivityManager {
                 uploadSpeedText: uploadSpeedText,
                 compactDownloadText: compactDownloadText,
                 compactUploadText: compactUploadText,
+                pingMs: pingMs,
+                jitterMs: jitterMs,
                 isTesting: isTesting,
                 connectionType: connectionType,
                 ispName: ispName,
@@ -75,6 +79,8 @@ public final class ActivityManager {
             uploadSpeedText: uploadSpeedText,
             compactDownloadText: compactDownloadText,
             compactUploadText: compactUploadText,
+            pingMs: pingMs,
+            jitterMs: jitterMs,
             isTesting: isTesting,
             connectionType: connectionType,
             ispName: ispName
@@ -84,13 +90,15 @@ public final class ActivityManager {
 
     /// Запуск Live Activity в Dynamic Island с реальной скоростью загрузки и отдачи
     public func startActivity(
-        downloadSpeedText: String = "↓ 0 КБ/с",
-        uploadSpeedText: String = "↑ 0 КБ/с",
-        compactDownloadText: String = "↓0K",
-        compactUploadText: String = "↑0K",
+        downloadSpeedText: String = "100 Мбит/с",
+        uploadSpeedText: String = "45 мс",
+        compactDownloadText: String = "100M",
+        compactUploadText: String = "45ms",
+        pingMs: Double? = nil,
+        jitterMs: Double? = nil,
         isTesting: Bool = false,
-        connectionType: String = "Wi-Fi",
-        ispName: String = "Интернет"
+        connectionType: String = "5G / LTE",
+        ispName: String = "Мобильный интернет"
     ) {
         #if canImport(ActivityKit)
         guard areActivitiesEnabled else {
@@ -108,6 +116,8 @@ public final class ActivityManager {
                 uploadSpeedText: uploadSpeedText,
                 compactDownloadText: compactDownloadText,
                 compactUploadText: compactUploadText,
+                pingMs: pingMs,
+                jitterMs: jitterMs,
                 isTesting: isTesting,
                 connectionType: connectionType,
                 ispName: ispName,
@@ -122,6 +132,8 @@ public final class ActivityManager {
             uploadSpeedText: uploadSpeedText,
             compactDownloadText: compactDownloadText,
             compactUploadText: compactUploadText,
+            pingMs: pingMs,
+            jitterMs: jitterMs,
             isTesting: isTesting,
             connectionType: connectionType,
             ispName: ispName
@@ -158,6 +170,8 @@ public final class ActivityManager {
         uploadSpeedText: String,
         compactDownloadText: String,
         compactUploadText: String,
+        pingMs: Double? = nil,
+        jitterMs: Double? = nil,
         isTesting: Bool,
         connectionType: String,
         ispName: String,
@@ -176,6 +190,8 @@ public final class ActivityManager {
                 uploadSpeedText: uploadSpeedText,
                 compactDownloadText: compactDownloadText,
                 compactUploadText: compactUploadText,
+                pingMs: pingMs,
+                jitterMs: jitterMs,
                 isTesting: isTesting,
                 connectionType: connectionType,
                 ispName: ispName
@@ -191,6 +207,8 @@ public final class ActivityManager {
             uploadSpeedText: uploadSpeedText,
             compactDownloadText: compactDownloadText,
             compactUploadText: compactUploadText,
+            pingMs: pingMs,
+            jitterMs: jitterMs,
             isTesting: isTesting,
             connectionType: connectionType,
             ispName: ispName

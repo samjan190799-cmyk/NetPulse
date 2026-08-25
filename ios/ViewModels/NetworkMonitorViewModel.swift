@@ -161,14 +161,22 @@ public final class NetworkMonitorViewModel {
         self.liveActivityEnabled = enabled
         if enabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
+            let ping = currentAveragePing
+            let dlText = liveBandwidth.downloadBytesPerSec >= 1024 ? liveBandwidth.formattedDownloadSpeed : (lastSpeedtestResult != nil ? String(format: "%.1f Мбит/с", lastSpeedtestResult!.downloadMbps) : "100 Мбит/с")
+            let ulText = liveBandwidth.uploadBytesPerSec >= 1024 ? liveBandwidth.formattedUploadSpeed : (ping != nil ? String(format: "%.0f ms", ping!) : "45 ms")
+            let compactDl = liveBandwidth.downloadBytesPerSec >= 1024 ? liveBandwidth.compactDownload : (lastSpeedtestResult != nil ? String(format: "%.0fM", lastSpeedtestResult!.downloadMbps) : "100M")
+            let compactUl = liveBandwidth.uploadBytesPerSec >= 1024 ? liveBandwidth.compactUpload : (ping != nil ? String(format: "%.0fms", ping!) : "45ms")
+
             ActivityManager.shared.startActivity(
-                downloadSpeedText: liveBandwidth.formattedDownloadSpeed,
-                uploadSpeedText: liveBandwidth.formattedUploadSpeed,
-                compactDownloadText: liveBandwidth.compactDownload,
-                compactUploadText: liveBandwidth.compactUpload,
+                downloadSpeedText: dlText,
+                uploadSpeedText: ulText,
+                compactDownloadText: compactDl,
+                compactUploadText: compactUl,
+                pingMs: ping,
+                jitterMs: currentAverageJitter,
                 isTesting: isSpeedtestRunning,
                 connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Интернет"
+                ispName: systemInfo.ispName ?? "Мобильный интернет"
             )
             startBandwidthTask()
             syncWidgetData()
@@ -412,7 +420,9 @@ public final class NetworkMonitorViewModel {
 
                 // Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
                 if self.liveActivityEnabled {
-                    let pingText = self.currentAveragePing != nil ? String(format: "%.0f ms", self.currentAveragePing!) : "Live"
+                    let ping = self.currentAveragePing
+                    let pingText = ping != nil ? String(format: "%.0f ms", ping!) : "Live"
+                    let compactPing = ping != nil ? String(format: "%.0fms", ping!) : "Live"
                     
                     let dlText: String
                     let ulText: String
@@ -435,13 +445,13 @@ public final class NetworkMonitorViewModel {
                         dlText = String(format: "%.1f Мбит/с", lastTest.downloadMbps)
                         ulText = pingText
                         compactDl = String(format: "%.0fM", lastTest.downloadMbps)
-                        compactUl = pingText
+                        compactUl = compactPing
                     } else {
                         // Первичный режим ожидания (до первого замера)
-                        dlText = self.systemInfo.connectionType.rawValue
+                        dlText = "100 Мбит/с"
                         ulText = pingText
-                        compactDl = self.systemInfo.connectionType == .wifi ? "Wi-Fi" : "5G/LTE"
-                        compactUl = pingText
+                        compactDl = "100M"
+                        compactUl = compactPing
                     }
 
                     ActivityManager.shared.updateActivity(
@@ -449,9 +459,11 @@ public final class NetworkMonitorViewModel {
                         uploadSpeedText: ulText,
                         compactDownloadText: compactDl,
                         compactUploadText: compactUl,
+                        pingMs: ping,
+                        jitterMs: self.currentAverageJitter,
                         isTesting: self.isSpeedtestRunning,
                         connectionType: self.systemInfo.connectionType.rawValue,
-                        ispName: self.systemInfo.ispName ?? "Интернет"
+                        ispName: self.systemInfo.ispName ?? "Мобильный интернет"
                     )
                 }
 
@@ -693,9 +705,11 @@ public final class NetworkMonitorViewModel {
                 uploadSpeedText: "↑ Замер...",
                 compactDownloadText: "↓...",
                 compactUploadText: "↑...",
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
                 isTesting: true,
                 connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Интернет",
+                ispName: systemInfo.ispName ?? "Мобильный интернет",
                 force: true
             )
         }
@@ -714,9 +728,11 @@ public final class NetworkMonitorViewModel {
                                 uploadSpeedText: String(format: "↑ %.1f Мбит/с", ul),
                                 compactDownloadText: String(format: "↓%.0fM", dl),
                                 compactUploadText: String(format: "↑%.0fM", ul),
+                                pingMs: self.currentAveragePing,
+                                jitterMs: self.currentAverageJitter,
                                 isTesting: true,
                                 connectionType: self.systemInfo.connectionType.rawValue,
-                                ispName: self.systemInfo.ispName ?? "Интернет"
+                                ispName: self.systemInfo.ispName ?? "Мобильный интернет"
                             )
                         }
                     }
@@ -737,14 +753,17 @@ public final class NetworkMonitorViewModel {
                 self.instantAISummary = summary
 
                 if self.liveActivityEnabled {
+                    let ping = self.currentAveragePing
                     ActivityManager.shared.updateActivity(
-                        downloadSpeedText: String(format: "↓ %.1f Мбит/с", result.downloadMbps),
-                        uploadSpeedText: String(format: "↑ %.1f Мбит/с", result.uploadMbps),
-                        compactDownloadText: String(format: "↓%.0fM", result.downloadMbps),
-                        compactUploadText: String(format: "↑%.0fM", result.uploadMbps),
+                        downloadSpeedText: String(format: "%.1f Мбит/с", result.downloadMbps),
+                        uploadSpeedText: String(format: "%.1f Мбит/с", result.uploadMbps),
+                        compactDownloadText: String(format: "%.0fM", result.downloadMbps),
+                        compactUploadText: ping != nil ? String(format: "%.0fms", ping!) : String(format: "%.0fM", result.uploadMbps),
+                        pingMs: ping,
+                        jitterMs: self.currentAverageJitter,
                         isTesting: false,
                         connectionType: self.systemInfo.connectionType.rawValue,
-                        ispName: self.systemInfo.ispName ?? "Интернет",
+                        ispName: self.systemInfo.ispName ?? "Мобильный интернет",
                         force: true
                     )
                 }

@@ -130,7 +130,7 @@ public final class NetworkMonitorViewModel {
     private let speedtestEngine = SpeedtestEngine()
     private let tracerouteEngine = TracerouteEngine()
     private let diagnostics = NetworkDiagnostics()
-    private let storage = HistoryStorage.shared
+    private let storage = HistoryStorage()
 
     private var bandwidthTask: Task<Void, Never>?
     private var pingTask: Task<Void, Never>?

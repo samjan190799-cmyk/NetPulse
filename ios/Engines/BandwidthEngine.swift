@@ -51,13 +51,14 @@ public struct BandwidthSnapshot: Sendable {
         } else if bytes >= 1_024 {
             return String(format: "%.0f КБ/с", bytes / 1_024)
         } else {
-            return String(format: "%.0f Б/с", bytes)
+            return "0 КБ/с"
         }
     }
 
     public var compactDownload: String {
         if downloadBytesPerSec >= 1_048_576 {
-            return String(format: "%.1fM", downloadBytesPerSec / 1_048_576)
+            let val = downloadBytesPerSec / 1_048_576
+            return val >= 10 ? String(format: "%.0fM", val) : String(format: "%.1fM", val)
         } else if downloadBytesPerSec >= 1024 {
             return String(format: "%.0fK", downloadBytesPerSec / 1024)
         } else {
@@ -67,7 +68,8 @@ public struct BandwidthSnapshot: Sendable {
 
     public var compactUpload: String {
         if uploadBytesPerSec >= 1_048_576 {
-            return String(format: "%.1fM", uploadBytesPerSec / 1_048_576)
+            let val = uploadBytesPerSec / 1_048_576
+            return val >= 10 ? String(format: "%.0fM", val) : String(format: "%.1fM", val)
         } else if uploadBytesPerSec >= 1024 {
             return String(format: "%.0fK", uploadBytesPerSec / 1024)
         } else {
@@ -84,6 +86,8 @@ public struct InterfaceByteCounters: Sendable, Codable, Equatable {
     public var wifiOut: UInt64 = 0
     public var cellularIn: UInt64 = 0
     public var cellularOut: UInt64 = 0
+    public var vpnIn: UInt64 = 0
+    public var vpnOut: UInt64 = 0
 
     public init(
         totalIn: UInt64 = 0,
@@ -91,7 +95,9 @@ public struct InterfaceByteCounters: Sendable, Codable, Equatable {
         wifiIn: UInt64 = 0,
         wifiOut: UInt64 = 0,
         cellularIn: UInt64 = 0,
-        cellularOut: UInt64 = 0
+        cellularOut: UInt64 = 0,
+        vpnIn: UInt64 = 0,
+        vpnOut: UInt64 = 0
     ) {
         self.totalIn = totalIn
         self.totalOut = totalOut
@@ -99,15 +105,19 @@ public struct InterfaceByteCounters: Sendable, Codable, Equatable {
         self.wifiOut = wifiOut
         self.cellularIn = cellularIn
         self.cellularOut = cellularOut
+        self.vpnIn = vpnIn
+        self.vpnOut = vpnOut
     }
 }
 
-/// Системный движок точного замера РЕАЛЬНОГО сетевого трафика через getifaddrs (Darwin BSD)
+/// Системный движок точного замера РЕАЛЬНОГО сетевого трафика через getifaddrs (Darwin BSD) с EMA сглаживанием
 public final class BandwidthEngine: @unchecked Sendable {
     public static let shared = BandwidthEngine()
 
     private var prevCounters: InterfaceByteCounters
     private var prevTimestamp: Date?
+    private var smoothedDownloadBps: Double = 0.0
+    private var smoothedUploadBps: Double = 0.0
     private let lock = NSLock()
 
     public init() {
@@ -116,15 +126,17 @@ public final class BandwidthEngine: @unchecked Sendable {
         self.prevTimestamp = Date()
     }
 
-    /// Принудительная синхронизация базовой точки отсчета (вызывается после фоновой сверки)
+    /// Принудительная синхронизация базовой точки отсчета
     public func resetBaseline(to counters: InterfaceByteCounters? = nil) {
         lock.lock()
         defer { lock.unlock() }
         self.prevCounters = counters ?? Self.fetchDetailedInterfaceBytes()
         self.prevTimestamp = Date()
+        self.smoothedDownloadBps = 0.0
+        self.smoothedUploadBps = 0.0
     }
 
-    /// Получение текущего снимка реальной скорости трафика с защитой от двойного подсчета в режиме модема (Personal Hotspot)
+    /// Получение текущего снимка реальной скорости трафика с EMA-фильтрацией и защитой от переполнения
     public func sampleBandwidth(activeConnectionType: NetworkConnectionType? = nil) -> BandwidthSnapshot {
         lock.lock()
         defer { lock.unlock() }
@@ -140,36 +152,46 @@ public final class BandwidthEngine: @unchecked Sendable {
         let cellInDelta = Self.computeDelta(prev: prevCounters.cellularIn, current: currentCounters.cellularIn)
         let cellOutDelta = Self.computeDelta(prev: prevCounters.cellularOut, current: currentCounters.cellularOut)
 
-        // ЗАЩИТА ОТ ДВОЙНОГО УЧЕТА В РЕЖИМЕ МОДЕМА (HOTSPOT):
-        // Если телефон раздает интернет на ноутбук через Hotspot:
-        // - Входящий трафик идет через сотовую сеть (pdp_ip0).
-        // - Исходящий трафик ретранслируется на ноутбук через Wi-Fi точку доступа (en0).
-        // Если их просто сложить, каждый байт посчитается дважды!
-        // Поэтому внешний WAN-трафик определяется строго активным интернет-интерфейсом.
+        let vpnInDelta = Self.computeDelta(prev: prevCounters.vpnIn, current: currentCounters.vpnIn)
+        let vpnOutDelta = Self.computeDelta(prev: prevCounters.vpnOut, current: currentCounters.vpnOut)
+
+        // Суммарный реальный внешний сетевой трафик
         let inDelta: UInt64
         let outDelta: UInt64
 
-        if let conn = activeConnectionType {
-            switch conn {
-            case .cellular:
-                // В режиме сотовой связи берем сотовую дельту (с защитой от смены контекста eSIM)
-                inDelta = cellInDelta > 0 ? cellInDelta : max(wifiInDelta, cellInDelta)
-                outDelta = cellOutDelta > 0 ? cellOutDelta : max(wifiOutDelta, cellOutDelta)
-            case .wifi, .ethernet:
-                // В режиме Wi-Fi берем Wi-Fi дельту
-                inDelta = wifiInDelta > 0 ? wifiInDelta : max(wifiInDelta, cellInDelta)
-                outDelta = wifiOutDelta > 0 ? wifiOutDelta : max(wifiOutDelta, cellOutDelta)
-            default:
-                inDelta = max(wifiInDelta, cellInDelta)
-                outDelta = max(wifiOutDelta, cellOutDelta)
-            }
+        if vpnInDelta > 0 || vpnOutDelta > 0 {
+            // При активном VPN трафик берем из туннельного интерфейса для точности
+            inDelta = vpnInDelta
+            outDelta = vpnOutDelta
         } else {
-            inDelta = max(wifiInDelta, cellInDelta)
-            outDelta = max(wifiOutDelta, cellOutDelta)
+            // Без VPN берем сумму физических адаптеров
+            inDelta = wifiInDelta + cellInDelta
+            outDelta = wifiOutDelta + cellOutDelta
         }
 
-        let downloadBytesPerSec = Double(inDelta) / timeDelta
-        let uploadBytesPerSec = Double(outDelta) / timeDelta
+        let instantDownloadBps = Double(inDelta) / timeDelta
+        let instantUploadBps = Double(outDelta) / timeDelta
+
+        // Экспоненциальное сглаживание (EMA) для устранения микро-скачков и обеспечения плавной анимации
+        if instantDownloadBps > (smoothedDownloadBps * 3.0) && instantDownloadBps > 1024 {
+            // Резкий старт скачивания: мгновенный отклик
+            smoothedDownloadBps = instantDownloadBps
+        } else if instantDownloadBps < 512 && smoothedDownloadBps < 5120 {
+            smoothedDownloadBps = 0.0
+        } else {
+            smoothedDownloadBps = (0.70 * instantDownloadBps) + (0.30 * smoothedDownloadBps)
+        }
+
+        if instantUploadBps > (smoothedUploadBps * 3.0) && instantUploadBps > 1024 {
+            smoothedUploadBps = instantUploadBps
+        } else if instantUploadBps < 512 && smoothedUploadBps < 5120 {
+            smoothedUploadBps = 0.0
+        } else {
+            smoothedUploadBps = (0.70 * instantUploadBps) + (0.30 * smoothedUploadBps)
+        }
+
+        let downloadBytesPerSec = smoothedDownloadBps
+        let uploadBytesPerSec = smoothedUploadBps
         
         let wifiDownloadBps = Double(wifiInDelta) / timeDelta
         let wifiUploadBps = Double(wifiOutDelta) / timeDelta
@@ -212,12 +234,20 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от переполнения: до 150 МБ за интервал (1.2 Гбит/с)
-            if delta > 150_000_000 {
+            // Защита от аномальных всплесков (до 1.5 ГБ за такт / 12 Гбит/с)
+            if delta > 1_500_000_000 {
                 return 0
             }
             return delta
         } else {
+            // Обработка 32-битного rollover Darwin (4,294,967,296 байт)
+            let max32: UInt64 = 4_294_967_296
+            if prev <= max32 && (current + max32) >= prev {
+                let delta = (current + max32) - prev
+                if delta < 1_500_000_000 {
+                    return delta
+                }
+            }
             return 0
         }
     }
@@ -249,7 +279,6 @@ public final class BandwidthEngine: @unchecked Sendable {
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
-                        // Учет физических сетевых интерфейсов iOS (Wi-Fi 6/7, Ethernet, 5G/LTE Dual SIM)
                         if ifName.hasPrefix("en") {
                             // Физические адаптеры Wi-Fi / Ethernet (en0, en1, en2...)
                             result.wifiIn += inBytes
@@ -258,6 +287,10 @@ public final class BandwidthEngine: @unchecked Sendable {
                             // Физические сотовые каналы 5G/LTE (pdp_ip0, pdp_ip1...)
                             result.cellularIn += inBytes
                             result.cellularOut += outBytes
+                        } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") {
+                            // VPN туннели
+                            result.vpnIn += inBytes
+                            result.vpnOut += outBytes
                         }
                     }
                 }
@@ -265,8 +298,8 @@ public final class BandwidthEngine: @unchecked Sendable {
             cursor = ptr.pointee.ifa_next
         }
 
-        result.totalIn = result.wifiIn + result.cellularIn
-        result.totalOut = result.wifiOut + result.cellularOut
+        result.totalIn = result.wifiIn + result.cellularIn + result.vpnIn
+        result.totalOut = result.wifiOut + result.cellularOut + result.vpnOut
 
         return result
     }

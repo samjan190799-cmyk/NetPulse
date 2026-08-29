@@ -477,24 +477,18 @@ public final class NetworkMonitorViewModel {
                         ulText = String(format: "%.1f Мбит/с", self.liveUploadSpeed)
                         compactDl = String(format: "%.0fM", self.liveDownloadSpeed)
                         compactUl = String(format: "%.0fM", self.liveUploadSpeed)
-                    } else if snapshot.downloadBytesPerSec >= 1024 || snapshot.uploadBytesPerSec >= 1024 {
-                        // Идет активная передача данных
+                    } else if self.floatingHUDEnabled {
+                        // Киберспортивный режим (PRO): скорость скачивания и живой RTT пинг серверов
                         dlText = snapshot.formattedDownloadSpeed
-                        ulText = snapshot.formattedUploadSpeed
-                        compactDl = snapshot.downloadBytesPerSec >= 1024 ? snapshot.compactDownload : snapshot.compactUpload
-                        compactUl = compactPing
-                    } else if let lastTest = self.lastSpeedtestResult, lastTest.downloadMbps > 0.1 {
-                        // В режиме ожидания показываем измеренную скорость канала и живой пинг сети
-                        dlText = String(format: "%.1f Мбит/с", lastTest.downloadMbps)
                         ulText = pingText
-                        compactDl = String(format: "%.0fM", lastTest.downloadMbps)
+                        compactDl = snapshot.compactDownload
                         compactUl = compactPing
                     } else {
-                        // Первичный режим ожидания (до первого замера)
-                        dlText = self.systemInfo.connectionType.rawValue
-                        ulText = pingText
-                        compactDl = self.systemInfo.connectionType == .wifi ? "Wi-Fi" : "5G"
-                        compactUl = compactPing
+                        // ЧИСТЫЙ СПИДОМЕТР ТРАФИКА: Непрерывная реальная скорость скачивания и отдачи
+                        dlText = snapshot.formattedDownloadSpeed
+                        ulText = snapshot.formattedUploadSpeed
+                        compactDl = snapshot.compactDownload
+                        compactUl = snapshot.compactUpload
                     }
 
                     ActivityManager.shared.updateActivity(

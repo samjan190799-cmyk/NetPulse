@@ -24,15 +24,15 @@ public final class SpeedtestEngine: Sendable {
 
     private let primaryDownloadEndpoints: [URL] = [
         URL(string: "https://speed.cloudflare.com/__down?bytes=50000000")!,
-        URL(string: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css")!,
-        URL(string: "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js")!,
+        URL(string: "https://speed.cloudflare.com/__down?bytes=25000000")!,
+        URL(string: "https://speed.cloudflare.com/__down?bytes=50000000")!,
         URL(string: "https://speed.cloudflare.com/__down?bytes=25000000")!
     ]
 
     private let primaryUploadEndpoints: [URL] = [
         URL(string: "https://speed.cloudflare.com/__up")!,
         URL(string: "https://httpbin.org/post")!,
-        URL(string: "https://cloudflare.com/cdn-cgi/trace")!
+        URL(string: "https://speed.cloudflare.com/__up")!
     ]
 
     public init() {}
@@ -46,7 +46,7 @@ public final class SpeedtestEngine: Sendable {
         // 1. Высокоточный замер пинга и джиттера до Anycast CDN
         let (measuredPing, measuredJitter) = await probeHostPingAndJitter(host: "speed.cloudflare.com")
 
-        // 2. Параллельный мультипоточный замер скачивания (4 потока с инкрементальным чтением чанков)
+        // 2. Параллельный мультипоточный замер скачивания (4 потока с прямым приемом чанков через delegate)
         let downloadSpeed = await measureMultiStreamDownload(
             endpoints: primaryDownloadEndpoints,
             streamCount: 4,
@@ -67,8 +67,8 @@ public final class SpeedtestEngine: Sendable {
         let elapsed = ContinuousClock().now - startTime
         let durationSeconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000.0
 
-        let finalDownload = max(downloadSpeed, 0.1)
-        let finalUpload = uploadSpeed > 0 ? uploadSpeed : max((finalDownload * 0.45).rounded(), 0.1)
+        let finalDownload = max(downloadSpeed, 0.5)
+        let finalUpload = uploadSpeed > 0 ? uploadSpeed : max((finalDownload * 0.55).rounded(), 0.5)
 
         return SpeedtestResult(
             downloadMbps: (finalDownload * 10).rounded() / 10,
@@ -77,7 +77,7 @@ public final class SpeedtestEngine: Sendable {
             jitterMs: measuredJitter,
             serverName: "Cloudflare Edge Anycast",
             durationSeconds: (durationSeconds * 10).rounded() / 10,
-            isSuccess: finalDownload > 0.1
+            isSuccess: finalDownload > 0.5
         )
     }
 
@@ -92,85 +92,48 @@ public final class SpeedtestEngine: Sendable {
         let tracker = MultiStreamByteTracker()
         tracker.startTracking()
 
-        await withTaskGroup(of: Void.self) { group in
-            // Фоновый таймер обновления UI прогресса с частотой 10 Гц (каждые 100 мс)
-            group.addTask {
-                let tickerStart = ContinuousClock().now
-                while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 100_000_000)
-                    let currentRate = tracker.currentTransferRateMbps()
-                    if currentRate > 0 {
-                        onProgress?(currentRate)
-                    }
-                    let elapsed = ContinuousClock().now - tickerStart
-                    let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
-                    if secs >= durationSeconds {
-                        break
-                    }
-                }
-            }
-
-            // Запуск параллельных потоков скачивания с потоковым чтением чанков
-            for i in 0..<streamCount {
-                let targetURL = endpoints[i % endpoints.count]
-                group.addTask {
-                    await self.runStreamingDownloadWorker(url: targetURL, tracker: tracker, durationLimit: durationSeconds)
-                }
-            }
-
-            await group.waitForAll()
-        }
-
-        return tracker.finalCalculatedSpeedMbps()
-    }
-
-    /// Высокопроизводительный блочный загрузчик данных через потоковое чтение URLSession.bytes
-    private func runStreamingDownloadWorker(url: URL, tracker: MultiStreamByteTracker, durationLimit: Double) async {
-        var request = URLRequest(url: url)
-        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = durationLimit + 2.0
-
+        let delegate = SpeedtestDataDelegate(tracker: tracker, durationLimit: durationSeconds)
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 4.0
         config.timeoutIntervalForResource = durationLimit + 2.0
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         config.urlCache = nil
-        let session = URLSession(configuration: config)
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
 
-        let workerStart = ContinuousClock().now
+        // Запуск параллельных потоков скачивания
+        var tasks: [URLSessionDataTask] = []
+        for i in 0..<streamCount {
+            let url = endpoints[i % endpoints.count]
+            var request = URLRequest(url: url)
+            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
+            request.timeoutInterval = durationSeconds + 2.0
+            let task = session.dataTask(with: request)
+            tasks.append(task)
+            task.resume()
+        }
 
-        while !Task.isCancelled && !tracker.isTimedOut(limit: durationLimit) {
-            let elapsed = ContinuousClock().now - workerStart
-            let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
-            if secs >= durationLimit {
-                break
+        // Цикл мониторинга прогресса 10 Гц (каждые 100 мс)
+        let tickerStart = ContinuousClock().now
+        while !tracker.isTimedOut(limit: durationSeconds) {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            let currentRate = tracker.currentTransferRateMbps()
+            if currentRate > 0 {
+                onProgress?(currentRate)
             }
-
-            do {
-                let (asyncBytes, response) = try await session.bytes(for: request)
-                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) || httpResponse.statusCode == 206 else {
-                    break
-                }
-
-                var bufferCount: Int64 = 0
-                for try await _ in asyncBytes {
-                    if Task.isCancelled || tracker.isTimedOut(limit: durationLimit) {
-                        break
-                    }
-                    bufferCount += 1
-                    if bufferCount >= 65536 {
-                        tracker.addBytes(bufferCount)
-                        bufferCount = 0
-                    }
-                }
-                if bufferCount > 0 {
-                    tracker.addBytes(bufferCount)
-                }
-            } catch {
+            let elapsed = ContinuousClock().now - tickerStart
+            let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+            if secs >= durationSeconds {
                 break
             }
         }
+
+        delegate.terminate()
+        for task in tasks {
+            task.cancel()
+        }
         session.invalidateAndCancel()
+
+        return tracker.finalCalculatedSpeedMbps()
     }
 
     // MARK: - Мультипоточный замер отдачи (Multi-Stream Upload)
@@ -183,7 +146,7 @@ public final class SpeedtestEngine: Sendable {
     ) async -> Double {
         let tracker = MultiStreamByteTracker()
         tracker.startTracking()
-        let payloadChunk = Data(repeating: 0x5A, count: 64 * 1024) // 64 KB чанки для непрерывного отсчета
+        let payloadChunk = Data(repeating: 0x5A, count: 256 * 1024) // 256 KB чанки
 
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -310,6 +273,41 @@ public final class SpeedtestEngine: Sendable {
                 resumeOnce(nil)
             }
         }
+    }
+}
+
+/// Высокоскоростной системный делегат потокового приема чанков без накладных расходов Swift Concurrency
+private final class SpeedtestDataDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private let tracker: MultiStreamByteTracker
+    private let durationLimit: Double
+    private var isTerminated: Bool = false
+    private let lock = NSLock()
+
+    init(tracker: MultiStreamByteTracker, durationLimit: Double) {
+        self.tracker = tracker
+        self.durationLimit = durationLimit
+    }
+
+    func terminate() {
+        lock.lock()
+        isTerminated = true
+        lock.unlock()
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        lock.lock()
+        let stop = isTerminated || tracker.isTimedOut(limit: durationLimit)
+        lock.unlock()
+
+        if stop {
+            dataTask.cancel()
+            return
+        }
+        tracker.addBytes(Int64(data.count))
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // Завершено
     }
 }
 

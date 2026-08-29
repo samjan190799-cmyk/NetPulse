@@ -18,6 +18,7 @@ public struct SettingsView: View {
     @State private var newHostPort: String = "443"
     @State private var showResetTrafficAlert: Bool = false
     @State private var showProUpgradeSheet: Bool = false
+    @State private var ownerTapCount: Int = 0
 
     public var body: some View {
         NavigationStack {
@@ -384,12 +385,30 @@ public struct SettingsView: View {
 
                 // 9. О приложении
                 Section("О приложении") {
-                    HStack {
-                        Text("Версия")
-                        Spacer()
-                        Text("2.2.0 (Build 2026.08)")
-                            .foregroundStyle(NPTheme.textSecondary)
+                    Button {
+                        ownerTapCount += 1
+                        if ownerTapCount >= 5 {
+                            ownerTapCount = 0
+                            AdMobManager.shared.toggleOwnerMode()
+                        } else {
+                            HapticManager.shared.impactLight()
+                        }
+                    } label: {
+                        HStack {
+                            Text("Версия")
+                                .foregroundStyle(NPTheme.textPrimary)
+                            Spacer()
+                            if AdMobManager.shared.isOwnerUnlocked {
+                                Text("👑 Владелец (PRO Полный Доступ)")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(Color.yellow)
+                            } else {
+                                Text("2.2.0 (Build 2026.08)")
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
+                        }
                     }
+                    .buttonStyle(.plain)
 
                     HStack {
                         Text("Движок сети")

@@ -68,6 +68,15 @@ public final class AdMobManager {
     public static let shared = AdMobManager()
 
     // MARK: - Состояние подписки и рекламы
+    public var isOwnerUnlocked: Bool {
+        didSet {
+            UserDefaults.standard.set(isOwnerUnlocked, forKey: "netpulse_owner_unlocked")
+            if isOwnerUnlocked {
+                self.isPremiumUser = true
+            }
+        }
+    }
+
     public var isPremiumUser: Bool {
         didSet {
             UserDefaults.standard.set(isPremiumUser, forKey: "netpulse_is_premium_user")
@@ -75,11 +84,11 @@ public final class AdMobManager {
     }
 
     public var isBannerEnabled: Bool {
-        !isPremiumUser
+        !isPremiumUser && !isOwnerUnlocked
     }
 
     public var isNativeAdsEnabled: Bool {
-        !isPremiumUser
+        !isPremiumUser && !isOwnerUnlocked
     }
 
     public var isTestMode: Bool = false
@@ -92,12 +101,21 @@ public final class AdMobManager {
     private let interstitialFrequency: Int = 3 // Показ раз в 3 ключевых действия
 
     private init() {
-        self.isPremiumUser = UserDefaults.standard.bool(forKey: "netpulse_is_premium_user")
+        let isOwner = UserDefaults.standard.bool(forKey: "netpulse_owner_unlocked")
+        self.isOwnerUnlocked = isOwner
+        self.isPremiumUser = isOwner || UserDefaults.standard.bool(forKey: "netpulse_is_premium_user")
+    }
+
+    /// Переключение секретного режима владельца
+    public func toggleOwnerMode() {
+        self.isOwnerUnlocked.toggle()
+        self.isPremiumUser = self.isOwnerUnlocked
+        HapticManager.shared.notificationSuccess()
     }
 
     // MARK: - Проверка прав показа
     public var canShowAds: Bool {
-        return !isPremiumUser
+        return !isPremiumUser && !isOwnerUnlocked
     }
 
     // MARK: - Запрос разрешения App Tracking Transparency (ATT)

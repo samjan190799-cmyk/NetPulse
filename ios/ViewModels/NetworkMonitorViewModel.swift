@@ -407,7 +407,17 @@ public final class NetworkMonitorViewModel {
         guard let target = candidate else { return }
 
         let record = await pingEngine.pingTarget(target)
-        processPingRecord(address: target.address, record: record, in: &hostMetrics)
+        if let existing = hostMetrics[target.address] {
+            let prevRtt = prevLatencies[target.address]
+            let (updated, newRtt, alert) = processPingRecord(metric: existing, address: target.address, record: record, prevRtt: prevRtt)
+            hostMetrics[target.address] = updated
+            if let rtt = newRtt {
+                prevLatencies[target.address] = rtt
+            }
+            if let a = alert {
+                triggerAlertIfNeeded(address: a.address, message: a.message, severity: a.severity, currentVal: a.currentVal, threshVal: a.threshVal)
+            }
+        }
     }
 
     /// Добавление пользовательского хоста для мгновенного отображения в карточках мониторинга
@@ -553,104 +563,112 @@ public final class NetworkMonitorViewModel {
             }
         }
 
-        // Единовременное батч-обновление словаря метрик за 1 такт для идеальной плавности 120 FPS
+        var alertsToTrigger: [(address: String, message: String, severity: AlertSeverity, currentVal: Double, threshVal: Double)] = []
         var updated = hostMetrics
+
         for (address, record) in batchResults {
-            processPingRecord(address: address, record: record, in: &updated)
+            if let existing = updated[address] {
+                let prevRtt = prevLatencies[address]
+                let (newMetric, newRtt, alert) = processPingRecord(metric: existing, address: address, record: record, prevRtt: prevRtt)
+                updated[address] = newMetric
+                if let rtt = newRtt {
+                    prevLatencies[address] = rtt
+                }
+                if let a = alert {
+                    alertsToTrigger.append(a)
+                }
+            }
         }
         self.hostMetrics = updated
+
+        for alert in alertsToTrigger {
+            triggerAlertIfNeeded(
+                address: alert.address,
+                message: alert.message,
+                severity: alert.severity,
+                currentVal: alert.currentVal,
+                threshVal: alert.threshVal
+            )
+        }
     }
 
-    private func processPingRecord(address: String, record: PingRecord, in dict: inout [String: HostMetrics]) {
-        guard var metric = dict[address] else { return }
+    private func processPingRecord(
+        metric: HostMetrics,
+        address: String,
+        record: PingRecord,
+        prevRtt: Double?
+    ) -> (updated: HostMetrics, newRtt: Double?, alert: (address: String, message: String, severity: AlertSeverity, currentVal: Double, threshVal: Double)?) {
+        var m = metric
+        m.sentCount += 1
+        m.lastUpdated = Date()
 
-        metric.sentCount += 1
-        metric.lastUpdated = Date()
-        let prevRtt = prevLatencies[address]
+        var alertToEmit: (address: String, message: String, severity: AlertSeverity, currentVal: Double, threshVal: Double)? = nil
+        var emittedRtt: Double? = nil
 
         if record.isSuccess, let lat = record.latencyMs {
-            metric.receivedCount += 1
-            metric.lastLatencyMs = lat
+            m.receivedCount += 1
+            m.lastLatencyMs = lat
+            emittedRtt = lat
 
             // Расчет RFC 3550 Jitter
             if let pRtt = prevRtt {
                 let d = abs(lat - pRtt)
-                metric.jitterMs = metric.jitterMs + (d - metric.jitterMs) / 16.0
+                m.jitterMs = m.jitterMs + (d - m.jitterMs) / 16.0
             }
-            prevLatencies[address] = lat
 
             // Min / Max / Avg
-            metric.minLatencyMs = metric.minLatencyMs != nil ? min(metric.minLatencyMs!, lat) : lat
-            metric.maxLatencyMs = metric.maxLatencyMs != nil ? max(metric.maxLatencyMs!, lat) : lat
+            m.minLatencyMs = m.minLatencyMs != nil ? min(m.minLatencyMs!, lat) : lat
+            m.maxLatencyMs = m.maxLatencyMs != nil ? max(m.maxLatencyMs!, lat) : lat
 
-            let totalLat = (metric.avgLatencyMs ?? lat) * Double(metric.receivedCount - 1) + lat
-            metric.avgLatencyMs = totalLat / Double(metric.receivedCount)
+            let totalLat = (m.avgLatencyMs ?? lat) * Double(m.receivedCount - 1) + lat
+            m.avgLatencyMs = totalLat / Double(m.receivedCount)
 
             // Добавление в историю Sparkline (ограничено 24 точками для экономии памяти)
-            metric.latencyHistory.append(lat)
-            if metric.latencyHistory.count > 24 {
-                metric.latencyHistory.removeFirst()
+            m.latencyHistory.append(lat)
+            if m.latencyHistory.count > 24 {
+                m.latencyHistory.removeFirst()
             }
 
             // Пересчет процента потерь
-            metric.lossRatePct = metric.sentCount > 0 ? (Double(metric.lostCount) / Double(metric.sentCount) * 100.0) : 0.0
-            let lostInWindow = metric.latencyHistory.filter { $0 == nil }.count
-            metric.lossWindowPct = !metric.latencyHistory.isEmpty ? (Double(lostInWindow) / Double(metric.latencyHistory.count) * 100.0) : 0.0
+            m.lossRatePct = m.sentCount > 0 ? (Double(m.lostCount) / Double(m.sentCount) * 100.0) : 0.0
+            let lostInWindow = m.latencyHistory.filter { $0 == nil }.count
+            m.lossWindowPct = !m.latencyHistory.isEmpty ? (Double(lostInWindow) / Double(m.latencyHistory.count) * 100.0) : 0.0
 
             // Оценка статуса хоста
             if lat > latencyCritThreshold {
-                metric.status = .critical
-                triggerAlertIfNeeded(
-                    address: address,
-                    message: "Высокая задержка: \(Int(lat)) мс",
-                    severity: .critical,
-                    currentVal: lat,
-                    threshVal: latencyCritThreshold
-                )
+                m.status = .critical
+                alertToEmit = (address, "Высокая задержка: \(Int(lat)) мс", .critical, lat, latencyCritThreshold)
             } else if lat > latencyWarnThreshold {
-                metric.status = .warning
-                triggerAlertIfNeeded(
-                    address: address,
-                    message: "Повышенная задержка: \(Int(lat)) мс",
-                    severity: .warning,
-                    currentVal: lat,
-                    threshVal: latencyWarnThreshold
-                )
+                m.status = .warning
+                alertToEmit = (address, "Повышенная задержка: \(Int(lat)) мс", .warning, lat, latencyWarnThreshold)
             } else {
-                metric.status = .ok
+                m.status = .ok
             }
         } else {
             // Потеря пакета
-            metric.lostCount += 1
-            metric.lastLatencyMs = nil
-            metric.latencyHistory.append(nil)
-            if metric.latencyHistory.count > 24 {
-                metric.latencyHistory.removeFirst()
+            m.lostCount += 1
+            m.lastLatencyMs = nil
+            m.latencyHistory.append(nil)
+            if m.latencyHistory.count > 24 {
+                m.latencyHistory.removeFirst()
             }
 
-            metric.lossRatePct = metric.sentCount > 0 ? (Double(metric.lostCount) / Double(metric.sentCount) * 100.0) : 0.0
-            let lostInWindow = metric.latencyHistory.filter { $0 == nil }.count
-            metric.lossWindowPct = !metric.latencyHistory.isEmpty ? (Double(lostInWindow) / Double(metric.latencyHistory.count) * 100.0) : 0.0
+            m.lossRatePct = m.sentCount > 0 ? (Double(m.lostCount) / Double(m.sentCount) * 100.0) : 0.0
+            let lostInWindow = m.latencyHistory.filter { $0 == nil }.count
+            m.lossWindowPct = !m.latencyHistory.isEmpty ? (Double(lostInWindow) / Double(m.latencyHistory.count) * 100.0) : 0.0
 
-            let lossPct = metric.lossWindowPct
+            let lossPct = m.lossWindowPct
             if lossPct >= lossCritThreshold {
-                metric.status = .down
-                // Не выводим тревожный алерт о 100% потере пакетов для сотового шлюза оператора (Carrier CGNAT штатно блокирует сокеты)
-                if !(metric.isGateway && systemInfo.connectionType == .cellular) {
-                    triggerAlertIfNeeded(
-                        address: address,
-                        message: "Потеря пакетов: \(String(format: "%.0f", lossPct))%",
-                        severity: .critical,
-                        currentVal: lossPct,
-                        threshVal: lossCritThreshold
-                    )
+                m.status = .down
+                if !(m.isGateway && systemInfo.connectionType == .cellular) {
+                    alertToEmit = (address, "Потеря пакетов: \(String(format: "%.0f", lossPct))%", .critical, lossPct, lossCritThreshold)
                 }
             } else {
-                metric.status = .warning
+                m.status = .warning
             }
         }
 
-        dict[address] = metric
+        return (m, emittedRtt, alertToEmit)
     }
 
     // MARK: - Методы управления аналитикой трафика

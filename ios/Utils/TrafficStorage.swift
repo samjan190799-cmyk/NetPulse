@@ -77,8 +77,8 @@ public actor TrafficStorage {
             loadedSessions = loadedSessions.map { session in
                 var s = session
                 // Если отдача в сотовой сети была ошибочно начислена из-за Wi-Fi моста на ноутбук (почти равна объему скачивания)
-                if s.connectionType.contains("Сотовая") && s.uploadedBytes > 10_000_000 && s.uploadedBytes >= UInt64(Double(s.downloadedBytes) * 0.5) {
-                    s.uploadedBytes = UInt64(Double(s.downloadedBytes) * 0.04) // Реальный TCP ACK трафик ~4%
+                if s.connectionType.contains("Сотовая") && s.uploadedBytes > 10_000_000 && s.uploadedBytes >= (s.downloadedBytes / 2) {
+                    s.uploadedBytes = (s.downloadedBytes * 4) / 100 // Реальный TCP ACK трафик ~4%
                 }
                 return s
             }

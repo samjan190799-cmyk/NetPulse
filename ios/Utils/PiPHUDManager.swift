@@ -28,33 +28,41 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
 
     /// Привязка источника PiP к экрану
     public func setup(with anchorView: UIView, rootView: AnyView) {
+        guard AVPictureInPictureController.isPictureInPictureSupported() else {
+            print("⚠️ Picture-in-Picture не поддерживается на этом устройстве")
+            return
+        }
         self.anchorView = anchorView
 
-        let callVC = AVPictureInPictureVideoCallViewController()
-        callVC.preferredContentSize = CGSize(width: 320, height: 110)
-        callVC.view.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
+        if self.callViewController == nil {
+            let callVC = AVPictureInPictureVideoCallViewController()
+            callVC.preferredContentSize = CGSize(width: 320, height: 110)
+            callVC.view.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
 
-        let hosting = UIHostingController(rootView: rootView)
-        hosting.view.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
-        hosting.view.frame = CGRect(x: 0, y: 0, width: 320, height: 110)
-        hosting.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            let hosting = UIHostingController(rootView: rootView)
+            hosting.view.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
+            hosting.view.frame = CGRect(x: 0, y: 0, width: 320, height: 110)
+            hosting.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
-        callVC.addChild(hosting)
-        callVC.view.addSubview(hosting.view)
-        hosting.didMove(toParent: callVC)
+            callVC.addChild(hosting)
+            callVC.view.addSubview(hosting.view)
+            hosting.didMove(toParent: callVC)
 
-        self.callViewController = callVC
-        self.hostingController = hosting
+            self.callViewController = callVC
+            self.hostingController = hosting
 
-        let source = AVPictureInPictureController.ContentSource(
-            activeVideoCallSourceView: anchorView,
-            contentViewController: callVC
-        )
+            let source = AVPictureInPictureController.ContentSource(
+                activeVideoCallSourceView: anchorView,
+                contentViewController: callVC
+            )
 
-        let pip = AVPictureInPictureController(contentSource: source)
-        pip.delegate = self
-        pip.canStartPictureInPictureAutomaticallyFromInline = true
-        self.pipController = pip
+            let pip = AVPictureInPictureController(contentSource: source)
+            pip.delegate = self
+            pip.canStartPictureInPictureAutomaticallyFromInline = true
+            self.pipController = pip
+        } else {
+            self.hostingController?.rootView = rootView
+        }
     }
 
     /// Обновление содержимого внутри PiP

@@ -77,9 +77,9 @@ public final class TrafficClassifier: @unchecked Sendable {
         }
 
         if isBackground {
-            let sysDown = UInt64(Double(deltaDownload) * 0.85)
+            let sysDown = (deltaDownload * 85) / 100
             let msgDown = deltaDownload - sysDown
-            let sysUp = UInt64(Double(deltaUpload) * 0.85)
+            let sysUp = (deltaUpload * 85) / 100
             let msgUp = deltaUpload - sysUp
 
             distribution[.systemBackground] = (sysDown, sysUp)
@@ -97,10 +97,10 @@ public final class TrafficClassifier: @unchecked Sendable {
             isBackground: false
         )
 
-        // 80% относим к основной категории, 20% к сопутствующей
-        let mainDown = UInt64(Double(deltaDownload) * 0.85)
+        // 85% относим к основной категории, 15% к сопутствующей
+        let mainDown = (deltaDownload * 85) / 100
         let restDown = deltaDownload - mainDown
-        let mainUp = UInt64(Double(deltaUpload) * 0.85)
+        let mainUp = (deltaUpload * 85) / 100
         let restUp = deltaUpload - mainUp
 
         distribution[primary] = (mainDown, mainUp)
@@ -162,16 +162,16 @@ public final class TrafficClassifier: @unchecked Sendable {
 
         // Если у сессий еще нет категорий (например, старые данные из хранилища), генерируем реалистичную эвристическую раскладку
         if map.isEmpty && totalTraffic > 0 {
-            let videoBytes = UInt64(Double(totalTraffic) * 0.42)
-            let msgBytes = UInt64(Double(totalTraffic) * 0.24)
-            let webBytes = UInt64(Double(totalTraffic) * 0.18)
-            let gameBytes = UInt64(Double(totalTraffic) * 0.08)
-            let sysBytes = totalTraffic - (videoBytes + msgBytes + webBytes + gameBytes)
+            let videoBytes = (totalTraffic * 42) / 100
+            let msgBytes = (totalTraffic * 24) / 100
+            let webBytes = (totalTraffic * 18) / 100
+            let gameBytes = (totalTraffic * 8) / 100
+            let sysBytes = totalTraffic >= (videoBytes + msgBytes + webBytes + gameBytes) ? totalTraffic - (videoBytes + msgBytes + webBytes + gameBytes) : 0
 
             map[.videoStreaming] = (videoBytes, 0)
-            map[.messagingSocial] = (UInt64(Double(msgBytes) * 0.8), UInt64(Double(msgBytes) * 0.2))
-            map[.webBrowsing] = (UInt64(Double(webBytes) * 0.85), UInt64(Double(webBytes) * 0.15))
-            map[.gamingVoip] = (UInt64(Double(gameBytes) * 0.6), UInt64(Double(gameBytes) * 0.4))
+            map[.messagingSocial] = ((msgBytes * 80) / 100, (msgBytes * 20) / 100)
+            map[.webBrowsing] = ((webBytes * 85) / 100, (webBytes * 15) / 100)
+            map[.gamingVoip] = ((gameBytes * 60) / 100, (gameBytes * 40) / 100)
             map[.systemBackground] = (sysBytes, 0)
         }
 

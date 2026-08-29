@@ -62,12 +62,14 @@ public struct ContentView: View {
             }
 
             // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх игр
-            if viewModel.floatingHUDEnabled {
+            if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
                 PiPAnchorRepresentable(viewModel: viewModel)
                     .frame(width: 1, height: 1)
                     .opacity(0.001)
+            }
 
-                // Плавающий игровой HUD внутри приложения
+            // Плавающий игровой HUD внутри приложения
+            if viewModel.floatingHUDEnabled {
                 FloatingGameOverlayView(
                     isCollapsed: $viewModel.isFloatingHUDCollapsed,
                     downloadSpeedText: viewModel.isSpeedtestRunning ? String(format: "%.1f Мбит/с", viewModel.liveDownloadSpeed) : viewModel.liveBandwidth.formattedDownloadSpeed,

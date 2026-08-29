@@ -157,55 +157,45 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     private func playSilentSound() {
         guard isRunning else { return }
 
-        // Генерация 2 секунд абсолютно бесшумного PCM WAV в оперативной памяти (0.01 КБ памяти, 0% CPU)
-        let sampleRate: Double = 8000.0
-        let duration: Double = 2.0
-        let numSamples = Int(sampleRate * duration)
-        
+        let sampleRate: UInt32 = 8000
+        let duration: Double = 1.0
+        let numSamples = Int(Double(sampleRate) * duration)
+        let numBytes = UInt32(numSamples * 2)
+
         var pcmData = Data()
         // RIFF header
         pcmData.append(contentsOf: [0x52, 0x49, 0x46, 0x46]) // "RIFF"
-        let fileSize: UInt32 = UInt32(36 + numSamples * 2)
-        var fileSizeLE = fileSize.littleEndian
-        pcmData.append(Data(bytes: &fileSizeLE, count: 4))
+        let fileSize: UInt32 = 36 + numBytes
+        withUnsafeBytes(of: fileSize.littleEndian) { pcmData.append(contentsOf: $0) }
         pcmData.append(contentsOf: [0x57, 0x41, 0x56, 0x45]) // "WAVE"
+
         // fmt chunk
         pcmData.append(contentsOf: [0x66, 0x6D, 0x74, 0x20]) // "fmt "
-        var fmtChunkSize: UInt32 = 16
-        var fmtChunkSizeLE = fmtChunkSize.littleEndian
-        pcmData.append(Data(bytes: &fmtChunkSizeLE, count: 4))
-        var formatType: UInt16 = 1 // PCM
-        var formatTypeLE = formatType.littleEndian
-        pcmData.append(Data(bytes: &formatTypeLE, count: 2))
-        var channels: UInt16 = 1
-        var channelsLE = channels.littleEndian
-        pcmData.append(Data(bytes: &channelsLE, count: 2))
-        var sRate: UInt32 = UInt32(sampleRate)
-        var sRateLE = sRate.littleEndian
-        pcmData.append(Data(bytes: &sRateLE, count: 4))
-        var byteRate: UInt32 = UInt32(sampleRate * 2)
-        var byteRateLE = byteRate.littleEndian
-        pcmData.append(Data(bytes: &byteRateLE, count: 4))
-        var blockAlign: UInt16 = 2
-        var blockAlignLE = blockAlign.littleEndian
-        pcmData.append(Data(bytes: &blockAlignLE, count: 2))
-        var bitsPerSample: UInt16 = 16
-        var bitsPerSampleLE = bitsPerSample.littleEndian
-        pcmData.append(Data(bytes: &bitsPerSampleLE, count: 2))
+        let fmtChunkSize: UInt32 = 16
+        withUnsafeBytes(of: fmtChunkSize.littleEndian) { pcmData.append(contentsOf: $0) }
+        let formatType: UInt16 = 1 // PCM
+        withUnsafeBytes(of: formatType.littleEndian) { pcmData.append(contentsOf: $0) }
+        let channels: UInt16 = 1
+        withUnsafeBytes(of: channels.littleEndian) { pcmData.append(contentsOf: $0) }
+        withUnsafeBytes(of: sampleRate.littleEndian) { pcmData.append(contentsOf: $0) }
+        let byteRate: UInt32 = sampleRate * 2
+        withUnsafeBytes(of: byteRate.littleEndian) { pcmData.append(contentsOf: $0) }
+        let blockAlign: UInt16 = 2
+        withUnsafeBytes(of: blockAlign.littleEndian) { pcmData.append(contentsOf: $0) }
+        let bitsPerSample: UInt16 = 16
+        withUnsafeBytes(of: bitsPerSample.littleEndian) { pcmData.append(contentsOf: $0) }
+
         // data chunk
         pcmData.append(contentsOf: [0x64, 0x61, 0x74, 0x61]) // "data"
-        var dataSize: UInt32 = UInt32(numSamples * 2)
-        var dataSizeLE = dataSize.littleEndian
-        pcmData.append(Data(bytes: &dataSizeLE, count: 4))
+        withUnsafeBytes(of: numBytes.littleEndian) { pcmData.append(contentsOf: $0) }
         // Silent PCM samples (all zeros)
-        let zeros = [UInt8](repeating: 0, count: numSamples * 2)
-        pcmData.append(contentsOf: zeros)
+        pcmData.append(Data(count: Int(numBytes)))
 
         do {
             let player = try AVAudioPlayer(data: pcmData)
             player.delegate = self
-            player.numberOfLoops = -1 // бесконечный цикл
-            player.volume = 0.0 // нулевая громкость
+            player.numberOfLoops = -1
+            player.volume = 0.0
             player.prepareToPlay()
             player.play()
             self.audioPlayer = player

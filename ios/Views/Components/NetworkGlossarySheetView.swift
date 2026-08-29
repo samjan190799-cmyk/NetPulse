@@ -87,8 +87,8 @@ public struct NetworkGlossarySheetView: View {
 }
 
 /// Модель элемента глоссария
-public struct GlossaryItem: Identifiable {
-    public let id = UUID()
+public struct GlossaryItem: Identifiable, Sendable {
+    public let id: UUID
     public let title: String
     public let subtitle: String
     public let icon: String
@@ -97,6 +97,28 @@ public struct GlossaryItem: Identifiable {
     public let shortDescription: String
     public let fullExplanation: String
     public let practicalTip: String?
+
+    public init(
+        id: UUID = UUID(),
+        title: String,
+        subtitle: String,
+        icon: String,
+        iconColor: Color,
+        category: NetworkGlossarySheetView.GlossaryCategory,
+        shortDescription: String,
+        fullExplanation: String,
+        practicalTip: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.iconColor = iconColor
+        self.category = category
+        self.shortDescription = shortDescription
+        self.fullExplanation = fullExplanation
+        self.practicalTip = practicalTip
+    }
 }
 
 /// Визуальная интерактивная карточка термина

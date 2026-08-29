@@ -109,26 +109,16 @@ public actor DNSBenchmarkEngine {
             let queue = DispatchQueue(label: "com.samjan.netpulse.dns.\(host)", qos: .userInitiated)
             let startTime = Date()
 
-            var isResumed = false
-            let lock = NSLock()
-
-            let resumeOnce: @Sendable (Double?) -> Void = { result in
-                lock.lock()
-                defer { lock.unlock() }
-                if !isResumed {
-                    isResumed = true
-                    connection.cancel()
-                    continuation.resume(returning: result)
-                }
-            }
+            let box = SafeContinuationBox<Double?>(continuation)
 
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
                     let elapsed = Date().timeIntervalSince(startTime) * 1000.0
-                    resumeOnce(elapsed)
+                    connection.cancel()
+                    box.resumeOnce(elapsed)
                 case .failed, .cancelled:
-                    resumeOnce(nil)
+                    box.resumeOnce(nil)
                 case .waiting:
                     break
                 default:
@@ -138,8 +128,9 @@ public actor DNSBenchmarkEngine {
 
             connection.start(queue: queue)
 
-            queue.asyncAfter(deadline: .now() + 1.8) {
-                resumeOnce(nil)
+            queue.asyncAfter(deadline: .now() + 1.5) {
+                connection.cancel()
+                box.resumeOnce(nil)
             }
         }
     }

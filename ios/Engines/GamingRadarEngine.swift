@@ -95,26 +95,16 @@ public actor GamingRadarEngine {
             let queue = DispatchQueue(label: "com.samjan.netpulse.gaming.\(host)", qos: .userInteractive)
             let startTime = Date()
 
-            var isResumed = false
-            let lock = NSLock()
-
-            let resumeOnce: @Sendable (Double?) -> Void = { result in
-                lock.lock()
-                defer { lock.unlock() }
-                if !isResumed {
-                    isResumed = true
-                    connection.cancel()
-                    continuation.resume(returning: result)
-                }
-            }
+            let box = SafeContinuationBox<Double?>(continuation)
 
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
                     let elapsed = Date().timeIntervalSince(startTime) * 1000.0
-                    resumeOnce(elapsed)
+                    connection.cancel()
+                    box.resumeOnce((elapsed * 10).rounded() / 10)
                 case .failed, .cancelled:
-                    resumeOnce(nil)
+                    box.resumeOnce(nil)
                 case .waiting:
                     break
                 default:
@@ -125,8 +115,30 @@ public actor GamingRadarEngine {
             connection.start(queue: queue)
 
             queue.asyncAfter(deadline: .now() + 1.5) {
-                resumeOnce(nil)
+                connection.cancel()
+                box.resumeOnce(nil)
             }
+        }
+    }
+}
+
+/// Потокобезопасный бокс однократного возобновления Continuation
+private final class SafeContinuationBox<T>: @unchecked Sendable {
+    private var isResumed = false
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T, Never>?
+
+    init(_ continuation: CheckedContinuation<T, Never>) {
+        self.continuation = continuation
+    }
+
+    func resumeOnce(_ value: T) {
+        lock.lock()
+        defer { lock.unlock() }
+        if !isResumed {
+            isResumed = true
+            continuation?.resume(returning: value)
+            continuation = nil
         }
     }
 }

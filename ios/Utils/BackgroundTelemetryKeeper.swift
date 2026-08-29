@@ -75,34 +75,24 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
-            guard let self = self, self.isRunning else { return }
-            guard let userInfo = notification.userInfo,
-                  let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
-                return
-            }
+            Task { @MainActor [weak self] in
+                guard let self = self, self.isRunning else { return }
+                guard let userInfo = notification.userInfo,
+                      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                    return
+                }
 
-            switch type {
-            case .began:
-                print("⏸️ [BackgroundTelemetryKeeper] Аудиосессия прервана системой (звонок / Siri)")
-            case .ended:
-                print("▶️ [BackgroundTelemetryKeeper] Прерывание завершено — восстанавливаем фоновую сессию")
-                if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
-                    let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                    if options.contains(.shouldResume) {
-                        self.setupSilentAudioSession()
-                        self.playSilentSound()
-                    } else {
-                        // Даже если shouldResume не выставлен, принудительно восстанавливаем
-                        self.setupSilentAudioSession()
-                        self.playSilentSound()
-                    }
-                } else {
+                switch type {
+                case .began:
+                    print("⏸️ [BackgroundTelemetryKeeper] Аудиосессия прервана системой (звонок / Siri)")
+                case .ended:
+                    print("▶️ [BackgroundTelemetryKeeper] Прерывание завершено — восстанавливаем фоновую сессию")
                     self.setupSilentAudioSession()
                     self.playSilentSound()
+                @unknown default:
+                    break
                 }
-            @unknown default:
-                break
             }
         }
         observers.append(interruptionObs)
@@ -113,22 +103,24 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
-            guard let self = self, self.isRunning else { return }
-            guard let userInfo = notification.userInfo,
-                  let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
-                return
-            }
-
-            switch reason {
-            case .oldDeviceUnavailable, .newDeviceAvailable, .categoryChange, .override:
-                print("🎧 [BackgroundTelemetryKeeper] Смена аудиомаршрута (\(reasonValue)) — перезапуск тишины")
-                self.setupSilentAudioSession()
-                if self.audioPlayer?.isPlaying != true {
-                    self.playSilentSound()
+            Task { @MainActor [weak self] in
+                guard let self = self, self.isRunning else { return }
+                guard let userInfo = notification.userInfo,
+                      let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                      let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+                    return
                 }
-            default:
-                break
+
+                switch reason {
+                case .oldDeviceUnavailable, .newDeviceAvailable, .categoryChange, .override:
+                    print("🎧 [BackgroundTelemetryKeeper] Смена аудиомаршрута (\(reasonValue)) — перезапуск тишины")
+                    self.setupSilentAudioSession()
+                    if self.audioPlayer?.isPlaying != true {
+                        self.playSilentSound()
+                    }
+                default:
+                    break
+                }
             }
         }
         observers.append(routeChangeObs)

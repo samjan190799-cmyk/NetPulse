@@ -115,9 +115,12 @@ public final class AdMobManager {
     public func requestTrackingAuthorization() {
         #if canImport(AppTrackingTransparency)
         if #available(iOS 14.5, *) {
-            ATTrackingManager.requestTrackingAuthorization { status in
-                // Статус ATT получен
-                print("[AdMobManager] ATT Status: \(status.rawValue)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else { return }
+                guard UIApplication.shared.applicationState == .active else { return }
+                ATTrackingManager.requestTrackingAuthorization { status in
+                    print("[AdMobManager] ATT Status: \(status.rawValue)")
+                }
             }
         }
         #endif

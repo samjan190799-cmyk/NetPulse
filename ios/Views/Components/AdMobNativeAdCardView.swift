@@ -8,14 +8,14 @@
 import SwiftUI
 
 /// Нативная рекламная карточка Google AdMob (Native Advanced Ad) в дизайне Glassmorphism
+@MainActor
 public struct AdMobNativeAdCardView: View {
-    @State private var adManager = AdMobManager.shared
-    @State private var currentItem: SponsorAdItem
+    private var adManager = AdMobManager.shared
+    @State private var currentItem: SponsorAdItem = SponsorAdItem.defaults[0]
     private let customContextTag: String?
 
     public init(contextTag: String? = nil) {
         self.customContextTag = contextTag
-        _currentItem = State(initialValue: SponsorAdItem.defaults.randomElement() ?? SponsorAdItem.defaults[0])
     }
 
     public var body: some View {
@@ -94,20 +94,22 @@ public struct AdMobNativeAdCardView: View {
 
                     Spacer()
 
-                    Link(destination: URL(string: currentItem.destinationURL) ?? URL(string: "https://netpulse.app")!) {
-                        HStack(spacing: 6) {
-                            Text(currentItem.ctaText)
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10, weight: .bold))
+                    if let targetURL = URL(string: currentItem.destinationURL) ?? URL(string: "https://netpulse.app") {
+                        Link(destination: targetURL) {
+                            HStack(spacing: 6) {
+                                Text(currentItem.ctaText)
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(NPTheme.backgroundDeep)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(NPTheme.accentPrimary)
+                            .clipShape(Capsule())
                         }
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(NPTheme.backgroundDeep)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(NPTheme.accentPrimary)
-                        .clipShape(Capsule())
+                        .buttonStyle(NPPressableButtonStyle(scale: 0.95))
                     }
-                    .buttonStyle(NPPressableButtonStyle(scale: 0.95))
                 }
             }
             .padding(14)

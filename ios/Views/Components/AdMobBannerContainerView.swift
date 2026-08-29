@@ -9,8 +9,9 @@ import SwiftUI
 import UIKit
 
 /// Адаптивный баннерный контейнер Google AdMob с поддержкой Glassmorphism и NetPulse Pro
+@MainActor
 public struct AdMobBannerContainerView: View {
-    @State private var adManager = AdMobManager.shared
+    private var adManager = AdMobManager.shared
     @State private var currentSponsor: SponsorAdItem = SponsorAdItem.defaults[0]
     @State private var showProUpgradeSheet: Bool = false
 
@@ -62,16 +63,18 @@ public struct AdMobBannerContainerView: View {
                     Spacer(minLength: 4)
 
                     // Кнопка перехода
-                    Link(destination: URL(string: currentSponsor.destinationURL) ?? URL(string: "https://netpulse.app")!) {
-                        Text(currentSponsor.ctaText)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(NPTheme.backgroundDeep)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(NPTheme.accentPrimary)
-                            .clipShape(Capsule())
+                    if let targetURL = URL(string: currentSponsor.destinationURL) ?? URL(string: "https://netpulse.app") {
+                        Link(destination: targetURL) {
+                            Text(currentSponsor.ctaText)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(NPTheme.backgroundDeep)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(NPTheme.accentPrimary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(NPPressableButtonStyle(scale: 0.94))
                     }
-                    .buttonStyle(NPPressableButtonStyle(scale: 0.94))
 
                     // Кнопка перехода на PRO для скрытия баннеров
                     Button {
@@ -109,9 +112,10 @@ public struct AdMobBannerContainerView: View {
 }
 
 /// Модальный экран предложения отключения рекламы (NetPulse Pro)
+@MainActor
 public struct NetPulseProUpgradeSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var adManager = AdMobManager.shared
+    private var adManager = AdMobManager.shared
 
     public var body: some View {
         NavigationStack {

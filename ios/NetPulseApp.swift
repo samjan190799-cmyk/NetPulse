@@ -31,7 +31,13 @@ struct NetPulseApp: App {
     }
 
     private func restoreLiveActivityIfNeeded() {
-        let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
+        let isLiveEnabled = UserDefaults.standard.object(forKey: "netpulse_live_activity_enabled") as? Bool ?? true
+        let isBgEnabled = UserDefaults.standard.object(forKey: "netpulse_background_monitoring_enabled") as? Bool ?? true
+
+        if isLiveEnabled || isBgEnabled {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
+        }
+
         if isLiveEnabled {
             Task { @MainActor in
                 let info = await NetworkDiagnostics().collectSystemInfo()

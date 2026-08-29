@@ -89,20 +89,18 @@ public actor BufferbloatEngine {
 
         // Фоновый поток скачивания
         let downloadTask = Task { () -> Int64 in
-            var bytes: Int64 = 0
             do {
                 let (data, _) = try await URLSession.shared.data(from: self.downloadTestURL)
-                bytes = Int64(data.count)
+                return Int64(data.count)
             } catch {
-                bytes = 5_000_000
+                return 0
             }
-            return bytes
         }
 
         // Параллельный замер пинга во время скачивания
         for _ in 0..<4 {
             let record = await pingEngine.pingTarget(HostTarget(name: "1.1.1.1", address: "1.1.1.1"))
-            if let lat = record.latencyMs {
+            if let lat = record.latencyMs, lat > 0 {
                 loadedPings.append(lat)
             }
             try? await Task.sleep(nanoseconds: 200_000_000)
@@ -110,9 +108,9 @@ public actor BufferbloatEngine {
 
         totalBytesDownloaded = await downloadTask.value
         let elapsed = max(Date().timeIntervalSince(startTime), 0.5)
-        let speedMbps = (Double(totalBytesDownloaded * 8) / (elapsed * 1_000_000.0))
+        let speedMbps = totalBytesDownloaded > 0 ? (Double(totalBytesDownloaded * 8) / (elapsed * 1_000_000.0)) : 0.0
 
-        let avgLoadedPing = loadedPings.isEmpty ? (basePing + 12.0) : (loadedPings.reduce(0, +) / Double(loadedPings.count))
+        let avgLoadedPing = loadedPings.isEmpty ? basePing : (loadedPings.reduce(0, +) / Double(loadedPings.count))
         return (speedMbps, avgLoadedPing)
     }
 
@@ -126,19 +124,20 @@ public actor BufferbloatEngine {
         request.httpMethod = "POST"
 
         let uploadTask = Task { () -> Int64 in
-            var bytes: Int64 = 0
             do {
-                let (_, _) = try await URLSession.shared.upload(for: request, from: dummyData)
-                bytes = Int64(dummyData.count)
+                let (_, response) = try await URLSession.shared.upload(for: request, from: dummyData)
+                if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                    return Int64(dummyData.count)
+                }
+                return 0
             } catch {
-                bytes = 3_000_000
+                return 0
             }
-            return bytes
         }
 
         for _ in 0..<4 {
             let record = await pingEngine.pingTarget(HostTarget(name: "1.1.1.1", address: "1.1.1.1"))
-            if let lat = record.latencyMs {
+            if let lat = record.latencyMs, lat > 0 {
                 loadedPings.append(lat)
             }
             try? await Task.sleep(nanoseconds: 200_000_000)
@@ -146,9 +145,9 @@ public actor BufferbloatEngine {
 
         totalBytesUploaded = await uploadTask.value
         let elapsed = max(Date().timeIntervalSince(startTime), 0.5)
-        let speedMbps = (Double(totalBytesUploaded * 8) / (elapsed * 1_000_000.0))
+        let speedMbps = totalBytesUploaded > 0 ? (Double(totalBytesUploaded * 8) / (elapsed * 1_000_000.0)) : 0.0
 
-        let avgLoadedPing = loadedPings.isEmpty ? (basePing + 18.0) : (loadedPings.reduce(0, +) / Double(loadedPings.count))
+        let avgLoadedPing = loadedPings.isEmpty ? basePing : (loadedPings.reduce(0, +) / Double(loadedPings.count))
         return (speedMbps, avgLoadedPing)
     }
 }

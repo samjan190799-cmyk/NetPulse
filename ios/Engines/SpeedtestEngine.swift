@@ -124,7 +124,7 @@ public final class SpeedtestEngine: Sendable {
         return tracker.finalCalculatedSpeedMbps()
     }
 
-    /// Потоковый загрузчик данных через URLSession.bytes
+    /// Высокопроизводительный блочный загрузчик данных через системный CFNetwork буфер
     private func runStreamingDownloadWorker(url: URL, tracker: MultiStreamByteTracker, durationLimit: Double) async {
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
@@ -147,27 +147,11 @@ public final class SpeedtestEngine: Sendable {
             }
 
             do {
-                let (asyncBytes, response) = try await session.bytes(for: request)
+                let (data, response) = try await session.data(for: request)
                 guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) || httpResponse.statusCode == 206 else {
                     break
                 }
-
-                var chunkBuffer = 0
-                for try await byte in asyncBytes {
-                    if Task.isCancelled || tracker.isTimedOut(limit: durationLimit) {
-                        break
-                    }
-                    _ = byte
-                    chunkBuffer += 1
-                    // Фиксируем чанки каждые 64 КБ для минимального оверхеда локов
-                    if chunkBuffer >= 65536 {
-                        tracker.addBytes(Int64(chunkBuffer))
-                        chunkBuffer = 0
-                    }
-                }
-                if chunkBuffer > 0 {
-                    tracker.addBytes(Int64(chunkBuffer))
-                }
+                tracker.addBytes(Int64(data.count))
             } catch {
                 break
             }

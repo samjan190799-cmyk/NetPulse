@@ -98,7 +98,7 @@ public actor DNSBenchmarkEngine {
         await withCheckedContinuation { continuation in
             let endpoint = NWEndpoint.hostPort(
                 host: NWEndpoint.Host(host),
-                port: NWEndpoint.Port(rawValue: port)!
+                port: NWEndpoint.Port(rawValue: port) ?? .init(integerLiteral: 53)
             )
 
             let params = NWParameters.tcp

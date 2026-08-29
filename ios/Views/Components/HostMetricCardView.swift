@@ -216,9 +216,7 @@ private struct MiniSparklineView: View {
     var body: some View {
         GeometryReader { proxy in
             let valid = data.compactMap { $0 }
-            if valid.count >= 2 {
-                let minV = valid.min()!
-                let maxV = valid.max()!
+            if valid.count >= 2, let minV = valid.min(), let maxV = valid.max() {
                 let range = max(maxV - minV, 1.0)
 
                 Path { path in

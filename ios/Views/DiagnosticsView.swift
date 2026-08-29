@@ -280,10 +280,7 @@ public struct DiagnosticsView: View {
                     let cleaned = quickHostInput.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !cleaned.isEmpty else { return }
                     HapticManager.shared.impactMedium()
-                    if !viewModel.targets.contains(where: { $0.address.lowercased() == cleaned.lowercased() }) {
-                        let newTarget = HostTarget(name: cleaned, address: cleaned, tcpPort: 443)
-                        viewModel.targets.append(newTarget)
-                    }
+                    viewModel.addCustomTarget(cleaned)
                     viewModel.startTraceroute(for: cleaned)
                 } label: {
                     HStack(spacing: 4) {

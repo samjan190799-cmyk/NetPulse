@@ -368,7 +368,7 @@ public actor TrafficStorage {
 
     public func getSummary(for period: TrafficPeriod) -> TrafficSummary {
         let cutoffDate = cutoffDate(for: period)
-        let filteredSessions = sessions.filter { $0.startDate >= cutoffDate }
+        let filteredSessions = sessions.filter { $0.startDate >= cutoffDate || ($0.endDate != nil && $0.endDate! >= cutoffDate) || $0.isActive }
 
         var summary = TrafficSummary()
         summary.totalSessionsCount = filteredSessions.count
@@ -397,7 +397,7 @@ public actor TrafficStorage {
 
     public func getSessions(for period: TrafficPeriod) -> [TrafficSession] {
         let cutoffDate = cutoffDate(for: period)
-        return sessions.filter { $0.startDate >= cutoffDate }
+        return sessions.filter { $0.startDate >= cutoffDate || ($0.endDate != nil && $0.endDate! >= cutoffDate) || $0.isActive }
     }
 
     public func getDataPoints(for period: TrafficPeriod) -> [TrafficDataPoint] {

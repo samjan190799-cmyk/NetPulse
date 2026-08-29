@@ -202,18 +202,85 @@ public struct SettingsView: View {
                         }
                     }
 
-                    Toggle(isOn: $viewModel.floatingHUDEnabled) {
+                    Toggle(isOn: Binding(
+                        get: { viewModel.floatingHUDEnabled },
+                        set: { enabled in
+                            viewModel.floatingHUDEnabled = enabled
+                            if enabled {
+                                BackgroundTelemetryKeeper.shared.startKeepAlive()
+                                if viewModel.hapticsEnabled {
+                                    HapticManager.shared.impactMedium()
+                                }
+                            } else if !viewModel.liveActivityEnabled && !viewModel.backgroundMonitoringEnabled {
+                                BackgroundTelemetryKeeper.shared.stopKeepAlive()
+                            }
+                        }
+                    )) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Плавающий игровой оверлей (HUD)")
                                 .font(.system(size: 15, weight: .medium))
-                            Text("Мини-виджет поверх экрана, который можно перемещать пальцем")
+                            Text("Мини-виджет поверх экрана и Picture-in-Picture для игр")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
                 }
 
-                // 7. Обратная связь
+                // 7. Реклама Google AdMob и NetPulse PRO
+                Section(
+                    header: Label("Реклама и NetPulse PRO", systemImage: "crown.fill"),
+                    footer: Text("Отключение рекламы Google AdMob, разблокировка приоритетных серверов Speedtest и безлимитного AI-анализа.")
+                ) {
+                    Toggle(isOn: Binding(
+                        get: { AdMobManager.shared.isPremiumUser },
+                        set: { AdMobManager.shared.isPremiumUser = $0 }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text("NetPulse PRO (Без рекламы)")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(Color.yellow)
+                            }
+                            Text(AdMobManager.shared.isPremiumUser ? "Премиум активен • Вся реклама скрыта" : "Активируйте для отключения баннеров")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+
+                    if !AdMobManager.shared.isPremiumUser {
+                        Toggle("Адаптивные баннеры", isOn: Binding(
+                            get: { AdMobManager.shared.isBannerEnabled },
+                            set: { AdMobManager.shared.isBannerEnabled = $0 }
+                        ))
+
+                        Toggle("Нативные спонсорские блоки", isOn: Binding(
+                            get: { AdMobManager.shared.isNativeAdsEnabled },
+                            set: { AdMobManager.shared.isNativeAdsEnabled = $0 }
+                        ))
+
+                        Toggle("Тестовый режим AdMob", isOn: Binding(
+                            get: { AdMobManager.shared.isTestMode },
+                            set: { AdMobManager.shared.isTestMode = $0 }
+                        ))
+
+                        Button {
+                            AdMobManager.shared.requestTrackingAuthorization()
+                            HapticManager.shared.impactLight()
+                        } label: {
+                            Label("Настройки конфиденциальности (ATT/GDPR)", systemImage: "hand.raised.fill")
+                        }
+                    }
+
+                    Button {
+                        AdMobManager.shared.restorePurchases()
+                    } label: {
+                        Text("Восстановить покупки")
+                            .font(.system(size: 14))
+                    }
+                }
+
+                // 8. Обратная связь
                 Section("Тактильная отдача и звуки") {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
                     Toggle("Звуковые предупреждения", isOn: $viewModel.soundEnabled)

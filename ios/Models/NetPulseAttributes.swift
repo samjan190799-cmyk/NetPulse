@@ -23,6 +23,10 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
         public var isTesting: Bool
         public var connectionType: String
         public var ispName: String
+        public var isGamingMode: Bool
+        public var gameTitle: String?
+        public var gameRegion: String?
+        public var packetLossPct: Double?
 
         public init(
             downloadSpeedText: String = "100 Мбит/с",
@@ -33,7 +37,11 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
             jitterMs: Double? = nil,
             isTesting: Bool = false,
             connectionType: String = "5G / LTE",
-            ispName: String = "Мобильный интернет"
+            ispName: String = "Мобильный интернет",
+            isGamingMode: Bool = false,
+            gameTitle: String? = nil,
+            gameRegion: String? = nil,
+            packetLossPct: Double? = nil
         ) {
             self.downloadSpeedText = downloadSpeedText
             self.uploadSpeedText = uploadSpeedText
@@ -44,6 +52,10 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
             self.isTesting = isTesting
             self.connectionType = connectionType
             self.ispName = ispName
+            self.isGamingMode = isGamingMode
+            self.gameTitle = gameTitle
+            self.gameRegion = gameRegion
+            self.packetLossPct = packetLossPct
         }
     }
 

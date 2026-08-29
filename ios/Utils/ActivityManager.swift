@@ -20,7 +20,8 @@ public final class ActivityManager {
     private var currentActivity: Activity<NetPulseAttributes>?
     private var lastContentState: NetPulseAttributes.ContentState?
     private var lastUpdateDate: Date?
-    private var pendingUpdateTask: Task<Void, Never>?
+    private var isUpdating: Bool = false
+    private var queuedState: NetPulseAttributes.ContentState?
     #endif
 
     public private(set) var isLiveActivityActive: Bool = false
@@ -46,7 +47,11 @@ public final class ActivityManager {
         jitterMs: Double? = nil,
         isTesting: Bool = false,
         connectionType: String = "5G / LTE",
-        ispName: String = "Мобильный интернет"
+        ispName: String = "Мобильный интернет",
+        isGamingMode: Bool = false,
+        gameTitle: String? = nil,
+        gameRegion: String? = nil,
+        packetLossPct: Double? = nil
     ) {
         #if canImport(ActivityKit)
         guard areActivitiesEnabled else {
@@ -68,6 +73,10 @@ public final class ActivityManager {
                 isTesting: isTesting,
                 connectionType: connectionType,
                 ispName: ispName,
+                isGamingMode: isGamingMode,
+                gameTitle: gameTitle,
+                gameRegion: gameRegion,
+                packetLossPct: packetLossPct,
                 force: true
             )
             return
@@ -83,7 +92,11 @@ public final class ActivityManager {
             jitterMs: jitterMs,
             isTesting: isTesting,
             connectionType: connectionType,
-            ispName: ispName
+            ispName: ispName,
+            isGamingMode: isGamingMode,
+            gameTitle: gameTitle,
+            gameRegion: gameRegion,
+            packetLossPct: packetLossPct
         )
         #endif
     }
@@ -98,7 +111,11 @@ public final class ActivityManager {
         jitterMs: Double? = nil,
         isTesting: Bool = false,
         connectionType: String = "5G / LTE",
-        ispName: String = "Мобильный интернет"
+        ispName: String = "Мобильный интернет",
+        isGamingMode: Bool = false,
+        gameTitle: String? = nil,
+        gameRegion: String? = nil,
+        packetLossPct: Double? = nil
     ) {
         #if canImport(ActivityKit)
         guard areActivitiesEnabled else {
@@ -121,6 +138,10 @@ public final class ActivityManager {
                 isTesting: isTesting,
                 connectionType: connectionType,
                 ispName: ispName,
+                isGamingMode: isGamingMode,
+                gameTitle: gameTitle,
+                gameRegion: gameRegion,
+                packetLossPct: packetLossPct,
                 force: true
             )
             return
@@ -136,14 +157,18 @@ public final class ActivityManager {
             jitterMs: jitterMs,
             isTesting: isTesting,
             connectionType: connectionType,
-            ispName: ispName
+            ispName: ispName,
+            isGamingMode: isGamingMode,
+            gameTitle: gameTitle,
+            gameRegion: gameRegion,
+            packetLossPct: packetLossPct
         )
 
         // staleDate на 4 часа вперед предотвращает замораживание виджета операционной системой
         let content = ActivityContent(
             state: initialState,
             staleDate: Date().addingTimeInterval(14400),
-            relevanceScore: 100.0
+            relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
         do {
@@ -175,6 +200,10 @@ public final class ActivityManager {
         isTesting: Bool,
         connectionType: String,
         ispName: String,
+        isGamingMode: Bool = false,
+        gameTitle: String? = nil,
+        gameRegion: String? = nil,
+        packetLossPct: Double? = nil,
         force: Bool = false
     ) {
         #if canImport(ActivityKit)
@@ -194,7 +223,11 @@ public final class ActivityManager {
                 jitterMs: jitterMs,
                 isTesting: isTesting,
                 connectionType: connectionType,
-                ispName: ispName
+                ispName: ispName,
+                isGamingMode: isGamingMode,
+                gameTitle: gameTitle,
+                gameRegion: gameRegion,
+                packetLossPct: packetLossPct
             )
             return
         }
@@ -211,7 +244,11 @@ public final class ActivityManager {
             jitterMs: jitterMs,
             isTesting: isTesting,
             connectionType: connectionType,
-            ispName: ispName
+            ispName: ispName,
+            isGamingMode: isGamingMode,
+            gameTitle: gameTitle,
+            gameRegion: gameRegion,
+            packetLossPct: packetLossPct
         )
 
         let now = Date()
@@ -223,24 +260,48 @@ public final class ActivityManager {
             }
         }
 
-        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (0.3 сек во время теста, 1.0 сек в мониторинге)
-        let minInterval: TimeInterval = isTesting ? 0.3 : 1.0
+        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (0.4 сек во время теста, 1.0 сек в обычном)
+        let minInterval: TimeInterval = isTesting ? 0.4 : 1.0
         if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
+            // Сохраняем в очередь на отправку после завершения интервала
+            self.queuedState = updatedState
             return
         }
 
         self.lastContentState = updatedState
         self.lastUpdateDate = now
+        self.queuedState = nil
 
         let content = ActivityContent(
             state: updatedState,
             staleDate: Date().addingTimeInterval(14400),
-            relevanceScore: isTesting ? 100.0 : 80.0
+            relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
-        pendingUpdateTask?.cancel()
-        pendingUpdateTask = Task {
+        // Надежный конвейер выполнения без прерывания активного вызова
+        guard !isUpdating else {
+            self.queuedState = updatedState
+            return
+        }
+
+        isUpdating = true
+        Task { [weak self] in
             await activity.update(content)
+            guard let self = self else { return }
+            self.isUpdating = false
+
+            // Если за время отправки накопился свежий снимок, отправляем его
+            if let queued = self.queuedState {
+                self.queuedState = nil
+                self.lastContentState = queued
+                self.lastUpdateDate = Date()
+                let nextContent = ActivityContent(
+                    state: queued,
+                    staleDate: Date().addingTimeInterval(14400),
+                    relevanceScore: queued.isTesting ? 100.0 : (queued.isGamingMode ? 90.0 : 80.0)
+                )
+                await activity.update(nextContent)
+            }
         }
         #endif
     }
@@ -248,8 +309,8 @@ public final class ActivityManager {
     /// Остановка Live Activity
     public func stopActivity() {
         #if canImport(ActivityKit)
-        pendingUpdateTask?.cancel()
-        pendingUpdateTask = nil
+        isUpdating = false
+        queuedState = nil
         lastContentState = nil
         lastUpdateDate = nil
         self.currentActivity = nil

@@ -188,7 +188,8 @@ public final class NetworkMonitorViewModel {
                 jitterMs: currentAverageJitter,
                 isTesting: isSpeedtestRunning,
                 connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Мобильный интернет"
+                ispName: systemInfo.ispName ?? "Мобильный интернет",
+                isGamingMode: floatingHUDEnabled
             )
             startBandwidthTask()
             syncWidgetData()
@@ -274,21 +275,19 @@ public final class NetworkMonitorViewModel {
         // 2. Планирование фонового пробуждения через системный BGTaskScheduler
         BackgroundTaskManager.shared.scheduleBackgroundFetch()
 
-        // 3. Энергоэффективность: немедленно глушим активный пинг хостов и HTTP-запросы в фоне,
-        // чтобы не нагружать радиомодем и не нагревать телефон
+        // 3. Энергоэффективность: глушим тяжелый параллельный опрос всех хостов и HTTP-диагностику в фоне
         pingTask?.cancel()
         pingTask = nil
         diagnosticsTask?.cancel()
         diagnosticsTask = nil
 
-        // 4. Если включен Live Activity (Dynamic Island), поддерживаем легковесную телеметрию
-        if liveActivityEnabled {
+        // 4. Если включен Live Activity (Dynamic Island) или фоновый мониторинг / HUD, удерживаем непрерывную телеметрию
+        if liveActivityEnabled || backgroundMonitoringEnabled || floatingHUDEnabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
             beginBackgroundAssertion()
             startBandwidthTask()
         } else {
-            // Если Live Activity отключен, полностью останавливаем таймеры и аудиосессию!
-            // Аппаратные счетчики ядра Darwin BSD ведут учет с 0% CPU и 0% нагрева.
+            // Если фоновые сервисы отключены пользователем, полностью останавливаем таймеры и аудиосессию
             bandwidthTask?.cancel()
             bandwidthTask = nil
             BackgroundTelemetryKeeper.shared.stopKeepAlive()
@@ -363,9 +362,12 @@ public final class NetworkMonitorViewModel {
                 uploadSpeedText: liveBandwidth.formattedUploadSpeed,
                 compactDownloadText: liveBandwidth.compactDownload,
                 compactUploadText: liveBandwidth.compactUpload,
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
                 isTesting: isSpeedtestRunning,
                 connectionType: systemInfo.connectionType.rawValue,
-                ispName: systemInfo.ispName ?? "Интернет"
+                ispName: systemInfo.ispName ?? "Интернет",
+                isGamingMode: floatingHUDEnabled
             )
         }
 
@@ -387,7 +389,7 @@ public final class NetworkMonitorViewModel {
         diagnosticsTask?.cancel()
         diagnosticsTask = nil
 
-        if !liveActivityEnabled {
+        if !liveActivityEnabled && !floatingHUDEnabled {
             BackgroundTelemetryKeeper.shared.stopKeepAlive()
         }
 
@@ -398,15 +400,50 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Фоновые задачи опроса
 
+    /// Легковесный замер пинга в фоне (1 быстрый запрос к шлюзу/DNS), чтобы задержка не застывала в Dynamic Island во время игр
+    private func quickBackgroundPingSample() async {
+        let isCellular = systemInfo.connectionType == .cellular
+        let candidate = targets.first(where: { $0.isGateway && !isCellular }) ?? targets.first(where: { $0.address == "1.1.1.1" || $0.address == "8.8.8.8" }) ?? targets.first
+        guard let target = candidate else { return }
+
+        let record = await pingEngine.pingTarget(target)
+        if record.isSuccess, let lat = record.latencyMs, lat > 0 {
+            if var metric = hostMetrics[target.address] {
+                let prev = prevLatencies[target.address] ?? lat
+                metric.recordLatency(lat, previousLatency: prev)
+                prevLatencies[target.address] = lat
+                hostMetrics[target.address] = metric
+            }
+        }
+    }
+
+    /// Добавление пользовательского хоста для мгновенного отображения в карточках мониторинга
+    public func addCustomTarget(_ host: String) {
+        let cleaned = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        if !targets.contains(where: { $0.address.lowercased() == cleaned.lowercased() }) {
+            let newTarget = HostTarget(name: cleaned, address: cleaned, tcpPort: 443)
+            targets.append(newTarget)
+            if hostMetrics[cleaned] == nil {
+                hostMetrics[cleaned] = HostMetrics(name: cleaned, address: cleaned, isGateway: false)
+            }
+        }
+    }
+
     /// Изолированная задача замера реальной скорости, сохранения трафика и непрерывного обновления Dynamic Island
     private func startBandwidthTask() {
         bandwidthTask?.cancel()
         bandwidthTask = Task { [weak self] in
             var loopCount = 0
             while !Task.isCancelled {
-                guard let self = self, self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled else { break }
+                guard let self = self, self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled || self.floatingHUDEnabled else { break }
 
                 let isAppInBackground = UIApplication.shared.applicationState == .background
+
+                // В фоновом режиме выполняем легковесный одиночный замер пинга, чтобы RTT не зависал
+                if isAppInBackground {
+                    await self.quickBackgroundPingSample()
+                }
 
                 // Снятие снимка РЕАЛЬНОГО сетевого трафика системы с изоляцией интернет-канала от моста хотспота
                 let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
@@ -476,12 +513,14 @@ public final class NetworkMonitorViewModel {
                         jitterMs: self.currentAverageJitter,
                         isTesting: self.isSpeedtestRunning,
                         connectionType: self.systemInfo.connectionType.rawValue,
-                        ispName: self.systemInfo.ispName ?? "Мобильный интернет"
+                        ispName: self.systemInfo.ispName ?? "Мобильный интернет",
+                        isGamingMode: self.floatingHUDEnabled,
+                        packetLossPct: self.currentPacketLossPct
                     )
                 }
 
-                // Адаптивный интервал: 3.5 сек в фоне, 1.5 сек на экране для нулевого нагрева устройства
-                let sleepNs: UInt64 = isAppInBackground ? 3_500_000_000 : 1_500_000_000
+                // Адаптивный интервал: 3.0 сек в фоне, 1.2 сек на экране для нулевого нагрева устройства
+                let sleepNs: UInt64 = isAppInBackground ? 3_000_000_000 : 1_200_000_000
                 try? await Task.sleep(nanoseconds: sleepNs)
             }
         }

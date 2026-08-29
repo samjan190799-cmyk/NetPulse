@@ -81,6 +81,9 @@ public struct TrafficView: View {
                     // 4. 24-часовая тепловая карта сетевой активности (Traffic Heatmap)
                     trafficHeatmapSection
 
+                    // Спонсорский блок безопасности трафика
+                    AdMobNativeAdCardView(contextTag: "Безопасность трафика")
+
                     // 5. На что потрачен трафик (Категории сетевой активности)
                     trafficCategoriesSection
 
@@ -451,9 +454,24 @@ public struct TrafficView: View {
     }
 
     private func heatmapCell(hour: Int) -> some View {
-        let currentHour = Calendar.current.component(.hour, from: Date())
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: Date())
         let isCurrent = hour == currentHour
-        let intensity = (hour >= 9 && hour <= 23) ? ((hour % 3 == 0) ? 0.85 : 0.45) : 0.15
+
+        // Расчет реальной интенсивности расхода трафика в данный час
+        let pointsInHour = viewModel.trafficDataPoints.filter {
+            calendar.component(.hour, from: $0.timestamp) == hour && calendar.isDateInToday($0.timestamp)
+        }
+        let totalBytesInHour = pointsInHour.reduce(Int64(0)) { $0 + ($1.downloadBytes + $1.uploadBytes) }
+
+        let intensity: Double
+        if totalBytesInHour > 0 {
+            let maxRecorded = viewModel.trafficDataPoints.map { $0.downloadBytes + $0.uploadBytes }.max() ?? 10_000_000
+            let ratio = Double(totalBytesInHour) / Double(max(maxRecorded, 1_000_000))
+            intensity = min(0.95, max(0.18, ratio))
+        } else {
+            intensity = isCurrent ? 0.25 : 0.08
+        }
 
         return VStack(spacing: 2) {
             RoundedRectangle(cornerRadius: 4)

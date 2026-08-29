@@ -114,16 +114,35 @@ public struct FloatingGameOverlayView: View {
                                 .frame(height: 16)
                                 .background(NPTheme.border)
 
-                            // 3. Пинг и джиттер
+                            // 3. Пинг, джиттер и потери пакетов
                             HStack(spacing: 4) {
                                 VStack(alignment: .leading, spacing: 0) {
-                                    Text(pingMs != nil ? String(format: "%.0f ms", pingMs!) : "—")
-                                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                                        .monospacedDigit()
-                                        .foregroundStyle(pingColor)
-                                    Text("PING")
-                                        .font(.system(size: 7, weight: .bold))
-                                        .foregroundStyle(NPTheme.textTertiary)
+                                    HStack(spacing: 3) {
+                                        Text(pingMs != nil ? String(format: "%.0f ms", pingMs!) : "—")
+                                            .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                            .monospacedDigit()
+                                            .foregroundStyle(pingColor)
+
+                                        if packetLossPct > 0 {
+                                            Text("\(Int(packetLossPct))%L")
+                                                .font(.system(size: 7, weight: .heavy))
+                                                .foregroundStyle(NPTheme.semanticCritical)
+                                                .padding(.horizontal, 3)
+                                                .padding(.vertical, 1)
+                                                .background(NPTheme.semanticCritical.opacity(0.2))
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                    HStack(spacing: 2) {
+                                        Text("PING")
+                                            .font(.system(size: 7, weight: .bold))
+                                            .foregroundStyle(NPTheme.textTertiary)
+                                        if let j = jitterMs, j > 0 {
+                                            Text("• ±\(String(format: "%.0f", j))")
+                                                .font(.system(size: 7, weight: .medium, design: .monospaced))
+                                                .foregroundStyle(NPTheme.textTertiary)
+                                        }
+                                    }
                                 }
                             }
 

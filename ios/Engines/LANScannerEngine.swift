@@ -109,7 +109,11 @@ public actor LANScannerEngine {
 
         for port in probePorts {
             if let lat = await checkPort(ip: ip, port: port) {
-                if fastestLatency == nil || lat < fastestLatency! {
+                if let current = fastestLatency {
+                    if lat < current {
+                        fastestLatency = lat
+                    }
+                } else {
                     fastestLatency = lat
                 }
                 let service = commonPorts.first(where: { $0.0 == port })?.1 ?? "TCP Service"
@@ -137,7 +141,7 @@ public actor LANScannerEngine {
         await withCheckedContinuation { continuation in
             let endpoint = NWEndpoint.hostPort(
                 host: NWEndpoint.Host(ip),
-                port: NWEndpoint.Port(rawValue: port)!
+                port: NWEndpoint.Port(rawValue: port) ?? .init(integerLiteral: 80)
             )
 
             let params = NWParameters.tcp

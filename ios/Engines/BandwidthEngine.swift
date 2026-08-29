@@ -249,17 +249,13 @@ public final class BandwidthEngine: @unchecked Sendable {
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
 
-                        // Поддержка всех типов сетевых адаптеров iOS (Dual SIM, eSIM, Wi-Fi 6, VPN)
+                        // Учет физических сетевых интерфейсов iOS (Wi-Fi 6/7, Ethernet, 5G/LTE Dual SIM)
                         if ifName.hasPrefix("en") {
-                            // Wi-Fi / Ethernet адаптеры (en0, en1, en2...)
+                            // Физические адаптеры Wi-Fi / Ethernet (en0, en1, en2...)
                             result.wifiIn += inBytes
                             result.wifiOut += outBytes
                         } else if ifName.hasPrefix("pdp_ip") {
-                            // Сотовые каналы 5G/LTE (pdp_ip0, pdp_ip1, pdp_ip2, pdp_ip3...)
-                            result.cellularIn += inBytes
-                            result.cellularOut += outBytes
-                        } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") {
-                            // VPN, Cloudflare WARP и Apple Private Relay
+                            // Физические сотовые каналы 5G/LTE (pdp_ip0, pdp_ip1...)
                             result.cellularIn += inBytes
                             result.cellularOut += outBytes
                         }

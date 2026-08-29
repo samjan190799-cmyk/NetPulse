@@ -17,6 +17,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
 
     private var audioPlayer: AVAudioPlayer?
     private var isRunning: Bool = false
+    private var observers: [NSObjectProtocol] = []
 
     private override init() {
         super.init()
@@ -28,6 +29,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         isRunning = true
 
         setupSilentAudioSession()
+        setupAudioSessionObservers()
         playSilentSound()
 
         // Регистрация на фоновое обновление через BGTaskScheduler
@@ -40,6 +42,7 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         guard isRunning else { return }
         isRunning = false
 
+        removeAudioSessionObservers()
         audioPlayer?.stop()
         audioPlayer = nil
 
@@ -60,6 +63,95 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         } catch {
             print("⚠️ Ошибка настройки аудиосессии фонового мониторинга: \(error.localizedDescription)")
         }
+    }
+
+    /// Регистрация обработчиков системных прерываний, смены маршрутов и сброса аудиоподсистемы
+    private func setupAudioSessionObservers() {
+        removeAudioSessionObservers()
+
+        // 1. Прерывания (Входящие звонки, Siri, будильники)
+        let interruptionObs = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self, self.isRunning else { return }
+            guard let userInfo = notification.userInfo,
+                  let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                return
+            }
+
+            switch type {
+            case .began:
+                print("⏸️ [BackgroundTelemetryKeeper] Аудиосессия прервана системой (звонок / Siri)")
+            case .ended:
+                print("▶️ [BackgroundTelemetryKeeper] Прерывание завершено — восстанавливаем фоновую сессию")
+                if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                    let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                    if options.contains(.shouldResume) {
+                        self.setupSilentAudioSession()
+                        self.playSilentSound()
+                    } else {
+                        // Даже если shouldResume не выставлен, принудительно восстанавливаем
+                        self.setupSilentAudioSession()
+                        self.playSilentSound()
+                    }
+                } else {
+                    self.setupSilentAudioSession()
+                    self.playSilentSound()
+                }
+            @unknown default:
+                break
+            }
+        }
+        observers.append(interruptionObs)
+
+        // 2. Смена аудиомаршрута (Подключение / отключение AirPods, Bluetooth, CarPlay)
+        let routeChangeObs = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self, self.isRunning else { return }
+            guard let userInfo = notification.userInfo,
+                  let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+                return
+            }
+
+            switch reason {
+            case .oldDeviceUnavailable, .newDeviceAvailable, .categoryChange, .override:
+                print("🎧 [BackgroundTelemetryKeeper] Смена аудиомаршрута (\(reasonValue)) — перезапуск тишины")
+                self.setupSilentAudioSession()
+                if self.audioPlayer?.isPlaying != true {
+                    self.playSilentSound()
+                }
+            default:
+                break
+            }
+        }
+        observers.append(routeChangeObs)
+
+        // 3. Сброс аудиосервисов (Media Services Reset)
+        let resetObs = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self, self.isRunning else { return }
+            print("🔄 [BackgroundTelemetryKeeper] Сброс аудиосервисов iOS — полная переинициализация")
+            self.setupSilentAudioSession()
+            self.playSilentSound()
+        }
+        observers.append(resetObs)
+    }
+
+    private func removeAudioSessionObservers() {
+        for obs in observers {
+            NotificationCenter.default.removeObserver(obs)
+        }
+        observers.removeAll()
     }
 
     private func playSilentSound() {
@@ -110,11 +202,13 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
         pcmData.append(contentsOf: zeros)
 
         do {
-            audioPlayer = try AVAudioPlayer(data: pcmData)
-            audioPlayer?.numberOfLoops = -1 // бесконечный цикл
-            audioPlayer?.volume = 0.0 // нулевая громкость
-            audioPlayer?.prepareToPlay()
-            audioPlayer?.play()
+            let player = try AVAudioPlayer(data: pcmData)
+            player.delegate = self
+            player.numberOfLoops = -1 // бесконечный цикл
+            player.volume = 0.0 // нулевая громкость
+            player.prepareToPlay()
+            player.play()
+            self.audioPlayer = player
         } catch {
             print("⚠️ Ошибка запуска тишины: \(error.localizedDescription)")
         }

@@ -14,7 +14,7 @@ import ActivityKit
 #endif
 
 #if canImport(WidgetKit) && canImport(ActivityKit)
-/// Виджет Live Activity и Dynamic Island для отображения реальной скорости загрузки и отдачи в реальном времени.
+/// Виджет Live Activity и Dynamic Island для отображения реальной скорости, пинга и гейминг-статуса в реальном времени.
 public struct NetPulseLiveActivityWidget: Widget {
     public init() {}
 
@@ -24,20 +24,24 @@ public struct NetPulseLiveActivityWidget: Widget {
             LockScreenLiveActivityView(state: context.state)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Расширенный вид (по долгому нажатию на остров)
+                // MARK: - Расширенный вид (Expanded Region)
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.down")
+                            Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "arrow.down")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Color.cyan)
-                            Text("СКАЧИВАНИЕ")
+                                .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
+                            Text(context.state.isGamingMode ? (context.state.gameTitle ?? "ГЕЙМИНГ") : "СКАЧИВАНИЕ")
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                         Text(context.state.downloadSpeedText)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                     .padding(.leading, 8)
                 }
@@ -45,16 +49,19 @@ public struct NetPulseLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 2) {
                         HStack(spacing: 4) {
-                            Text(context.state.isTesting ? "ОТДАЧА" : "RTT ПИНГ")
+                            Text(context.state.isTesting ? "ОТДАЧА" : (context.state.isGamingMode ? "PING RTT" : "RTT ПИНГ"))
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(.secondary)
-                            Image(systemName: context.state.isTesting ? "arrow.up" : "network")
+                            Image(systemName: context.state.isTesting ? "arrow.up" : (context.state.isGamingMode ? "bolt.fill" : "network"))
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Color.green)
+                                .foregroundStyle(pingColor(context.state.pingMs))
                         }
-                        Text(context.state.uploadSpeedText)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                        Text(context.state.isTesting ? context.state.uploadSpeedText : (context.state.pingMs != nil ? String(format: "%.0f ms", context.state.pingMs!) : context.state.uploadSpeedText))
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                     .padding(.trailing, 8)
                 }
@@ -63,9 +70,9 @@ public struct NetPulseLiveActivityWidget: Widget {
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(Color.green)
+                                .fill(context.state.isGamingMode ? Color.mint : Color.green)
                                 .frame(width: 6, height: 6)
-                            Text(cleanISP(context.state.ispName))
+                            Text(context.state.isGamingMode ? (context.state.gameRegion ?? cleanISP(context.state.ispName)) : cleanISP(context.state.ispName))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
@@ -73,16 +80,17 @@ public struct NetPulseLiveActivityWidget: Widget {
                         Text(cleanConnType(context.state.connectionType))
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
                         HStack(spacing: 4) {
-                            Image(systemName: "waveform.path.ecg")
+                            Image(systemName: context.state.isGamingMode ? "gamecontroller" : "waveform.path.ecg")
                                 .font(.system(size: 10))
-                                .foregroundStyle(.cyan)
-                            Text("NetPulse Мониторинг")
+                                .foregroundStyle(context.state.isGamingMode ? .mint : .cyan)
+                            Text(context.state.isGamingMode ? "Киберспортивный HUD" : "NetPulse Мониторинг")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
                         }
@@ -91,6 +99,22 @@ public struct NetPulseLiveActivityWidget: Widget {
                             Text("Speedtest активен")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(.cyan)
+                        } else if let jitter = context.state.jitterMs, jitter > 0 {
+                            HStack(spacing: 5) {
+                                Text("Джиттер: ±\(String(format: "%.1f", jitter))мс")
+                                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+
+                                if let loss = context.state.packetLossPct, loss > 0 {
+                                    Text("Loss \(Int(loss))%")
+                                        .font(.system(size: 9, weight: .heavy))
+                                        .foregroundStyle(.red)
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 1)
+                                        .background(Color.red.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+                            }
                         } else {
                             HStack(spacing: 4) {
                                 Circle()
@@ -106,24 +130,28 @@ public struct NetPulseLiveActivityWidget: Widget {
                     .padding(.top, 4)
                 }
             } compactLeading: {
-                // Компактный вид слева (скачивание со стрелкой или иконка сети)
+                // MARK: - Компактный вид слева
                 HStack(spacing: 2.5) {
-                    Image(systemName: "arrow.down")
+                    Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "arrow.down")
                         .font(.system(size: 9, weight: .heavy))
-                        .foregroundStyle(Color.cyan)
+                        .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
                     Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
             } compactTrailing: {
-                // Компактный вид справа: при замере стрелка отдачи, в обычном режиме — живой пинг с цветной точкой
+                // MARK: - Компактный вид справа
                 HStack(spacing: 2.5) {
                     if context.state.isTesting {
                         Text(cleanUpload(context.state.compactUploadText))
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                         Image(systemName: "arrow.up")
                             .font(.system(size: 9, weight: .heavy))
                             .foregroundStyle(Color.green)
@@ -135,18 +163,22 @@ public struct NetPulseLiveActivityWidget: Widget {
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .monospacedDigit()
                             .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
                 }
             } minimal: {
-                // Минимальный вид (когда в островке активны 2 индикатора одновременно)
+                // MARK: - Минимальный вид
                 HStack(spacing: 2) {
-                    Image(systemName: "gauge.with.dots.needle.67percent")
+                    Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "gauge.with.dots.needle.67percent")
                         .font(.system(size: 8, weight: .heavy))
-                        .foregroundStyle(Color.cyan)
-                    Text(cleanDownload(context.state.compactDownloadText))
+                        .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
+                    Text(context.state.isGamingMode ? cleanPing(context.state.compactUploadText, ping: context.state.pingMs) : cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
             }
         }
@@ -184,16 +216,9 @@ public struct NetPulseLiveActivityWidget: Widget {
 
     private func pingColor(_ ping: Double?) -> Color {
         guard let p = ping else { return .green }
-        if p < 50 { return .green }
-        if p < 120 { return .yellow }
+        if p < 45 { return .green }
+        if p < 95 { return .yellow }
         return .red
-    }
-
-    private func cleanSpeed(_ text: String) -> String {
-        let s = text.replacingOccurrences(of: "↓", with: "")
-            .replacingOccurrences(of: "↑", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        return s.isEmpty ? "100M" : s
     }
 
     private func cleanISP(_ text: String) -> String {
@@ -211,31 +236,39 @@ public struct NetPulseLiveActivityWidget: Widget {
     }
 }
 
-/// Баннер на экране блокировки с реальной скоростью
+/// Баннер на экране блокировки с реальной скоростью и пингом
 private struct LockScreenLiveActivityView: View {
     let state: NetPulseAttributes.ContentState
 
+    private var statusColor: Color {
+        guard let p = state.pingMs else { return .green }
+        if p < 45 { return .green }
+        if p < 95 { return .yellow }
+        return .red
+    }
+
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.cyan.opacity(0.15))
+                    .fill((state.isGamingMode ? Color.mint : Color.cyan).opacity(0.15))
                     .frame(width: 44, height: 44)
-                Image(systemName: "speedometer")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color.cyan)
+                Image(systemName: state.isGamingMode ? "gamecontroller.fill" : "speedometer")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(state.isGamingMode ? Color.mint : Color.cyan)
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text("NetPulse Трафик")
+                    Text(state.isGamingMode ? (state.gameTitle ?? "Gaming Radar") : "NetPulse Трафик")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Text("•")
                         .foregroundStyle(.secondary)
-                    Text(state.connectionType)
+                    Text(state.isGamingMode ? (state.gameRegion ?? state.connectionType) : state.connectionType)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(state.isGamingMode ? .mint : .cyan)
+                        .lineLimit(1)
                 }
 
                 HStack(spacing: 12) {
@@ -245,15 +278,17 @@ private struct LockScreenLiveActivityView: View {
                             .foregroundStyle(Color.cyan)
                         Text(state.downloadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(.white)
                     }
 
                     HStack(spacing: 4) {
-                        Image(systemName: state.isTesting ? "arrow.up" : "network")
+                        Image(systemName: state.isTesting ? "arrow.up" : (state.isGamingMode ? "bolt.fill" : "network"))
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color.green)
+                            .foregroundStyle(statusColor)
                         Text(state.uploadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .monospacedDigit()
                             .foregroundStyle(.white)
                     }
                 }
@@ -264,11 +299,11 @@ private struct LockScreenLiveActivityView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(statusColor)
                         .frame(width: 6, height: 6)
                     Text("LIVE")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(statusColor)
                 }
                 Text(state.ispName)
                     .font(.system(size: 10, weight: .medium))

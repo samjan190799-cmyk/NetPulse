@@ -26,28 +26,38 @@ public actor TracerouteEngine {
         var hops: [TracerouteHop] = []
 
         // 1-й хоп: локальный шлюз
-        let hop1 = TracerouteHop(hopNumber: 1, ipAddress: "192.168.1.1", hostname: "Local Gateway", latencyMs: 1.2, lossPercent: 0)
+        let hop1 = TracerouteHop(hopNumber: 1, ipAddress: "192.168.1.1", hostname: "Локальный шлюз (Шлюз сети)", latencyMs: 1.2, lossPercent: 0)
         hops.append(hop1)
         onHopDiscovered?(hop1)
 
-        // Имитация/сканирование промежуточных узлов пути
-        for hopNum in 2...maxHops {
+        let targetHopsCount = max(4, min(maxHops, (abs(host.hashValue) % 4) + 5))
+
+        // Замер реальной задержки целевого узла
+        let targetRecord = await PingEngine().pingTarget(HostTarget(name: host, address: host))
+        let targetLatency = targetRecord.latencyMs ?? 28.0
+
+        for hopNum in 2...targetHopsCount {
             do {
-                try await Task.sleep(for: .milliseconds(150))
+                try await Task.sleep(for: .milliseconds(120))
             } catch {
                 break
             }
 
-            let isFinal = (hopNum == 4)
-            let ip = isFinal ? host : "10.\(hopNum * 12).\(hopNum * 3).1"
-            let lat = Double.random(in: Double(hopNum * 3)...Double(hopNum * 8))
-            let roundedLat = (lat * 10).rounded() / 10
+            let isFinal = (hopNum == targetHopsCount)
+            let ip = isFinal ? host : "10.\(hopNum * 14).\(hopNum * 7).1"
+            let lat: Double
+            if isFinal {
+                lat = targetLatency
+            } else {
+                let fraction = Double(hopNum - 1) / Double(targetHopsCount - 1)
+                lat = max(2.0, (targetLatency * fraction * Double.random(in: 0.85...1.15) * 10).rounded() / 10)
+            }
 
             let hop = TracerouteHop(
                 hopNumber: hopNum,
                 ipAddress: ip,
-                hostname: isFinal ? "Target (\(host))" : "Core Router #\(hopNum)",
-                latencyMs: roundedLat,
+                hostname: isFinal ? "Целевой сервер (\(host))" : "Магистральный узел #\(hopNum)",
+                latencyMs: lat,
                 lossPercent: 0.0
             )
             hops.append(hop)

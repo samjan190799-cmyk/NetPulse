@@ -65,7 +65,12 @@ public actor GamingRadarEngine {
 
         let avg = latencies.reduce(0.0, +) / Double(latencies.count)
         let lossPct = (Double(attempts - latencies.count) / Double(attempts)) * 100.0
-        let jitter = latencies.count > 1 ? abs(latencies.max()! - latencies.min()!) : 0.0
+        let jitter: Double
+        if latencies.count > 1, let maxL = latencies.max(), let minL = latencies.min() {
+            jitter = abs(maxL - minL)
+        } else {
+            jitter = 0.0
+        }
 
         return GameClusterResult(
             cluster: cluster,
@@ -80,7 +85,7 @@ public actor GamingRadarEngine {
         await withCheckedContinuation { continuation in
             let endpoint = NWEndpoint.hostPort(
                 host: NWEndpoint.Host(host),
-                port: NWEndpoint.Port(rawValue: port)!
+                port: NWEndpoint.Port(rawValue: port) ?? .https
             )
 
             let params = NWParameters.tcp

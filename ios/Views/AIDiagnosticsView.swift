@@ -52,6 +52,9 @@ public struct AIDiagnosticsView: View {
                                 issuesAndRecommendationsSection(report: report)
                             }
 
+                            // Нативная рекламная карточка (AdMob Native Ad)
+                            AdMobNativeAdCardView(contextTag: "AI Защита")
+
                             // 7. Сценарии интерактивного мастера траблшутинга
                             troubleshootingScenariosSection
 

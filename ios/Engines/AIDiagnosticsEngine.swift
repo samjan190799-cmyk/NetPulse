@@ -637,8 +637,12 @@ public final class AIDiagnosticsEngine: Sendable {
         request.timeoutInterval = 15.0
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            return parseAPIError(statusCode: httpResponse.statusCode, data: data)
         }
 
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -675,8 +679,12 @@ public final class AIDiagnosticsEngine: Sendable {
         request.timeoutInterval = 15.0
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            return parseAPIError(statusCode: httpResponse.statusCode, data: data)
         }
 
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -711,8 +719,12 @@ public final class AIDiagnosticsEngine: Sendable {
         request.timeoutInterval = 15.0
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            return parseAPIError(statusCode: httpResponse.statusCode, data: data)
         }
 
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -746,8 +758,12 @@ public final class AIDiagnosticsEngine: Sendable {
         request.timeoutInterval = 15.0
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            return parseAPIError(statusCode: httpResponse.statusCode, data: data)
         }
 
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -759,5 +775,18 @@ public final class AIDiagnosticsEngine: Sendable {
         }
 
         throw URLError(.cannotParseResponse)
+    }
+
+    private func parseAPIError(statusCode: Int, data: Data) -> String {
+        if statusCode == 401 {
+            return "⚠️ **Ошибка авторизации (401)**: Проверьте правильность введенного API-ключа в настройках AI."
+        } else if statusCode == 429 {
+            return "⏳ **Превышен лимит запросов (429)**: Провайдер временно ограничил квоту обращений. Попробуйте через минуту."
+        } else if statusCode == 404 {
+            return "🔍 **Модель не найдена (404)**: Указанное имя модели не поддерживается или устарело."
+        } else if statusCode >= 500 {
+            return "☁️ **Сбой сервера AI (код \(statusCode))**: Сервис временно недоступен. Рекомендуется переключиться на встроенный локальный AI."
+        }
+        return "⚠️ **Ошибка соединения с AI** (HTTP код \(statusCode))."
     }
 }

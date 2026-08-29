@@ -46,6 +46,9 @@ public struct DNSBenchmarkView: View {
                     // 3. Список серверов в реальном времени с медалями
                     serversListSection
 
+                    // Нативная реклама безопасных DNS / VPN сервисов
+                    AdMobNativeAdCardView(contextTag: "DNS Защита")
+
                     // 4. Пояснительная карточка DoH/DoT и безопасности
                     securityExplanationCard
                 }

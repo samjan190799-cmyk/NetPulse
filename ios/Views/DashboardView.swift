@@ -109,7 +109,11 @@ public struct DashboardView: View {
                         // 2. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN)
                         quickToolsSection
 
-                        // 3. Блок оценки применимости скорости (Для чего подходит сеть)
+                        // 3. Нативная рекламная карточка (AdMob Native Ad)
+                        AdMobNativeAdCardView(contextTag: "Сетевые утилиты")
+                            .padding(.horizontal, -16)
+
+                        // 4. Блок оценки применимости скорости (Для чего подходит сеть)
                         NetworkCapabilityCardView(items: capabilities)
                     }
                     .padding(.horizontal, 16)

@@ -146,6 +146,7 @@ public final class SpeechRecognizerManager {
         audioLevel = 0.0
 
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        BackgroundTelemetryKeeper.shared.startKeepAlive()
         HapticManager.shared.impactLight()
     }
 }

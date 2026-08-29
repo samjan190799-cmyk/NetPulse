@@ -137,7 +137,7 @@ private struct PiPAnchorRepresentable: UIViewRepresentable {
     }
 }
 
-/// Идентичный компактный плавающий оверлей Picture-in-Picture (PiP) в форме капсулы
+/// Полноформатный компактный киберспортивный оверлей Picture-in-Picture (PiP) на 100% окна без серых полей
 private struct PiPHUDContentView: View {
     var viewModel: NetworkMonitorViewModel
 
@@ -146,6 +146,14 @@ private struct PiPHUDContentView: View {
             return String(format: "%.1f Мбит/с", viewModel.liveDownloadSpeed)
         } else {
             return viewModel.liveBandwidth.formattedDownloadSpeed
+        }
+    }
+
+    private var uploadText: String {
+        if viewModel.isSpeedtestRunning {
+            return String(format: "%.1f Мбит/с", viewModel.liveUploadSpeed)
+        } else {
+            return viewModel.liveBandwidth.formattedUploadSpeed
         }
     }
 
@@ -162,42 +170,89 @@ private struct PiPHUDContentView: View {
 
     var body: some View {
         ZStack {
-            Color.clear.ignoresSafeArea()
+            // 1. Полная заливка 100% окна PiP темным стеклом (ликвидирует серые системные полосы)
+            LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.09, blue: 0.13),
+                    Color(red: 0.03, green: 0.04, blue: 0.06)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(NPTheme.accentPrimary)
+            VStack(spacing: 5) {
+                // Верхний ряд: Тип подключения (5G / Wi-Fi) и живой RTT-пинг
+                HStack(spacing: 6) {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 5, height: 5)
+                        Text(viewModel.systemInfo.connectionType.rawValue.uppercased())
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2.5)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Capsule())
 
-                Text(downloadText)
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(NPTheme.accentPrimary)
+                    Spacer()
 
-                if let ping = viewModel.currentAveragePing {
-                    Circle()
-                        .fill(pingColor)
-                        .frame(width: 5.5, height: 5.5)
+                    if let ping = viewModel.currentAveragePing {
+                        HStack(spacing: 3) {
+                            Text(String(format: "%.0f", ping))
+                                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(pingColor)
+                            Text("ms")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(pingColor.opacity(0.85))
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(pingColor.opacity(0.18))
+                        .clipShape(Capsule())
+                    }
+                }
 
-                    Text(String(format: "%.0fms", ping))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .monospacedDigit()
-                        .foregroundStyle(NPTheme.textSecondary)
+                // Нижний ряд: Крупные показатели Скачивания и Отдачи
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                        Text(downloadText)
+                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundStyle(Color.mint)
+                        Text(uploadText)
+                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.9))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.85))
-                    .background(.ultraThinMaterial, in: Capsule())
-            )
-            .overlay(
-                Capsule()
-                    .stroke(NPTheme.border, lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.4), radius: 6, y: 2)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
     }
 }
 

@@ -443,18 +443,20 @@ public final class NetworkMonitorViewModel {
 
                 let isAppInBackground = UIApplication.shared.applicationState == .background
 
-                // В фоновом режиме выполняем легковесный одиночный замер пинга, чтобы RTT не зависал
+                // В фоновом режиме параллельно опрашиваем пинг и замеряем системный трафик
                 if isAppInBackground {
-                    await self.quickBackgroundPingSample()
+                    async let pingJob: () = self.quickBackgroundPingSample()
+                    let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
+                    self.liveBandwidth = snapshot
+                    _ = await pingJob
+                } else {
+                    let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
+                    self.liveBandwidth = snapshot
                 }
-
-                // Снятие снимка РЕАЛЬНОГО сетевого трафика системы с изоляцией интернет-канала от моста хотспота
-                let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
-                self.liveBandwidth = snapshot
 
                 // Фиксация расхода в постоянном хранилище TrafficStorage с учетом категорий
                 await TrafficStorage.shared.recordTrafficSample(
-                    snapshot: snapshot,
+                    snapshot: self.liveBandwidth,
                     networkName: self.currentNetworkTitle,
                     connectionType: self.systemInfo.connectionType.rawValue,
                     interfaceName: self.systemInfo.connectionType == .wifi ? "en0" : "pdp_ip0",
@@ -489,16 +491,16 @@ public final class NetworkMonitorViewModel {
                         compactUl = String(format: "%.0fM", self.liveUploadSpeed)
                     } else if self.floatingHUDEnabled {
                         // Киберспортивный режим (PRO): скорость скачивания и живой RTT пинг серверов
-                        dlText = snapshot.formattedDownloadSpeed
+                        dlText = self.liveBandwidth.formattedDownloadSpeed
                         ulText = pingText
-                        compactDl = snapshot.compactDownload
+                        compactDl = self.liveBandwidth.compactDownload
                         compactUl = compactPing
                     } else {
                         // ЧИСТЫЙ СПИДОМЕТР ТРАФИКА: Непрерывная реальная скорость скачивания и отдачи
-                        dlText = snapshot.formattedDownloadSpeed
-                        ulText = snapshot.formattedUploadSpeed
-                        compactDl = snapshot.compactDownload
-                        compactUl = snapshot.compactUpload
+                        dlText = self.liveBandwidth.formattedDownloadSpeed
+                        ulText = self.liveBandwidth.formattedUploadSpeed
+                        compactDl = self.liveBandwidth.compactDownload
+                        compactUl = self.liveBandwidth.compactUpload
                     }
 
                     ActivityManager.shared.updateActivity(
@@ -516,8 +518,8 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // Адаптивный интервал: 3.0 сек в фоне, 1.2 сек на экране для нулевого нагрева устройства
-                let sleepNs: UInt64 = isAppInBackground ? 3_000_000_000 : 1_200_000_000
+                // Адаптивный интервал: 1.5 сек в фоне, 1.0 сек на экране для сверхбыстрого непрерывного обновления
+                let sleepNs: UInt64 = isAppInBackground ? 1_500_000_000 : 1_000_000_000
                 try? await Task.sleep(nanoseconds: sleepNs)
             }
         }

@@ -407,14 +407,7 @@ public final class NetworkMonitorViewModel {
         guard let target = candidate else { return }
 
         let record = await pingEngine.pingTarget(target)
-        if record.isSuccess, let lat = record.latencyMs, lat > 0 {
-            if var metric = hostMetrics[target.address] {
-                let prev = prevLatencies[target.address] ?? lat
-                metric.recordLatency(lat, previousLatency: prev)
-                prevLatencies[target.address] = lat
-                hostMetrics[target.address] = metric
-            }
-        }
+        processPingRecord(address: target.address, record: record, in: &hostMetrics)
     }
 
     /// Добавление пользовательского хоста для мгновенного отображения в карточках мониторинга

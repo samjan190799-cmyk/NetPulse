@@ -119,9 +119,10 @@ public actor BufferbloatEngine {
         var totalBytesUploaded: Int64 = 0
         var loadedPings: [Double] = []
 
-        let dummyData = Data(count: 6_000_000)
+        let dummyData = Data(count: 2_000_000)
         var request = URLRequest(url: uploadTestURL)
         request.httpMethod = "POST"
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
 
         let uploadTask = Task { () -> Int64 in
             do {

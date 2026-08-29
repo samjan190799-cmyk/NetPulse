@@ -200,5 +200,4 @@ private struct PiPHUDContentView: View {
         }
     }
 }
-}
 

@@ -8,6 +8,7 @@
 import SwiftUI
 
 /// Экран настроек приложения NetPulse 2026 с переключателем тем оформления
+@MainActor
 public struct SettingsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -16,6 +17,7 @@ public struct SettingsView: View {
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
     @State private var showResetTrafficAlert: Bool = false
+    @State private var showProUpgradeSheet: Bool = false
 
     public var body: some View {
         NavigationStack {
@@ -226,58 +228,127 @@ public struct SettingsView: View {
                     }
                 }
 
-                // 7. Реклама Google AdMob и NetPulse PRO
-                Section(
-                    header: Label("Реклама и NetPulse PRO", systemImage: "crown.fill"),
-                    footer: Text("Отключение рекламы Google AdMob, разблокировка приоритетных серверов Speedtest и безлимитного AI-анализа.")
-                ) {
-                    Toggle(isOn: Binding(
-                        get: { AdMobManager.shared.isPremiumUser },
-                        set: { AdMobManager.shared.isPremiumUser = $0 }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text("NetPulse PRO (Без рекламы)")
-                                    .font(.system(size: 15, weight: .semibold))
-                                Image(systemName: "sparkles")
-                                    .foregroundStyle(Color.yellow)
+                // 7. NetPulse PRO и Монетизация
+                Section {
+                    if AdMobManager.shared.isPremiumUser {
+                        // Карточка активной PRO-подписки
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.yellow, Color.orange],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 44, height: 44)
+
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(Color.black)
                             }
-                            Text(AdMobManager.shared.isPremiumUser ? "Премиум активен • Вся реклама скрыта" : "Активируйте для отключения баннеров")
-                                .font(.system(size: 12))
-                                .foregroundStyle(NPTheme.textSecondary)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 6) {
+                                    Text("NetPulse PRO")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(NPTheme.textPrimary)
+                                    Text("АКТИВЕН")
+                                        .font(.system(size: 9, weight: .black))
+                                        .foregroundStyle(Color.yellow)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.yellow.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+
+                                Text("Вся реклама отключена • Безлимитный AI")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
                         }
-                    }
+                        .padding(.vertical, 4)
+                    } else {
+                        // Премиальная карточка перехода на NetPulse PRO
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [NPTheme.accentPrimary, Color.yellow.opacity(0.8)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 44, height: 44)
 
-                    if !AdMobManager.shared.isPremiumUser {
-                        Toggle("Адаптивные баннеры", isOn: Binding(
-                            get: { AdMobManager.shared.isBannerEnabled },
-                            set: { AdMobManager.shared.isBannerEnabled = $0 }
-                        ))
+                                    Image(systemName: "crown.fill")
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(Color.black)
+                                }
 
-                        Toggle("Нативные спонсорские блоки", isOn: Binding(
-                            get: { AdMobManager.shared.isNativeAdsEnabled },
-                            set: { AdMobManager.shared.isNativeAdsEnabled = $0 }
-                        ))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 6) {
+                                        Text("NetPulse PRO")
+                                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                                            .foregroundStyle(NPTheme.textPrimary)
+                                        Image(systemName: "sparkles")
+                                            .foregroundStyle(Color.yellow)
+                                    }
 
-                        Toggle("Тестовый режим AdMob", isOn: Binding(
-                            get: { AdMobManager.shared.isTestMode },
-                            set: { AdMobManager.shared.isTestMode = $0 }
-                        ))
+                                    Text("Полное отключение рекламы и Pro-фичи")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(NPTheme.textSecondary)
+                                }
+                            }
 
-                        Button {
-                            AdMobManager.shared.requestTrackingAuthorization()
-                            HapticManager.shared.impactLight()
-                        } label: {
-                            Label("Настройки конфиденциальности (ATT/GDPR)", systemImage: "hand.raised.fill")
+                            Button {
+                                showProUpgradeSheet = true
+                                HapticManager.shared.impactMedium()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Text("Оформить NetPulse PRO")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(NPTheme.backgroundDeep)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(NPTheme.backgroundDeep)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 10)
+                                .background(
+                                    LinearGradient(
+                                        colors: [NPTheme.accentPrimary, Color.yellow],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .buttonStyle(NPPressableButtonStyle(scale: 0.98))
                         }
+                        .padding(.vertical, 4)
                     }
 
                     Button {
                         AdMobManager.shared.restorePurchases()
                     } label: {
-                        Text("Восстановить покупки")
-                            .font(.system(size: 14))
+                        HStack {
+                            Text("Восстановить покупки")
+                                .font(.system(size: 14))
+                            Spacer()
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textTertiary)
+                        }
                     }
+                } header: {
+                    Label("Подписка NetPulse PRO", systemImage: "crown.fill")
+                } footer: {
+                    Text("Подписка полностью удаляет рекламные баннеры и нативные объявления Google AdMob, открывает приоритетный замер скорости и безлимитного AI-инженера.")
                 }
 
                 // 8. Обратная связь
@@ -336,6 +407,9 @@ public struct SettingsView: View {
                 Button("Отмена", role: .cancel) {}
             } message: {
                 Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
+            }
+            .sheet(isPresented: $showProUpgradeSheet) {
+                NetPulseProUpgradeSheet()
             }
         }
     }

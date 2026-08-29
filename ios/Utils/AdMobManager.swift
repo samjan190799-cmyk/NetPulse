@@ -75,22 +75,14 @@ public final class AdMobManager {
     }
 
     public var isBannerEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(isBannerEnabled, forKey: "netpulse_admob_banner_enabled")
-        }
+        !isPremiumUser
     }
 
     public var isNativeAdsEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(isNativeAdsEnabled, forKey: "netpulse_admob_native_enabled")
-        }
+        !isPremiumUser
     }
 
-    public var isTestMode: Bool {
-        didSet {
-            UserDefaults.standard.set(isTestMode, forKey: "netpulse_admob_test_mode")
-        }
-    }
+    public var isTestMode: Bool = false
 
     public var isShowingRewardedOverlay: Bool = false
     public var rewardedCountdown: Int = 5
@@ -101,9 +93,6 @@ public final class AdMobManager {
 
     private init() {
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "netpulse_is_premium_user")
-        self.isBannerEnabled = UserDefaults.standard.object(forKey: "netpulse_admob_banner_enabled") as? Bool ?? true
-        self.isNativeAdsEnabled = UserDefaults.standard.object(forKey: "netpulse_admob_native_enabled") as? Bool ?? true
-        self.isTestMode = UserDefaults.standard.object(forKey: "netpulse_admob_test_mode") as? Bool ?? true
     }
 
     // MARK: - Проверка прав показа

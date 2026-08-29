@@ -50,6 +50,9 @@ public struct BandwidthSnapshot: Sendable {
             return String(format: "%.1f МБ/с", bytes / 1_048_576)
         } else if bytes >= 1_024 {
             return String(format: "%.0f КБ/с", bytes / 1_024)
+        } else if bytes > 0 {
+            let kb = bytes / 1_024.0
+            return kb >= 0.1 ? String(format: "%.1f КБ/с", kb) : "0 КБ/с"
         } else {
             return "0 КБ/с"
         }
@@ -61,6 +64,9 @@ public struct BandwidthSnapshot: Sendable {
             return val >= 10 ? String(format: "%.0fM", val) : String(format: "%.1fM", val)
         } else if downloadBytesPerSec >= 1024 {
             return String(format: "%.0fK", downloadBytesPerSec / 1024)
+        } else if downloadBytesPerSec > 0 {
+            let kb = downloadBytesPerSec / 1024.0
+            return kb >= 0.1 ? String(format: "%.1fK", kb) : "0K"
         } else {
             return "0K"
         }
@@ -72,6 +78,9 @@ public struct BandwidthSnapshot: Sendable {
             return val >= 10 ? String(format: "%.0fM", val) : String(format: "%.1fM", val)
         } else if uploadBytesPerSec >= 1024 {
             return String(format: "%.0fK", uploadBytesPerSec / 1024)
+        } else if uploadBytesPerSec > 0 {
+            let kb = uploadBytesPerSec / 1024.0
+            return kb >= 0.1 ? String(format: "%.1fK", kb) : "0K"
         } else {
             return "0K"
         }

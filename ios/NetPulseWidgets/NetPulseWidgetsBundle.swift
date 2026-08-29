@@ -13,7 +13,6 @@ import WidgetKit
 struct NetPulseWidgetsBundle: WidgetBundle {
     var body: some Widget {
         NetPulseLiveActivityWidget()
-        NetPulseHomeScreenWidget()
     }
 }
 

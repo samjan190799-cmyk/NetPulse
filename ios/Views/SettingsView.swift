@@ -218,6 +218,7 @@ public struct SettingsView: View {
                             viewModel.floatingHUDEnabled = enabled
                             if enabled {
                                 BackgroundTelemetryKeeper.shared.startKeepAlive()
+                                viewModel.startBandwidthTask()
                                 if viewModel.hapticsEnabled {
                                     HapticManager.shared.impactMedium()
                                 }

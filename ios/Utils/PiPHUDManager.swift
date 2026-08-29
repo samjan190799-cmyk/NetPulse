@@ -36,12 +36,12 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
 
         if self.callViewController == nil {
             let callVC = AVPictureInPictureVideoCallViewController()
-            callVC.preferredContentSize = CGSize(width: 320, height: 110)
-            callVC.view.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
+            callVC.preferredContentSize = CGSize(width: 154, height: 38)
+            callVC.view.backgroundColor = .clear
 
             let hosting = UIHostingController(rootView: rootView)
-            hosting.view.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.11, alpha: 1.0)
-            hosting.view.frame = CGRect(x: 0, y: 0, width: 320, height: 110)
+            hosting.view.backgroundColor = .clear
+            hosting.view.frame = CGRect(x: 0, y: 0, width: 154, height: 38)
             hosting.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
             callVC.addChild(hosting)

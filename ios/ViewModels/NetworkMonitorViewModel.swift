@@ -434,7 +434,7 @@ public final class NetworkMonitorViewModel {
     }
 
     /// Изолированная задача замера реальной скорости, сохранения трафика и непрерывного обновления Dynamic Island
-    private func startBandwidthTask() {
+    public func startBandwidthTask() {
         bandwidthTask?.cancel()
         bandwidthTask = Task { [weak self] in
             var loopCount = 0

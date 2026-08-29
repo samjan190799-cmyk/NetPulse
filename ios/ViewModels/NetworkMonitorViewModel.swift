@@ -174,10 +174,10 @@ public final class NetworkMonitorViewModel {
             let pingText = String(format: "%.0f ms", pingVal)
             let compactPing = String(format: "%.0fms", pingVal)
 
-            let dlText = liveBandwidth.downloadBytesPerSec >= 1024 ? liveBandwidth.formattedDownloadSpeed : (lastSpeedtestResult != nil ? String(format: "%.1f Мбит/с", lastSpeedtestResult!.downloadMbps) : "100 Мбит/с")
-            let ulText = pingText
-            let compactDl = liveBandwidth.downloadBytesPerSec >= 1024 ? liveBandwidth.compactDownload : (lastSpeedtestResult != nil ? String(format: "%.0fM", lastSpeedtestResult!.downloadMbps) : "100M")
-            let compactUl = compactPing
+            let dlText = liveBandwidth.formattedDownloadSpeed
+            let ulText = floatingHUDEnabled ? pingText : liveBandwidth.formattedUploadSpeed
+            let compactDl = liveBandwidth.compactDownload
+            let compactUl = floatingHUDEnabled ? compactPing : liveBandwidth.compactUpload
 
             ActivityManager.shared.startActivity(
                 downloadSpeedText: dlText,

@@ -59,7 +59,6 @@ public struct ContentView: View {
             }
             .onAppear {
                 configureTabBarAppearance()
-                AdMobManager.shared.requestTrackingAuthorization()
             }
 
             // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх игр

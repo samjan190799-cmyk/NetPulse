@@ -196,17 +196,24 @@ public struct SettingsView: View {
                         set: { viewModel.toggleLiveActivity(enabled: $0) }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Dynamic Island (Live Activity)")
+                            Text("Dynamic Island (Спидометр скорости)")
                                 .font(.system(size: 15, weight: .medium))
-                            Text("Непрерывный показ скорости в вырезе экрана и на Lock Screen 24/7")
+                            Text("Индикатор скорости передачи данных (↓ Скачивание / ↑ Отдача) в вырезе экрана и на Lock Screen")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
 
+                    // Плавающий игровой оверлей (HUD) - PRO Функция
                     Toggle(isOn: Binding(
                         get: { viewModel.floatingHUDEnabled },
                         set: { enabled in
+                            if enabled && !AdMobManager.shared.isPremiumUser {
+                                // Доступно только в PRO
+                                showProUpgradeSheet = true
+                                HapticManager.shared.notificationWarning()
+                                return
+                            }
                             viewModel.floatingHUDEnabled = enabled
                             if enabled {
                                 BackgroundTelemetryKeeper.shared.startKeepAlive()
@@ -219,9 +226,18 @@ public struct SettingsView: View {
                         }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Плавающий игровой оверлей (HUD)")
-                                .font(.system(size: 15, weight: .medium))
-                            Text("Мини-виджет поверх экрана и Picture-in-Picture для игр")
+                            HStack(spacing: 6) {
+                                Text("Плавающий игровой оверлей (HUD)")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text("PRO")
+                                    .font(.system(size: 9, weight: .black))
+                                    .foregroundStyle(Color.yellow)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1.5)
+                                    .background(Color.yellow.opacity(0.18))
+                                    .clipShape(Capsule())
+                            }
+                            Text("Мини-виджет пинга поверх экрана и Picture-in-Picture для онлайн-игр")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }

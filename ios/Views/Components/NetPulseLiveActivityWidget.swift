@@ -145,17 +145,8 @@ public struct NetPulseLiveActivityWidget: Widget {
             } compactTrailing: {
                 // MARK: - Компактный вид справа
                 HStack(spacing: 2.5) {
-                    if context.state.isTesting {
-                        Text(cleanUpload(context.state.compactUploadText))
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 9, weight: .heavy))
-                            .foregroundStyle(Color.green)
-                    } else {
+                    if context.state.isGamingMode {
+                        // Киберспортивный режим (PRO): живой RTT пинг
                         Circle()
                             .fill(pingColor(context.state.pingMs))
                             .frame(width: 5, height: 5)
@@ -165,12 +156,23 @@ public struct NetPulseLiveActivityWidget: Widget {
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
+                    } else {
+                        // Базовый режим: чистая скорость отдачи (Upload)
+                        Text(cleanUpload(context.state.compactUploadText))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(Color.mint)
                     }
                 }
             } minimal: {
                 // MARK: - Минимальный вид
                 HStack(spacing: 2) {
-                    Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "gauge.with.dots.needle.67percent")
+                    Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "arrow.down")
                         .font(.system(size: 8, weight: .heavy))
                         .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
                     Text(context.state.isGamingMode ? cleanPing(context.state.compactUploadText, ping: context.state.pingMs) : cleanDownload(context.state.compactDownloadText))

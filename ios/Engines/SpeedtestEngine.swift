@@ -95,7 +95,7 @@ public final class SpeedtestEngine: Sendable {
         let delegate = SpeedtestDataDelegate(tracker: tracker, durationLimit: durationSeconds)
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 4.0
-        config.timeoutIntervalForResource = durationLimit + 2.0
+        config.timeoutIntervalForResource = durationSeconds + 2.0
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         config.urlCache = nil
         let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
@@ -264,27 +264,6 @@ public final class SpeedtestEngine: Sendable {
                 connection.cancel()
                 box.resumeOnce(nil)
             }
-        }
-    }
-}
-
-/// Потокобезопасный бокс однократного возобновления Continuation
-private final class SafeContinuationBox<T>: @unchecked Sendable {
-    private var isResumed = false
-    private let lock = NSLock()
-    private var continuation: CheckedContinuation<T, Never>?
-
-    init(_ continuation: CheckedContinuation<T, Never>) {
-        self.continuation = continuation
-    }
-
-    func resumeOnce(_ value: T) {
-        lock.lock()
-        defer { lock.unlock() }
-        if !isResumed {
-            isResumed = true
-            continuation?.resume(returning: value)
-            continuation = nil
         }
     }
 }

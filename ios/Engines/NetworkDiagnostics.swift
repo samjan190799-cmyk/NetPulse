@@ -253,3 +253,24 @@ public actor NetworkDiagnostics {
         return fallback
     }
 }
+
+/// Потокобезопасный бокс однократного возобновления CheckedContinuation
+public final class SafeContinuationBox<T>: @unchecked Sendable {
+    private var isResumed = false
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T, Never>?
+
+    public init(_ continuation: CheckedContinuation<T, Never>) {
+        self.continuation = continuation
+    }
+
+    public func resumeOnce(_ value: T) {
+        lock.lock()
+        defer { lock.unlock() }
+        if !isResumed {
+            isResumed = true
+            continuation?.resume(returning: value)
+            continuation = nil
+        }
+    }
+}

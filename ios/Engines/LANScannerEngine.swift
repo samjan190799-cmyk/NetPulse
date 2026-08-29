@@ -222,24 +222,3 @@ public actor LANScannerEngine {
         return "Сетевое устройство"
     }
 }
-
-/// Потокобезопасный бокс однократного возобновления Continuation
-private final class SafeContinuationBox<T>: @unchecked Sendable {
-    private var isResumed = false
-    private let lock = NSLock()
-    private var continuation: CheckedContinuation<T, Never>?
-
-    init(_ continuation: CheckedContinuation<T, Never>) {
-        self.continuation = continuation
-    }
-
-    func resumeOnce(_ value: T) {
-        lock.lock()
-        defer { lock.unlock() }
-        if !isResumed {
-            isResumed = true
-            continuation?.resume(returning: value)
-            continuation = nil
-        }
-    }
-}

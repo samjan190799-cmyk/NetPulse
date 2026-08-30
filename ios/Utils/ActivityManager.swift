@@ -206,11 +206,31 @@ public final class ActivityManager {
         packetLossPct: Double? = nil,
         force: Bool = false
     ) {
-        #if canImport(ActivityKit)
+        guard areActivitiesEnabled else {
+            self.isLiveActivityActive = false
+            return
+        }
+
         var activeActivity = currentActivity
         if activeActivity == nil || activeActivity?.activityState != .active {
             activeActivity = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active })
         }
+
+        let updatedState = NetPulseAttributes.ContentState(
+            downloadSpeedText: downloadSpeedText,
+            uploadSpeedText: uploadSpeedText,
+            compactDownloadText: compactDownloadText,
+            compactUploadText: compactUploadText,
+            pingMs: pingMs,
+            jitterMs: jitterMs,
+            isTesting: isTesting,
+            connectionType: connectionType,
+            ispName: ispName,
+            isGamingMode: isGamingMode,
+            gameTitle: gameTitle,
+            gameRegion: gameRegion,
+            packetLossPct: packetLossPct
+        )
 
         guard let activity = activeActivity else {
             // Если сессия отсутствует, создаем новую
@@ -234,74 +254,16 @@ public final class ActivityManager {
 
         self.currentActivity = activity
         self.isLiveActivityActive = true
-
-        let updatedState = NetPulseAttributes.ContentState(
-            downloadSpeedText: downloadSpeedText,
-            uploadSpeedText: uploadSpeedText,
-            compactDownloadText: compactDownloadText,
-            compactUploadText: compactUploadText,
-            pingMs: pingMs,
-            jitterMs: jitterMs,
-            isTesting: isTesting,
-            connectionType: connectionType,
-            ispName: ispName,
-            isGamingMode: isGamingMode,
-            gameTitle: gameTitle,
-            gameRegion: gameRegion,
-            packetLossPct: packetLossPct
-        )
-
-        let now = Date()
-
-        // 1. Проверка дублирующегося состояния: если данные не изменились, отправляем heartbeat каждые 5 секунд
-        if !force, let lastState = lastContentState, lastState == updatedState {
-            if let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < 5.0 {
-                return
-            }
-        }
-
-        // 2. Троттлинг вызовов: защита от перегрузки XPC-очереди ActivityKit (0.4 сек во время теста, 1.0 сек в обычном)
-        let minInterval: TimeInterval = isTesting ? 0.4 : 1.0
-        if !force, let lastDate = lastUpdateDate, now.timeIntervalSince(lastDate) < minInterval {
-            // Сохраняем в очередь на отправку после завершения интервала
-            self.queuedState = updatedState
-            return
-        }
-
         self.lastContentState = updatedState
-        self.lastUpdateDate = now
-        self.queuedState = nil
 
         let content = ActivityContent(
             state: updatedState,
-            staleDate: Date().addingTimeInterval(14400),
+            staleDate: Date().addingTimeInterval(28800),
             relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
-        // Надежный конвейер выполнения без прерывания активного вызова
-        guard !isUpdating else {
-            self.queuedState = updatedState
-            return
-        }
-
-        isUpdating = true
-        Task { [weak self] in
+        Task {
             await activity.update(content)
-            guard let self = self else { return }
-            self.isUpdating = false
-
-            // Если за время отправки накопился свежий снимок, отправляем его
-            if let queued = self.queuedState {
-                self.queuedState = nil
-                self.lastContentState = queued
-                self.lastUpdateDate = Date()
-                let nextContent = ActivityContent(
-                    state: queued,
-                    staleDate: Date().addingTimeInterval(14400),
-                    relevanceScore: queued.isTesting ? 100.0 : (queued.isGamingMode ? 90.0 : 80.0)
-                )
-                await activity.update(nextContent)
-            }
         }
         #endif
     }

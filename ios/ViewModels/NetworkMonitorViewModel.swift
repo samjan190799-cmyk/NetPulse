@@ -435,7 +435,7 @@ public final class NetworkMonitorViewModel {
 
     /// Изолированная задача замера реальной скорости, сохранения трафика и непрерывного обновления Dynamic Island
     public func startBandwidthTask() {
-        bandwidthTask?.cancel()
+        guard bandwidthTask == nil || bandwidthTask?.isCancelled == true else { return }
         bandwidthTask = Task { [weak self] in
             var loopCount = 0
             while !Task.isCancelled {
@@ -463,7 +463,7 @@ public final class NetworkMonitorViewModel {
                     isSpeedtestActive: self.isSpeedtestRunning
                 )
 
-                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI и виджеты
+                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI и виджеты (каждые 6 сек)
                 if !isAppInBackground {
                     loopCount += 1
                     if loopCount % 3 == 0 {
@@ -528,33 +528,32 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // Адаптивный интервал: 1.5 сек в фоне, 1.0 сек на экране для сверхбыстрого непрерывного обновления
-                let sleepNs: UInt64 = isAppInBackground ? 1_500_000_000 : 1_000_000_000
-                try? await Task.sleep(nanoseconds: sleepNs)
+                // Строгий такт 2.0 секунды: идеальный баланс плавности, защиты от перегрева и лимитов ActivityKit
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
     }
 
     /// Изолированная задача параллельного пинга хостов сети (энергоэффективная)
     private func startPingTask() {
-        pingTask?.cancel()
+        guard pingTask == nil || pingTask?.isCancelled == true else { return }
         pingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
                 await self.pollAllHosts()
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // каждые 3 секунды
+                try? await Task.sleep(nanoseconds: 4_000_000_000) // каждые 4 секунды
             }
         }
     }
 
     private func startDiagnosticsTask() {
-        diagnosticsTask?.cancel()
+        guard diagnosticsTask == nil || diagnosticsTask?.isCancelled == true else { return }
         diagnosticsTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
                 let info = await self.diagnostics.collectSystemInfo()
                 self.systemInfo = info
-                try? await Task.sleep(nanoseconds: 15_000_000_000) // каждые 15 секунд
+                try? await Task.sleep(nanoseconds: 20_000_000_000) // каждые 20 секунд
             }
         }
     }

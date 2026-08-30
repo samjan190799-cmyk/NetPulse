@@ -206,6 +206,7 @@ public final class ActivityManager {
         packetLossPct: Double? = nil,
         force: Bool = false
     ) {
+        #if canImport(ActivityKit)
         guard areActivitiesEnabled else {
             self.isLiveActivityActive = false
             return

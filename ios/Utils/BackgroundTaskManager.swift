@@ -84,7 +84,7 @@ public final class BackgroundTaskManager: @unchecked Sendable {
             await TrafficStorage.shared.flush()
 
             let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
-            let trafficSummary = await TrafficStorage.shared.getTodaySummary()
+            let trafficSummary = await TrafficStorage.shared.getSummary(for: .today)
 
             let widgetData = NetPulseWidgetData(
                 downloadSpeedMbps: snapshot.downloadMbps,
@@ -140,7 +140,7 @@ public final class BackgroundTaskManager: @unchecked Sendable {
             await TrafficStorage.shared.flush()
 
             let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
-            let trafficSummary = await TrafficStorage.shared.getTodaySummary()
+            let trafficSummary = await TrafficStorage.shared.getSummary(for: .today)
 
             let widgetData = NetPulseWidgetData(
                 downloadSpeedMbps: snapshot.downloadMbps,

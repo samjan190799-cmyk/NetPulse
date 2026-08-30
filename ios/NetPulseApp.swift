@@ -41,7 +41,7 @@ struct NetPulseApp: App {
         Task { @MainActor in
             let info = await NetworkDiagnostics().collectSystemInfo()
             let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
-            let summary = await TrafficStorage.shared.getTodaySummary()
+            let summary = await TrafficStorage.shared.getSummary(for: .today)
 
             let widgetData = NetPulseWidgetData(
                 downloadSpeedMbps: snapshot.downloadMbps,

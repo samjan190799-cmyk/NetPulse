@@ -19,7 +19,7 @@ public struct FloatingGameOverlayView: View {
     public let onTogglePiP: () -> Void
     public let onClose: () -> Void
 
-    @State private var offset: CGSize = CGSize(width: 16, height: 75)
+    @State private var offset: CGSize = CGSize(width: 16, height: 110)
     @State private var dragTranslation: CGSize = .zero
     @State private var isDragging: Bool = false
     @State private var pingHistory: [Double] = [24, 26, 25, 23, 28, 24, 25, 27, 24, 23]

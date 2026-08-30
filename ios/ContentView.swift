@@ -169,61 +169,64 @@ private struct PiPHUDContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Глубокий темный фон окна PiP без серых полей
-            Color(red: 0.05, green: 0.06, blue: 0.09)
-                .ignoresSafeArea()
+        HStack(spacing: 6) {
+            // Стрелка и скорость загрузки
+            HStack(spacing: 3.5) {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(NPTheme.accentPrimary)
 
-            HStack(spacing: 6) {
-                // Стрелка и скорость загрузки
+                Text(downloadText)
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(NPTheme.accentPrimary)
+                    .lineLimit(1)
+            }
+
+            // Индикатор и задержка пинга
+            if let ping = viewModel.currentAveragePing {
                 HStack(spacing: 3) {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundStyle(NPTheme.accentPrimary)
-
-                    Text(downloadText)
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(NPTheme.accentPrimary)
-                        .lineLimit(1)
-                }
-
-                // Индикатор и задержка пинга
-                if let ping = viewModel.currentAveragePing {
                     Circle()
                         .fill(pingColor)
-                        .frame(width: 5, height: 5)
+                        .frame(width: 5.5, height: 5.5)
 
                     Text(String(format: "%.0fms", ping))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .foregroundStyle(NPTheme.textSecondary)
                         .lineLimit(1)
-                } else {
-                    HStack(spacing: 2.5) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(NPTheme.accentSilver)
+                }
+            } else {
+                HStack(spacing: 2.5) {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(NPTheme.accentSilver)
 
-                        Text(uploadText)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(NPTheme.accentSilver)
-                            .lineLimit(1)
-                    }
+                    Text(uploadText)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(NPTheme.accentSilver)
+                        .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.6))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(NPTheme.border, lineWidth: 1)
-            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.11, blue: 0.16),
+                    Color(red: 0.03, green: 0.04, blue: 0.07)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(NPTheme.border, lineWidth: 1)
+        )
+        .ignoresSafeArea()
     }
 }
 

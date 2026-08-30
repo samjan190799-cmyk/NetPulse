@@ -182,21 +182,21 @@ public final class BandwidthEngine: @unchecked Sendable {
         let instantUploadBps = Double(outDelta) / timeDelta
 
         // Экспоненциальное сглаживание (EMA) для устранения микро-скачков и обеспечения плавной анимации
-        if instantDownloadBps > (smoothedDownloadBps * 3.0) && instantDownloadBps > 1024 {
+        if instantDownloadBps > (smoothedDownloadBps * 2.0) && instantDownloadBps > 512 {
             // Резкий старт скачивания: мгновенный отклик
             smoothedDownloadBps = instantDownloadBps
-        } else if instantDownloadBps < 512 && smoothedDownloadBps < 5120 {
+        } else if instantDownloadBps == 0 && smoothedDownloadBps < 1024 {
             smoothedDownloadBps = 0.0
         } else {
-            smoothedDownloadBps = (0.70 * instantDownloadBps) + (0.30 * smoothedDownloadBps)
+            smoothedDownloadBps = (0.80 * instantDownloadBps) + (0.20 * smoothedDownloadBps)
         }
 
-        if instantUploadBps > (smoothedUploadBps * 3.0) && instantUploadBps > 1024 {
+        if instantUploadBps > (smoothedUploadBps * 2.0) && instantUploadBps > 512 {
             smoothedUploadBps = instantUploadBps
-        } else if instantUploadBps < 512 && smoothedUploadBps < 5120 {
+        } else if instantUploadBps == 0 && smoothedUploadBps < 1024 {
             smoothedUploadBps = 0.0
         } else {
-            smoothedUploadBps = (0.70 * instantUploadBps) + (0.30 * smoothedUploadBps)
+            smoothedUploadBps = (0.80 * instantUploadBps) + (0.20 * smoothedUploadBps)
         }
 
         let downloadBytesPerSec = smoothedDownloadBps
@@ -261,7 +261,7 @@ public final class BandwidthEngine: @unchecked Sendable {
         }
     }
 
-    /// Считывание счетчиков байт ВСЕХ физических и виртуальных интерфейсов BSD (en*, pdp_ip*, utun*).
+    /// Считывание счетчиков байт ВСЕХ физических и виртуальных интерфейсов BSD (en*, pdp_ip*, bridge*, ap*, utun*).
     public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
@@ -272,6 +272,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         var result = InterfaceByteCounters()
         var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
         var seenInterfaces = Set<String>()
+        var otherIn: UInt64 = 0
+        var otherOut: UInt64 = 0
 
         while let ptr = cursor {
             let flags = Int32(ptr.pointee.ifa_flags)
@@ -292,14 +294,17 @@ public final class BandwidthEngine: @unchecked Sendable {
                             // Физические адаптеры Wi-Fi / Ethernet (en0, en1, en2...)
                             result.wifiIn += inBytes
                             result.wifiOut += outBytes
-                        } else if ifName.hasPrefix("pdp_ip") {
-                            // Физические сотовые каналы 5G/LTE (pdp_ip0, pdp_ip1...)
+                        } else if ifName.hasPrefix("pdp_ip") || ifName.hasPrefix("bridge") || ifName.hasPrefix("ap") || ifName.hasPrefix("anpi") {
+                            // Сотовая связь 5G/LTE и Режим модема (Hotspot Tethering bridge)
                             result.cellularIn += inBytes
                             result.cellularOut += outBytes
-                        } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") {
+                        } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") || ifName.hasPrefix("ppp") {
                             // VPN туннели
                             result.vpnIn += inBytes
                             result.vpnOut += outBytes
+                        } else {
+                            otherIn += inBytes
+                            otherOut += outBytes
                         }
                     }
                 }
@@ -307,8 +312,8 @@ public final class BandwidthEngine: @unchecked Sendable {
             cursor = ptr.pointee.ifa_next
         }
 
-        result.totalIn = result.wifiIn + result.cellularIn + result.vpnIn
-        result.totalOut = result.wifiOut + result.cellularOut + result.vpnOut
+        result.totalIn = result.wifiIn + result.cellularIn + result.vpnIn + otherIn
+        result.totalOut = result.wifiOut + result.cellularOut + result.vpnOut + otherOut
 
         return result
     }

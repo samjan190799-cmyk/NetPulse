@@ -123,42 +123,23 @@ private struct PiPAnchorRepresentable: UIViewRepresentable {
         view.isUserInteractionEnabled = false
 
         let rootView = AnyView(
-            PiPHUDContentView(viewModel: viewModel)
+            PiPHUDContentView()
         )
         PiPHUDManager.shared.setup(with: view, rootView: rootView)
         return view
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
-        let rootView = AnyView(
-            PiPHUDContentView(viewModel: viewModel)
-        )
-        PiPHUDManager.shared.updateRootView(rootView)
+        // Управление телеметрией переведено в фоновый цикл ViewModel -> PiPHUDManager.shared
     }
 }
 
-/// Полноформатный компактный киберспортивный оверлей Picture-in-Picture (PiP) на 100% окна без серых полей
+/// Полноформатный киберспортивный оверлей Picture-in-Picture (PiP) на 100% окна без пустот и с живым обновлением
 private struct PiPHUDContentView: View {
-    var viewModel: NetworkMonitorViewModel
-
-    private var downloadText: String {
-        if viewModel.isSpeedtestRunning {
-            return String(format: "%.1f Мбит/с", viewModel.liveDownloadSpeed)
-        } else {
-            return viewModel.liveBandwidth.formattedDownloadSpeed
-        }
-    }
-
-    private var uploadText: String {
-        if viewModel.isSpeedtestRunning {
-            return String(format: "%.1f Мбит/с", viewModel.liveUploadSpeed)
-        } else {
-            return viewModel.liveBandwidth.formattedUploadSpeed
-        }
-    }
+    @ObservedObject private var manager = PiPHUDManager.shared
 
     private var pingColor: Color {
-        guard let p = viewModel.currentAveragePing else { return NPTheme.accentPrimary }
+        guard let p = manager.pingMs else { return NPTheme.accentPrimary }
         if p < 45 {
             return NPTheme.semanticOK
         } else if p < 100 {
@@ -169,53 +150,77 @@ private struct PiPHUDContentView: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            // Стрелка и скорость загрузки
-            HStack(spacing: 3.5) {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundStyle(NPTheme.accentPrimary)
+        VStack(spacing: 5) {
+            // Верхняя строка: Тип сети + статус + пинг
+            HStack {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 5, height: 5)
+                    Text(manager.connectionType.uppercased())
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.white.opacity(0.12))
+                .clipShape(Capsule())
 
-                Text(downloadText)
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(NPTheme.accentPrimary)
-                    .lineLimit(1)
+                Spacer()
+
+                if let ping = manager.pingMs {
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(pingColor)
+                            .frame(width: 4.5, height: 4.5)
+                        Text(String(format: "%.0f ms", ping))
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(pingColor)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(pingColor.opacity(0.15))
+                    .clipShape(Capsule())
+                }
             }
 
-            // Индикатор и задержка пинга
-            if let ping = viewModel.currentAveragePing {
-                HStack(spacing: 3) {
-                    Circle()
-                        .fill(pingColor)
-                        .frame(width: 5.5, height: 5.5)
-
-                    Text(String(format: "%.0fms", ping))
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+            // Нижняя строка: Крупные показатели скорости Down / Up
+            HStack(spacing: 8) {
+                HStack(spacing: 3.5) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundStyle(NPTheme.accentPrimary)
+                    Text(manager.downloadText)
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(NPTheme.textSecondary)
+                        .foregroundStyle(NPTheme.accentPrimary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
-            } else {
-                HStack(spacing: 2.5) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(NPTheme.accentSilver)
 
-                    Text(uploadText)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .monospacedDigit()
+                Spacer()
+
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(NPTheme.accentSilver)
+                    Text(manager.uploadText)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.85))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
             }
         }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
                 colors: [
-                    Color(red: 0.10, green: 0.11, blue: 0.16),
-                    Color(red: 0.03, green: 0.04, blue: 0.07)
+                    Color(red: 0.08, green: 0.10, blue: 0.15),
+                    Color(red: 0.02, green: 0.03, blue: 0.05)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -224,7 +229,14 @@ private struct PiPHUDContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(NPTheme.border, lineWidth: 1)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.white.opacity(0.06)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
         )
         .ignoresSafeArea()
     }

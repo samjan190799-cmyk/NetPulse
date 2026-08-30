@@ -472,37 +472,47 @@ public final class NetworkMonitorViewModel {
                     }
                 }
 
-                // Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
+                let ping = self.currentAveragePing
+                let pingVal = ping ?? (self.lastSpeedtestResult?.pingMs ?? 28.0)
+                let pingText = String(format: "%.0f ms", pingVal)
+                let compactPing = String(format: "%.0fms", pingVal)
+                
+                let dlText: String
+                let ulText: String
+                let compactDl: String
+                let compactUl: String
+
+                if self.isSpeedtestRunning {
+                    dlText = String(format: "%.1f Мбит/с", self.liveDownloadSpeed)
+                    ulText = String(format: "%.1f Мбит/с", self.liveUploadSpeed)
+                    compactDl = String(format: "%.0fM", self.liveDownloadSpeed)
+                    compactUl = String(format: "%.0fM", self.liveUploadSpeed)
+                } else if self.floatingHUDEnabled {
+                    // Киберспортивный режим (PRO): скорость скачивания и живой RTT пинг серверов
+                    dlText = self.liveBandwidth.formattedDownloadSpeed
+                    ulText = pingText
+                    compactDl = self.liveBandwidth.compactDownload
+                    compactUl = compactPing
+                } else {
+                    // ЧИСТЫЙ СПИДОМЕТР ТРАФИКА: Непрерывная реальная скорость скачивания и отдачи
+                    dlText = self.liveBandwidth.formattedDownloadSpeed
+                    ulText = self.liveBandwidth.formattedUploadSpeed
+                    compactDl = self.liveBandwidth.compactDownload
+                    compactUl = self.liveBandwidth.compactUpload
+                }
+
+                // 1. Непрерывная передача в PiP (Picture-in-Picture)
+                PiPHUDManager.shared.updateTelemetry(
+                    downloadText: dlText,
+                    uploadText: self.liveBandwidth.formattedUploadSpeed,
+                    pingMs: self.currentAveragePing,
+                    jitterMs: self.currentAverageJitter,
+                    connectionType: self.systemInfo.connectionType.rawValue,
+                    isTesting: self.isSpeedtestRunning
+                )
+
+                // 2. Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
                 if self.liveActivityEnabled {
-                    let ping = self.currentAveragePing
-                    let pingVal = ping ?? (self.lastSpeedtestResult?.pingMs ?? 28.0)
-                    let pingText = String(format: "%.0f ms", pingVal)
-                    let compactPing = String(format: "%.0fms", pingVal)
-                    
-                    let dlText: String
-                    let ulText: String
-                    let compactDl: String
-                    let compactUl: String
-
-                    if self.isSpeedtestRunning {
-                        dlText = String(format: "%.1f Мбит/с", self.liveDownloadSpeed)
-                        ulText = String(format: "%.1f Мбит/с", self.liveUploadSpeed)
-                        compactDl = String(format: "%.0fM", self.liveDownloadSpeed)
-                        compactUl = String(format: "%.0fM", self.liveUploadSpeed)
-                    } else if self.floatingHUDEnabled {
-                        // Киберспортивный режим (PRO): скорость скачивания и живой RTT пинг серверов
-                        dlText = self.liveBandwidth.formattedDownloadSpeed
-                        ulText = pingText
-                        compactDl = self.liveBandwidth.compactDownload
-                        compactUl = compactPing
-                    } else {
-                        // ЧИСТЫЙ СПИДОМЕТР ТРАФИКА: Непрерывная реальная скорость скачивания и отдачи
-                        dlText = self.liveBandwidth.formattedDownloadSpeed
-                        ulText = self.liveBandwidth.formattedUploadSpeed
-                        compactDl = self.liveBandwidth.compactDownload
-                        compactUl = self.liveBandwidth.compactUpload
-                    }
-
                     ActivityManager.shared.updateActivity(
                         downloadSpeedText: dlText,
                         uploadSpeedText: ulText,
@@ -780,6 +790,15 @@ public final class NetworkMonitorViewModel {
                     Task { @MainActor in
                         self.liveDownloadSpeed = dl
                         self.liveUploadSpeed = ul
+
+                        PiPHUDManager.shared.updateTelemetry(
+                            downloadText: String(format: "%.1f Мбит/с", dl),
+                            uploadText: String(format: "%.1f Мбит/с", ul),
+                            pingMs: self.currentAveragePing,
+                            jitterMs: self.currentAverageJitter,
+                            connectionType: self.systemInfo.connectionType.rawValue,
+                            isTesting: true
+                        )
 
                         if self.liveActivityEnabled {
                             ActivityManager.shared.updateActivity(

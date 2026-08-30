@@ -17,6 +17,14 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
     @Published public var isPiPActive: Bool = false
     @Published public var isPiPSupported: Bool = AVPictureInPictureController.isPictureInPictureSupported()
 
+    // Живая телеметрия для непрерывного фонового обновления в PiP
+    @Published public var downloadText: String = "0 КБ/с"
+    @Published public var uploadText: String = "0 КБ/с"
+    @Published public var pingMs: Double? = nil
+    @Published public var jitterMs: Double? = nil
+    @Published public var connectionType: String = "5G"
+    @Published public var isTesting: Bool = false
+
     private var pipController: AVPictureInPictureController?
     private var callViewController: AVPictureInPictureVideoCallViewController?
     private var hostingController: UIHostingController<AnyView>?
@@ -24,6 +32,23 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
 
     private override init() {
         super.init()
+    }
+
+    /// Обновление телеметрии из фонового цикла
+    public func updateTelemetry(
+        downloadText: String,
+        uploadText: String,
+        pingMs: Double?,
+        jitterMs: Double?,
+        connectionType: String,
+        isTesting: Bool
+    ) {
+        self.downloadText = downloadText
+        self.uploadText = uploadText
+        self.pingMs = pingMs
+        self.jitterMs = jitterMs
+        self.connectionType = connectionType
+        self.isTesting = isTesting
     }
 
     /// Привязка источника PiP к экрану
@@ -36,12 +61,12 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
 
         if self.callViewController == nil {
             let callVC = AVPictureInPictureVideoCallViewController()
-            callVC.preferredContentSize = CGSize(width: 130, height: 36)
+            callVC.preferredContentSize = CGSize(width: 175, height: 75)
             callVC.view.backgroundColor = .clear
 
             let hosting = UIHostingController(rootView: rootView)
             hosting.view.backgroundColor = .clear
-            hosting.view.frame = CGRect(x: 0, y: 0, width: 130, height: 36)
+            hosting.view.frame = CGRect(x: 0, y: 0, width: 175, height: 75)
             hosting.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
             callVC.addChild(hosting)

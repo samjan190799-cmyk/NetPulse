@@ -71,14 +71,18 @@ public struct NetPulseWidgetEntryView: View {
             }
         }
         .containerBackground(for: .widget) {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.07, green: 0.08, blue: 0.12),
-                    Color(red: 0.02, green: 0.03, blue: 0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            if family == .accessoryCircular || family == .accessoryRectangular || family == .accessoryInline {
+                Color.clear
+            } else {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.07, green: 0.08, blue: 0.12),
+                        Color(red: 0.02, green: 0.03, blue: 0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
         }
     }
 }
@@ -174,7 +178,7 @@ private struct SmallWidgetView: View {
                 .clipShape(Capsule())
             }
         }
-        .padding(4)
+        .padding(14)
     }
 }
 
@@ -309,7 +313,7 @@ private struct MediumWidgetView: View {
                 }
             }
         }
-        .padding(2)
+        .padding(14)
     }
 }
 
@@ -415,7 +419,7 @@ private struct LargeWidgetView: View {
                     .foregroundStyle(.cyan.opacity(0.8))
             }
         }
-        .padding(2)
+        .padding(14)
     }
 }
 
@@ -523,5 +527,6 @@ public struct NetPulseHomeScreenWidget: Widget {
             .accessoryRectangular,
             .accessoryInline
         ])
+        .contentMarginsDisabled()
     }
 }

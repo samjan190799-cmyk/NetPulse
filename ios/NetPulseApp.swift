@@ -38,10 +38,28 @@ struct NetPulseApp: App {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
         }
 
-        if isLiveEnabled {
-            Task { @MainActor in
-                let info = await NetworkDiagnostics().collectSystemInfo()
-                let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
+        Task { @MainActor in
+            let info = await NetworkDiagnostics().collectSystemInfo()
+            let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
+            let summary = await TrafficStorage.shared.getTodaySummary()
+
+            let widgetData = NetPulseWidgetData(
+                downloadSpeedMbps: snapshot.downloadMbps,
+                uploadSpeedMbps: snapshot.uploadMbps,
+                pingMs: nil,
+                jitterMs: nil,
+                lossPercent: 0.0,
+                ispName: info.ispName ?? "Интернет",
+                connectionType: info.connectionType.rawValue,
+                todayTrafficBytes: Int64(summary.totalTraffic),
+                budgetTotalBytes: 5_368_709_120,
+                healthScore: 100,
+                dnsHosts: [],
+                lastUpdated: Date()
+            )
+            WidgetDataManager.shared.saveSnapshot(widgetData)
+
+            if isLiveEnabled {
                 ActivityManager.shared.checkAndRestoreActivity(
                     downloadSpeedText: snapshot.formattedDownloadSpeed,
                     uploadSpeedText: snapshot.formattedUploadSpeed,
@@ -51,9 +69,7 @@ struct NetPulseApp: App {
                     connectionType: info.connectionType.rawValue,
                     ispName: info.ispName ?? "Интернет"
                 )
-            }
-        } else {
-            Task { @MainActor in
+            } else {
                 ActivityManager.shared.stopActivity()
             }
         }

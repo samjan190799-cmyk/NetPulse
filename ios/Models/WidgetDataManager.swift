@@ -119,31 +119,44 @@ public struct NetPulseWidgetData: Codable, Sendable {
 public final class WidgetDataManager: @unchecked Sendable {
     public static let shared = WidgetDataManager()
 
-    private let appGroupSuite = "group.com.samjan.netpulse"
+    private let primaryAppGroupSuite = "group.com.samvel.netpulse"
+    private let legacyAppGroupSuite = "group.com.samjan.netpulse"
     private let dataKey = "netpulse_widget_shared_snapshot_v1"
 
-    private var defaults: UserDefaults {
-        UserDefaults(suiteName: appGroupSuite) ?? UserDefaults.standard
+    private var defaultsList: [UserDefaults] {
+        var list: [UserDefaults] = []
+        if let primary = UserDefaults(suiteName: primaryAppGroupSuite) {
+            list.append(primary)
+        }
+        if let legacy = UserDefaults(suiteName: legacyAppGroupSuite) {
+            list.append(legacy)
+        }
+        list.append(UserDefaults.standard)
+        return list
     }
 
     private init() {}
 
-    /// Сохранение снимка состояния для виджетов
+    /// Сохранение снимка состояния для виджетов во все доступные хранилища
     public func saveSnapshot(_ data: NetPulseWidgetData) {
-        if let encoded = try? JSONEncoder().encode(data) {
+        guard let encoded = try? JSONEncoder().encode(data) else { return }
+        for defaults in defaultsList {
             defaults.set(encoded, forKey: dataKey)
-            #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
-            #endif
+            defaults.synchronize()
         }
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 
-    /// Загрузка последнего сохраненного снимка данных
+    /// Загрузка последнего сохраненного снимка данных с каскадным поиском
     public func loadLatestSnapshot() -> NetPulseWidgetData {
-        guard let raw = defaults.data(forKey: dataKey),
-              let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: raw) else {
-            return .placeholder
+        for defaults in defaultsList {
+            if let raw = defaults.data(forKey: dataKey),
+               let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: raw) {
+                return decoded
+            }
         }
-        return decoded
+        return .placeholder
     }
 }

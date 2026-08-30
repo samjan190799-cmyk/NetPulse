@@ -83,10 +83,28 @@ public final class BackgroundTaskManager: @unchecked Sendable {
             )
             await TrafficStorage.shared.flush()
 
+            let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
+            let trafficSummary = await TrafficStorage.shared.getTodaySummary()
+
+            let widgetData = NetPulseWidgetData(
+                downloadSpeedMbps: snapshot.downloadMbps,
+                uploadSpeedMbps: snapshot.uploadMbps,
+                pingMs: nil,
+                jitterMs: nil,
+                lossPercent: 0.0,
+                ispName: info.ispName ?? "Интернет",
+                connectionType: info.connectionType.rawValue,
+                todayTrafficBytes: Int64(trafficSummary.totalTraffic),
+                budgetTotalBytes: 5_368_709_120,
+                healthScore: 100,
+                dnsHosts: [],
+                lastUpdated: Date()
+            )
+            WidgetDataManager.shared.saveSnapshot(widgetData)
+
             // Автовосстановление сессии Dynamic Island при фоновом пробуждении
             let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
             if isLiveEnabled {
-                let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
                 await MainActor.run {
                     ActivityManager.shared.checkAndRestoreActivity(
                         downloadSpeedText: snapshot.formattedDownloadSpeed,
@@ -121,9 +139,27 @@ public final class BackgroundTaskManager: @unchecked Sendable {
             )
             await TrafficStorage.shared.flush()
 
+            let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
+            let trafficSummary = await TrafficStorage.shared.getTodaySummary()
+
+            let widgetData = NetPulseWidgetData(
+                downloadSpeedMbps: snapshot.downloadMbps,
+                uploadSpeedMbps: snapshot.uploadMbps,
+                pingMs: nil,
+                jitterMs: nil,
+                lossPercent: 0.0,
+                ispName: info.ispName ?? "Интернет",
+                connectionType: info.connectionType.rawValue,
+                todayTrafficBytes: Int64(trafficSummary.totalTraffic),
+                budgetTotalBytes: 5_368_709_120,
+                healthScore: 100,
+                dnsHosts: [],
+                lastUpdated: Date()
+            )
+            WidgetDataManager.shared.saveSnapshot(widgetData)
+
             let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
             if isLiveEnabled {
-                let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
                 await MainActor.run {
                     ActivityManager.shared.checkAndRestoreActivity(
                         downloadSpeedText: snapshot.formattedDownloadSpeed,

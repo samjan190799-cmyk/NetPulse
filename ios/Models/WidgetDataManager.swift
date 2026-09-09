@@ -122,6 +122,7 @@ public final class WidgetDataManager: @unchecked Sendable {
     private let primaryAppGroupSuite = "group.com.samvel.netpulse"
     private let legacyAppGroupSuite = "group.com.samjan.netpulse"
     private let dataKey = "netpulse_widget_shared_snapshot_v1"
+    private let lock = NSLock()
 
     private var defaultsList: [UserDefaults] {
         var list: [UserDefaults] = []
@@ -137,9 +138,11 @@ public final class WidgetDataManager: @unchecked Sendable {
 
     private init() {}
 
-    /// Сохранение снимка состояния для виджетов во все доступные хранилища
+    /// Сохранение снимка состояния для виджетов во все доступные хранилища (потокобезопасно)
     public func saveSnapshot(_ data: NetPulseWidgetData) {
         guard let encoded = try? JSONEncoder().encode(data) else { return }
+        lock.lock()
+        defer { lock.unlock() }
         for defaults in defaultsList {
             defaults.set(encoded, forKey: dataKey)
             defaults.synchronize()
@@ -149,8 +152,10 @@ public final class WidgetDataManager: @unchecked Sendable {
         #endif
     }
 
-    /// Загрузка последнего сохраненного снимка данных с каскадным поиском
+    /// Загрузка последнего сохраненного снимка данных с каскадным поиском (потокобезопасно)
     public func loadLatestSnapshot() -> NetPulseWidgetData {
+        lock.lock()
+        defer { lock.unlock() }
         for defaults in defaultsList {
             if let raw = defaults.data(forKey: dataKey),
                let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: raw) {
@@ -160,3 +165,4 @@ public final class WidgetDataManager: @unchecked Sendable {
         return .placeholder
     }
 }
+

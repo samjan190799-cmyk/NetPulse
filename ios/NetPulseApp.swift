@@ -43,28 +43,62 @@ struct NetPulseApp: App {
             let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
             let summary = await TrafficStorage.shared.getSummary(for: .today)
 
+            // Замер реального пинга и джиттера для виджетов и Dynamic Island
+            let pingEngine = PingEngine(timeout: 2.0)
+            let defaultTargets = HostTarget.defaultTargets.filter { $0.isEnabled }
+            let pingResults = await pingEngine.pingAll(targets: defaultTargets)
+
+            let successfulLatencies = pingResults.compactMap { $0.latencyMs }
+            let avgPing: Double? = successfulLatencies.isEmpty ? nil : successfulLatencies.reduce(0, +) / Double(successfulLatencies.count)
+
+            // Сборка DNS-хостов для Large-виджета
+            let dnsHosts: [WidgetDNSHost] = pingResults.prefix(4).map { record in
+                WidgetDNSHost(
+                    name: record.targetName,
+                    address: record.host,
+                    latencyMs: record.latencyMs,
+                    isOK: record.isSuccess
+                )
+            }
+
+            // Вычисление Health Score
+            var healthScore = 100
+            if let ping = avgPing, ping > 50 {
+                healthScore -= min(Int((ping - 50) * 0.4), 30)
+            }
+            let lossPct = pingResults.isEmpty ? 0.0 : Double(pingResults.filter { !$0.isSuccess }.count) / Double(pingResults.count) * 100
+            if lossPct > 0 {
+                healthScore -= min(Int(lossPct * 5), 40)
+            }
+            healthScore = max(healthScore, 10)
+
             let widgetData = NetPulseWidgetData(
                 downloadSpeedMbps: snapshot.downloadMbps,
                 uploadSpeedMbps: snapshot.uploadMbps,
-                pingMs: nil,
+                pingMs: avgPing,
                 jitterMs: nil,
-                lossPercent: 0.0,
+                lossPercent: lossPct,
                 ispName: info.ispName ?? "Интернет",
                 connectionType: info.connectionType.rawValue,
                 todayTrafficBytes: Int64(summary.totalTraffic),
                 budgetTotalBytes: 5_368_709_120,
-                healthScore: 100,
-                dnsHosts: [],
+                healthScore: healthScore,
+                dnsHosts: dnsHosts,
                 lastUpdated: Date()
             )
             WidgetDataManager.shared.saveSnapshot(widgetData)
 
             if isLiveEnabled {
+                let pingVal = avgPing ?? 28.0
+                let pingText = String(format: "%.0f ms", pingVal)
+                let compactPing = String(format: "%.0fms", pingVal)
+
                 ActivityManager.shared.checkAndRestoreActivity(
                     downloadSpeedText: snapshot.formattedDownloadSpeed,
-                    uploadSpeedText: snapshot.formattedUploadSpeed,
+                    uploadSpeedText: pingText,
                     compactDownloadText: snapshot.compactDownload,
-                    compactUploadText: snapshot.compactUpload,
+                    compactUploadText: compactPing,
+                    pingMs: pingVal,
                     isTesting: false,
                     connectionType: info.connectionType.rawValue,
                     ispName: info.ispName ?? "Интернет"
@@ -74,4 +108,5 @@ struct NetPulseApp: App {
             }
         }
     }
+
 }

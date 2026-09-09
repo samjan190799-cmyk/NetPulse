@@ -19,7 +19,7 @@ public struct NetPulseWidgetEntry: TimelineEntry {
     }
 }
 
-/// Поставщик таймлайна для домашних виджетов и экрана блокировки NetPulse
+/// Поставщик таймлайна для домашних виджетов и экрана блокировки NetPulse (async/await, iOS 17+)
 public struct NetPulseWidgetProvider: TimelineProvider {
     public init() {}
 
@@ -27,13 +27,13 @@ public struct NetPulseWidgetProvider: TimelineProvider {
         NetPulseWidgetEntry(date: Date(), data: .placeholder)
     }
 
-    public func getSnapshot(in context: Context, completion: @escaping (NetPulseWidgetEntry) -> Void) {
+    public func getSnapshot(in context: Context, completion: @escaping @Sendable (NetPulseWidgetEntry) -> Void) {
         let snapshotData = WidgetDataManager.shared.loadLatestSnapshot()
         let entry = NetPulseWidgetEntry(date: Date(), data: snapshotData)
         completion(entry)
     }
 
-    public func getTimeline(in context: Context, completion: @escaping (Timeline<NetPulseWidgetEntry>) -> Void) {
+    public func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<NetPulseWidgetEntry>) -> Void) {
         let currentData = WidgetDataManager.shared.loadLatestSnapshot()
         let currentDate = Date()
         let entry = NetPulseWidgetEntry(date: currentDate, data: currentData)
@@ -44,6 +44,7 @@ public struct NetPulseWidgetProvider: TimelineProvider {
         completion(timeline)
     }
 }
+
 
 // MARK: - Представление виджета для всех семейств экранов
 

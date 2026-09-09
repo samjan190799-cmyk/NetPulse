@@ -528,8 +528,8 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // Строгий такт 2.0 секунды: идеальный баланс плавности, защиты от перегрева и лимитов ActivityKit
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                // Строгий такт 1.0 секунда: непрерывное обновление Dynamic Island без замирания
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
     }

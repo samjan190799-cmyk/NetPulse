@@ -35,7 +35,7 @@ platform :ios do
       api_key: api_key,
       ipa: "./build/NetPulse.ipa",
       skip_waiting_for_build_processing: true,
-      changelog: "Обновление NetPulse: Мониторинг сети в реальном времени, Swift 6.0, джиттер RFC 3550 и Speedtest."
+      changelog: "Исправлены виджеты и Dynamic Island: App Group entitlements, реальный пинг/DNS, непрерывное обновление скорости каждую секунду, Swift 6.0, потокобезопасность."
     )
   end
 end

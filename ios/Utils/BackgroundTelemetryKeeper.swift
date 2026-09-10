@@ -69,17 +69,16 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
     private func setupAudioSessionObservers() {
         removeAudioSessionObservers()
 
-        // 1. Прерывания (Входящие звонки, Siri, будильники)
         let interruptionObs = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
-            let userInfo = notification.userInfo
+            // Извлекаем Sendable-значение (UInt) до границы Task
+            let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
             Task { @MainActor [weak self] in
                 guard let self = self, self.isRunning else { return }
-                guard let userInfo,
-                      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                guard let typeValue,
                       let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
                     return
                 }
@@ -104,11 +103,11 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
-            let userInfo = notification.userInfo
+            // Извлекаем Sendable-значение (UInt) до границы Task
+            let reasonValue = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
             Task { @MainActor [weak self] in
                 guard let self = self, self.isRunning else { return }
-                guard let userInfo,
-                      let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                guard let reasonValue,
                       let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
                     return
                 }

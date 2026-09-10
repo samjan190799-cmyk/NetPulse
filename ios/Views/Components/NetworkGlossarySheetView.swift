@@ -15,7 +15,7 @@ public struct NetworkGlossarySheetView: View {
 
     public init() {}
 
-    public enum GlossaryCategory: String, CaseIterable, Identifiable {
+    public enum GlossaryCategory: String, CaseIterable, Identifiable, Sendable {
         case all = "Все"
         case metrics = "Метрики"
         case network = "Сеть и IP"

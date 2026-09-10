@@ -75,9 +75,10 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
+            let userInfo = notification.userInfo
             Task { @MainActor [weak self] in
                 guard let self = self, self.isRunning else { return }
-                guard let userInfo = notification.userInfo,
+                guard let userInfo,
                       let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
                       let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
                     return
@@ -103,9 +104,10 @@ public final class BackgroundTelemetryKeeper: NSObject, AVAudioPlayerDelegate {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
+            let userInfo = notification.userInfo
             Task { @MainActor [weak self] in
                 guard let self = self, self.isRunning else { return }
-                guard let userInfo = notification.userInfo,
+                guard let userInfo,
                       let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
                       let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
                     return

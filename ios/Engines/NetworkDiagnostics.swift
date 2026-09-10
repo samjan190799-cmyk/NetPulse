@@ -255,10 +255,10 @@ public actor NetworkDiagnostics {
 }
 
 /// Потокобезопасный бокс однократного возобновления CheckedContinuation
-public final class SafeContinuationBox<T>: @unchecked Sendable {
+public final class SafeContinuationBox<T: Sendable>: @unchecked Sendable {
     private var isResumed = false
     private let lock = NSLock()
-    private var continuation: CheckedContinuation<T, Never>?
+    nonisolated(unsafe) private var continuation: CheckedContinuation<T, Never>?
 
     public init(_ continuation: CheckedContinuation<T, Never>) {
         self.continuation = continuation

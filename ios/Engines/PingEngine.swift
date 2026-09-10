@@ -9,8 +9,8 @@ import Foundation
 import Network
 
 /// Потокобезопасная обертка для CheckedContinuation во избежание множественного возобновления
-private final class SafeContinuation<T, E: Error>: @unchecked Sendable {
-    private var continuation: CheckedContinuation<T, E>?
+private final class SafeContinuation<T: Sendable, E: Error>: @unchecked Sendable {
+    nonisolated(unsafe) private var continuation: CheckedContinuation<T, E>?
     private let lock = NSLock()
 
     init(_ continuation: CheckedContinuation<T, E>) {

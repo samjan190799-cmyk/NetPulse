@@ -74,7 +74,11 @@ public final class BackgroundTaskManager: @unchecked Sendable {
         // Планируем следующий запуск
         scheduleBackgroundFetch()
 
-        let queueTask = Task {
+        // nonisolated(unsafe): BGAppRefreshTask не Sendable, но мы гарантируем
+        // последовательный доступ (запись только из одного места)
+        nonisolated(unsafe) let bgTask = task
+
+        let queueTask = Task { @Sendable in
             let diagnostics = NetworkDiagnostics()
             let info = await diagnostics.collectSystemInfo()
             await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
@@ -118,19 +122,21 @@ public final class BackgroundTaskManager: @unchecked Sendable {
                 }
             }
 
-            task.setTaskCompleted(success: true)
+            bgTask.setTaskCompleted(success: true)
         }
 
         task.expirationHandler = {
             queueTask.cancel()
-            task.setTaskCompleted(success: false)
+            bgTask.setTaskCompleted(success: false)
         }
     }
 
     private func handleTelemetryProcessingTask(_ task: BGProcessingTask) {
         scheduleBackgroundFetch()
 
-        let queueTask = Task {
+        nonisolated(unsafe) let bgTask = task
+
+        let queueTask = Task { @Sendable in
             let diagnostics = NetworkDiagnostics()
             let info = await diagnostics.collectSystemInfo()
             await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
@@ -173,12 +179,12 @@ public final class BackgroundTaskManager: @unchecked Sendable {
                 }
             }
 
-            task.setTaskCompleted(success: true)
+            bgTask.setTaskCompleted(success: true)
         }
 
         task.expirationHandler = {
             queueTask.cancel()
-            task.setTaskCompleted(success: false)
+            bgTask.setTaskCompleted(success: false)
         }
     }
 }

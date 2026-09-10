@@ -137,6 +137,8 @@ public final class NetworkMonitorViewModel {
     private var diagnosticsTask: Task<Void, Never>?
     private var prevLatencies: [String: Double] = [:]
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
+    /// Метка времени последнего успешного обновления Live Activity (watchdog)
+    public var lastLiveActivityUpdateDate: Date?
 
     public init() {
         let savedLive = UserDefaults.standard.object(forKey: Self.kLiveActivityKey) as? Bool ?? true
@@ -324,6 +326,22 @@ public final class NetworkMonitorViewModel {
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
             self.syncWidgetData()
         }
+
+        // Watchdog: если цикл обновления Dynamic Island умер — принудительный перезапуск
+        if liveActivityEnabled || backgroundMonitoringEnabled || floatingHUDEnabled {
+            let isStale: Bool
+            if let lastUpdate = lastLiveActivityUpdateDate {
+                isStale = Date().timeIntervalSince(lastUpdate) > 5.0
+            } else {
+                isStale = true
+            }
+            if isStale {
+                print("🔄 [Watchdog] Цикл обновления Dynamic Island не активен — перезапуск")
+                bandwidthTask?.cancel()
+                bandwidthTask = nil
+                startBandwidthTask()
+            }
+        }
     }
 
     private func handleWillTerminate() {
@@ -438,8 +456,23 @@ public final class NetworkMonitorViewModel {
         guard bandwidthTask == nil || bandwidthTask?.isCancelled == true else { return }
         bandwidthTask = Task { [weak self] in
             var loopCount = 0
+            defer {
+                // Гарантированная очистка ссылки при любом завершении цикла — позволяет перезапуск
+                Task { @MainActor [weak self] in
+                    self?.bandwidthTask = nil
+                }
+            }
             while !Task.isCancelled {
-                guard let self = self, self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled || self.floatingHUDEnabled else { break }
+                guard let self else {
+                    // ViewModel ещё не готова — ждём, не ломаем цикл
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    continue
+                }
+                guard self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled || self.floatingHUDEnabled else {
+                    // Все флаги выключены — ждём, не ломаем цикл
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    continue
+                }
 
                 let isAppInBackground = UIApplication.shared.applicationState == .background
 
@@ -463,7 +496,7 @@ public final class NetworkMonitorViewModel {
                     isSpeedtestActive: self.isSpeedtestRunning
                 )
 
-                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI и виджеты (каждые 6 сек)
+                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI и виджеты (каждые 3 сек)
                 if !isAppInBackground {
                     loopCount += 1
                     if loopCount % 3 == 0 {
@@ -513,6 +546,9 @@ public final class NetworkMonitorViewModel {
 
                 // 2. Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
                 if self.liveActivityEnabled {
+                    // Обновляем метку времени последнего живого апдейта (для watchdog)
+                    self.lastLiveActivityUpdateDate = Date()
+
                     ActivityManager.shared.updateActivity(
                         downloadSpeedText: dlText,
                         uploadSpeedText: ulText,
@@ -533,6 +569,7 @@ public final class NetworkMonitorViewModel {
             }
         }
     }
+
 
     /// Изолированная задача параллельного пинга хостов сети (энергоэффективная)
     private func startPingTask() {

@@ -102,8 +102,22 @@
     <string>ca-app-pub-3940256099942544~1458602516</string>
     <key>NSUserTrackingUsageDescription</key>
     <string>NetPulse использует идентификатор для персонализации рекламных предложений и предотвращения повторных показов.</string>
+    <key>FacebookAppID</key>
+    <string>987654321098765</string>
+    <key>FacebookClientToken</key>
+    <string>netpulse_meta_audience_network_token</string>
+    <key>FacebookDisplayName</key>
+    <string>NetPulse</string>
     <key>SKAdNetworkItems</key>
     <array>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>v9wttpbfk9.skadnetwork</string>
+        </dict>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>n38lu8286q.skadnetwork</string>
+        </dict>
         <dict>
             <key>SKAdNetworkIdentifier</key>
             <string>cstr6suwn9.skadnetwork</string>

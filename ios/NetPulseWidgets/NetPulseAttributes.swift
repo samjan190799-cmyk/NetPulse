@@ -29,10 +29,10 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
         public var packetLossPct: Double?
 
         public init(
-            downloadSpeedText: String = "100 Мбит/с",
-            uploadSpeedText: String = "45 мс",
-            compactDownloadText: String = "100M",
-            compactUploadText: String = "45ms",
+            downloadSpeedText: String = "0 Мбит/с",
+            uploadSpeedText: String = "0 Мбит/с",
+            compactDownloadText: String = "0B",
+            compactUploadText: String = "0B",
             pingMs: Double? = nil,
             jitterMs: Double? = nil,
             isTesting: Bool = false,
@@ -66,4 +66,3 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
     }
 }
 #endif
-

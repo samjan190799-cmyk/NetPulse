@@ -90,14 +90,12 @@ struct NetPulseApp: App {
 
             if isLiveEnabled {
                 let pingVal = avgPing ?? 28.0
-                let pingText = String(format: "%.0f ms", pingVal)
-                let compactPing = String(format: "%.0fms", pingVal)
 
                 ActivityManager.shared.checkAndRestoreActivity(
                     downloadSpeedText: snapshot.formattedDownloadSpeed,
-                    uploadSpeedText: pingText,
+                    uploadSpeedText: snapshot.formattedUploadSpeed,
                     compactDownloadText: snapshot.compactDownload,
-                    compactUploadText: compactPing,
+                    compactUploadText: snapshot.compactUpload,
                     pingMs: pingVal,
                     isTesting: false,
                     connectionType: info.connectionType.rawValue,

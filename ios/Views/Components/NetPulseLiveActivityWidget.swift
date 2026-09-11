@@ -2,7 +2,7 @@
 //  NetPulseLiveActivityWidget.swift
 //  NetPulse
 //
-//  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
+//  Created for iOS (Swift 6.0+ / SwiftUI / ActivityKit) - 2026.
 //
 
 import SwiftUI
@@ -25,104 +25,114 @@ public struct NetPulseLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 // MARK: - Расширенный вид (Expanded Region)
+                // Левый регион: Скачивание (Download Speed)
                 DynamicIslandExpandedRegion(.leading) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 4) {
                             Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "arrow.down")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
                             Text(context.state.isGamingMode ? (context.state.gameTitle ?? "ГЕЙМИНГ") : "СКАЧИВАНИЕ")
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: 10, weight: .heavy))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                         Text(context.state.downloadSpeedText)
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.7)
                     }
                     .padding(.leading, 8)
                 }
 
+                // Правый регион: Отдача или живой RTT пинг
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: 3) {
                         HStack(spacing: 4) {
                             Text(context.state.isTesting ? "ОТДАЧА" : (context.state.isGamingMode ? "PING RTT" : "RTT ПИНГ"))
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: 10, weight: .heavy))
                                 .foregroundStyle(.secondary)
-                            Image(systemName: context.state.isTesting ? "arrow.up" : (context.state.isGamingMode ? "bolt.fill" : "network"))
+                            Image(systemName: context.state.isTesting ? "arrow.up" : "bolt.fill")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(pingColor(context.state.pingMs))
+                                .foregroundStyle(context.state.isTesting ? Color.mint : pingColor(context.state.pingMs))
                         }
                         Text(context.state.isTesting ? context.state.uploadSpeedText : (context.state.pingMs != nil ? String(format: "%.0f ms", context.state.pingMs!) : context.state.uploadSpeedText))
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.7)
                     }
                     .padding(.trailing, 8)
                 }
 
-                DynamicIslandExpandedRegion(.center) {
-                    VStack(spacing: 2) {
-                        HStack(spacing: 4) {
+                // Нижний регион: Полноразмерная информационная панель под камерой TrueDepth
+                DynamicIslandExpandedRegion(.bottom) {
+                    HStack(spacing: 8) {
+                        // Левый чип: Сеть и провайдер
+                        HStack(spacing: 5) {
                             Circle()
-                                .fill(context.state.isGamingMode ? Color.mint : Color.green)
+                                .fill(pingColor(context.state.pingMs))
                                 .frame(width: 6, height: 6)
-                            Text(context.state.isGamingMode ? (context.state.gameRegion ?? cleanISP(context.state.ispName)) : cleanISP(context.state.ispName))
-                                .font(.system(size: 12, weight: .semibold))
+                            Text(cleanConnType(context.state.connectionType))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(.white)
+                            Text("•")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.white.opacity(0.4))
+                            Text(context.state.isGamingMode ? (context.state.gameRegion ?? cleanISP(context.state.ispName)) : cleanISP(context.state.ispName))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.7))
                                 .lineLimit(1)
                         }
-                        Text(cleanConnType(context.state.connectionType))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Capsule())
 
-                DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        HStack(spacing: 4) {
-                            Image(systemName: context.state.isGamingMode ? "gamecontroller" : "waveform.path.ecg")
-                                .font(.system(size: 10))
-                                .foregroundStyle(context.state.isGamingMode ? .mint : .cyan)
-                            Text(context.state.isGamingMode ? "Киберспортивный HUD" : "NetPulse Мониторинг")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
                         Spacer()
+
+                        // Правый блок: Статус замера, джиттер и процент потерь
                         if context.state.isTesting {
                             Text("Speedtest активен")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(.cyan)
-                        } else if let jitter = context.state.jitterMs, jitter > 0 {
-                            HStack(spacing: 5) {
-                                Text("Джиттер: ±\(String(format: "%.1f", jitter))мс")
-                                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(.secondary)
+                        } else {
+                            HStack(spacing: 6) {
+                                if let jitter = context.state.jitterMs, jitter > 0 {
+                                    Text("±\(String(format: "%.1f", jitter))мс")
+                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.white.opacity(0.6))
+                                }
 
                                 if let loss = context.state.packetLossPct, loss > 0 {
                                     Text("Loss \(Int(loss))%")
                                         .font(.system(size: 9, weight: .heavy))
                                         .foregroundStyle(.red)
-                                        .padding(.horizontal, 4)
-                                        .padding(.vertical, 1)
-                                        .background(Color.red.opacity(0.15))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.red.opacity(0.18))
                                         .clipShape(Capsule())
                                 }
-                            }
-                        } else {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 5, height: 5)
-                                Text("Онлайн")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.green)
+
+                                if !isPingValue(context.state.compactUploadText) && !isNegligibleUpload(context.state.compactUploadText) {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "arrow.up")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundStyle(Color.mint)
+                                        Text(cleanUpload(context.state.compactUploadText))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .monospacedDigit()
+                                            .foregroundStyle(Color.mint)
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.mint.opacity(0.12))
+                                    .clipShape(Capsule())
+                                }
                             }
                         }
                     }
@@ -131,25 +141,37 @@ public struct NetPulseLiveActivityWidget: Widget {
                 }
             } compactLeading: {
                 // MARK: - Компактный вид слева
-                HStack(spacing: 2.5) {
+                HStack(spacing: 3) {
                     Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "arrow.down")
                         .font(.system(size: 9, weight: .heavy))
                         .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
                     Text(cleanDownload(context.state.compactDownloadText))
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
             } compactTrailing: {
-                // MARK: - Компактный вид справа
-                HStack(spacing: 2.5) {
-                    if context.state.isGamingMode {
-                        // Киберспортивный режим (PRO): живой RTT пинг
+                // MARK: - Компактный вид справа (БЕЗ ложных стрелок вверх для пинга)
+                HStack(spacing: 3) {
+                    if context.state.isTesting {
+                        // Активный замер отдачи: скорость со стрелкой вверх
+                        Text(cleanUpload(context.state.compactUploadText))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(Color.mint)
+                    } else if context.state.isGamingMode || isPingValue(context.state.compactUploadText) || isNegligibleUpload(context.state.compactUploadText) {
+                        // Живой пинг: цветной статус-индикатор + значение RTT (БЕЗ стрелки вверх)
                         Circle()
                             .fill(pingColor(context.state.pingMs))
                             .frame(width: 5, height: 5)
+                            .shadow(color: pingColor(context.state.pingMs).opacity(0.6), radius: 2)
                         Text(cleanPing(context.state.compactUploadText, ping: context.state.pingMs))
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .monospacedDigit()
@@ -157,9 +179,9 @@ public struct NetPulseLiveActivityWidget: Widget {
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     } else {
-                        // Базовый режим: чистая скорость отдачи (Upload)
+                        // Реальная активная отдача трафика (> 50 КБ/с)
                         Text(cleanUpload(context.state.compactUploadText))
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
                             .lineLimit(1)
@@ -170,18 +192,23 @@ public struct NetPulseLiveActivityWidget: Widget {
                     }
                 }
             } minimal: {
-                // MARK: - Минимальный вид
-                HStack(spacing: 2) {
-                    Image(systemName: context.state.isGamingMode ? "gamecontroller.fill" : "arrow.down")
-                        .font(.system(size: 8, weight: .heavy))
-                        .foregroundStyle(context.state.isGamingMode ? Color.mint : Color.cyan)
-                    Text(context.state.isGamingMode ? cleanPing(context.state.compactUploadText, ping: context.state.pingMs) : cleanDownload(context.state.compactDownloadText))
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                // MARK: - Минимальный вид (Apple HIG: идеальное вписывание в круг 12pt без обрезки)
+                ZStack {
+                    if context.state.isGamingMode {
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.mint)
+                    } else if context.state.isTesting {
+                        Image(systemName: "speedometer")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.cyan)
+                    } else {
+                        Image(systemName: "waveform.path.ecg")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(pingColor(context.state.pingMs))
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -200,20 +227,27 @@ public struct NetPulseLiveActivityWidget: Widget {
         return s.isEmpty ? "0 B" : s
     }
 
+    private func isPingValue(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        return lower.contains("ms") || lower.contains("мс")
+    }
+
+    private func isNegligibleUpload(_ text: String) -> Bool {
+        let s = cleanUpload(text).lowercased()
+        return s == "0 b" || s == "0b" || s == "0 k" || s == "0k" || s == "0 m" || s == "0" || s.isEmpty
+    }
+
     private func cleanPing(_ text: String, ping: Double?) -> String {
+        if let p = ping, p > 0 {
+            return String(format: "%.0fms", p)
+        }
         let s = text.replacingOccurrences(of: "↓", with: "")
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
         if s.contains("ms") || s.contains("мс") {
             return s
         }
-        if let p = ping, p > 0 {
-            return String(format: "%.0fms", p)
-        }
-        if s.isEmpty || s == "0K" || s == "0" {
-            return "Live"
-        }
-        return s
+        return "Live"
     }
 
     private func pingColor(_ ping: Double?) -> Color {
@@ -285,9 +319,9 @@ private struct LockScreenLiveActivityView: View {
                     }
 
                     HStack(spacing: 4) {
-                        Image(systemName: state.isTesting ? "arrow.up" : (state.isGamingMode ? "bolt.fill" : "network"))
+                        Image(systemName: state.isTesting ? "arrow.up" : (state.isGamingMode ? "bolt.fill" : "arrow.up"))
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(statusColor)
+                            .foregroundStyle(state.isTesting ? Color.mint : statusColor)
                         Text(state.uploadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
@@ -325,4 +359,3 @@ private struct LockScreenLiveActivityView: View {
     }
 }
 #endif
-

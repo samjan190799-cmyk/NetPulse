@@ -33,20 +33,23 @@ public struct DiagnosticsView: View {
                             }
                         )
 
-                        // 2. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
+                        // 2. Рекламный баннер Meta Audience Network на видном месте
+                        MetaBannerView(contextTag: "Диагностика сети")
+
+                        // 3. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
                         proUtilitiesHub
 
-                        // 3. Блок быстрого пинга произвольного хоста / IP
+                        // 4. Блок быстрого пинга произвольного хоста / IP
                         quickPingSection
 
-                        // 4. График задержки (Swift Charts)
+                        // 5. График задержки (Swift Charts)
                         LatencyChartView(hostMetrics: viewModel.hostMetrics)
 
-                        // 5. Секция целевых узлов (DNS / Шлюз)
+                        // 6. Секция целевых узлов (DNS / Шлюз)
                         targetsSection
                     }
                     .padding(16)
-                    .padding(.bottom, 90)
+                    .padding(.bottom, 110) // Безопасный отступ для закрепленного баннера Meta и таб-бара
                 }
 
                 // Всплывающий баннер алертов

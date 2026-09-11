@@ -71,6 +71,14 @@ public struct ContentView: View {
                 }
             }
 
+            // Закрепленный рекламный баннер Meta Audience Network над системным таб-баром
+            VStack(spacing: 0) {
+                Spacer()
+                MetaStickyBottomBannerView()
+                    .padding(.bottom, 49) // Высота стандартного таб-бара iOS
+            }
+            .ignoresSafeArea(.keyboard)
+
             // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх других приложений и рабочего стола
             if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
                 PiPAnchorRepresentable(viewModel: viewModel)

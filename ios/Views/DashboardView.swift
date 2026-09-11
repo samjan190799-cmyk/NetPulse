@@ -106,19 +106,18 @@ public struct DashboardView: View {
                             .transition(.scale.combined(with: .opacity))
                         }
 
-                        // 2. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN)
-                        quickToolsSection
+                        // 2. Рекламный баннер Meta Audience Network на самом видном месте
+                        MetaBannerView(contextTag: "Сетевые утилиты")
 
-                        // 3. Нативная рекламная карточка (AdMob Native Ad)
-                        AdMobNativeAdCardView(contextTag: "Сетевые утилиты")
-                            .padding(.horizontal, -16)
+                        // 3. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN)
+                        quickToolsSection
 
                         // 4. Блок оценки применимости скорости (Для чего подходит сеть)
                         NetworkCapabilityCardView(items: capabilities)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
-                    .padding(.bottom, 90) // Безопасный отступ для плавающего таб-бара
+                    .padding(.bottom, 110) // Безопасный отступ для закрепленного баннера Meta и таб-бара
                 }
             }
             .navigationTitle("NetPulse")

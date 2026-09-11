@@ -872,12 +872,14 @@ public final class NetworkMonitorViewModel {
                         downloadSpeedText: String(format: "%.1f Мбит/с", result.downloadMbps),
                         uploadSpeedText: String(format: "%.1f Мбит/с", result.uploadMbps),
                         compactDownloadText: String(format: "%.0fM", result.downloadMbps),
-                        compactUploadText: ping != nil ? String(format: "%.0fms", ping!) : String(format: "%.0fM", result.uploadMbps),
+                        compactUploadText: self.floatingHUDEnabled ? (ping != nil ? String(format: "%.0fms", ping!) : "—") : String(format: "%.0fM", result.uploadMbps),
                         pingMs: ping,
                         jitterMs: self.currentAverageJitter,
                         isTesting: false,
                         connectionType: self.systemInfo.connectionType.rawValue,
                         ispName: self.systemInfo.ispName ?? "Мобильный интернет",
+                        isGamingMode: self.floatingHUDEnabled,
+                        packetLossPct: self.currentPacketLossPct,
                         force: true
                     )
                 }

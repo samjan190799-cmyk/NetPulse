@@ -39,10 +39,10 @@ public final class ActivityManager {
 
     /// Восстановление или запуск сессии Dynamic Island
     public func checkAndRestoreActivity(
-        downloadSpeedText: String = "100 Мбит/с",
-        uploadSpeedText: String = "45 мс",
-        compactDownloadText: String = "100M",
-        compactUploadText: String = "45ms",
+        downloadSpeedText: String = "0 Мбит/с",
+        uploadSpeedText: String = "0 Мбит/с",
+        compactDownloadText: String = "0B",
+        compactUploadText: String = "0B",
         pingMs: Double? = nil,
         jitterMs: Double? = nil,
         isTesting: Bool = false,
@@ -103,10 +103,10 @@ public final class ActivityManager {
 
     /// Запуск Live Activity в Dynamic Island с реальной скоростью загрузки и отдачи
     public func startActivity(
-        downloadSpeedText: String = "100 Мбит/с",
-        uploadSpeedText: String = "45 мс",
-        compactDownloadText: String = "100M",
-        compactUploadText: String = "45ms",
+        downloadSpeedText: String = "0 Мбит/с",
+        uploadSpeedText: String = "0 Мбит/с",
+        compactDownloadText: String = "0B",
+        compactUploadText: String = "0B",
         pingMs: Double? = nil,
         jitterMs: Double? = nil,
         isTesting: Bool = false,
@@ -255,7 +255,17 @@ public final class ActivityManager {
 
         self.currentActivity = activity
         self.isLiveActivityActive = true
+
+        // Если предыдущее обновление еще в обработке и не форсировано — сохраняем в очередь
+        if isUpdating && !force {
+            self.queuedState = updatedState
+            return
+        }
+
+        self.isUpdating = true
+        self.queuedState = nil
         self.lastContentState = updatedState
+        self.lastUpdateDate = Date()
 
         let content = ActivityContent(
             state: updatedState,
@@ -263,11 +273,41 @@ public final class ActivityManager {
             relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
-        Task {
+        Task { [weak self] in
             await activity.update(content)
+            // Минимальный интервал между вызовами (350 мс) предотвращает троттлинг ActivityKit
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            self?.processNextQueuedUpdate()
         }
         #endif
     }
+
+    #if canImport(ActivityKit)
+    /// Обработка накопленного обновления из очереди (FIFO)
+    private func processNextQueuedUpdate() {
+        guard let nextState = queuedState, let activity = currentActivity, activity.activityState == .active else {
+            self.isUpdating = false
+            self.queuedState = nil
+            return
+        }
+
+        self.queuedState = nil
+        self.lastContentState = nextState
+        self.lastUpdateDate = Date()
+
+        let content = ActivityContent(
+            state: nextState,
+            staleDate: Date().addingTimeInterval(28800),
+            relevanceScore: nextState.isTesting ? 100.0 : (nextState.isGamingMode ? 90.0 : 80.0)
+        )
+
+        Task { [weak self] in
+            await activity.update(content)
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            self?.processNextQueuedUpdate()
+        }
+    }
+    #endif
 
     /// Остановка Live Activity
     public func stopActivity() {

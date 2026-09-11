@@ -78,26 +78,27 @@ public struct TrafficView: View {
                     // 3. Главная сводная карточка расхода трафика
                     heroSummaryCard
 
-                    // 4. 24-часовая тепловая карта сетевой активности (Traffic Heatmap)
+                    // 4. Рекламный баннер Meta Audience Network на видном месте
+                    MetaBannerView(contextTag: "Трафик и безопасность")
+                        .padding(.horizontal)
+
+                    // 5. 24-часовая тепловая карта сетевой активности (Traffic Heatmap)
                     trafficHeatmapSection
 
-                    // Спонсорский блок безопасности трафика
-                    AdMobNativeAdCardView(contextTag: "Безопасность трафика")
-
-                    // 5. На что потрачен трафик (Категории сетевой активности)
+                    // 6. На что потрачен трафик (Категории сетевой активности)
                     trafficCategoriesSection
 
-                    // 6. График расхода трафика во времени
+                    // 7. График расхода трафика во времени
                     trafficChartsSection
 
-                    // 7. Контроль бюджета и лимитов трафика
+                    // 8. Контроль бюджета и лимитов трафика
                     budgetQuotaSection
 
-                    // 8. История сессий («Где и сколько потратил»)
+                    // 9. История сессий («Где и сколько потратил»)
                     sessionsHistorySection
                 }
                 .padding(.vertical)
-                .padding(.bottom, 90)
+                .padding(.bottom, 110) // Безопасный отступ для закрепленного баннера Meta и таб-бара
             }
             .npScreenBackground()
             .navigationTitle("Трафик")

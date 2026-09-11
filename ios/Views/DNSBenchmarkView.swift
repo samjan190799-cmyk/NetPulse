@@ -46,8 +46,9 @@ public struct DNSBenchmarkView: View {
                     // 3. Список серверов в реальном времени с медалями
                     serversListSection
 
-                    // Нативная реклама безопасных DNS / VPN сервисов
-                    AdMobNativeAdCardView(contextTag: "DNS Защита")
+                    // Рекламный баннер Meta Audience Network на видном месте
+                    MetaBannerView(contextTag: "DNS и безопасность")
+                        .padding(.horizontal)
 
                     // 4. Пояснительная карточка DoH/DoT и безопасности
                     securityExplanationCard

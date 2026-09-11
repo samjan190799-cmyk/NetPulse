@@ -31,7 +31,11 @@ public struct LANScannerView: View {
                     // 1. Сводная карточка подсети и статус безопасности
                     subnetSummaryHeroCard
 
-                    // 2. Индикатор прогресса сканирования подсети
+                    // 2. Рекламный баннер Meta Audience Network на видном месте
+                    MetaBannerView(contextTag: "Безопасность устройств")
+                        .padding(.horizontal)
+
+                    // 3. Индикатор прогресса сканирования подсети
                     if isScanning {
                         scanProgressCard
                     }

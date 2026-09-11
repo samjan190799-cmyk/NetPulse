@@ -32,10 +32,14 @@ public struct GamingRadarView: View {
                     // 2. Карточка лучшего сервера для матча (Matchmaking Advisor)
                     bestServerHeroCard
 
-                    // 3. Список дата-центров выбранной игры
+                    // 3. Рекламный баннер Meta Audience Network на видном месте
+                    MetaBannerView(contextTag: "Гейминг")
+                        .padding(.horizontal)
+
+                    // 4. Список дата-центров выбранной игры
                     clustersListSection
 
-                    // 4. Пояснение киберспортивных критериев задержки (RFC 3550)
+                    // 5. Пояснение киберспортивных критериев задержки (RFC 3550)
                     gamingAdviceCard
                 }
                 .padding(.vertical)

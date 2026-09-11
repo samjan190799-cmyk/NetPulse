@@ -53,7 +53,14 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // 2. Статус и параметры опроса
+                // 2. Спонсорский блок Meta Audience Network на видном месте
+                Section(header: Label("Партнер и спонсор", systemImage: "infinity")) {
+                    MetaBannerView(contextTag: "Meta Ads")
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                }
+
+                // 3. Статус и параметры опроса
                 Section(header: Label("Мониторинг сети", systemImage: "waveform.path.ecg")) {
                     HStack {
                         Text("Статус службы")

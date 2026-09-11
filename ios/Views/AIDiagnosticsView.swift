@@ -52,13 +52,14 @@ public struct AIDiagnosticsView: View {
                                 issuesAndRecommendationsSection(report: report)
                             }
 
-                            // Нативная рекламная карточка (AdMob Native Ad)
-                            AdMobNativeAdCardView(contextTag: "AI Защита")
+                            // 7. Рекламный баннер Meta Audience Network на видном месте
+                            MetaBannerView(contextTag: "AI и безопасность")
+                                .padding(.horizontal)
 
-                            // 7. Сценарии интерактивного мастера траблшутинга
+                            // 8. Сценарии интерактивного мастера траблшутинга
                             troubleshootingScenariosSection
 
-                            // 8. Интерактивный диалог с AI
+                            // 9. Интерактивный диалог с AI
                             chatHistorySection
 
                             // Точка для автоскролла вниз
@@ -67,6 +68,7 @@ public struct AIDiagnosticsView: View {
                                 .id("bottomID")
                         }
                         .padding(.vertical)
+                        .padding(.bottom, 70) // Безопасный отступ для закрепленного баннера Meta и таб-бара
                     }
                     .onChange(of: viewModel.aiMessages.count) { _, _ in
                         withAnimation {

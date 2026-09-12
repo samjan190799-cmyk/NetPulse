@@ -124,6 +124,16 @@ public final class WidgetDataManager: @unchecked Sendable {
     private let dataKey = "netpulse_widget_shared_snapshot_v1"
     private let lock = NSLock()
 
+    private var sharedContainerFileURLs: [URL] {
+        var urls: [URL] = []
+        for suite in [primaryAppGroupSuite, legacyAppGroupSuite] {
+            if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suite) {
+                urls.append(container.appendingPathComponent("netpulse_widget_snapshot.json"))
+            }
+        }
+        return urls
+    }
+
     private var defaultsList: [UserDefaults] {
         var list: [UserDefaults] = []
         if let primary = UserDefaults(suiteName: primaryAppGroupSuite) {
@@ -138,24 +148,42 @@ public final class WidgetDataManager: @unchecked Sendable {
 
     private init() {}
 
-    /// Сохранение снимка состояния для виджетов во все доступные хранилища (потокобезопасно)
+    /// Сохранение снимка состояния для виджетов во все доступные хранилища (файловый контейнер + UserDefaults)
     public func saveSnapshot(_ data: NetPulseWidgetData) {
         guard let encoded = try? JSONEncoder().encode(data) else { return }
         lock.lock()
         defer { lock.unlock() }
+
+        // 1. Атомарная запись в общий файл App Group (наиболее надежный IPC-канал на физических устройствах)
+        for fileURL in sharedContainerFileURLs {
+            try? encoded.write(to: fileURL, options: .atomic)
+        }
+
+        // 2. Запись во все ветки UserDefaults (primary, legacy, standard)
         for defaults in defaultsList {
             defaults.set(encoded, forKey: dataKey)
             defaults.synchronize()
         }
+
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif
     }
 
-    /// Загрузка последнего сохраненного снимка данных с каскадным поиском (потокобезопасно)
+    /// Загрузка последнего сохраненного снимка данных с каскадным поиском (файл контейнера -> UserDefaults -> placeholder)
     public func loadLatestSnapshot() -> NetPulseWidgetData {
         lock.lock()
         defer { lock.unlock() }
+
+        // 1. Приоритетное чтение из файла общего контейнера App Group
+        for fileURL in sharedContainerFileURLs {
+            if let data = try? Data(contentsOf: fileURL),
+               let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: data) {
+                return decoded
+            }
+        }
+
+        // 2. Чтение из UserDefaults (primary -> legacy -> standard)
         for defaults in defaultsList {
             if let raw = defaults.data(forKey: dataKey),
                let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: raw) {

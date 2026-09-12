@@ -80,8 +80,10 @@ public actor DNSBenchmarkEngine {
         }
 
         let avg = latencies.reduce(0.0, +) / Double(latencies.count)
-        let successRate = (Double(latencies.count) / 3.0) * 100.0
-        let jitter = latencies.count > 1 ? abs(latencies.first! - latencies.last!) : 0.0
+        var jitter: Double = 0.0
+        if latencies.count > 1, let first = latencies.first, let last = latencies.last {
+            jitter = abs(first - last)
+        }
 
         return DNSBenchmarkResult(
             provider: provider,

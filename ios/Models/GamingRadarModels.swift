@@ -78,7 +78,9 @@ public struct GameClusterInfo: Identifiable, Codable, Sendable, Hashable {
         let base: UInt32 = 127397
         var s = ""
         for v in countryCode.uppercased().unicodeScalars {
-            s.unicodeScalars.append(UnicodeScalar(base + v.value)!)
+            if let scalar = UnicodeScalar(base + v.value) {
+                s.unicodeScalars.append(scalar)
+            }
         }
         return s
     }

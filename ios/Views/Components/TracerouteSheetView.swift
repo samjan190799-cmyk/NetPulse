@@ -72,7 +72,7 @@ public struct TracerouteSheetView: View {
                         // Сводка хопов
                         HStack(spacing: 10) {
                             HopStatPill(title: "Хопов в пути", value: "\(hops.count)")
-                            HopStatPill(title: "Ср. задержка", value: averageLatency != nil ? String(format: "%.1f мс", averageLatency!) : "—")
+                            HopStatPill(title: "Ср. задержка", value: averageLatency.map { String(format: "%.1f мс", $0) } ?? "—")
                             HopStatPill(
                                 title: "Потери",
                                 value: "\(hops.filter { $0.lossPercent > 0 }.count) узлов",
@@ -259,7 +259,7 @@ private struct NodeHopRowView: View {
             .padding(12)
             .npGlassCard(cornerRadius: 14)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Узел \(hop.hopNumber): \(hop.ipAddress ?? "таймаут"), задержка \(hop.latencyMs != nil ? String(format: "%.1f мс", hop.latencyMs!) : "потеря пакета")")
+            .accessibilityLabel("Узел \(hop.hopNumber): \(hop.ipAddress ?? "таймаут"), задержка \(hop.latencyMs.map { String(format: "%.1f мс", $0) } ?? "потеря пакета")")
         }
         .padding(.bottom, isLast ? 0 : 8)
     }

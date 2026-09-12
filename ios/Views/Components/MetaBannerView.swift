@@ -37,7 +37,7 @@ public struct MetaBannerView: View {
                                 )
                             )
                             .frame(width: 44, height: 44)
-                            .shadow(color: activeAd.customLogoGradient[0].opacity(0.35), radius: 6, y: 2)
+                            .shadow(color: (activeAd.customLogoGradient.first ?? Color.blue).opacity(0.35), radius: 6, y: 2)
 
                         Image(systemName: activeAd.iconSystemName)
                             .font(.system(size: 20, weight: .bold))

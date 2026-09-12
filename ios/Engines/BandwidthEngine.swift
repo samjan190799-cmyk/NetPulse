@@ -152,7 +152,7 @@ public final class BandwidthEngine: @unchecked Sendable {
 
         let currentCounters = Self.fetchDetailedInterfaceBytes()
         let now = Date()
-        let timeDelta = prevTimestamp != nil ? max(now.timeIntervalSince(prevTimestamp!), 0.2) : 1.0
+        let timeDelta = prevTimestamp.map { max(now.timeIntervalSince($0), 0.2) } ?? 1.0
 
         // Дельты по физическим сетевым интерфейсам
         let wifiInDelta = Self.computeDelta(prev: prevCounters.wifiIn, current: currentCounters.wifiIn)

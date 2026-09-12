@@ -212,6 +212,57 @@ public struct SettingsView: View {
                         }
                     }
 
+                    if !ActivityManager.shared.areActivitiesEnabled {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(NPTheme.semanticCritical)
+                                Text("Live Activities отключены в системе")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(NPTheme.semanticCritical)
+                            }
+                            Text("Разрешите показ Live Activities для NetPulse в Настройках iOS, чтобы спидометр отображался в вырезе экрана.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(NPTheme.textSecondary)
+
+                            Button("Открыть Настройки iOS") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                        }
+                        .padding(.vertical, 4)
+                    } else if viewModel.liveActivityEnabled {
+                        HStack {
+                            Circle()
+                                .fill(ActivityManager.shared.isLiveActivityActive ? Color.green : Color.orange)
+                                .frame(width: 8, height: 8)
+                            Text("Статус: \(ActivityManager.shared.statusDescription)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(NPTheme.textSecondary)
+                            Spacer()
+                            Button("Перезапустить") {
+                                HapticManager.shared.impactMedium()
+                                let ping = viewModel.currentAveragePing ?? 28.0
+                                ActivityManager.shared.restartActivity(
+                                    downloadSpeedText: viewModel.liveBandwidth.formattedDownloadSpeed,
+                                    uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
+                                    compactDownloadText: viewModel.liveBandwidth.compactDownload,
+                                    compactUploadText: viewModel.liveBandwidth.compactUpload,
+                                    pingMs: ping,
+                                    jitterMs: viewModel.currentAverageJitter,
+                                    isTesting: viewModel.isSpeedtestRunning,
+                                    connectionType: viewModel.systemInfo.connectionType.rawValue,
+                                    ispName: viewModel.systemInfo.ispName ?? "Мобильный интернет"
+                                )
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(NPTheme.accentPrimary)
+                        }
+                    }
+
                     // Плавающий игровой оверлей (HUD) - PRO Функция
                     Toggle(isOn: Binding(
                         get: { viewModel.floatingHUDEnabled },

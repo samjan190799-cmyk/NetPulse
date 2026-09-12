@@ -87,16 +87,20 @@ public final class SpeechRecognizerManager {
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
 
+        // Предотвращаем NSException 'required condition is false: [self canInstallTapOnBus:bus]'
+        inputNode.removeTap(onBus: 0)
+
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
 
-            // Расчет уровня громкости для анимации звуковой волны
-            let channelData = buffer.floatChannelData?[0]
-            let channelDataValue = channelData?[0] ?? 0.0
-            let level = max(0.0, min(1.0, abs(channelDataValue) * 8.0))
+            // Расчет уровня громкости для анимации звуковой волны (с защитой от разыменования пустых буферов)
+            if buffer.frameLength > 0, let channelData = buffer.floatChannelData {
+                let channelDataValue = channelData.pointee[0]
+                let level = max(0.0, min(1.0, abs(channelDataValue) * 8.0))
 
-            Task { @MainActor in
-                self?.audioLevel = level
+                Task { @MainActor in
+                    self?.audioLevel = level
+                }
             }
         }
 

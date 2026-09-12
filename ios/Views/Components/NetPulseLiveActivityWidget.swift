@@ -58,7 +58,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(context.state.isTesting ? Color.mint : pingColor(context.state.pingMs))
                         }
-                        Text(context.state.isTesting ? context.state.uploadSpeedText : (context.state.pingMs != nil ? String(format: "%.0f ms", context.state.pingMs!) : context.state.uploadSpeedText))
+                        Text(context.state.isTesting ? context.state.uploadSpeedText : (context.state.pingMs.map { String(format: "%.0f ms", $0) } ?? context.state.uploadSpeedText))
                             .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)

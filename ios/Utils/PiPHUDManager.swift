@@ -100,13 +100,14 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
         guard let pip = pipController else { return }
         if pip.isPictureInPictureActive {
             pip.stopPictureInPicture()
-        } else {
+        } else if pip.isPictureInPicturePossible && anchorView?.window != nil {
             pip.startPictureInPicture()
         }
     }
 
     public func startPiP() {
-        pipController?.startPictureInPicture()
+        guard let pip = pipController, pip.isPictureInPicturePossible, anchorView?.window != nil else { return }
+        pip.startPictureInPicture()
     }
 
     public func stopPiP() {

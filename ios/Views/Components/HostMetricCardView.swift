@@ -126,7 +126,7 @@ public struct HostMetricCardView: View {
         )
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: metrics.status)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(metrics.name), адрес \(metrics.address), текущая задержка \(metrics.lastLatencyMs != nil ? String(format: "%.1f", metrics.lastLatencyMs!) : "нет ответа") миллисекунд, статус \(metrics.status.rawValue)")
+        .accessibilityLabel("\(metrics.name), адрес \(metrics.address), текущая задержка \(metrics.lastLatencyMs.map { String(format: "%.1f", $0) } ?? "нет ответа") миллисекунд, статус \(metrics.status.rawValue)")
     }
 
     private func colorForLatency(_ lat: Double) -> Color {

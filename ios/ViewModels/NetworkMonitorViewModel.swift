@@ -665,8 +665,8 @@ public final class NetworkMonitorViewModel {
             }
 
             // Min / Max / Avg
-            m.minLatencyMs = m.minLatencyMs != nil ? min(m.minLatencyMs!, lat) : lat
-            m.maxLatencyMs = m.maxLatencyMs != nil ? max(m.maxLatencyMs!, lat) : lat
+            m.minLatencyMs = m.minLatencyMs.map { min($0, lat) } ?? lat
+            m.maxLatencyMs = m.maxLatencyMs.map { max($0, lat) } ?? lat
 
             let totalLat = (m.avgLatencyMs ?? lat) * Double(m.receivedCount - 1) + lat
             m.avgLatencyMs = totalLat / Double(m.receivedCount)
@@ -872,7 +872,7 @@ public final class NetworkMonitorViewModel {
                         downloadSpeedText: String(format: "%.1f Мбит/с", result.downloadMbps),
                         uploadSpeedText: String(format: "%.1f Мбит/с", result.uploadMbps),
                         compactDownloadText: String(format: "%.0fM", result.downloadMbps),
-                        compactUploadText: self.floatingHUDEnabled ? (ping != nil ? String(format: "%.0fms", ping!) : "—") : String(format: "%.0fM", result.uploadMbps),
+                        compactUploadText: self.floatingHUDEnabled ? (ping.map { String(format: "%.0fms", $0) } ?? "—") : String(format: "%.0fM", result.uploadMbps),
                         pingMs: ping,
                         jitterMs: self.currentAverageJitter,
                         isTesting: false,

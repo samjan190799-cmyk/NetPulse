@@ -118,7 +118,7 @@ public struct FloatingGameOverlayView: View {
                             HStack(spacing: 4) {
                                 VStack(alignment: .leading, spacing: 0) {
                                     HStack(spacing: 3) {
-                                        Text(pingMs != nil ? String(format: "%.0f ms", pingMs!) : "—")
+                                        Text(pingMs.map { String(format: "%.0f ms", $0) } ?? "—")
                                             .font(.system(size: 12, weight: .heavy, design: .rounded))
                                             .monospacedDigit()
                                             .foregroundStyle(pingColor)

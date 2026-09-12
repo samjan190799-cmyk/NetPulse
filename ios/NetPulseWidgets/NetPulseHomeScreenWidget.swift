@@ -133,7 +133,7 @@ private struct SmallWidgetView: View {
                     .tracking(0.5)
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(data.pingMs != nil ? String(format: "%.0f", data.pingMs!) : "—")
+                    Text(data.formattedPing)
                         .font(.system(size: 30, weight: .heavy, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
@@ -281,25 +281,13 @@ private struct MediumWidgetView: View {
                     .monospacedDigit()
                     .foregroundStyle(.white)
 
-                // Прогресс-бар лимита трафика
+                // Прогресс-бар лимита трафика (безопасный нативный ProgressView)
                 VStack(alignment: .leading, spacing: 3) {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.12))
-                                .frame(height: 5)
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.cyan, .green],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: geo.size.width * CGFloat(data.budgetProgress), height: 5)
-                        }
-                    }
-                    .frame(height: 5)
+                    ProgressView(value: min(max(data.budgetProgress, 0.0), 1.0))
+                        .progressViewStyle(.linear)
+                        .tint(Color.cyan)
+                        .frame(height: 5)
+                        .clipShape(Capsule())
 
                     HStack {
                         Text("\(Int(data.budgetProgress * 100))% лимита")
@@ -363,8 +351,8 @@ private struct LargeWidgetView: View {
             HStack(spacing: 8) {
                 LargeMetricCell(title: "Скачивание", value: String(format: "%.1f", data.downloadSpeedMbps), unit: "Мбит/с", icon: "arrow.down", color: .white)
                 LargeMetricCell(title: "Отдача", value: String(format: "%.1f", data.uploadSpeedMbps), unit: "Мбит/с", icon: "arrow.up", color: .cyan)
-                LargeMetricCell(title: "Пинг", value: data.pingMs != nil ? String(format: "%.0f", data.pingMs!) : "—", unit: "мс", icon: "network", color: .green)
-                LargeMetricCell(title: "Джиттер", value: data.jitterMs != nil ? String(format: "%.1f", data.jitterMs!) : "—", unit: "мс", icon: "waveform.path.ecg", color: .orange)
+                LargeMetricCell(title: "Пинг", value: data.formattedPing, unit: "мс", icon: "network", color: .green)
+                LargeMetricCell(title: "Джиттер", value: data.formattedJitter, unit: "мс", icon: "waveform.path.ecg", color: .orange)
             }
 
             Divider()
@@ -393,7 +381,7 @@ private struct LargeWidgetView: View {
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Spacer()
-                                Text(host.latencyMs != nil ? String(format: "%.0fмс", host.latencyMs!) : "—")
+                                Text(host.latencyMs.map { String(format: "%.0f мс", $0) } ?? "—")
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .monospacedDigit()
                                     .foregroundStyle(.white.opacity(0.7))
@@ -462,7 +450,7 @@ private struct AccessoryCircularView: View {
             VStack(spacing: 0) {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 10, weight: .bold))
-                Text(data.pingMs != nil ? String(format: "%.0f", data.pingMs!) : "—")
+                Text(data.formattedPing)
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
                     .monospacedDigit()
                 Text("ms")

@@ -38,6 +38,31 @@ struct NetPulseApp: App {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
         }
 
+        // 1. Мгновенный синхронный запуск/восстановление сессии в Dynamic Island (< 1 мс)
+        // Гарантирует запуск, пока приложение гарантированно активно в Foreground
+        if isLiveEnabled {
+            let cached = WidgetDataManager.shared.loadLatestSnapshot()
+            let dlText = cached.downloadSpeedMbps > 0 ? String(format: "%.1f Мбит/с", cached.downloadSpeedMbps) : "0.0 Мбит/с"
+            let ulText = cached.uploadSpeedMbps > 0 ? String(format: "%.1f Мбит/с", cached.uploadSpeedMbps) : "0.0 Мбит/с"
+            let compactDl = cached.downloadSpeedMbps > 0 ? String(format: "%.0fM", cached.downloadSpeedMbps) : "0B"
+            let compactUl = cached.uploadSpeedMbps > 0 ? String(format: "%.0fM", cached.uploadSpeedMbps) : "0B"
+
+            ActivityManager.shared.checkAndRestoreActivity(
+                downloadSpeedText: dlText,
+                uploadSpeedText: ulText,
+                compactDownloadText: compactDl,
+                compactUploadText: compactUl,
+                pingMs: cached.pingMs ?? 28.0,
+                jitterMs: cached.jitterMs,
+                isTesting: false,
+                connectionType: cached.connectionType,
+                ispName: cached.ispName
+            )
+        } else {
+            ActivityManager.shared.stopActivity()
+        }
+
+        // 2. Параллельное асинхронное обновление метрик сети и виджетов
         Task { @MainActor in
             let info = await NetworkDiagnostics().collectSystemInfo()
             let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
@@ -91,18 +116,18 @@ struct NetPulseApp: App {
             if isLiveEnabled {
                 let pingVal = avgPing ?? 28.0
 
-                ActivityManager.shared.checkAndRestoreActivity(
+                ActivityManager.shared.updateActivity(
                     downloadSpeedText: snapshot.formattedDownloadSpeed,
                     uploadSpeedText: snapshot.formattedUploadSpeed,
                     compactDownloadText: snapshot.compactDownload,
                     compactUploadText: snapshot.compactUpload,
                     pingMs: pingVal,
+                    jitterMs: nil,
                     isTesting: false,
                     connectionType: info.connectionType.rawValue,
-                    ispName: info.ispName ?? "Интернет"
+                    ispName: info.ispName ?? "Интернет",
+                    force: true
                 )
-            } else {
-                ActivityManager.shared.stopActivity()
             }
         }
     }

@@ -368,7 +368,7 @@ public actor TrafficStorage {
 
     public func getSummary(for period: TrafficPeriod) -> TrafficSummary {
         let cutoffDate = cutoffDate(for: period)
-        let filteredSessions = sessions.filter { $0.startDate >= cutoffDate || ($0.endDate != nil && $0.endDate! >= cutoffDate) || $0.isActive }
+        let filteredSessions = sessions.filter { $0.startDate >= cutoffDate || ($0.endDate.map { $0 >= cutoffDate } ?? false) || $0.isActive }
 
         var summary = TrafficSummary()
         summary.totalSessionsCount = filteredSessions.count
@@ -397,7 +397,7 @@ public actor TrafficStorage {
 
     public func getSessions(for period: TrafficPeriod) -> [TrafficSession] {
         let cutoffDate = cutoffDate(for: period)
-        return sessions.filter { $0.startDate >= cutoffDate || ($0.endDate != nil && $0.endDate! >= cutoffDate) || $0.isActive }
+        return sessions.filter { $0.startDate >= cutoffDate || ($0.endDate.map { $0 >= cutoffDate } ?? false) || $0.isActive }
     }
 
     public func getDataPoints(for period: TrafficPeriod) -> [TrafficDataPoint] {
@@ -449,7 +449,7 @@ public actor TrafficStorage {
         let df = ISO8601DateFormatter()
 
         for s in sessions {
-            let endStr = s.endDate != nil ? df.string(from: s.endDate!) : "Active"
+            let endStr = s.endDate.map { df.string(from: $0) } ?? "Active"
             let dominant = s.dominantCategory?.rawValue ?? "Не определено"
             let line = "\(s.id.uuidString),\"\(s.networkName)\",\"\(s.connectionType)\",\(s.interfaceName),\(df.string(from: s.startDate)),\(endStr),\(Int(s.duration)),\(s.downloadedBytes),\(s.uploadedBytes),\(s.totalBytes),\"\(dominant)\",\(Int(s.peakDownloadBps))\n"
             csv.append(line)

@@ -356,9 +356,11 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
         }
 
         // Берем сэмплы за последнее скользящее окно (до 1.0 сек)
-        let latest = samples.last!
+        guard let latest = samples.last, let fallbackFirst = samples.first else {
+            return smoothedMbps
+        }
         let windowCutoff = max(0.0, latest.time - 1.0)
-        let relevantOldest = samples.first(where: { $0.time >= windowCutoff }) ?? samples.first!
+        let relevantOldest = samples.first(where: { $0.time >= windowCutoff }) ?? fallbackFirst
 
         let dt = latest.time - relevantOldest.time
         let db = latest.bytes - relevantOldest.bytes

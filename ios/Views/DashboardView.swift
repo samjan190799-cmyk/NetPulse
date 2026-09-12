@@ -123,6 +123,40 @@ public struct DashboardView: View {
             .navigationTitle("NetPulse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        HapticManager.shared.impactMedium()
+                        if !ActivityManager.shared.isLiveActivityActive {
+                            viewModel.toggleLiveActivity(enabled: true)
+                        } else {
+                            ActivityManager.shared.restartActivity(
+                                downloadSpeedText: viewModel.liveBandwidth.formattedDownloadSpeed,
+                                uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
+                                compactDownloadText: viewModel.liveBandwidth.compactDownload,
+                                compactUploadText: viewModel.liveBandwidth.compactUpload,
+                                pingMs: currentPing ?? 28.0,
+                                jitterMs: currentJitter,
+                                isTesting: viewModel.isSpeedtestRunning,
+                                connectionType: viewModel.systemInfo.connectionType.rawValue,
+                                ispName: viewModel.systemInfo.ispName ?? "Мобильный интернет"
+                            )
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(ActivityManager.shared.isLiveActivityActive ? Color.green : Color.orange)
+                                .frame(width: 7, height: 7)
+                            Text(ActivityManager.shared.isLiveActivityActive ? "Островок" : "Старт островка")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(NPTheme.textPrimary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Capsule())
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         HapticManager.shared.impactLight()

@@ -194,7 +194,7 @@ public struct SpeedtestHeroView: View {
 
                 AnimatedMetricItemBox(
                     title: "Пинг",
-                    value: pingMs != nil ? String(format: "%.0f", pingMs!) : "—",
+                    value: pingMs.map { String(format: "%.0f", $0) } ?? "—",
                     numericValue: pingMs ?? 0,
                     unit: "мс",
                     icon: "network",
@@ -203,7 +203,7 @@ public struct SpeedtestHeroView: View {
 
                 AnimatedMetricItemBox(
                     title: "Джиттер",
-                    value: jitterMs != nil ? String(format: "%.1f", jitterMs!) : "—",
+                    value: jitterMs.map { String(format: "%.1f", $0) } ?? "—",
                     numericValue: jitterMs ?? 0,
                     unit: "мс",
                     icon: "waveform.path.ecg",

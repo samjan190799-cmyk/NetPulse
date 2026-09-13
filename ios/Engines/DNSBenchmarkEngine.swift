@@ -85,6 +85,8 @@ public actor DNSBenchmarkEngine {
             jitter = abs(first - last)
         }
 
+        let successRate = (Double(latencies.count) / 3.0) * 100.0
+
         return DNSBenchmarkResult(
             provider: provider,
             latencyMs: (avg * 10).rounded() / 10,

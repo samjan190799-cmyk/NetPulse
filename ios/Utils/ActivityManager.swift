@@ -190,7 +190,7 @@ public final class ActivityManager {
 
         let content = ActivityContent(
             state: initialState,
-            staleDate: Date().addingTimeInterval(28800), // 8 часов
+            staleDate: Date().addingTimeInterval(30), // 30 секунд для реалтайм телеметрии
             relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
@@ -285,8 +285,11 @@ public final class ActivityManager {
                         guard let self = self else { return }
                         if self.currentActivity?.id == activityId {
                             self.currentActivity = nil
+                            self.lastContentState = nil
+                            self.queuedState = nil
+                            self.isUpdating = false
                             self.isLiveActivityActive = false
-                            print("ℹ️ Live Activity завершена системой или пользователем")
+                            print("ℹ️ Live Activity завершена системой или пользователем — состояние сброшено")
                         }
                     }
                     break
@@ -324,24 +327,11 @@ public final class ActivityManager {
             activeActivity = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active })
         }
 
-        let updatedState = NetPulseAttributes.ContentState(
-            downloadSpeedText: downloadSpeedText,
-            uploadSpeedText: uploadSpeedText,
-            compactDownloadText: compactDownloadText,
-            compactUploadText: compactUploadText,
-            pingMs: pingMs,
-            jitterMs: jitterMs,
-            isTesting: isTesting,
-            connectionType: connectionType,
-            ispName: ispName,
-            isGamingMode: isGamingMode,
-            gameTitle: gameTitle,
-            gameRegion: gameRegion,
-            packetLossPct: packetLossPct
-        )
-
+        // 1. Проверяем наличие активной сессии ДО дедупликации — предотвращает зависание при пересоздании островка
         guard let activity = activeActivity else {
-            // Если сессия отсутствует, создаем новую
+            self.lastContentState = nil
+            self.queuedState = nil
+            self.isUpdating = false
             startActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -363,7 +353,28 @@ public final class ActivityManager {
         self.currentActivity = activity
         self.isLiveActivityActive = true
 
-        // Если предыдущее обновление еще в обработке и не форсировано — сохраняем в очередь
+        let updatedState = NetPulseAttributes.ContentState(
+            downloadSpeedText: downloadSpeedText,
+            uploadSpeedText: uploadSpeedText,
+            compactDownloadText: compactDownloadText,
+            compactUploadText: compactUploadText,
+            pingMs: pingMs,
+            jitterMs: jitterMs,
+            isTesting: isTesting,
+            connectionType: connectionType,
+            ispName: ispName,
+            isGamingMode: isGamingMode,
+            gameTitle: gameTitle,
+            gameRegion: gameRegion,
+            packetLossPct: packetLossPct
+        )
+
+        // 2. Дедупликация обновлений: если данные не изменились (в покое 0K / 0K), не спамим SpringBoard IPC
+        if !force, let last = lastContentState, last == updatedState {
+            return
+        }
+
+        // 3. Неблокирующая FIFO очередь: если апдейт уже в полете, запоминаем самый свежий кадр
         if isUpdating && !force {
             self.queuedState = updatedState
             return
@@ -376,15 +387,18 @@ public final class ActivityManager {
 
         let content = ActivityContent(
             state: updatedState,
-            staleDate: Date().addingTimeInterval(28800),
+            staleDate: Date().addingTimeInterval(30),
             relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
         Task { [weak self] in
+            defer {
+                Task { @MainActor [weak self] in
+                    self?.processNextQueuedUpdate()
+                }
+            }
             await activity.update(content)
-            // Минимальный интервал между вызовами (350 мс) предотвращает троттлинг ActivityKit
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            self?.processNextQueuedUpdate()
+            try? await Task.sleep(nanoseconds: 200_000_000)
         }
         #endif
     }
@@ -398,20 +412,30 @@ public final class ActivityManager {
             return
         }
 
+        if let last = lastContentState, last == nextState {
+            self.isUpdating = false
+            self.queuedState = nil
+            return
+        }
+
         self.queuedState = nil
         self.lastContentState = nextState
         self.lastUpdateDate = Date()
 
         let content = ActivityContent(
             state: nextState,
-            staleDate: Date().addingTimeInterval(28800),
+            staleDate: Date().addingTimeInterval(30),
             relevanceScore: nextState.isTesting ? 100.0 : (nextState.isGamingMode ? 90.0 : 80.0)
         )
 
         Task { [weak self] in
+            defer {
+                Task { @MainActor [weak self] in
+                    self?.processNextQueuedUpdate()
+                }
+            }
             await activity.update(content)
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            self?.processNextQueuedUpdate()
+            try? await Task.sleep(nanoseconds: 200_000_000)
         }
     }
     #endif

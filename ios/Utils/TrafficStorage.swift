@@ -268,6 +268,11 @@ public actor TrafficStorage {
         interfaceName: String,
         isSpeedtestActive: Bool = false
     ) {
+        // Пропускаем тяжелую классификацию и работу с массивами, если нет сетевого трафика (в покое)
+        if snapshot.deltaDownloadBytes == 0 && snapshot.deltaUploadBytes == 0 {
+            return
+        }
+
         let now = Date()
         let isWifi = connectionType.contains("Wi-Fi") || connectionType.lowercased().contains("wifi")
         let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"

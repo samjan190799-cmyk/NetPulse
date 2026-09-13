@@ -162,7 +162,7 @@ public final class NetworkMonitorViewModel {
                 currentNetworkName: self.currentNetworkTitle
             )
             await self.refreshTrafficData(period: .today)
-            self.syncWidgetData()
+            self.syncWidgetData(reloadTimelines: true)
         }
         startMonitoring(silent: true)
     }
@@ -308,7 +308,7 @@ public final class NetworkMonitorViewModel {
                 currentNetworkName: self.currentNetworkTitle
             )
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
-            self.syncWidgetData()
+            self.syncWidgetData(reloadTimelines: true)
         }
 
         // Возобновляем активные задачи при возвращении пользователя в приложение
@@ -324,7 +324,7 @@ public final class NetworkMonitorViewModel {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
-            self.syncWidgetData()
+            self.syncWidgetData(reloadTimelines: true)
         }
 
         // Watchdog: если цикл обновления Dynamic Island умер — принудительный перезапуск
@@ -418,25 +418,6 @@ public final class NetworkMonitorViewModel {
 
     // MARK: - Фоновые задачи опроса
 
-    /// Легковесный замер пинга в фоне (1 быстрый запрос к шлюзу/DNS), чтобы задержка не застывала в Dynamic Island во время игр
-    private func quickBackgroundPingSample() async {
-        let isCellular = systemInfo.connectionType == .cellular
-        let candidate = targets.first(where: { $0.isGateway && !isCellular }) ?? targets.first(where: { $0.address == "1.1.1.1" || $0.address == "8.8.8.8" }) ?? targets.first
-        guard let target = candidate else { return }
-
-        let record = await pingEngine.pingTarget(target)
-        if let existing = hostMetrics[target.address] {
-            let prevRtt = prevLatencies[target.address]
-            let (updated, newRtt, alert) = processPingRecord(metric: existing, address: target.address, record: record, prevRtt: prevRtt)
-            hostMetrics[target.address] = updated
-            if let rtt = newRtt {
-                prevLatencies[target.address] = rtt
-            }
-            if let a = alert {
-                triggerAlertIfNeeded(address: a.address, message: a.message, severity: a.severity, currentVal: a.currentVal, threshVal: a.threshVal)
-            }
-        }
-    }
 
     /// Добавление пользовательского хоста для мгновенного отображения в карточках мониторинга
     public func addCustomTarget(_ host: String) {
@@ -476,40 +457,13 @@ public final class NetworkMonitorViewModel {
 
                 let isAppInBackground = UIApplication.shared.applicationState == .background
 
-                // В фоновом режиме параллельно опрашиваем пинг и замеряем системный трафик
-                if isAppInBackground {
-                    async let pingJob: () = self.quickBackgroundPingSample()
-                    let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
-                    self.liveBandwidth = snapshot
-                    _ = await pingJob
-                } else {
-                    let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
-                    self.liveBandwidth = snapshot
-                }
-
-                // Фиксация расхода в постоянном хранилище TrafficStorage с учетом категорий
-                await TrafficStorage.shared.recordTrafficSample(
-                    snapshot: self.liveBandwidth,
-                    networkName: self.currentNetworkTitle,
-                    connectionType: self.systemInfo.connectionType.rawValue,
-                    interfaceName: self.systemInfo.connectionType == .wifi ? "en0" : "pdp_ip0",
-                    isSpeedtestActive: self.isSpeedtestRunning
-                )
-
-                // В активном режиме интерфейса периодически обновляем раздел «Трафик» в UI и виджеты (каждые 3 сек)
-                if !isAppInBackground {
-                    loopCount += 1
-                    if loopCount % 3 == 0 {
-                        await self.refreshTrafficData(period: self.selectedTrafficPeriod)
-                        self.syncWidgetData()
-                    }
-                }
+                // Пассивный замер системного трафика через счетчики ядра BSD getifaddrs (0 сетевых пакетов, 0 Вт, защита от нагрева)
+                let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)
+                self.liveBandwidth = snapshot
 
                 let ping = self.currentAveragePing
                 let pingVal = ping ?? (self.lastSpeedtestResult?.pingMs ?? 28.0)
-                let pingText = String(format: "%.0f ms", pingVal)
-                let compactPing = String(format: "%.0fms", pingVal)
-                
+
                 let dlText: String
                 let ulText: String
                 let compactDl: String
@@ -520,35 +474,17 @@ public final class NetworkMonitorViewModel {
                     ulText = String(format: "%.1f Мбит/с", self.liveUploadSpeed)
                     compactDl = String(format: "%.0fM", self.liveDownloadSpeed)
                     compactUl = String(format: "%.0fM", self.liveUploadSpeed)
-                } else if self.floatingHUDEnabled {
-                    // Киберспортивный режим (PRO): скорость скачивания и живой RTT пинг серверов
-                    dlText = self.liveBandwidth.formattedDownloadSpeed
-                    ulText = pingText
-                    compactDl = self.liveBandwidth.compactDownload
-                    compactUl = compactPing
                 } else {
-                    // ЧИСТЫЙ СПИДОМЕТР ТРАФИКА: Непрерывная реальная скорость скачивания и отдачи
+                    // Строго скорость скачивания и отдачи в Dynamic Island (пинг отображается по зажатию)
                     dlText = self.liveBandwidth.formattedDownloadSpeed
                     ulText = self.liveBandwidth.formattedUploadSpeed
                     compactDl = self.liveBandwidth.compactDownload
                     compactUl = self.liveBandwidth.compactUpload
                 }
 
-                // 1. Непрерывная передача в PiP (Picture-in-Picture)
-                PiPHUDManager.shared.updateTelemetry(
-                    downloadText: dlText,
-                    uploadText: self.liveBandwidth.formattedUploadSpeed,
-                    pingMs: self.currentAveragePing,
-                    jitterMs: self.currentAverageJitter,
-                    connectionType: self.systemInfo.connectionType.rawValue,
-                    isTesting: self.isSpeedtestRunning
-                )
-
-                // 2. Передача реальной скорости в Dynamic Island с умным переключением (скорость / живой пинг в покое)
+                // 1. МГНОВЕННАЯ передача в Dynamic Island (0.05 мс, без блокировок и ожидания БД)
                 if self.liveActivityEnabled {
-                    // Обновляем метку времени последнего живого апдейта (для watchdog)
                     self.lastLiveActivityUpdateDate = Date()
-
                     ActivityManager.shared.updateActivity(
                         downloadSpeedText: dlText,
                         uploadSpeedText: ulText,
@@ -564,6 +500,38 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
+                // 2. Непрерывная передача в PiP (Picture-in-Picture)
+                PiPHUDManager.shared.updateTelemetry(
+                    downloadText: dlText,
+                    uploadText: self.liveBandwidth.formattedUploadSpeed,
+                    pingMs: self.currentAveragePing,
+                    jitterMs: self.currentAverageJitter,
+                    connectionType: self.systemInfo.connectionType.rawValue,
+                    isTesting: self.isSpeedtestRunning
+                )
+
+                // 3. Асинхронное сохранение трафика в базе данных (не блокирует такт обновления островка)
+                Task { [snapshot = self.liveBandwidth, netName = self.currentNetworkTitle, connType = self.systemInfo.connectionType.rawValue, isWifi = (self.systemInfo.connectionType == .wifi), testing = self.isSpeedtestRunning] in
+                    await TrafficStorage.shared.recordTrafficSample(
+                        snapshot: snapshot,
+                        networkName: netName,
+                        connectionType: connType,
+                        interfaceName: isWifi ? "en0" : "pdp_ip0",
+                        isSpeedtestActive: testing
+                    )
+                }
+
+                // 4. Периодическое фоновое обновление аналитики UI (раз в 5 сек без троттлинга виджетов)
+                if !isAppInBackground {
+                    loopCount += 1
+                    if loopCount % 5 == 0 {
+                        Task { [weak self] in
+                            guard let self else { return }
+                            await self.refreshTrafficData(period: self.selectedTrafficPeriod)
+                        }
+                    }
+                }
+
                 // Строгий такт 1.0 секунда: непрерывное обновление Dynamic Island без замирания
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
@@ -577,8 +545,13 @@ public final class NetworkMonitorViewModel {
         pingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self, self.isMonitoringActive else { break }
-                await self.pollAllHosts()
-                try? await Task.sleep(nanoseconds: 4_000_000_000) // каждые 4 секунды
+                if UIApplication.shared.applicationState == .active {
+                    await self.pollAllHosts()
+                    try? await Task.sleep(nanoseconds: 4_000_000_000) // каждые 4 секунды в активном режиме
+                } else {
+                    // В фоновом режиме сетевой пинг полностью приостанавливается для защиты от нагрева и разряда батареи
+                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                }
             }
         }
     }
@@ -733,7 +706,7 @@ public final class NetworkMonitorViewModel {
         self.trafficDataPoints = points
         self.trafficBudget = budget
 
-        self.syncWidgetData()
+        self.syncWidgetData(reloadTimelines: true)
     }
 
     public func updateTrafficBudget(_ newBudget: TrafficBudget) async {
@@ -889,7 +862,7 @@ public final class NetworkMonitorViewModel {
                 }
 
                 await self.storage.recordSpeedtest(result)
-                self.syncWidgetData()
+                self.syncWidgetData(reloadTimelines: true)
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
                 self.isSpeedtestRunning = false
@@ -911,7 +884,7 @@ public final class NetworkMonitorViewModel {
                 )
                 self.lastSpeedtestResult = fallbackResult
                 await self.storage.recordSpeedtest(fallbackResult)
-                self.syncWidgetData()
+                self.syncWidgetData(reloadTimelines: true)
             }
         }
     }
@@ -960,7 +933,7 @@ public final class NetworkMonitorViewModel {
     }
 
     /// Синхронизация снимка сетевых показателей с домашними виджетами и экраном блокировки
-    public func syncWidgetData() {
+    public func syncWidgetData(reloadTimelines: Bool = false) {
         let dnsSnapshot: [WidgetDNSHost] = targets.prefix(4).map { target in
             let metrics = hostMetrics[target.address]
             return WidgetDNSHost(
@@ -988,7 +961,9 @@ public final class NetworkMonitorViewModel {
 
         WidgetDataManager.shared.saveSnapshot(widgetData)
         #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
+        if reloadTimelines {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         #endif
     }
 

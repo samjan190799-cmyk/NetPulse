@@ -43,6 +43,7 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
         connectionType: String,
         isTesting: Bool
     ) {
+        guard isPiPActive else { return }
         self.downloadText = downloadText
         self.uploadText = uploadText
         self.pingMs = pingMs

@@ -124,14 +124,16 @@ public final class BandwidthEngine: @unchecked Sendable {
     public static let shared = BandwidthEngine()
 
     private var prevCounters: InterfaceByteCounters
+    private var prevInterfaceMap: [String: (inBytes: UInt64, outBytes: UInt64)] = [:]
     private var prevTimestamp: Date?
     private var smoothedDownloadBps: Double = 0.0
     private var smoothedUploadBps: Double = 0.0
     private let lock = NSLock()
 
     public init() {
-        let counters = Self.fetchDetailedInterfaceBytes()
-        self.prevCounters = counters
+        let map = Self.fetchDetailedInterfaceMap()
+        self.prevInterfaceMap = map
+        self.prevCounters = Self.aggregateInterfaceCounters(from: map)
         self.prevTimestamp = Date()
     }
 
@@ -139,7 +141,9 @@ public final class BandwidthEngine: @unchecked Sendable {
     public func resetBaseline(to counters: InterfaceByteCounters? = nil) {
         lock.lock()
         defer { lock.unlock() }
-        self.prevCounters = counters ?? Self.fetchDetailedInterfaceBytes()
+        let map = Self.fetchDetailedInterfaceMap()
+        self.prevInterfaceMap = map
+        self.prevCounters = counters ?? Self.aggregateInterfaceCounters(from: map)
         self.prevTimestamp = Date()
         self.smoothedDownloadBps = 0.0
         self.smoothedUploadBps = 0.0
@@ -150,69 +154,99 @@ public final class BandwidthEngine: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        let currentCounters = Self.fetchDetailedInterfaceBytes()
+        let currentMap = Self.fetchDetailedInterfaceMap()
+        let currentCounters = Self.aggregateInterfaceCounters(from: currentMap)
         let now = Date()
         let timeDelta = prevTimestamp.map { max(now.timeIntervalSince($0), 0.2) } ?? 1.0
 
-        // Дельты по физическим сетевым интерфейсам
-        let wifiInDelta = Self.computeDelta(prev: prevCounters.wifiIn, current: currentCounters.wifiIn)
-        let wifiOutDelta = Self.computeDelta(prev: prevCounters.wifiOut, current: currentCounters.wifiOut)
-        
-        let cellInDelta = Self.computeDelta(prev: prevCounters.cellularIn, current: currentCounters.cellularIn)
-        let cellOutDelta = Self.computeDelta(prev: prevCounters.cellularOut, current: currentCounters.cellularOut)
+        var wifiInDelta: UInt64 = 0
+        var wifiOutDelta: UInt64 = 0
+        var cellInDelta: UInt64 = 0
+        var cellOutDelta: UInt64 = 0
+        var vpnInDelta: UInt64 = 0
+        var vpnOutDelta: UInt64 = 0
+        var otherInDelta: UInt64 = 0
+        var otherOutDelta: UInt64 = 0
 
-        let vpnInDelta = Self.computeDelta(prev: prevCounters.vpnIn, current: currentCounters.vpnIn)
-        let vpnOutDelta = Self.computeDelta(prev: prevCounters.vpnOut, current: currentCounters.vpnOut)
+        // Вычисляем дельты ПО КАЖДОМУ ИНТЕРФЕЙСУ ОТДЕЛЬНО для защиты от 32-битного переполнения
+        for (ifName, current) in currentMap {
+            let prevIn = prevInterfaceMap[ifName]?.inBytes ?? current.inBytes
+            let prevOut = prevInterfaceMap[ifName]?.outBytes ?? current.outBytes
 
-        // Суммарный реальный внешний сетевой трафик
-        let inDelta: UInt64
-        let outDelta: UInt64
+            let singleInDelta = Self.computeSingleInterfaceDelta(prev: prevIn, current: current.inBytes)
+            let singleOutDelta = Self.computeSingleInterfaceDelta(prev: prevOut, current: current.outBytes)
 
-        if vpnInDelta > 0 || vpnOutDelta > 0 {
-            // При активном VPN трафик берем из туннельного интерфейса для точности
-            inDelta = vpnInDelta
-            outDelta = vpnOutDelta
-        } else {
-            // Без VPN берем сумму физических адаптеров
-            inDelta = wifiInDelta + cellInDelta
-            outDelta = wifiOutDelta + cellOutDelta
+            if ifName.hasPrefix("en") {
+                // Физические адаптеры Wi-Fi / Ethernet (en0, en1, en2...)
+                wifiInDelta += singleInDelta
+                wifiOutDelta += singleOutDelta
+            } else if ifName.hasPrefix("pdp_ip") || ifName.hasPrefix("bridge") || ifName.hasPrefix("ap") || ifName.hasPrefix("anpi") {
+                // Сотовая связь 5G/LTE и Режим модема (Hotspot Tethering bridge)
+                cellInDelta += singleInDelta
+                cellOutDelta += singleOutDelta
+            } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") || ifName.hasPrefix("ppp") || ifName.hasPrefix("tun") {
+                // VPN туннели и прокси
+                vpnInDelta += singleInDelta
+                vpnOutDelta += singleOutDelta
+            } else {
+                otherInDelta += singleInDelta
+                otherOutDelta += singleOutDelta
+            }
         }
+
+        self.prevInterfaceMap = currentMap
+        self.prevCounters = currentCounters
+        self.prevTimestamp = now
+
+        // Суммарный физический трафик сетевых чипов
+        let physicalInDelta = wifiInDelta + cellInDelta + otherInDelta
+        let physicalOutDelta = wifiOutDelta + cellOutDelta + otherOutDelta
+
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: берем максимум между физическим оборудованием и туннелем!
+        // В iOS туннели utun (iCloud Private Relay / APNs / VPN) шлют keepalive-пакеты по 2-3 КБ каждые пару секунд.
+        // Используя max(), входящий поток видео стриминга (3-10 МБ на Wi-Fi/Cellular) НИКОГДА больше не затирается 3 КБ!
+        let inDelta = max(physicalInDelta, vpnInDelta)
+        let outDelta = max(physicalOutDelta, vpnOutDelta)
 
         let instantDownloadBps = Double(inDelta) / timeDelta
         let instantUploadBps = Double(outDelta) / timeDelta
 
-        // Экспоненциальное сглаживание (EMA) для устранения микро-скачков и обеспечения плавной анимации
-        if instantDownloadBps > (smoothedDownloadBps * 2.0) && instantDownloadBps > 512 {
-            // Резкий старт скачивания: мгновенный отклик
+        // Fast Attack & Natural Decay:
+        // Резкий старт (загрузка Reels, видео, веб-страниц) моментально выводит скорость на остров.
+        // Между чанками HLS / MP4 применяется естественное затухание, устраняющее мигание в "0K".
+        if instantDownloadBps >= smoothedDownloadBps {
             smoothedDownloadBps = instantDownloadBps
-        } else if instantDownloadBps == 0 && smoothedDownloadBps < 1024 {
-            smoothedDownloadBps = 0.0
+        } else if instantDownloadBps > 0 {
+            smoothedDownloadBps = (0.35 * instantDownloadBps) + (0.65 * smoothedDownloadBps)
         } else {
-            smoothedDownloadBps = (0.80 * instantDownloadBps) + (0.20 * smoothedDownloadBps)
+            smoothedDownloadBps = smoothedDownloadBps * 0.65
+            if smoothedDownloadBps < 512 {
+                smoothedDownloadBps = 0.0
+            }
         }
 
-        if instantUploadBps > (smoothedUploadBps * 2.0) && instantUploadBps > 512 {
+        if instantUploadBps >= smoothedUploadBps {
             smoothedUploadBps = instantUploadBps
-        } else if instantUploadBps == 0 && smoothedUploadBps < 1024 {
-            smoothedUploadBps = 0.0
+        } else if instantUploadBps > 0 {
+            smoothedUploadBps = (0.35 * instantUploadBps) + (0.65 * smoothedUploadBps)
         } else {
-            smoothedUploadBps = (0.80 * instantUploadBps) + (0.20 * smoothedUploadBps)
+            smoothedUploadBps = smoothedUploadBps * 0.65
+            if smoothedUploadBps < 512 {
+                smoothedUploadBps = 0.0
+            }
         }
 
         let downloadBytesPerSec = smoothedDownloadBps
         let uploadBytesPerSec = smoothedUploadBps
-        
+
         let wifiDownloadBps = Double(wifiInDelta) / timeDelta
         let wifiUploadBps = Double(wifiOutDelta) / timeDelta
-        
+
         let cellDownloadBps = Double(cellInDelta) / timeDelta
         let cellUploadBps = Double(cellOutDelta) / timeDelta
 
         let downloadMbps = (downloadBytesPerSec * 8.0) / 1_000_000.0
         let uploadMbps = (uploadBytesPerSec * 8.0) / 1_000_000.0
-
-        self.prevCounters = currentCounters
-        self.prevTimestamp = now
 
         return BandwidthSnapshot(
             downloadBytesPerSec: downloadBytesPerSec,
@@ -237,43 +271,38 @@ public final class BandwidthEngine: @unchecked Sendable {
         )
     }
 
-    public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
+    /// Вычисление дельты одного физического/виртуального интерфейса с поддержкой 32-битного rollover Darwin
+    public static func computeSingleInterfaceDelta(prev: UInt64, current: UInt64) -> UInt64 {
         guard prev > 0 else {
             return 0
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от аномальных всплесков (до 1.5 ГБ за такт / 12 Гбит/с)
-            if delta > 1_500_000_000 {
-                return 0
-            }
-            return delta
+            // Защита от аномальных всплесков ядра (до 2 ГБ за секунду / 16 Гбит/с)
+            return delta < 2_000_000_000 ? delta : 0
         } else {
-            // Обработка 32-битного rollover Darwin (4,294,967,296 байт)
+            // 32-битный rollover Darwin (4,294,967,296 байт)
             let max32: UInt64 = 4_294_967_296
-            if prev <= max32 && (current + max32) >= prev {
-                let delta = (current + max32) - prev
-                if delta < 1_500_000_000 {
-                    return delta
-                }
-            }
-            return 0
+            let delta = (current + max32) - prev
+            return delta < 2_000_000_000 ? delta : 0
         }
     }
 
-    /// Считывание счетчиков байт ВСЕХ физических и виртуальных интерфейсов BSD (en*, pdp_ip*, bridge*, ap*, utun*).
-    public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
+    /// Обратная совместимость для внешних вызовов (TrafficStorage)
+    public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
+        computeSingleInterfaceDelta(prev: prev, current: current)
+    }
+
+    /// Считывание карты счетчиков байт ВСЕХ физических и виртуальных интерфейсов BSD через getifaddrs
+    public static func fetchDetailedInterfaceMap() -> [String: (inBytes: UInt64, outBytes: UInt64)] {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
-            return InterfaceByteCounters()
+            return [:]
         }
         defer { freeifaddrs(ifaddr) }
 
-        var result = InterfaceByteCounters()
+        var result: [String: (inBytes: UInt64, outBytes: UInt64)] = [:]
         var cursor: UnsafeMutablePointer<ifaddrs>? = firstAddr
-        var seenInterfaces = Set<String>()
-        var otherIn: UInt64 = 0
-        var otherOut: UInt64 = 0
 
         while let ptr = cursor {
             let flags = Int32(ptr.pointee.ifa_flags)
@@ -283,38 +312,49 @@ public final class BandwidthEngine: @unchecked Sendable {
             if isUp && !isLoopback, let addr = ptr.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
                 if let data = ptr.pointee.ifa_data, let ifaNamePtr = ptr.pointee.ifa_name {
                     let ifName = String(cString: ifaNamePtr)
-
-                    if !seenInterfaces.contains(ifName) {
-                        seenInterfaces.insert(ifName)
+                    if result[ifName] == nil {
                         let networkData = data.assumingMemoryBound(to: if_data.self)
                         let inBytes = UInt64(networkData.pointee.ifi_ibytes)
                         let outBytes = UInt64(networkData.pointee.ifi_obytes)
-
-                        if ifName.hasPrefix("en") {
-                            // Физические адаптеры Wi-Fi / Ethernet (en0, en1, en2...)
-                            result.wifiIn += inBytes
-                            result.wifiOut += outBytes
-                        } else if ifName.hasPrefix("pdp_ip") || ifName.hasPrefix("bridge") || ifName.hasPrefix("ap") || ifName.hasPrefix("anpi") {
-                            // Сотовая связь 5G/LTE и Режим модема (Hotspot Tethering bridge)
-                            result.cellularIn += inBytes
-                            result.cellularOut += outBytes
-                        } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") || ifName.hasPrefix("ppp") {
-                            // VPN туннели
-                            result.vpnIn += inBytes
-                            result.vpnOut += outBytes
-                        } else {
-                            otherIn += inBytes
-                            otherOut += outBytes
-                        }
+                        result[ifName] = (inBytes: inBytes, outBytes: outBytes)
                     }
                 }
             }
             cursor = ptr.pointee.ifa_next
         }
+        return result
+    }
+
+    /// Агрегация счетчиков байт по типам адаптеров
+    public static func aggregateInterfaceCounters(from map: [String: (inBytes: UInt64, outBytes: UInt64)]) -> InterfaceByteCounters {
+        var result = InterfaceByteCounters()
+        var otherIn: UInt64 = 0
+        var otherOut: UInt64 = 0
+
+        for (ifName, counters) in map {
+            if ifName.hasPrefix("en") {
+                result.wifiIn += counters.inBytes
+                result.wifiOut += counters.outBytes
+            } else if ifName.hasPrefix("pdp_ip") || ifName.hasPrefix("bridge") || ifName.hasPrefix("ap") || ifName.hasPrefix("anpi") {
+                result.cellularIn += counters.inBytes
+                result.cellularOut += counters.outBytes
+            } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") || ifName.hasPrefix("ppp") || ifName.hasPrefix("tun") {
+                result.vpnIn += counters.inBytes
+                result.vpnOut += counters.outBytes
+            } else {
+                otherIn += counters.inBytes
+                otherOut += counters.outBytes
+            }
+        }
 
         result.totalIn = result.wifiIn + result.cellularIn + result.vpnIn + otherIn
         result.totalOut = result.wifiOut + result.cellularOut + result.vpnOut + otherOut
-
         return result
+    }
+
+    /// Считывание счетчиков физических и виртуальных интерфейсов BSD
+    public static func fetchDetailedInterfaceBytes() -> InterfaceByteCounters {
+        let map = fetchDetailedInterfaceMap()
+        return aggregateInterfaceCounters(from: map)
     }
 }

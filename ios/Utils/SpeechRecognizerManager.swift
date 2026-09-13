@@ -34,33 +34,60 @@ public final class SpeechRecognizerManager {
         }
     }
 
+    /// Потокобезопасный запрос прав у TCC без привязки closure к @MainActor
+    private nonisolated static func requestSpeechAuth() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { authStatus in
+                continuation.resume(returning: authStatus)
+            }
+        }
+    }
+
     /// Запрос разрешений на доступ к микрофону и распознаванию речи
     public func requestAuthorization() {
-        SFSpeechRecognizer.requestAuthorization { [weak self] authStatus in
-            Task { @MainActor in
-                switch authStatus {
-                case .authorized:
-                    self?.isAuthorized = true
-                    self?.errorMessage = nil
-                case .denied:
-                    self?.isAuthorized = false
-                    self?.errorMessage = "Доступ к распознаванию речи отклонен в Настройках iOS."
-                case .restricted:
-                    self?.isAuthorized = false
-                    self?.errorMessage = "Распознавание речи ограничено на этом устройстве."
-                case .notDetermined:
-                    self?.isAuthorized = false
-                @unknown default:
-                    self?.isAuthorized = false
-                }
+        Task { @MainActor in
+            let authStatus = await Self.requestSpeechAuth()
+            switch authStatus {
+            case .authorized:
+                self.isAuthorized = true
+                self.errorMessage = nil
+            case .denied:
+                self.isAuthorized = false
+                self.errorMessage = "Доступ к распознаванию речи отклонен в Настройках iOS."
+            case .restricted:
+                self.isAuthorized = false
+                self.errorMessage = "Распознавание речи ограничено на этом устройстве."
+            case .notDetermined:
+                self.isAuthorized = false
+            @unknown default:
+                self.isAuthorized = false
             }
         }
     }
 
     /// Запуск сессии записи и живой транскрипции
-    public func startRecording(onResult: @escaping (String) -> Void) {
+    public func startRecording(onResult: @escaping @Sendable (String) -> Void) {
         guard !isRecording else { return }
 
+        if !isAuthorized {
+            Task { @MainActor in
+                let authStatus = await Self.requestSpeechAuth()
+                if authStatus == .authorized {
+                    self.isAuthorized = true
+                    self.errorMessage = nil
+                    self.beginRecordingSession(onResult: onResult)
+                } else {
+                    self.isAuthorized = false
+                    self.errorMessage = "Требуется разрешение на распознавание речи в Настройках iOS."
+                }
+            }
+            return
+        }
+
+        beginRecordingSession(onResult: onResult)
+    }
+
+    private func beginRecordingSession(onResult: @escaping @Sendable (String) -> Void) {
         // Сброс предыдущей задачи
         stopRecording()
 
@@ -73,15 +100,12 @@ public final class SpeechRecognizerManager {
             return
         }
 
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        guard let recognitionRequest = recognitionRequest else {
-            self.errorMessage = "Ошибка инициализации буфера распознавания."
-            return
-        }
+        let newRequest = SFSpeechAudioBufferRecognitionRequest()
+        self.recognitionRequest = newRequest
 
-        recognitionRequest.shouldReportPartialResults = true
+        newRequest.shouldReportPartialResults = true
         if #available(iOS 16.0, *) {
-            recognitionRequest.addsPunctuation = true
+            newRequest.addsPunctuation = true
         }
 
         let inputNode = audioEngine.inputNode
@@ -90,15 +114,16 @@ public final class SpeechRecognizerManager {
         // Предотвращаем NSException 'required condition is false: [self canInstallTapOnBus:bus]'
         inputNode.removeTap(onBus: 0)
 
+        let safeReq = newRequest
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            self?.recognitionRequest?.append(buffer)
+            safeReq.append(buffer)
 
             // Расчет уровня громкости для анимации звуковой волны (с защитой от разыменования пустых буферов)
             if buffer.frameLength > 0, let channelData = buffer.floatChannelData {
                 let channelDataValue = channelData.pointee[0]
                 let level = max(0.0, min(1.0, abs(channelDataValue) * 8.0))
 
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.audioLevel = level
                 }
             }
@@ -116,19 +141,17 @@ public final class SpeechRecognizerManager {
         self.isRecording = true
         HapticManager.shared.impactLight()
 
-        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { [weak self] result, error in
-            guard let self = self else { return }
+        recognitionTask = speechRecognizer?.recognitionTask(with: newRequest) { [weak self] result, error in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
 
-            if let result = result {
-                let text = result.bestTranscription.formattedString
-                Task { @MainActor in
+                if let result = result {
+                    let text = result.bestTranscription.formattedString
                     self.transcribedText = text
                     onResult(text)
                 }
-            }
 
-            if error != nil || (result?.isFinal ?? false) {
-                Task { @MainActor in
+                if error != nil || (result?.isFinal ?? false) {
                     self.stopRecording()
                 }
             }

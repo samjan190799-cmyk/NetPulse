@@ -119,15 +119,28 @@ public final class AdMobManager {
     }
 
     // MARK: - Запрос разрешения App Tracking Transparency (ATT)
+    private nonisolated static func requestATTAuth() async -> ATTrackingManager.AuthorizationStatus {
+        #if canImport(AppTrackingTransparency)
+        if #available(iOS 14.5, *) {
+            return await withCheckedContinuation { continuation in
+                ATTrackingManager.requestTrackingAuthorization { status in
+                    continuation.resume(returning: status)
+                }
+            }
+        }
+        #endif
+        return .authorized
+    }
+
     public func requestTrackingAuthorization() {
         #if canImport(AppTrackingTransparency)
         if #available(iOS 14.5, *) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
                 guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else { return }
                 guard UIApplication.shared.applicationState == .active else { return }
-                ATTrackingManager.requestTrackingAuthorization { status in
-                    print("[AdMobManager] ATT Status: \(status.rawValue)")
-                }
+                let status = await Self.requestATTAuth()
+                print("[AdMobManager] ATT Status: \(status.rawValue)")
             }
         }
         #endif

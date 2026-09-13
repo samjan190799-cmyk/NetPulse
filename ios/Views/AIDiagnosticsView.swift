@@ -137,7 +137,6 @@ public struct AIDiagnosticsView: View {
                 })
             }
             .task {
-                speechManager.requestAuthorization()
                 if viewModel.currentHealthReport == nil {
                     await viewModel.runAIDiagnosticsAudit()
                 }

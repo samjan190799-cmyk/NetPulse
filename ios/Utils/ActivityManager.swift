@@ -275,14 +275,13 @@ public final class ActivityManager {
     }
 
     #if canImport(ActivityKit)
-    /// Отслеживание жизненного цикла системной активности (отслеживает свайп пользователя)
     private func monitorActivityState(_ activity: Activity<NetPulseAttributes>) {
         stateObservationTask?.cancel()
         stateObservationTask = Task { [weak self, activityId = activity.id] in
             for await state in activity.activityStateUpdates {
+                guard let self = self else { break }
                 if state == .ended || state == .dismissed {
-                    Task { @MainActor [weak self] in
-                        guard let self = self else { return }
+                    await MainActor.run {
                         if self.currentActivity?.id == activityId {
                             self.currentActivity = nil
                             self.lastContentState = nil
@@ -391,11 +390,9 @@ public final class ActivityManager {
             relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             defer {
-                Task { @MainActor [weak self] in
-                    self?.processNextQueuedUpdate()
-                }
+                self?.processNextQueuedUpdate()
             }
             await activity.update(content)
             try? await Task.sleep(nanoseconds: 200_000_000)

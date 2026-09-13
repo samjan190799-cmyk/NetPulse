@@ -18,10 +18,9 @@ public final class ActivityManager {
 
     #if canImport(ActivityKit)
     private var currentActivity: Activity<NetPulseAttributes>?
-    private var lastContentState: NetPulseAttributes.ContentState?
-    private var lastUpdateDate: Date?
-    private var isUpdating: Bool = false
-    private var queuedState: NetPulseAttributes.ContentState?
+    private var lastRenderedState: NetPulseAttributes.ContentState?
+    private var pendingState: NetPulseAttributes.ContentState?
+    private var isSendingUpdate: Bool = false
     private var stateObservationTask: Task<Void, Never>?
     #endif
 
@@ -53,8 +52,8 @@ public final class ActivityManager {
     public func checkAndRestoreActivity(
         downloadSpeedText: String = "0 Мбит/с",
         uploadSpeedText: String = "0 Мбит/с",
-        compactDownloadText: String = "0B",
-        compactUploadText: String = "0B",
+        compactDownloadText: String = "0K",
+        compactUploadText: String = "0K",
         pingMs: Double? = nil,
         jitterMs: Double? = nil,
         isTesting: Bool = false,
@@ -72,20 +71,17 @@ public final class ActivityManager {
             return
         }
 
-        // 1. Очистка завершенных/сброшенных сессий
-        for existing in Activity<NetPulseAttributes>.activities {
-            if existing.activityState != .active {
-                Task {
-                    await existing.end(nil, dismissalPolicy: .immediate)
-                }
-            }
-        }
-
-        // 2. Если активная сессия уже существует в системе — подключаемся к ней
-        if let existing = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active }) {
+        // Если активная сессия уже существует в системе — подключаемся к ней
+        let validActivities = Activity<NetPulseAttributes>.activities.filter { $0.activityState != .ended && $0.activityState != .dismissed }
+        if let existing = validActivities.first {
             self.currentActivity = existing
             self.isLiveActivityActive = true
             monitorActivityState(existing)
+            if validActivities.count > 1 {
+                for duplicate in validActivities.dropFirst() {
+                    Task { await duplicate.end(nil, dismissalPolicy: .immediate) }
+                }
+            }
             updateActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -105,7 +101,7 @@ public final class ActivityManager {
             return
         }
 
-        // 3. Иначе создаем новую сессию
+        // Иначе создаем новую сессию
         startActivity(
             downloadSpeedText: downloadSpeedText,
             uploadSpeedText: uploadSpeedText,
@@ -124,12 +120,12 @@ public final class ActivityManager {
         #endif
     }
 
-    /// Запуск Live Activity в Dynamic Island с функцией самовосстановления (Self-Healing)
+    /// Запуск Live Activity в Dynamic Island с надежной инициализацией
     public func startActivity(
         downloadSpeedText: String = "0 Мбит/с",
         uploadSpeedText: String = "0 Мбит/с",
-        compactDownloadText: String = "0B",
-        compactUploadText: String = "0B",
+        compactDownloadText: String = "0K",
+        compactUploadText: String = "0K",
         pingMs: Double? = nil,
         jitterMs: Double? = nil,
         isTesting: Bool = false,
@@ -147,11 +143,17 @@ public final class ActivityManager {
             return
         }
 
-        // 1. Проверяем, есть ли уже активная сессия
-        if let active = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active }) {
+        // Проверяем, есть ли уже живая сессия
+        let validActivities = Activity<NetPulseAttributes>.activities.filter { $0.activityState != .ended && $0.activityState != .dismissed }
+        if let active = validActivities.first {
             self.currentActivity = active
             self.isLiveActivityActive = true
             monitorActivityState(active)
+            if validActivities.count > 1 {
+                for duplicate in validActivities.dropFirst() {
+                    Task { await duplicate.end(nil, dismissalPolicy: .immediate) }
+                }
+            }
             updateActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
@@ -188,9 +190,10 @@ public final class ActivityManager {
             packetLossPct: packetLossPct
         )
 
+        // staleDate: nil гарантирует, что iOS НИКОГДА не переведет сессию в статус .stale
         let content = ActivityContent(
             state: initialState,
-            staleDate: Date().addingTimeInterval(30), // 30 секунд для реалтайм телеметрии
+            staleDate: nil,
             relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
         )
 
@@ -202,45 +205,22 @@ public final class ActivityManager {
             )
             self.currentActivity = activity
             self.isLiveActivityActive = true
-            self.lastContentState = initialState
-            self.lastUpdateDate = Date()
+            self.lastRenderedState = initialState
             monitorActivityState(activity)
             print("✅ Live Activity успешно запущена в Dynamic Island: \(activity.id)")
         } catch {
-            print("⚠️ Ошибка запуска Live Activity: \(error.localizedDescription). Запуск цикла самовосстановления...")
-            // Цикл самовосстановления: завершаем все устаревшие сессии и пробуем снова
-            Task { @MainActor in
-                for existing in Activity<NetPulseAttributes>.activities {
-                    await existing.end(nil, dismissalPolicy: .immediate)
-                }
-                try? await Task.sleep(nanoseconds: 150_000_000)
-                do {
-                    let activity = try Activity<NetPulseAttributes>.request(
-                        attributes: attributes,
-                        content: content,
-                        pushType: nil
-                    )
-                    self.currentActivity = activity
-                    self.isLiveActivityActive = true
-                    self.lastContentState = initialState
-                    self.lastUpdateDate = Date()
-                    self.monitorActivityState(activity)
-                    print("✅ Самовосстановление успешно: Live Activity запущена: \(activity.id)")
-                } catch {
-                    print("❌ Повторная попытка запуска Live Activity не удалась: \(error.localizedDescription)")
-                    self.isLiveActivityActive = false
-                }
-            }
+            print("⚠️ Ошибка запуска Live Activity: \(error.localizedDescription)")
+            self.isLiveActivityActive = false
         }
         #endif
     }
 
-    /// Принудительный перезапуск Live Activity (ручное управление и самовосстановление)
+    /// Принудительный перезапуск Live Activity
     public func restartActivity(
         downloadSpeedText: String = "0 Мбит/с",
         uploadSpeedText: String = "0 Мбит/с",
-        compactDownloadText: String = "0B",
-        compactUploadText: String = "0B",
+        compactDownloadText: String = "0K",
+        compactUploadText: String = "0K",
         pingMs: Double? = nil,
         jitterMs: Double? = nil,
         isTesting: Bool = false,
@@ -252,10 +232,34 @@ public final class ActivityManager {
         packetLossPct: Double? = nil
     ) {
         #if canImport(ActivityKit)
-        stopActivity()
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            self.startActivity(
+        let validActivities = Activity<NetPulseAttributes>.activities.filter { $0.activityState != .ended && $0.activityState != .dismissed }
+        if let existing = validActivities.first {
+            self.currentActivity = existing
+            self.isLiveActivityActive = true
+            monitorActivityState(existing)
+            if validActivities.count > 1 {
+                for duplicate in validActivities.dropFirst() {
+                    Task { await duplicate.end(nil, dismissalPolicy: .immediate) }
+                }
+            }
+            updateActivity(
+                downloadSpeedText: downloadSpeedText,
+                uploadSpeedText: uploadSpeedText,
+                compactDownloadText: compactDownloadText,
+                compactUploadText: compactUploadText,
+                pingMs: pingMs,
+                jitterMs: jitterMs,
+                isTesting: isTesting,
+                connectionType: connectionType,
+                ispName: ispName,
+                isGamingMode: isGamingMode,
+                gameTitle: gameTitle,
+                gameRegion: gameRegion,
+                packetLossPct: packetLossPct,
+                force: true
+            )
+        } else {
+            startActivity(
                 downloadSpeedText: downloadSpeedText,
                 uploadSpeedText: uploadSpeedText,
                 compactDownloadText: compactDownloadText,
@@ -284,9 +288,9 @@ public final class ActivityManager {
                     await MainActor.run {
                         if self.currentActivity?.id == activityId {
                             self.currentActivity = nil
-                            self.lastContentState = nil
-                            self.queuedState = nil
-                            self.isUpdating = false
+                            self.lastRenderedState = nil
+                            self.pendingState = nil
+                            self.isSendingUpdate = false
                             self.isLiveActivityActive = false
                             print("ℹ️ Live Activity завершена системой или пользователем — состояние сброшено")
                         }
@@ -322,37 +326,42 @@ public final class ActivityManager {
         }
 
         var activeActivity = currentActivity
-        if activeActivity == nil || activeActivity?.activityState != .active {
-            activeActivity = Activity<NetPulseAttributes>.activities.first(where: { $0.activityState == .active })
+        if activeActivity == nil || activeActivity?.activityState == .ended || activeActivity?.activityState == .dismissed {
+            let valid = Activity<NetPulseAttributes>.activities.filter { $0.activityState != .ended && $0.activityState != .dismissed }
+            activeActivity = valid.first
+            if valid.count > 1 {
+                for duplicate in valid.dropFirst() {
+                    Task { await duplicate.end(nil, dismissalPolicy: .immediate) }
+                }
+            }
         }
 
-        // 1. Проверяем наличие активной сессии ДО дедупликации — предотвращает зависание при пересоздании островка
+        // Проверяем наличие активной сессии
         guard let activity = activeActivity else {
-            self.lastContentState = nil
-            self.queuedState = nil
-            self.isUpdating = false
-            startActivity(
-                downloadSpeedText: downloadSpeedText,
-                uploadSpeedText: uploadSpeedText,
-                compactDownloadText: compactDownloadText,
-                compactUploadText: compactUploadText,
-                pingMs: pingMs,
-                jitterMs: jitterMs,
-                isTesting: isTesting,
-                connectionType: connectionType,
-                ispName: ispName,
-                isGamingMode: isGamingMode,
-                gameTitle: gameTitle,
-                gameRegion: gameRegion,
-                packetLossPct: packetLossPct
-            )
+            if UIApplication.shared.applicationState != .background {
+                startActivity(
+                    downloadSpeedText: downloadSpeedText,
+                    uploadSpeedText: uploadSpeedText,
+                    compactDownloadText: compactDownloadText,
+                    compactUploadText: compactUploadText,
+                    pingMs: pingMs,
+                    jitterMs: jitterMs,
+                    isTesting: isTesting,
+                    connectionType: connectionType,
+                    ispName: ispName,
+                    isGamingMode: isGamingMode,
+                    gameTitle: gameTitle,
+                    gameRegion: gameRegion,
+                    packetLossPct: packetLossPct
+                )
+            }
             return
         }
 
         self.currentActivity = activity
         self.isLiveActivityActive = true
 
-        let updatedState = NetPulseAttributes.ContentState(
+        let newState = NetPulseAttributes.ContentState(
             downloadSpeedText: downloadSpeedText,
             uploadSpeedText: uploadSpeedText,
             compactDownloadText: compactDownloadText,
@@ -368,71 +377,50 @@ public final class ActivityManager {
             packetLossPct: packetLossPct
         )
 
-        // 2. Дедупликация обновлений: если данные не изменились (в покое 0K / 0K), не спамим SpringBoard IPC
-        if !force, let last = lastContentState, last == updatedState {
+        // Дедупликация: если этот точный кадр уже отображен на экране и нет флага force — пропускаем
+        if !force, let rendered = lastRenderedState, rendered == newState {
             return
         }
 
-        // 3. Неблокирующая FIFO очередь: если апдейт уже в полете, запоминаем самый свежий кадр
-        if isUpdating && !force {
-            self.queuedState = updatedState
-            return
-        }
+        // Запоминаем самый актуальный кадр телеметрии
+        self.pendingState = newState
 
-        self.isUpdating = true
-        self.queuedState = nil
-        self.lastContentState = updatedState
-        self.lastUpdateDate = Date()
+        // Если в данный момент уже идет XPC-вызов обновления в SpringBoard,
+        // новый кадр отправится немедленно по завершении текущего вызова
+        guard !isSendingUpdate else { return }
 
-        let content = ActivityContent(
-            state: updatedState,
-            staleDate: Date().addingTimeInterval(30),
-            relevanceScore: isTesting ? 100.0 : (isGamingMode ? 90.0 : 80.0)
-        )
-
-        Task { @MainActor [weak self] in
-            defer {
-                self?.processNextQueuedUpdate()
-            }
-            await activity.update(content)
-            try? await Task.sleep(nanoseconds: 200_000_000)
-        }
+        dispatchNextUpdate()
         #endif
     }
 
     #if canImport(ActivityKit)
-    /// Обработка накопленного обновления из очереди (FIFO)
-    private func processNextQueuedUpdate() {
-        guard let nextState = queuedState, let activity = currentActivity, activity.activityState == .active else {
-            self.isUpdating = false
-            self.queuedState = nil
+    /// Последовательная отправка кадров в SpringBoard без потери последних значений
+    private func dispatchNextUpdate() {
+        guard let stateToSend = pendingState,
+              let activity = currentActivity,
+              activity.activityState != .ended && activity.activityState != .dismissed else {
+            isSendingUpdate = false
             return
         }
 
-        if let last = lastContentState, last == nextState {
-            self.isUpdating = false
-            self.queuedState = nil
-            return
-        }
-
-        self.queuedState = nil
-        self.lastContentState = nextState
-        self.lastUpdateDate = Date()
+        isSendingUpdate = true
+        pendingState = nil
 
         let content = ActivityContent(
-            state: nextState,
-            staleDate: Date().addingTimeInterval(30),
-            relevanceScore: nextState.isTesting ? 100.0 : (nextState.isGamingMode ? 90.0 : 80.0)
+            state: stateToSend,
+            staleDate: nil,
+            relevanceScore: stateToSend.isTesting ? 100.0 : (stateToSend.isGamingMode ? 90.0 : 80.0)
         )
 
-        Task { [weak self] in
-            defer {
-                Task { @MainActor [weak self] in
-                    self?.processNextQueuedUpdate()
-                }
-            }
+        Task { @MainActor [weak self] in
             await activity.update(content)
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            self?.lastRenderedState = stateToSend
+            self?.isSendingUpdate = false
+
+            // Если во время обновления прибыл более свежий кадр — отправляем его без задержки
+            if self?.pendingState != nil {
+                self?.dispatchNextUpdate()
+            }
         }
     }
     #endif
@@ -442,10 +430,9 @@ public final class ActivityManager {
         #if canImport(ActivityKit)
         stateObservationTask?.cancel()
         stateObservationTask = nil
-        isUpdating = false
-        queuedState = nil
-        lastContentState = nil
-        lastUpdateDate = nil
+        isSendingUpdate = false
+        pendingState = nil
+        lastRenderedState = nil
         self.currentActivity = nil
         self.isLiveActivityActive = false
 

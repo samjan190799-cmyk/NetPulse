@@ -31,8 +31,8 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
         public init(
             downloadSpeedText: String = "0 Мбит/с",
             uploadSpeedText: String = "0 Мбит/с",
-            compactDownloadText: String = "0B",
-            compactUploadText: String = "0B",
+            compactDownloadText: String = "0K",
+            compactUploadText: String = "0K",
             pingMs: Double? = nil,
             jitterMs: Double? = nil,
             isTesting: Bool = false,

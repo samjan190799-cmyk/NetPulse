@@ -177,9 +177,9 @@ public final class NetworkMonitorViewModel {
             let compactPing = String(format: "%.0fms", pingVal)
 
             let dlText = liveBandwidth.formattedDownloadSpeed
-            let ulText = floatingHUDEnabled ? pingText : liveBandwidth.formattedUploadSpeed
+            let ulText = liveBandwidth.formattedUploadSpeed
             let compactDl = liveBandwidth.compactDownload
-            let compactUl = floatingHUDEnabled ? compactPing : liveBandwidth.compactUpload
+            let compactUl = liveBandwidth.compactUpload
 
             ActivityManager.shared.startActivity(
                 downloadSpeedText: dlText,
@@ -845,7 +845,7 @@ public final class NetworkMonitorViewModel {
                         downloadSpeedText: String(format: "%.1f Мбит/с", result.downloadMbps),
                         uploadSpeedText: String(format: "%.1f Мбит/с", result.uploadMbps),
                         compactDownloadText: String(format: "%.0fM", result.downloadMbps),
-                        compactUploadText: self.floatingHUDEnabled ? (ping.map { String(format: "%.0fms", $0) } ?? "—") : String(format: "%.0fM", result.uploadMbps),
+                        compactUploadText: String(format: "%.0fM", result.uploadMbps),
                         pingMs: ping,
                         jitterMs: self.currentAverageJitter,
                         isTesting: false,

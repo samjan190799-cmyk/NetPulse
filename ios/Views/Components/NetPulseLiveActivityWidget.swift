@@ -156,17 +156,17 @@ public struct NetPulseLiveActivityWidget: Widget {
                         .foregroundStyle(Color.mint)
                 }
             } minimal: {
-                // MARK: - Минимальный вид (Apple HIG: идеальное вписывание в круг 12pt без обрезки)
-                ZStack {
-                    if context.state.isTesting {
-                        Image(systemName: "speedometer")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.cyan)
-                    } else {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 9, weight: .heavy))
-                            .foregroundStyle(Color.cyan)
-                    }
+                // MARK: - Минимальный вид (Apple HIG: скорость загрузки с направляющей стрелкой)
+                HStack(spacing: 1) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 7, weight: .heavy))
+                        .foregroundStyle(Color.cyan)
+                    Text(cleanDownload(context.state.compactDownloadText))
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -177,14 +177,20 @@ public struct NetPulseLiveActivityWidget: Widget {
         let s = text.replacingOccurrences(of: "↓", with: "")
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
-        return s.isEmpty ? "0K" : s
+        if s.isEmpty || s == "0B" {
+            return "0K"
+        }
+        return s
     }
 
     private func cleanUpload(_ text: String) -> String {
         let s = text.replacingOccurrences(of: "↓", with: "")
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
-        return s.isEmpty ? "0K" : s
+        if s.isEmpty || s == "0B" {
+            return "0K"
+        }
+        return s
     }
 
     private func formatPingText(_ ping: Double?) -> String {

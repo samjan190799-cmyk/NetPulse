@@ -44,8 +44,8 @@ struct NetPulseApp: App {
             let cached = WidgetDataManager.shared.loadLatestSnapshot()
             let dlText = cached.downloadSpeedMbps > 0 ? String(format: "%.1f Мбит/с", cached.downloadSpeedMbps) : "0.0 Мбит/с"
             let ulText = cached.uploadSpeedMbps > 0 ? String(format: "%.1f Мбит/с", cached.uploadSpeedMbps) : "0.0 Мбит/с"
-            let compactDl = cached.downloadSpeedMbps > 0 ? String(format: "%.0fM", cached.downloadSpeedMbps) : "0B"
-            let compactUl = cached.uploadSpeedMbps > 0 ? String(format: "%.0fM", cached.uploadSpeedMbps) : "0B"
+            let compactDl = cached.downloadSpeedMbps > 0 ? String(format: "%.0fM", cached.downloadSpeedMbps) : "0K"
+            let compactUl = cached.uploadSpeedMbps > 0 ? String(format: "%.0fM", cached.uploadSpeedMbps) : "0K"
 
             ActivityManager.shared.checkAndRestoreActivity(
                 downloadSpeedText: dlText,

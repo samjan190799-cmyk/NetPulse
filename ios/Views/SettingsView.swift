@@ -261,6 +261,22 @@ public struct SettingsView: View {
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
+
+                        // Подсказка по правилам фонового режима iOS и выгоде PRO HUD
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "lightbulb.fill")
+                                    .foregroundStyle(Color.yellow)
+                                    .font(.system(size: 11))
+                                Text("Совет по фоновому мониторингу")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(Color.yellow)
+                            }
+                            Text("По архитектуре iOS сторонние приложения усыпляются в фоне через 30 сек. Для непрерывного мониторинга 24/7 поверх YouTube и игр активируйте оверлей HUD (PiP).")
+                                .font(.system(size: 11))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                        .padding(.vertical, 2)
                     }
 
                     // Плавающий игровой оверлей (HUD) - PRO Функция
@@ -483,6 +499,55 @@ public struct SettingsView: View {
                         Text("nstat + IOKitBSD")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.accentPrimary)
+                    }
+                }
+
+                // 10. Диагностика Meta Audience Network (Только для разработчика / Владельца)
+                if AdMobManager.shared.isOwnerUnlocked {
+                    Section {
+                        HStack {
+                            Text("Статус SDK Meta")
+                            Spacer()
+                            Text(MetaAdManager.shared.isSDKInitialized ? "Инициализирован" : "Ожидание")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(MetaAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
+                        }
+
+                        HStack {
+                            Text("ATT Авторизация")
+                            Spacer()
+                            Text(MetaAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(MetaAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
+                        }
+
+                        HStack {
+                            Text("Interstitial Ad")
+                            Spacer()
+                            Text(MetaAdManager.shared.isInterstitialLoaded ? "Готов к показу" : "Кэшируется")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+
+                        Button("Тест показа Interstitial Meta") {
+                            HapticManager.shared.impactMedium()
+                            MetaAdManager.shared.recordActionAndTriggerInterstitial()
+                        }
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.accentPrimary)
+
+                        Button("Тест Rewarded Video Meta") {
+                            HapticManager.shared.impactMedium()
+                            MetaAdManager.shared.showRewardedVideo {
+                                HapticManager.shared.notificationSuccess()
+                            }
+                        }
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                    } header: {
+                        Label("Разработчик: Meta Ads 2026", systemImage: "infinity")
+                    } footer: {
+                        Text("Инженерная панель Meta Audience Network. Доступна исключительно в режиме владельца приложения.")
                     }
                 }
             }

@@ -19,6 +19,7 @@ public final class ActivityManager {
     #if canImport(ActivityKit)
     private var currentActivity: Activity<NetPulseAttributes>?
     private var lastRenderedState: NetPulseAttributes.ContentState?
+    private var lastUpdateTime: Date?
     private var pendingState: NetPulseAttributes.ContentState?
     private var isSendingUpdate: Bool = false
     private var stateObservationTask: Task<Void, Never>?
@@ -361,13 +362,16 @@ public final class ActivityManager {
         self.currentActivity = activity
         self.isLiveActivityActive = true
 
+        let roundedPing = pingMs.map { ($0).rounded() }
+        let roundedJitter = jitterMs.map { ($0 * 10).rounded() / 10.0 }
+
         let newState = NetPulseAttributes.ContentState(
             downloadSpeedText: downloadSpeedText,
             uploadSpeedText: uploadSpeedText,
             compactDownloadText: compactDownloadText,
             compactUploadText: compactUploadText,
-            pingMs: pingMs,
-            jitterMs: jitterMs,
+            pingMs: roundedPing,
+            jitterMs: roundedJitter,
             isTesting: isTesting,
             connectionType: connectionType,
             ispName: ispName,
@@ -377,9 +381,19 @@ public final class ActivityManager {
             packetLossPct: packetLossPct
         )
 
-        // Дедупликация: если этот точный кадр уже отображен на экране и нет флага force — пропускаем
-        if !force, let rendered = lastRenderedState, rendered == newState {
-            return
+        // Защита от перегрева и спама XPC (Apple HIG Energy Guidelines):
+        // Если визуально видимые показатели (скорость в островке) не изменились,
+        // и с момента прошлого вызова прошло меньше 2.5 секунд — пропускаем обновление.
+        if !force, let last = lastRenderedState {
+            let speedChanged = (last.compactDownloadText != newState.compactDownloadText) ||
+                               (last.compactUploadText != newState.compactUploadText) ||
+                               (last.isTesting != newState.isTesting)
+
+            if !speedChanged {
+                if let lastTime = lastUpdateTime, Date().timeIntervalSince(lastTime) < 2.5 {
+                    return
+                }
+            }
         }
 
         // Запоминаем самый актуальный кадр телеметрии
@@ -415,6 +429,7 @@ public final class ActivityManager {
         Task { @MainActor [weak self] in
             await activity.update(content)
             self?.lastRenderedState = stateToSend
+            self?.lastUpdateTime = Date()
             self?.isSendingUpdate = false
 
             // Если во время обновления прибыл более свежий кадр — отправляем его без задержки

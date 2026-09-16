@@ -213,14 +213,16 @@ public final class BandwidthEngine: @unchecked Sendable {
 
         // Fast Attack & Natural Decay:
         // Резкий старт (загрузка Reels, видео, веб-страниц) моментально выводит скорость на остров.
-        // Между чанками HLS / MP4 применяется естественное затухание, устраняющее мигание в "0K".
+        // Между чанками HLS / MP4 применяется адаптивное удержание, устраняющее мигание в "0K".
         if instantDownloadBps >= smoothedDownloadBps {
             smoothedDownloadBps = instantDownloadBps
         } else if instantDownloadBps > 0 {
-            smoothedDownloadBps = (0.35 * instantDownloadBps) + (0.65 * smoothedDownloadBps)
+            smoothedDownloadBps = (0.40 * instantDownloadBps) + (0.60 * smoothedDownloadBps)
         } else {
-            smoothedDownloadBps = smoothedDownloadBps * 0.65
-            if smoothedDownloadBps < 512 {
+            // Мягкое затухание (0.80 вместо 0.65): между 3-5 секундными чанками видеопотока
+            // спидометр не падает мгновенно в ноль, а плавно показывает темп скачивания
+            smoothedDownloadBps = smoothedDownloadBps * 0.80
+            if smoothedDownloadBps < 1024 {
                 smoothedDownloadBps = 0.0
             }
         }
@@ -228,10 +230,10 @@ public final class BandwidthEngine: @unchecked Sendable {
         if instantUploadBps >= smoothedUploadBps {
             smoothedUploadBps = instantUploadBps
         } else if instantUploadBps > 0 {
-            smoothedUploadBps = (0.35 * instantUploadBps) + (0.65 * smoothedUploadBps)
+            smoothedUploadBps = (0.40 * instantUploadBps) + (0.60 * smoothedUploadBps)
         } else {
-            smoothedUploadBps = smoothedUploadBps * 0.65
-            if smoothedUploadBps < 512 {
+            smoothedUploadBps = smoothedUploadBps * 0.80
+            if smoothedUploadBps < 1024 {
                 smoothedUploadBps = 0.0
             }
         }

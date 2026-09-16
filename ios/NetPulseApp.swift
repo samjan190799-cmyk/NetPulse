@@ -14,6 +14,9 @@ struct NetPulseApp: App {
     init() {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
+
+        // Инициализация официального SDK Meta Audience Network (Meta Ads 2026)
+        MetaAdManager.shared.initialize()
     }
 
     var body: some Scene {
@@ -21,10 +24,12 @@ struct NetPulseApp: App {
             ContentView()
                 .onAppear {
                     restoreLiveActivityIfNeeded()
+                    MetaAdManager.shared.requestTrackingAuthorization()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
+                        MetaAdManager.shared.requestTrackingAuthorization()
                     }
                 }
         }

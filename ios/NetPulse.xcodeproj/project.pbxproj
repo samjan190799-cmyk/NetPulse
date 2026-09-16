@@ -75,6 +75,8 @@
 		A10000B02C123456000000B0 /* MetaAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B02C123456000000B0 /* MetaAdManager.swift */; };
 		A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B12C123456000000B1 /* MetaBannerView.swift */; };
 		A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */; };
+		A10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */; };
+		A10000B42C123456000000B4 /* FBAudienceNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = E40000012C12345600000001 /* FBAudienceNetwork */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
 		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* NetPulseAttributes.swift */; };
@@ -178,6 +180,7 @@
 		B10000B02C123456000000B0 /* MetaAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/MetaAdManager.swift; sourceTree = "<group>"; };
 		B10000B12C123456000000B1 /* MetaBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaBannerView.swift; sourceTree = "<group>"; };
 		B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaStickyBottomBannerView.swift; sourceTree = "<group>"; };
+		B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaNativeBannerRepresentable.swift; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
 		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NetPulseWidgets/Info.plist; sourceTree = "<group>"; };
@@ -193,6 +196,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000B42C123456000000B4 /* FBAudienceNetwork in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -321,6 +325,7 @@
 				B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */,
 				B10000B12C123456000000B1 /* MetaBannerView.swift */,
 				B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */,
+				B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */,
 			);
 			name = Components;
 			sourceTree = "<group>";
@@ -368,6 +373,9 @@
 			);
 			dependencies = (
 				T20000012C12345600000001 /* PBXTargetDependency */,
+			);
+			packageProductDependencies = (
+				E40000012C12345600000001 /* FBAudienceNetwork */,
 			);
 			name = NetPulse;
 			productName = NetPulse;
@@ -417,6 +425,9 @@
 				Base,
 			);
 			mainGroup = E10000002C12345600000000;
+			packageReferences = (
+				E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */,
+			);
 			productRefGroup = E10000082C12345600000008 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -517,6 +528,7 @@
 				A10000B02C123456000000B0 /* MetaAdManager.swift in Sources */,
 				A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */,
 				A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */,
+				A10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -725,6 +737,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/FBAudienceNetwork";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.22.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E40000012C12345600000001 /* FBAudienceNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */;
+			productName = FBAudienceNetwork;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = 010000002C12345600000000 /* Project object */;

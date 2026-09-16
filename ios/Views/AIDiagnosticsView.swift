@@ -39,6 +39,11 @@ public struct AIDiagnosticsView: View {
                             // 3. Быстрые интеллектуальные действия (Мастер проблем и Претензия ISP)
                             quickActionsHub
 
+                            // 3.1 Бонусный глубокий AI-аудит за просмотр спонсорского видео Meta
+                            if MetaAdManager.shared.canShowAds {
+                                rewardedAIAnalysisCard
+                            }
+
                             // 4. Карточка здоровья сети (Health Score 0-100) с нейросферой
                             networkHealthCard
 
@@ -273,6 +278,76 @@ public struct AIDiagnosticsView: View {
             }
             .buttonStyle(NPPressableButtonStyle())
         }
+        .padding(.horizontal)
+    }
+
+    // MARK: - 3.1 Бонусный глубокий AI-аудит (Meta Rewarded Video)
+
+    private var rewardedAIAnalysisCard: some View {
+        Button {
+            MetaAdManager.shared.showRewardedVideo {
+                Task {
+                    await viewModel.runAIDiagnosticsAudit()
+                    HapticManager.shared.notificationSuccess()
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.0, green: 0.55, blue: 1.0),
+                                    Color(red: 0.6, green: 0.1, blue: 0.9)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 38, height: 38)
+
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                        .offset(x: 1)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Глубокий AI-аудит сети")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(NPTheme.textPrimary)
+
+                        HStack(spacing: 2) {
+                            Image(systemName: "infinity")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                            Text("Meta Reward")
+                                .font(.system(size: 8, weight: .heavy, design: .rounded))
+                                .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                        }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(Color(red: 0.0, green: 0.55, blue: 1.0).opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+
+                    Text("Короткий спонсорский ролик для мгновенного AI-анализа параметров")
+                        .font(.system(size: 11))
+                        .foregroundStyle(NPTheme.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.yellow)
+            }
+            .padding(12)
+            .npGlassCard(cornerRadius: 14)
+        }
+        .buttonStyle(NPPressableButtonStyle(scale: 0.98))
         .padding(.horizontal)
     }
 

@@ -510,15 +510,17 @@ public final class NetworkMonitorViewModel {
                     isTesting: self.isSpeedtestRunning
                 )
 
-                // 3. Асинхронное сохранение трафика в базе данных (не блокирует такт обновления островка)
-                Task { [snapshot = self.liveBandwidth, netName = self.currentNetworkTitle, connType = self.systemInfo.connectionType.rawValue, isWifi = (self.systemInfo.connectionType == .wifi), testing = self.isSpeedtestRunning] in
-                    await TrafficStorage.shared.recordTrafficSample(
-                        snapshot: snapshot,
-                        networkName: netName,
-                        connectionType: connType,
-                        interfaceName: isWifi ? "en0" : "pdp_ip0",
-                        isSpeedtestActive: testing
-                    )
+                // 3. Асинхронное сохранение трафика в базе данных (только при наличии активности)
+                if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
+                    Task { [snapshot = self.liveBandwidth, netName = self.currentNetworkTitle, connType = self.systemInfo.connectionType.rawValue, isWifi = (self.systemInfo.connectionType == .wifi), testing = self.isSpeedtestRunning] in
+                        await TrafficStorage.shared.recordTrafficSample(
+                            snapshot: snapshot,
+                            networkName: netName,
+                            connectionType: connType,
+                            interfaceName: isWifi ? "en0" : "pdp_ip0",
+                            isSpeedtestActive: testing
+                        )
+                    }
                 }
 
                 // 4. Периодическое фоновое обновление аналитики UI (раз в 5 сек без троттлинга виджетов)
@@ -863,6 +865,9 @@ public final class NetworkMonitorViewModel {
 
                 await self.storage.recordSpeedtest(result)
                 self.syncWidgetData(reloadTimelines: true)
+
+                // Триггер межстраничного объявления Meta Audience Network с учетом frequency capping
+                MetaAdManager.shared.recordActionAndTriggerInterstitial()
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
                 self.isSpeedtestRunning = false

@@ -167,10 +167,12 @@ public final class MetaAdManager: NSObject {
         #if canImport(FBAudienceNetwork)
         print("🚀 [Meta Audience Network] Инициализация SDK...")
         FBAudienceNetworkAds.initialize(with: nil) { [weak self] result in
+            let isSuccess = result.isSuccess
+            let message = result.message
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.isSDKInitialized = result.isSuccess
-                print("✔ [Meta Audience Network] Результат инициализации: \(result.isSuccess ? "УСПЕХ" : "ОШИБКА: \(result.message)")")
+                self.isSDKInitialized = isSuccess
+                print("✔ [Meta Audience Network] Результат инициализации: \(isSuccess ? "УСПЕХ" : "ОШИБКА: \(message)")")
 
                 // Предзагрузка межстраничного и вознаграждаемого баннера
                 self.loadInterstitial()

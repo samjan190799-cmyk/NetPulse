@@ -243,7 +243,7 @@ public final class MetaAdManager: NSObject {
             if let ad = fbInterstitialAd, ad.isAdValid {
                 let presenter = viewController ?? getRootViewController()
                 if let presenter {
-                    ad.show(from: presenter)
+                    ad.show(fromRootViewController: presenter)
                     print("🚀 [Meta Audience Network] Показ Interstitial Ad")
                     HapticManager.shared.impactLight()
                     onComplete?()
@@ -280,7 +280,7 @@ public final class MetaAdManager: NSObject {
         if let ad = fbRewardedVideoAd, ad.isAdValid {
             let presenter = viewController ?? getRootViewController()
             if let presenter {
-                ad.show(from: presenter)
+                ad.show(fromRootViewController: presenter)
                 print("🚀 [Meta Audience Network] Показ Rewarded Video")
                 HapticManager.shared.impactMedium()
                 return
@@ -342,64 +342,82 @@ public final class MetaAdManager: NSObject {
 
 // MARK: - Делегаты FBInterstitialAdDelegate & FBRewardedVideoAdDelegate
 #if canImport(FBAudienceNetwork)
-extension MetaAdManager: FBInterstitialAdDelegate {
-    public func interstitialAdDidLoad(_ interstitialAd: FBInterstitialAd) {
-        print("✔ [Meta Audience Network] Interstitial Ad успешно загружен")
-        self.isInterstitialLoaded = true
+extension MetaAdManager: @preconcurrency FBInterstitialAdDelegate {
+    nonisolated public func interstitialAdDidLoad(_ interstitialAd: FBInterstitialAd) {
+        Task { @MainActor in
+            print("✔ [Meta Audience Network] Interstitial Ad успешно загружен")
+            self.isInterstitialLoaded = true
+        }
     }
 
-    public func interstitialAd(_ interstitialAd: FBInterstitialAd, didFailWithError error: Error) {
-        print("⚠ [Meta Audience Network] Ошибка загрузки Interstitial: \(error.localizedDescription)")
-        self.isInterstitialLoaded = false
+    nonisolated public func interstitialAd(_ interstitialAd: FBInterstitialAd, didFailWithError error: Error) {
+        Task { @MainActor in
+            print("⚠ [Meta Audience Network] Ошибка загрузки Interstitial: \(error.localizedDescription)")
+            self.isInterstitialLoaded = false
+        }
     }
 
-    public func interstitialAdDidClose(_ interstitialAd: FBInterstitialAd) {
-        print("⚡ [Meta Audience Network] Interstitial Ad закрыт пользователем")
-        self.isInterstitialLoaded = false
-        self.loadInterstitial() // Предзагрузка следующего
+    nonisolated public func interstitialAdDidClose(_ interstitialAd: FBInterstitialAd) {
+        Task { @MainActor in
+            print("⚡ [Meta Audience Network] Interstitial Ad закрыт пользователем")
+            self.isInterstitialLoaded = false
+            self.loadInterstitial() // Предзагрузка следующего
+        }
     }
 
-    public func interstitialAdWillLogImpression(_ interstitialAd: FBInterstitialAd) {
+    nonisolated public func interstitialAdWillLogImpression(_ interstitialAd: FBInterstitialAd) {
         print("⚡ [Meta Audience Network] Зафиксирован показ Interstitial Ad")
     }
 
-    public func interstitialAdDidClick(_ interstitialAd: FBInterstitialAd) {
-        print("⚡ [Meta Audience Network] Клик по Interstitial Ad")
-        HapticManager.shared.impactMedium()
+    nonisolated public func interstitialAdDidClick(_ interstitialAd: FBInterstitialAd) {
+        Task { @MainActor in
+            print("⚡ [Meta Audience Network] Клик по Interstitial Ad")
+            HapticManager.shared.impactMedium()
+        }
     }
 }
 
-extension MetaAdManager: FBRewardedVideoAdDelegate {
-    public func rewardedVideoAdDidLoad(_ rewardedVideoAd: FBRewardedVideoAd) {
-        print("✔ [Meta Audience Network] Rewarded Video успешно загружено")
-        self.isRewardedVideoLoaded = true
+extension MetaAdManager: @preconcurrency FBRewardedVideoAdDelegate {
+    nonisolated public func rewardedVideoAdDidLoad(_ rewardedVideoAd: FBRewardedVideoAd) {
+        Task { @MainActor in
+            print("✔ [Meta Audience Network] Rewarded Video успешно загружено")
+            self.isRewardedVideoLoaded = true
+        }
     }
 
-    public func rewardedVideoAd(_ rewardedVideoAd: FBRewardedVideoAd, didFailWithError error: Error) {
-        print("⚠ [Meta Audience Network] Ошибка загрузки Rewarded Video: \(error.localizedDescription)")
-        self.isRewardedVideoLoaded = false
+    nonisolated public func rewardedVideoAd(_ rewardedVideoAd: FBRewardedVideoAd, didFailWithError error: Error) {
+        Task { @MainActor in
+            print("⚠ [Meta Audience Network] Ошибка загрузки Rewarded Video: \(error.localizedDescription)")
+            self.isRewardedVideoLoaded = false
+        }
     }
 
-    public func rewardedVideoAdDidClose(_ rewardedVideoAd: FBRewardedVideoAd) {
-        print("⚡ [Meta Audience Network] Rewarded Video закрыто пользователем")
-        self.isRewardedVideoLoaded = false
-        self.loadRewardedVideo() // Предзагрузка следующего
+    nonisolated public func rewardedVideoAdDidClose(_ rewardedVideoAd: FBRewardedVideoAd) {
+        Task { @MainActor in
+            print("⚡ [Meta Audience Network] Rewarded Video закрыто пользователем")
+            self.isRewardedVideoLoaded = false
+            self.loadRewardedVideo() // Предзагрузка следующего
+        }
     }
 
-    public func rewardedVideoAdDidComplete(_ rewardedVideoAd: FBRewardedVideoAd) {
-        print("🎁 [Meta Audience Network] Rewarded Video завершено! Начисление награды пользователю...")
-        HapticManager.shared.notificationSuccess()
-        self.onRewardConfirmedCallback?()
-        self.onRewardConfirmedCallback = nil
+    nonisolated public func rewardedVideoAdDidComplete(_ rewardedVideoAd: FBRewardedVideoAd) {
+        Task { @MainActor in
+            print("🎁 [Meta Audience Network] Rewarded Video завершено! Начисление награды пользователю...")
+            HapticManager.shared.notificationSuccess()
+            self.onRewardConfirmedCallback?()
+            self.onRewardConfirmedCallback = nil
+        }
     }
 
-    public func rewardedVideoAdWillLogImpression(_ rewardedVideoAd: FBRewardedVideoAd) {
+    nonisolated public func rewardedVideoAdWillLogImpression(_ rewardedVideoAd: FBRewardedVideoAd) {
         print("⚡ [Meta Audience Network] Зафиксирован показ Rewarded Video")
     }
 
-    public func rewardedVideoAdDidClick(_ rewardedVideoAd: FBRewardedVideoAd) {
-        print("⚡ [Meta Audience Network] Клик по Rewarded Video")
-        HapticManager.shared.impactMedium()
+    nonisolated public func rewardedVideoAdDidClick(_ rewardedVideoAd: FBRewardedVideoAd) {
+        Task { @MainActor in
+            print("⚡ [Meta Audience Network] Клик по Rewarded Video")
+            HapticManager.shared.impactMedium()
+        }
     }
 }
 #endif

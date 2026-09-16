@@ -275,7 +275,7 @@ public struct MetaBannerView: View {
                 Spacer()
 
                 Button {
-                    AdMobManager.shared.upgradeToPremium()
+                    AdMobManager.shared.purchaseProVersion()
                     showProSheet = false
                     HapticManager.shared.notificationSuccess()
                 } label: {

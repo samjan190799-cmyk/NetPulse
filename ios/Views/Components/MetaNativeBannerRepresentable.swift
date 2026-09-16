@@ -87,11 +87,10 @@ public struct MetaNativeBannerRepresentable: UIViewRepresentable {
     }
 
     // MARK: - Делегат Meta FBAdViewDelegate
-    @MainActor
-    public final class Coordinator: NSObject {
-        var parent: MetaNativeBannerRepresentable
+    public final class Coordinator: NSObject, @unchecked Sendable {
+        nonisolated(unsafe) var parent: MetaNativeBannerRepresentable
         #if canImport(FBAudienceNetwork)
-        weak var adView: FBAdView?
+        nonisolated(unsafe) weak var adView: FBAdView?
         #endif
 
         init(parent: MetaNativeBannerRepresentable) {
@@ -101,24 +100,32 @@ public struct MetaNativeBannerRepresentable: UIViewRepresentable {
 }
 
 #if canImport(FBAudienceNetwork)
-extension MetaNativeBannerRepresentable.Coordinator: FBAdViewDelegate {
-    public func adViewDidLoad(_ adView: FBAdView) {
-        print("⚡ [Meta Audience Network] Баннер успешно загружен (Placement: \(adView.placementID))")
-        parent.onAdLoaded?()
+extension MetaNativeBannerRepresentable.Coordinator: @preconcurrency FBAdViewDelegate {
+    nonisolated public func adViewDidLoad(_ adView: FBAdView) {
+        let placement = adView.placementID
+        Task { @MainActor in
+            print("⚡ [Meta Audience Network] Баннер успешно загружен (Placement: \(placement))")
+            self.parent.onAdLoaded?()
+        }
     }
 
-    public func adView(_ adView: FBAdView, didFailWithError error: Error) {
-        print("⚠ [Meta Audience Network] Ошибка загрузки баннера: \(error.localizedDescription)")
-        parent.onAdFailed?(error.localizedDescription)
+    nonisolated public func adView(_ adView: FBAdView, didFailWithError error: Error) {
+        let errDesc = error.localizedDescription
+        Task { @MainActor in
+            print("⚠ [Meta Audience Network] Ошибка загрузки баннера: \(errDesc)")
+            self.parent.onAdFailed?(errDesc)
+        }
     }
 
-    public func adViewDidClick(_ adView: FBAdView) {
-        print("⚡ [Meta Audience Network] Клик по баннеру Meta")
-        HapticManager.shared.impactMedium()
-        parent.onAdClicked?()
+    nonisolated public func adViewDidClick(_ adView: FBAdView) {
+        Task { @MainActor in
+            print("⚡ [Meta Audience Network] Клик по баннеру Meta")
+            HapticManager.shared.impactMedium()
+            self.parent.onAdClicked?()
+        }
     }
 
-    public func adViewWillLogImpression(_ adView: FBAdView) {
+    nonisolated public func adViewWillLogImpression(_ adView: FBAdView) {
         print("⚡ [Meta Audience Network] Зафиксирован показ (Impression) баннера")
     }
 }

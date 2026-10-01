@@ -83,11 +83,18 @@ final class NetPulseUITests: XCTestCase {
     }
 
     /// Прокручивает экран, пока элемент не станет видимым (строки SwiftUI-списка создаются лениво).
+    /// Найденному элементу даётся «доехать»: после прокрутки список ещё движется по инерции, и нажатие по старым
+    /// координатам попадает мимо (из-за этого переключатель иногда не включался).
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 15) -> Bool {
-        if element.waitForExistence(timeout: 5), element.isHittable { return true }
+        func visibleAndSettled() -> Bool {
+            guard element.exists, element.isHittable else { return false }
+            Thread.sleep(forTimeInterval: 0.8)
+            return element.exists && element.isHittable
+        }
+        if element.waitForExistence(timeout: 5), visibleAndSettled() { return true }
         for _ in 0..<maxSwipes {
             app.swipeUp()
-            if element.exists, element.isHittable { return true }
+            if visibleAndSettled() { return true }
         }
         return false
     }
@@ -117,11 +124,28 @@ final class NetPulseUITests: XCTestCase {
     @MainActor private func enableContinuousMode(_ app: XCUIApplication) -> String {
         let toggle = app.switches["continuousModeToggle"]
         XCTAssertTrue(reveal(toggle, in: app), "Тумблер «Непрерывный режим» не найден на экране настроек")
-        if !isOn(toggle) { flip(toggle) }
+
+        // Нажатие проверяется по значению переключателя и при необходимости повторяется
+        var turnedOn = isOn(toggle)
+        var attempt = 0
+        while !turnedOn && attempt < 4 {
+            attempt += 1
+            flip(toggle)
+            Thread.sleep(forTimeInterval: 1.5)
+            dismissSystemAlerts(timeout: 4)       // запрос геолокации, если разрешение ещё не выдано
+            _ = reveal(toggle, in: app)
+            turnedOn = isOn(toggle)
+            print("NETPULSE-CI: нажатие на тумблер непрерывного режима №\(attempt): включён = \(turnedOn)")
+        }
+        guard turnedOn else {
+            attachScreenshot("continuous-toggle-not-on")
+            attachHierarchy(app, name: "continuous-toggle-not-on-hierarchy")
+            return "(тумблер не включился)"
+        }
         dismissSystemAlerts()
 
-        // После системного окна список настроек может оказаться прокрученным в другое место (в первом прогоне
-        // строка статуса осталась за пределами экрана), поэтому строку ищем прокруткой, а не там, где она была.
+        // После системного окна список настроек может оказаться прокрученным в другое место, поэтому строку
+        // статуса ищем прокруткой, а не там, где она была.
         let status = app.staticTexts["continuousModeStatus"]
         guard reveal(status, in: app) else {
             attachScreenshot("continuous-status-not-found")

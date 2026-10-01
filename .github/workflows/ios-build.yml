@@ -17,6 +17,16 @@ on:
       - 'ios/**'
       - '.github/workflows/ios-build.yml'
   workflow_dispatch:
+    inputs:
+      ui_tests:
+        description: 'Только эти UI-тесты (имя метода, например testContinuousModeCanBeEnabled); пусто — все'
+        required: false
+        default: ''
+      skip_unit:
+        description: 'Пропустить юнит-тесты'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -83,6 +93,7 @@ jobs:
 
       - name: "Юнит-тесты"
         id: unit
+        if: ${{ !inputs.skip_unit }}
         continue-on-error: true
         working-directory: ./ios
         run: |
@@ -99,29 +110,39 @@ jobs:
       - name: "Скорость скачивания на раннере (для сравнения с островом)"
         continue-on-error: true
         run: |
-          curl -fsS --max-time 40 -o /dev/null \
-            -w "размер=%{size_download} байт, скорость=%{speed_download} байт/с\n" \
-            "https://speed.cloudflare.com/__down?bytes=50000000" | tee build_speed.txt || echo "замер скорости не удался"
-          if [ -f build_speed.txt ]; then
-            awk -F'скорость=' '{split($2,a," "); printf "≈ %.1f Мбит/с\n", a[1]*8/1000000}' build_speed.txt
-          fi
+          # 15-секундный замер: средняя скорость по данным curl — эталон для чисел в острове
+          curl -sS --max-time 15 -o /dev/null \
+            -w "tele2: http=%{http_code} скачано=%{size_download} байт, скорость=%{speed_download} байт/с\n" \
+            "http://speedtest.tele2.net/100MB.zip" 2>&1 | tee build_speed.txt || true
+          awk -F'скорость=' 'NF>1 {split($2,a," "); printf "≈ %.1f Мбит/с\n", a[1]*8/1000000}' build_speed.txt || true
 
       - name: "UI-тест в симуляторе (на раннере идёт сетевой трафик)"
         id: ui
         continue-on-error: true
         timeout-minutes: 25
         working-directory: ./ios
+        env:
+          # Параметр ручного запуска передаётся через окружение и проверяется (защита от инъекции команд)
+          ONLY_UI_TESTS: ${{ inputs.ui_tests }}
         run: |
           set -o pipefail
+          ONLY="NetPulseUITests"
+          if [ -n "$ONLY_UI_TESTS" ]; then
+            if ! [[ "$ONLY_UI_TESTS" =~ ^[A-Za-z0-9_]+$ ]]; then
+              echo "❌ Некорректное имя теста: '$ONLY_UI_TESTS'"
+              exit 1
+            fi
+            ONLY="NetPulseUITests/$ONLY_UI_TESTS"
+          fi
           # Скорость в приложении считается по счётчикам сетевых интерфейсов хоста: без нагрузки на раннере
           # остров показывал бы одни нули, и проверять было бы нечего.
           traffic() {
             while true; do
-              curl -fsS --max-time 60 -o /dev/null -w "cloudflare: http=%{http_code} скорость=%{speed_download} байт/с\n" \
-                "https://speed.cloudflare.com/__down?bytes=100000000" \
-                || curl -fsS --max-time 60 -o /dev/null -w "tele2: http=%{http_code} скорость=%{speed_download} байт/с\n" \
-                  "http://speedtest.tele2.net/100MB.zip" \
-                || sleep 3
+              curl -fsS --max-time 20 -o /dev/null -w "tele2: http=%{http_code} скачано=%{size_download} скорость=%{speed_download} байт/с\n" \
+                "http://speedtest.tele2.net/100MB.zip" \
+                || curl -fsS --max-time 20 -o /dev/null -w "ovh: http=%{http_code} скачано=%{size_download} скорость=%{speed_download} байт/с\n" \
+                  "https://proof.ovh.net/files/100Mb.dat" \
+                || sleep 2
             done
           }
           traffic > build/traffic.log 2>&1 &
@@ -133,7 +154,7 @@ jobs:
             -scheme NetPulse \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
-            -only-testing:NetPulseUITests \
+            -only-testing:"$ONLY" \
             -resultBundlePath build/ui.xcresult \
             2>&1 | tee build/ui.log | tail -n 80
 
@@ -155,6 +176,13 @@ jobs:
             python3 ci/xcresult_report.py attachments build/attachments || true
             echo "=== Экспортированные вложения ==="
             ls -1 build/attachments | head -n 100
+            echo "=== Текстовые вложения (иерархия экрана при сбоях) ==="
+            for note in build/attachments/*hierarchy*.txt; do
+              if [ -f "$note" ]; then
+                echo "--- $note"
+                head -n 160 "$note"
+              fi
+            done
             echo "=== Текст на скриншотах (Vision) ==="
             shopt -s nullglob
             swift ci/ocr_screenshots.swift build/attachments/*.png > build/ocr.txt 2>&1 || true

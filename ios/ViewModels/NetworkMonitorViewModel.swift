@@ -144,6 +144,16 @@ public final class NetworkMonitorViewModel {
             UserDefaults.standard.set(liveActivityEnabled, forKey: Self.kLiveActivityKey)
         }
     }
+    // Непрерывный режим: фоновая геолокация удерживает приложение активным, и остров обновляется в фоне
+    private static let kContinuousModeKey = "netpulse_continuous_mode_enabled"
+    public var continuousModeEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(continuousModeEnabled, forKey: Self.kContinuousModeKey)
+        }
+    }
+    /// Фактическое состояние режима: ждёт разрешения, работает, доступ запрещён и т. д.
+    public private(set) var continuousModeState: ContinuousModeManager.State = .off
+
     public var floatingHUDEnabled: Bool {
         didSet {
             UserDefaults.standard.set(floatingHUDEnabled, forKey: Self.kFloatingHUDKey)
@@ -206,6 +216,8 @@ public final class NetworkMonitorViewModel {
         let savedCollapsed = UserDefaults.standard.bool(forKey: Self.kFloatingHUDCollapsedKey)
 
         self.liveActivityEnabled = savedLive
+        // По умолчанию выключен: фоновая геолокация включается только самим пользователем
+        self.continuousModeEnabled = UserDefaults.standard.bool(forKey: Self.kContinuousModeKey)
         self.floatingHUDEnabled = savedHUD
         self.isFloatingHUDCollapsed = savedCollapsed
         self.backgroundMonitoringEnabled = savedBg
@@ -228,7 +240,26 @@ public final class NetworkMonitorViewModel {
             await self.refreshTrafficData(period: .today)
             self.syncWidgetData(reloadTimelines: true)
         }
+        ContinuousModeManager.shared.onStateChange = { [weak self] state in
+            self?.continuousModeState = state
+        }
         startMonitoring(silent: true)
+        refreshContinuousMode()
+    }
+
+    /// Согласует фоновую геолокацию с настройками: режим нужен, только пока включён сам остров
+    /// (и Live Activities разрешены в системе), иначе приложение зря удерживалось бы в фоне.
+    public func refreshContinuousMode() {
+        let needed = continuousModeEnabled && liveActivityEnabled && ActivityManager.shared.areActivitiesEnabled
+        ContinuousModeManager.shared.setActive(needed)
+    }
+
+    public func toggleContinuousMode(enabled: Bool) {
+        continuousModeEnabled = enabled
+        refreshContinuousMode()
+        if hapticsEnabled {
+            HapticManager.shared.impactLight()
+        }
     }
 
     public func toggleLiveActivity(enabled: Bool) {
@@ -267,6 +298,8 @@ public final class NetworkMonitorViewModel {
                 HapticManager.shared.impactLight()
             }
         }
+        // Остров включён или выключен — удержание в фоне должно следовать за ним
+        refreshContinuousMode()
     }
 
     private func setupBackgroundObservation() {
@@ -380,6 +413,10 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleDidBecomeActive() {
+        // Запрос разрешения и запуск фоновой геолокации возможны только при открытом приложении; заодно
+        // подхватываются изменения, сделанные в Настройках iOS (разрешение, Live Activities)
+        refreshContinuousMode()
+
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info

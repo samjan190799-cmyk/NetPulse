@@ -60,10 +60,13 @@
     <string>NetPulse использует микрофон для голосовой диктовки запросов сетевому диагносту.</string>
     <key>NSLocalNetworkUsageDescription</key>
     <string>NetPulse использует доступ к локальной сети, чтобы найти устройства в вашей Wi-Fi сети и проверить их открытые порты.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>«Непрерывный режим» использует геолокацию низкой точности только затем, чтобы NetPulse оставался активным в фоне, а Dynamic Island показывал реальную скорость сети. NetPulse не читает координаты, не сохраняет и не передаёт их.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
         <string>processing</string>
+        <string>location</string>
     </array>
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>

@@ -44,6 +44,7 @@
 		A10000302C12345600000034 /* PiPHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C12345600000034 /* PiPHUDManager.swift */; };
 		A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */; };
 		A10000322C12345600000036 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000322C12345600000036 /* BackgroundTaskManager.swift */; };
+		A10000C02C123456000000C0 /* ContinuousModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C02C123456000000C0 /* ContinuousModeManager.swift */; };
 		A10000402C12345600000040 /* TrafficModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000402C12345600000040 /* TrafficModels.swift */; };
 		A10000412C12345600000041 /* TrafficStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000412C12345600000041 /* TrafficStorage.swift */; };
 		A10000422C12345600000042 /* TrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000422C12345600000042 /* TrafficView.swift */; };
@@ -148,6 +149,7 @@
 		B10000302C12345600000034 /* PiPHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/PiPHUDManager.swift; sourceTree = "<group>"; };
 		B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/BackgroundTelemetryKeeper.swift; sourceTree = "<group>"; };
 		B10000322C12345600000036 /* BackgroundTaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/BackgroundTaskManager.swift; sourceTree = "<group>"; };
+		B10000C02C123456000000C0 /* ContinuousModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ContinuousModeManager.swift; sourceTree = "<group>"; };
 		B10000402C12345600000040 /* TrafficModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TrafficModels.swift; sourceTree = "<group>"; };
 		B10000412C12345600000041 /* TrafficStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/TrafficStorage.swift; sourceTree = "<group>"; };
 		B10000422C12345600000042 /* TrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TrafficView.swift; sourceTree = "<group>"; };
@@ -337,6 +339,7 @@
 				B10000302C12345600000034 /* PiPHUDManager.swift */,
 				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
 				B10000322C12345600000036 /* BackgroundTaskManager.swift */,
+				B10000C02C123456000000C0 /* ContinuousModeManager.swift */,
 				B10000602C12345600000060 /* NetPulseTheme.swift */,
 				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 				B10000A02C123456000000A0 /* AdMobManager.swift */,
@@ -495,6 +498,7 @@
 				A10000302C12345600000034 /* PiPHUDManager.swift in Sources */,
 				A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */,
 				A10000322C12345600000036 /* BackgroundTaskManager.swift in Sources */,
+				A10000C02C123456000000C0 /* ContinuousModeManager.swift in Sources */,
 				A10000402C12345600000040 /* TrafficModels.swift in Sources */,
 				A10000412C12345600000041 /* TrafficStorage.swift in Sources */,
 				A10000422C12345600000042 /* TrafficView.swift in Sources */,

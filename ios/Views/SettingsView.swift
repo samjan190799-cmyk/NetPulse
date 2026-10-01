@@ -291,21 +291,81 @@ public struct SettingsView: View {
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
 
-                        // Подсказка по правилам фонового режима iOS и выгоде PRO HUD
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "lightbulb.fill")
-                                    .foregroundStyle(Color.yellow)
-                                    .font(.system(size: 11))
-                                Text("Совет по фоновому мониторингу")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(Color.yellow)
+                        // Непрерывный режим: остров обновляется и когда приложение свернуто
+                        Toggle(isOn: Binding(
+                            get: { viewModel.continuousModeEnabled },
+                            set: { enabled in
+                                if enabled && ContinuousModeManager.requiresPro && !AdMobManager.shared.isPremiumUser {
+                                    // Доступно только в PRO
+                                    showProUpgradeSheet = true
+                                    HapticManager.shared.notificationWarning()
+                                    return
+                                }
+                                viewModel.toggleContinuousMode(enabled: enabled)
                             }
-                            Text("iOS приостанавливает свернутые приложения примерно через 30 секунд, поэтому Dynamic Island и виджеты показывают последние полученные данные и со временем устаревают. Оверлей HUD (картинка в картинке) поддерживается не на всех устройствах и версиях iOS.")
-                                .font(.system(size: 11))
-                                .foregroundStyle(NPTheme.textSecondary)
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text("Непрерывный режим")
+                                        .font(.system(size: 15, weight: .medium))
+                                    if ContinuousModeManager.requiresPro {
+                                        Text("PRO")
+                                            .font(.system(size: 9, weight: .black))
+                                            .foregroundStyle(Color.yellow)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1.5)
+                                            .background(Color.yellow.opacity(0.18))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                Text("Остров показывает реальную скорость и в фоне, а не замирает через 30 секунд. Приложение остаётся активным за счёт геолокации низкой точности: NetPulse не читает координаты, не сохраняет и не передаёт их, в строке состояния виден значок геолокации, батарея расходуется быстрее.")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
                         }
-                        .padding(.vertical, 2)
+
+                        if viewModel.continuousModeEnabled && viewModel.continuousModeState != .off {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(alignment: .top, spacing: 6) {
+                                    Circle()
+                                        .fill(viewModel.continuousModeState == .running
+                                              ? Color.green
+                                              : (viewModel.continuousModeState.needsAttention ? NPTheme.semanticCritical : Color.orange))
+                                        .frame(width: 8, height: 8)
+                                        .padding(.top, 4)
+                                    Text(viewModel.continuousModeState.statusText)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(NPTheme.textSecondary)
+                                }
+
+                                if viewModel.continuousModeState == .denied {
+                                    Button("Открыть Настройки iOS") {
+                                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                                            UIApplication.shared.open(url)
+                                        }
+                                    }
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(NPTheme.accentPrimary)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        } else if !viewModel.continuousModeEnabled {
+                            // Подсказка по правилам фонового режима iOS
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "lightbulb.fill")
+                                        .foregroundStyle(Color.yellow)
+                                        .font(.system(size: 11))
+                                    Text("Совет по фоновому мониторингу")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(Color.yellow)
+                                }
+                                Text("Без «Непрерывного режима» iOS приостанавливает свернутое приложение примерно через 30 секунд, и Dynamic Island с виджетами показывают последние полученные данные. Включите режим выше, чтобы остров обновлялся и в фоне.")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
+                            .padding(.vertical, 2)
+                        }
                     }
 
                     // Плавающий игровой оверлей (HUD) - PRO Функция

@@ -83,6 +83,11 @@
 		A20000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
 		A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */; };
 		A20000042C12345600000004 /* NetPulseWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000012C12345600000001 /* NetPulseWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A30000012C12345600000001 /* BandwidthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000012C12345600000001 /* BandwidthTests.swift */; };
+		A30000022C12345600000002 /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000022C12345600000002 /* WidgetDataTests.swift */; };
+		A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000032C12345600000003 /* ToolsLogicTests.swift */; };
+		A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000042C12345600000004 /* ModesAndPrivacyTests.swift */; };
+		A40000012C12345600000001 /* NetPulseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000012C12345600000001 /* NetPulseUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +97,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = F20000012C12345600000001;
 			remoteInfo = NetPulseWidgets;
+		};
+		P30000012C12345600000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000002C12345600000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10000012C12345600000001;
+			remoteInfo = NetPulse;
+		};
+		P40000012C12345600000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000002C12345600000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10000012C12345600000001;
+			remoteInfo = NetPulse;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -189,6 +208,13 @@
 		B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseHomeScreenWidget.swift; sourceTree = "<group>"; };
 		B10000E12C12345600000E01 /* NetPulse.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetPulse.entitlements; sourceTree = "<group>"; };
 		B20000E22C12345600000E02 /* NetPulseWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetPulseWidgets/NetPulseWidgets.entitlements; sourceTree = "<group>"; };
+		C30000012C12345600000001 /* NetPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C40000012C12345600000001 /* NetPulseUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetPulseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B30000012C12345600000001 /* BandwidthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/BandwidthTests.swift; sourceTree = "<group>"; };
+		B30000022C12345600000002 /* WidgetDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/WidgetDataTests.swift; sourceTree = "<group>"; };
+		B30000032C12345600000003 /* ToolsLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ToolsLogicTests.swift; sourceTree = "<group>"; };
+		B30000042C12345600000004 /* ModesAndPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ModesAndPrivacyTests.swift; sourceTree = "<group>"; };
+		B40000012C12345600000001 /* NetPulseUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/NetPulseUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -201,6 +227,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D20000012C12345600000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D30000012C12345600000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D40000012C12345600000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -223,6 +263,8 @@
 				E10000072C12345600000007 /* Utils */,
 				B1000020AC1234560000002A /* Assets.xcassets */,
 				E20000022C12345600000002 /* NetPulseWidgets */,
+				E50000012C12345600000001 /* NetPulseTests */,
+				E60000012C12345600000001 /* NetPulseUITests */,
 				E10000082C12345600000008 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -353,8 +395,29 @@
 			children = (
 				C10000002C12345600000000 /* NetPulse.app */,
 				B20000012C12345600000001 /* NetPulseWidgets.appex */,
+				C30000012C12345600000001 /* NetPulseTests.xctest */,
+				C40000012C12345600000001 /* NetPulseUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E50000012C12345600000001 /* NetPulseTests */ = {
+			isa = PBXGroup;
+			children = (
+				B30000012C12345600000001 /* BandwidthTests.swift */,
+				B30000022C12345600000002 /* WidgetDataTests.swift */,
+				B30000032C12345600000003 /* ToolsLogicTests.swift */,
+				B30000042C12345600000004 /* ModesAndPrivacyTests.swift */,
+			);
+			name = NetPulseTests;
+			sourceTree = "<group>";
+		};
+		E60000012C12345600000001 /* NetPulseUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B40000012C12345600000001 /* NetPulseUITests.swift */,
+			);
+			name = NetPulseUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -399,6 +462,42 @@
 			productReference = B20000012C12345600000001 /* NetPulseWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		F30000012C12345600000001 /* NetPulseTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseTests" */;
+			buildPhases = (
+				D30000002C12345600000000 /* Sources */,
+				D30000012C12345600000001 /* Frameworks */,
+				D30000032C12345600000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				T30000012C12345600000001 /* PBXTargetDependency */,
+			);
+			name = NetPulseTests;
+			productName = NetPulseTests;
+			productReference = C30000012C12345600000001 /* NetPulseTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F40000012C12345600000001 /* NetPulseUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseUITests" */;
+			buildPhases = (
+				D40000002C12345600000000 /* Sources */,
+				D40000012C12345600000001 /* Frameworks */,
+				D40000032C12345600000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				T40000012C12345600000001 /* PBXTargetDependency */,
+			);
+			name = NetPulseUITests;
+			productName = NetPulseUITests;
+			productReference = C40000012C12345600000001 /* NetPulseUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -413,6 +512,14 @@
 					};
 					F20000012C12345600000001 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					F30000012C12345600000001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = F10000012C12345600000001;
+					};
+					F40000012C12345600000001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = F10000012C12345600000001;
 					};
 				};
 			};
@@ -434,6 +541,8 @@
 			targets = (
 				F10000012C12345600000001 /* NetPulse */,
 				F20000012C12345600000001 /* NetPulseWidgets */,
+				F30000012C12345600000001 /* NetPulseTests */,
+				F40000012C12345600000001 /* NetPulseUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -448,6 +557,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D20000032C12345600000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D30000032C12345600000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D40000032C12345600000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -544,6 +667,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D30000002C12345600000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A30000012C12345600000001 /* BandwidthTests.swift in Sources */,
+				A30000022C12345600000002 /* WidgetDataTests.swift in Sources */,
+				A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */,
+				A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D40000002C12345600000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A40000012C12345600000001 /* NetPulseUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -551,6 +693,16 @@
 			isa = PBXTargetDependency;
 			target = F20000012C12345600000001 /* NetPulseWidgets */;
 			targetProxy = P20000012C12345600000001 /* PBXContainerItemProxy */;
+		};
+		T30000012C12345600000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F10000012C12345600000001 /* NetPulse */;
+			targetProxy = P30000012C12345600000001 /* PBXContainerItemProxy */;
+		};
+		T40000012C12345600000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F10000012C12345600000001 /* NetPulse */;
+			targetProxy = P40000012C12345600000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -706,6 +858,80 @@
 			};
 			name = Release;
 		};
+		H30000022C12345600000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetPulse.app/NetPulse";
+			};
+			name = Debug;
+		};
+		H30000032C12345600000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetPulse.app/NetPulse";
+			};
+			name = Release;
+		};
+		H40000022C12345600000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NetPulse;
+			};
+			name = Debug;
+		};
+		H40000032C12345600000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NetPulse;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -732,6 +958,24 @@
 			buildConfigurations = (
 				H20000022C12345600000002 /* Debug */,
 				H20000032C12345600000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H30000022C12345600000002 /* Debug */,
+				H30000032C12345600000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H40000022C12345600000002 /* Debug */,
+				H40000032C12345600000003 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

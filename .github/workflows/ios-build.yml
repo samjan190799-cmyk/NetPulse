@@ -1,8 +1,17 @@
-name: "iOS: проверка сборки"
+name: "iOS: сборка и тесты"
 
-# Проверяет, что приложение и расширение виджетов компилируются (Swift 6, строгая проверка конкурентности).
-# Подпись и выгрузка не выполняются — это делает отдельный ручной workflow «Выгрузка в TestFlight».
+# Собирает приложение и виджеты под симулятор, запускает юнит-тесты и UI-тест (Dynamic Island, «Непрерывный режим»)
+# и сохраняет скриншоты как артефакты. Подпись и выгрузка не выполняются: это делает отдельный ручной workflow
+# «Выгрузка в TestFlight».
+#
+# Симулятор не воспроизводит усыпление свёрнутого приложения на реальном iPhone, поэтому поведение острова
+# в фоне окончательно проверяется только на устройстве. Здесь проверяется всё остальное: сборка, логика,
+# запуск без падений, интерфейс, старт Live Activity и включение режима.
 on:
+  push:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
   pull_request:
     paths:
       - 'ios/**'
@@ -17,10 +26,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: "Сборка для симулятора"
+  test:
+    name: "Сборка, юнит-тесты и UI-тест в симуляторе"
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 60
 
     steps:
       - name: "Проверка репозитория"
@@ -28,10 +37,16 @@ jobs:
 
       - name: "Выбор Xcode"
         run: |
-          # Самый новый из установленных Xcode_*.app (на образе их может быть несколько)
-          XCODE="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n 1)"
-          if [ -n "$XCODE" ]; then
-            sudo xcode-select -s "$XCODE"
+          echo "=== Установленные Xcode ==="
+          ls -d /Applications/Xcode*.app || true
+          if [ -d "/Applications/Xcode_26.0.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.1.app
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          elif [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
           fi
           xcodebuild -version
 
@@ -39,22 +54,145 @@ jobs:
         working-directory: ./ios
         run: xcodebuild -resolvePackageDependencies -project NetPulse.xcodeproj -scheme NetPulse
 
-      - name: "Сборка приложения и виджетов (симулятор, без подписи)"
+      - name: "Выбор и запуск симулятора"
+        working-directory: ./ios
+        run: |
+          SIM="$(bash ci/select_simulator.sh)"
+          echo "Выбран симулятор: $SIM"
+          UDID="$(echo "$SIM" | cut -f1)"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # Фиксированное местоположение: фоновая геолокация «Непрерывного режима» получает правдоподобные данные
+          xcrun simctl location "$UDID" set 55.7558,37.6173 || true
+
+      - name: "Сборка приложения и тестов (симулятор, без подписи)"
+        id: build
         working-directory: ./ios
         run: |
           set -o pipefail
-          xcodebuild build \
+          mkdir -p build
+          xcodebuild build-for-testing \
             -project NetPulse.xcodeproj \
             -scheme NetPulse \
             -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tee build.log | tail -n 40
+            2>&1 | tee build/build.log | tail -n 40
 
-      - name: "Ошибки компиляции"
-        if: failure()
+      - name: "Юнит-тесты"
+        id: unit
+        continue-on-error: true
         working-directory: ./ios
         run: |
-          echo "=== error: ==="
-          grep -E "error:" build.log | sort -u | head -n 80 || true
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:NetPulseTests \
+            -resultBundlePath build/unit.xcresult \
+            2>&1 | tee build/unit.log | tail -n 60
+
+      - name: "UI-тест в симуляторе (на раннере идёт сетевой трафик)"
+        id: ui
+        continue-on-error: true
+        timeout-minutes: 25
+        working-directory: ./ios
+        run: |
+          set -o pipefail
+          # Скорость в приложении считается по счётчикам сетевых интерфейсов хоста: без нагрузки на раннере
+          # остров показывал бы одни нули, и проверять было бы нечего.
+          traffic() {
+            while true; do
+              curl -sS --max-time 60 -o /dev/null "https://speed.cloudflare.com/__down?bytes=100000000" \
+                || curl -sS --max-time 60 -o /dev/null "http://speedtest.tele2.net/100MB.zip" \
+                || sleep 3
+            done
+          }
+          traffic > build/traffic.log 2>&1 &
+          TRAFFIC_PID=$!
+          trap 'kill "$TRAFFIC_PID" 2>/dev/null || true' EXIT
+
+          xcodebuild test-without-building \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:NetPulseUITests \
+            -resultBundlePath build/ui.xcresult \
+            2>&1 | tee build/ui.log | tail -n 80
+
+      - name: "Строки NETPULSE-CI из журнала UI-теста"
+        if: always()
+        working-directory: ./ios
+        run: grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+
+      - name: "Экспорт скриншотов и распознавание текста"
+        if: always()
+        working-directory: ./ios
+        run: |
+          mkdir -p build/attachments
+          if [ -d build/ui.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/ui.xcresult --output-path build/attachments || true
+            python3 ci/xcresult_report.py attachments build/attachments || true
+            echo "=== Экспортированные вложения ==="
+            ls -1 build/attachments | head -n 100
+            echo "=== Текст на скриншотах (Vision) ==="
+            shopt -s nullglob
+            swift ci/ocr_screenshots.swift build/attachments/*.png 2>&1 | head -n 400 || true
+          else
+            echo "build/ui.xcresult нет: UI-тест не запускался"
+          fi
+
+      - name: "Журнал приложения и отчёты о падениях"
+        if: always()
+        working-directory: ./ios
+        run: |
+          mkdir -p build/diagnostics
+          xcrun simctl spawn "$UDID" log show --last 30m --style compact \
+            --predicate 'process == "NetPulse"' 2>/dev/null | tail -n 400 > build/diagnostics/app-log.txt || true
+          cp ~/Library/Logs/DiagnosticReports/NetPulse* build/diagnostics/ 2>/dev/null || true
+          echo "=== Файлы диагностики ==="
+          ls -la build/diagnostics | head -n 20
+          for report in build/diagnostics/NetPulse*.ips; do
+            if [ -f "$report" ]; then
+              echo "--- Отчёт о падении: $report"
+              head -n 60 "$report"
+            fi
+          done
+
+      - name: "Сводка результатов"
+        if: always()
+        working-directory: ./ios
+        run: |
+          {
+            python3 ci/xcresult_report.py summary build/unit.xcresult "Юнит-тесты"
+            python3 ci/xcresult_report.py summary build/ui.xcresult "UI-тест в симуляторе"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: "Артефакты: скриншоты, журналы, результаты"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: |
+            ios/build/attachments
+            ios/build/diagnostics
+            ios/build/*.log
+            ios/build/unit.xcresult
+            ios/build/ui.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: "Итог"
+        if: always()
+        run: |
+          echo "Сборка: ${{ steps.build.outcome }}; юнит-тесты: ${{ steps.unit.outcome }}; UI-тест: ${{ steps.ui.outcome }}"
+          if [ "${{ steps.build.outcome }}" != "success" ] \
+             || [ "${{ steps.unit.outcome }}" = "failure" ] \
+             || [ "${{ steps.ui.outcome }}" = "failure" ]; then
+            exit 1
+          fi

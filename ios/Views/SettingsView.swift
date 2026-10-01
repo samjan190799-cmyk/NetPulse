@@ -241,6 +241,7 @@ public struct SettingsView: View {
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
+                    .accessibilityIdentifier("dynamicIslandToggle")
 
                     if !ActivityManager.shared.areActivitiesEnabled {
                         VStack(alignment: .leading, spacing: 6) {
@@ -272,6 +273,7 @@ public struct SettingsView: View {
                             Text("Статус: \(ActivityManager.shared.statusDescription)")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(NPTheme.textSecondary)
+                                .accessibilityIdentifier("islandStatus")
                             Spacer()
                             Button("Перезапустить") {
                                 HapticManager.shared.impactMedium()
@@ -323,6 +325,7 @@ public struct SettingsView: View {
                                     .foregroundStyle(NPTheme.textSecondary)
                             }
                         }
+                        .accessibilityIdentifier("continuousModeToggle")
 
                         if viewModel.continuousModeEnabled && viewModel.continuousModeState != .off {
                             VStack(alignment: .leading, spacing: 6) {
@@ -336,6 +339,7 @@ public struct SettingsView: View {
                                     Text(viewModel.continuousModeState.statusText)
                                         .font(.system(size: 12, weight: .medium))
                                         .foregroundStyle(NPTheme.textSecondary)
+                                        .accessibilityIdentifier("continuousModeStatus")
                                 }
 
                                 if viewModel.continuousModeState == .denied {

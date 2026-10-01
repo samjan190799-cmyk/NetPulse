@@ -214,7 +214,8 @@ public actor DNSBenchmarkEngine {
 // MARK: - Один DNS-запрос по UDP
 
 /// Отправка одного DNS-запроса (запись A) и замер времени до корректного ответа.
-private enum DNSQueryProbe {
+/// Не `private`, чтобы юнит-тесты могли проверять сборку запроса и разбор ответа.
+enum DNSQueryProbe {
     /// Время ответа в мс. `nil` — ответа нет, он пришёл с ошибкой или не соответствует запросу.
     static func query(server: String, domain: String, timeoutSeconds: Double) async -> Double? {
         let queryID = UInt16.random(in: 0...UInt16.max)

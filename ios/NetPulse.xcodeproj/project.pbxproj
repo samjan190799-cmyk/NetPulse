@@ -88,6 +88,10 @@
 		A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000032C12345600000003 /* ToolsLogicTests.swift */; };
 		A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000042C12345600000004 /* ModesAndPrivacyTests.swift */; };
 		A40000012C12345600000001 /* NetPulseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000012C12345600000001 /* NetPulseUITests.swift */; };
+		A10000D02C123456000000D0 /* IslandUpdatePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */; };
+		A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D12C123456000000D1 /* IslandDiagnostics.swift */; };
+		A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */; };
+		A30000052C12345600000005 /* IslandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000052C12345600000005 /* IslandTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -215,6 +219,10 @@
 		B30000032C12345600000003 /* ToolsLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ToolsLogicTests.swift; sourceTree = "<group>"; };
 		B30000042C12345600000004 /* ModesAndPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ModesAndPrivacyTests.swift; sourceTree = "<group>"; };
 		B40000012C12345600000001 /* NetPulseUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/NetPulseUITests.swift; sourceTree = "<group>"; };
+		B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandUpdatePipeline.swift; sourceTree = "<group>"; };
+		B10000D12C123456000000D1 /* IslandDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandDiagnostics.swift; sourceTree = "<group>"; };
+		B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/IslandDiagnosticsView.swift; sourceTree = "<group>"; };
+		B30000052C12345600000005 /* IslandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -345,6 +353,7 @@
 				B100009A2C1234560000009A /* BufferbloatView.swift */,
 				B100009B2C1234560000009B /* LANScannerView.swift */,
 				E10000062C12345600000006 /* Components */,
+				B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -386,6 +395,8 @@
 				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 				B10000A02C123456000000A0 /* AdMobManager.swift */,
 				B10000B02C123456000000B0 /* MetaAdManager.swift */,
+				B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */,
+				B10000D12C123456000000D1 /* IslandDiagnostics.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -408,6 +419,7 @@
 				B30000022C12345600000002 /* WidgetDataTests.swift */,
 				B30000032C12345600000003 /* ToolsLogicTests.swift */,
 				B30000042C12345600000004 /* ModesAndPrivacyTests.swift */,
+				B30000052C12345600000005 /* IslandTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -652,6 +664,9 @@
 				A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */,
 				A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */,
 				A10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift in Sources */,
+				A10000D02C123456000000D0 /* IslandUpdatePipeline.swift in Sources */,
+				A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */,
+				A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -675,6 +690,7 @@
 				A30000022C12345600000002 /* WidgetDataTests.swift in Sources */,
 				A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */,
 				A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */,
+				A30000052C12345600000005 /* IslandTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

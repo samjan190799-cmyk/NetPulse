@@ -18,6 +18,7 @@ public struct SettingsView: View {
     @State private var newHostPort: String = "443"
     @State private var showResetTrafficAlert: Bool = false
     @State private var showProUpgradeSheet: Bool = false
+    @State private var showIslandDiagnostics: Bool = false
     @State private var addHostError: String?
 
     /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
@@ -277,18 +278,9 @@ public struct SettingsView: View {
                             Spacer()
                             Button("Перезапустить") {
                                 HapticManager.shared.impactMedium()
-                                ActivityManager.shared.restartActivity(
-                                    downloadSpeedText: viewModel.liveBandwidth.formattedDownloadSpeed,
-                                    uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
-                                    compactDownloadText: viewModel.liveBandwidth.compactDownload,
-                                    compactUploadText: viewModel.liveBandwidth.compactUpload,
-                                    pingMs: viewModel.currentAveragePing,
-                                    jitterMs: viewModel.currentAverageJitter,
-                                    isTesting: viewModel.isSpeedtestRunning,
-                                    connectionType: viewModel.systemInfo.connectionType.rawValue,
-                                    ispName: viewModel.systemInfo.ispName ?? "Интернет"
-                                )
+                                viewModel.restartLiveActivity()
                             }
+                            .accessibilityIdentifier("islandRestartButton")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
@@ -320,7 +312,7 @@ public struct SettingsView: View {
                                             .clipShape(Capsule())
                                     }
                                 }
-                                Text("Остров показывает реальную скорость и в фоне, а не замирает через 30 секунд. Приложение остаётся активным за счёт геолокации низкой точности: NetPulse не читает координаты, не сохраняет и не передаёт их, в строке состояния виден значок геолокации, батарея расходуется быстрее.")
+                                Text("Остров показывает реальную скорость и в фоне, а не замирает через 30 секунд. Приложение остаётся активным за счёт геолокации: NetPulse не читает координаты, не сохраняет и не передаёт их, в строке состояния виден значок геолокации, батарея расходуется быстрее.")
                                     .font(.system(size: 12))
                                     .foregroundStyle(NPTheme.textSecondary)
                             }
@@ -351,6 +343,30 @@ public struct SettingsView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(NPTheme.accentPrimary)
                                 }
+
+                                Picker("Удержание в фоне", selection: $viewModel.continuousModeLevel) {
+                                    ForEach(ContinuousModeManager.Level.allCases) { level in
+                                        Text(level.title).tag(level)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .accessibilityIdentifier("continuousModeLevelPicker")
+
+                                Text(viewModel.continuousModeLevel.explanation)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(NPTheme.textSecondary)
+
+                                if viewModel.continuousModeState == .running, viewModel.continuousModePauses > 0 {
+                                    if viewModel.continuousModeLevel == .economy {
+                                        Text("Приложение приостанавливали в фоне \(viewModel.continuousModePauses) раз(а): «Экономный» его не удержал. Выберите «Надёжный (GPS)».")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(Color.orange)
+                                    } else {
+                                        Text("Приложение приостанавливали в фоне \(viewModel.continuousModePauses) раз(а), несмотря на «Надёжный» режим. Подробности — в «Диагностике острова».")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(Color.orange)
+                                    }
+                                }
                             }
                             .padding(.vertical, 2)
                         } else if !viewModel.continuousModeEnabled {
@@ -370,6 +386,21 @@ public struct SettingsView: View {
                             }
                             .padding(.vertical, 2)
                         }
+
+                        // Журнал: что происходило с островом, пока приложение было свёрнуто
+                        Button {
+                            showIslandDiagnostics = true
+                        } label: {
+                            HStack {
+                                Label("Диагностика острова", systemImage: "waveform.path.ecg")
+                                    .font(.system(size: 13, weight: .medium))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
+                        }
+                        .accessibilityIdentifier("islandDiagnosticsButton")
                     }
 
                     // Плавающий игровой оверлей (HUD) - PRO Функция
@@ -659,6 +690,9 @@ public struct SettingsView: View {
                 Button("Отмена", role: .cancel) {}
             } message: {
                 Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
+            }
+            .sheet(isPresented: $showIslandDiagnostics) {
+                IslandDiagnosticsView()
             }
             .sheet(isPresented: $showProUpgradeSheet) {
                 NetPulseProUpgradeSheet()

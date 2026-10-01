@@ -27,6 +27,11 @@ on:
         type: boolean
         required: false
         default: false
+      skip_ui:
+        description: 'Пропустить UI-тест (быстрая проверка: сборка и юнит-тесты, около 8 минут)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -108,6 +113,7 @@ jobs:
             2>&1 | tee build/unit.log | tail -n 60
 
       - name: "Скорость скачивания на раннере (для сравнения с островом)"
+        if: ${{ !inputs.skip_ui }}
         continue-on-error: true
         run: |
           # 15-секундный замер: средняя скорость по данным curl — эталон для чисел в острове
@@ -118,6 +124,7 @@ jobs:
 
       - name: "UI-тест в симуляторе (на раннере идёт сетевой трафик)"
         id: ui
+        if: ${{ !inputs.skip_ui }}
         continue-on-error: true
         timeout-minutes: 25
         working-directory: ./ios

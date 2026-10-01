@@ -24,6 +24,8 @@ final class NetPulseUITests: XCTestCase {
         let app = XCUIApplication()
         // Параметр запуска переопределяет сохранённое значение: каждый тест стартует с выключенным режимом
         app.launchArguments += ["-netpulse_continuous_mode_enabled", "NO"]
+        // Подсказка «остров замирал» может быть скрыта предыдущим запуском: сбрасываем её
+        app.launchArguments += ["-netpulse_continuous_hint_dismissed", "NO"]
         app.launch()
         dismissSystemAlerts()
         return app
@@ -117,6 +119,48 @@ final class NetPulseUITests: XCTestCase {
         case .runningForeground: return "runningForeground"
         @unknown default: return "other(\(state.rawValue))"
         }
+    }
+
+    /// Открывает «Диагностику острова», возвращает текст сводки и закрывает экран
+    @MainActor private func readIslandDiagnostics(_ app: XCUIApplication) -> String {
+        let button = app.descendants(matching: .any)["islandDiagnosticsButton"]
+        guard reveal(button, in: app) else {
+            attachScreenshot("diagnostics-button-not-found")
+            attachHierarchy(app, name: "diagnostics-button-not-found-hierarchy")
+            return "(кнопка диагностики не найдена)"
+        }
+        button.tap()
+
+        let summary = app.staticTexts["islandDiagnosticsSummary"]
+        guard summary.waitForExistence(timeout: 10) else {
+            attachScreenshot("diagnostics-summary-not-found")
+            attachHierarchy(app, name: "diagnostics-summary-not-found-hierarchy")
+            return "(сводка не появилась)"
+        }
+        Thread.sleep(forTimeInterval: 1.2)      // экран перечитывает состояние раз в секунду
+        let text = summary.label
+        attachScreenshot("island-diagnostics")
+        let close = app.buttons["islandDiagnosticsClose"]
+        if close.exists { close.tap() }
+        return text
+    }
+
+    /// Достаёт из сводки число отправленных кадров («Отправлено кадров: N»)
+    private func sentFrames(in summary: String) -> Int? {
+        for line in summary.split(separator: "\n") where line.hasPrefix("Отправлено кадров:") {
+            let number = line.replacingOccurrences(of: "Отправлено кадров:", with: "").trimmingCharacters(in: .whitespaces)
+            return Int(number)
+        }
+        return nil
+    }
+
+    private func logDiagnostics(_ summary: String, label: String) {
+        print("NETPULSE-CI: диагностика острова (\(label)): " + summary.replacingOccurrences(of: "\n", with: " | "))
+    }
+
+    /// Заголовок подсказки «остров замирал» на главном экране
+    @MainActor private func continuousModeHintTitle(_ app: XCUIApplication) -> XCUIElement {
+        app.staticTexts["Остров замирал, пока приложение было свёрнуто"]
     }
 
     /// Включает «Непрерывный режим» и дожидается статуса «Активен…». Возвращает последний прочитанный статус.
@@ -220,6 +264,46 @@ final class NetPulseUITests: XCTestCase {
         print("NETPULSE-CI: статус острова: \(status.label)")
         attachScreenshot("live-activity-status")
         XCTAssertTrue(status.label.contains("Активен в Dynamic Island"), "Live Activity не запустилась. Статус: «\(status.label)»")
+
+        // Конвейер обновления: кадры должны реально уходить и подтверждаться системой
+        Thread.sleep(forTimeInterval: 6)
+        let summary = readIslandDiagnostics(app)
+        logDiagnostics(summary, label: "после запуска")
+        XCTAssertTrue(summary.contains("Остров: активна"), "Диагностика не видит активной Live Activity:\n\(summary)")
+        XCTAssertGreaterThan(sentFrames(in: summary) ?? 0, 0, "Ни один кадр не отправлен:\n\(summary)")
+        XCTAssertTrue(summary.contains("Зависших отправок: 0"), "Отправки зависали:\n\(summary)")
+    }
+
+    /// «Перезапустить» создаёт активность заново, и после этого остров продолжает обновляться
+    @MainActor func testRestartButtonRecreatesIslandAndUpdatesContinue() throws {
+        let app = launchApp()
+        openSettings(app)
+
+        let status = app.staticTexts["islandStatus"]
+        XCTAssertTrue(reveal(status, in: app), "Нет строки статуса острова")
+        let startDeadline = Date().addingTimeInterval(30)
+        while Date() < startDeadline, !status.label.contains("Активен в Dynamic Island") {
+            Thread.sleep(forTimeInterval: 1)
+        }
+        XCTAssertTrue(status.label.contains("Активен в Dynamic Island"), "Остров не запустился. Статус: «\(status.label)»")
+
+        Thread.sleep(forTimeInterval: 4)
+        let before = readIslandDiagnostics(app)
+        let sentBefore = sentFrames(in: before) ?? 0
+        logDiagnostics(before, label: "до перезапуска")
+
+        let restart = app.buttons["islandRestartButton"]
+        XCTAssertTrue(reveal(restart, in: app), "Кнопка «Перезапустить» не найдена")
+        restart.tap()
+        Thread.sleep(forTimeInterval: 8)
+
+        let after = readIslandDiagnostics(app)
+        logDiagnostics(after, label: "после перезапуска")
+        attachScreenshot("after-restart")
+        XCTAssertTrue(after.contains("Остров: активна"), "После перезапуска остров не активен:\n\(after)")
+        XCTAssertGreaterThan(sentFrames(in: after) ?? 0, 0, "После перезапуска кадры не уходят:\n\(after)")
+        XCTAssertTrue(after.contains("Зависших отправок: 0"), "После перезапуска отправки зависали:\n\(after)")
+        print("NETPULSE-CI: кадров до перезапуска: \(sentBefore), после: \(sentFrames(in: after) ?? -1)")
     }
 
     @MainActor func testContinuousModeCanBeEnabled() throws {
@@ -242,6 +326,14 @@ final class NetPulseUITests: XCTestCase {
 
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Приложение не вернулось на передний план")
+
+        // Пока приложение было свёрнуто дольше 40 секунд, а режим выключен, на главном экране появляется подсказка
+        app.tabBars.buttons["Скорость"].tap()
+        let hint = continuousModeHintTitle(app)
+        let hintShown = hint.waitForExistence(timeout: 10)
+        print("NETPULSE-CI: подсказка про непрерывный режим после долгого фона без режима: \(hintShown ? "показана" : "НЕ показана")")
+        attachScreenshot("control-hint")
+        XCTAssertTrue(hintShown, "После долгого фона без непрерывного режима подсказка не появилась")
     }
 
     /// Основной прогон: свёрнутое приложение с включённым режимом. Снимки острова сохраняются для просмотра.
@@ -257,5 +349,19 @@ final class NetPulseUITests: XCTestCase {
 
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Приложение не вернулось на передний план: оно завершилось в фоне")
+
+        // С включённым режимом подсказки быть не должно
+        app.tabBars.buttons["Скорость"].tap()
+        let hintShown = continuousModeHintTitle(app).waitForExistence(timeout: 3)
+        print("NETPULSE-CI: подсказка про непрерывный режим при включённом режиме: \(hintShown ? "ПОКАЗАНА (ошибка)" : "не показана")")
+        XCTAssertFalse(hintShown, "При включённом непрерывном режиме подсказка показываться не должна")
+
+        // Конвейер после фона: отправки не зависали, остров обновляется
+        app.tabBars.buttons["Настройки"].tap()
+        let summary = readIslandDiagnostics(app)
+        logDiagnostics(summary, label: "после фона с режимом")
+        XCTAssertTrue(summary.contains("Остров: активна"), "После фона остров не активен:\n\(summary)")
+        XCTAssertTrue(summary.contains("Зависших отправок: 0"), "В фоне отправки зависали:\n\(summary)")
+        XCTAssertTrue(summary.contains("работает"), "Диагностика не видит работающего непрерывного режима:\n\(summary)")
     }
 }

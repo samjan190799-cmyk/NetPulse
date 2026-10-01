@@ -34,6 +34,60 @@ public struct DashboardView: View {
 
     @State private var showGlossarySheet: Bool = false
 
+    /// Подсказка после возвращения в приложение: без непрерывного режима iOS усыпляет свёрнутое приложение
+    /// и остров стоит на последних цифрах
+    private var continuousModeHintCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "pause.circle.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(NPTheme.semanticWarn)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Остров замирал, пока приложение было свёрнуто")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.textPrimary)
+
+                    Text("iOS усыпляет свёрнутое приложение, и остров стоит на последних цифрах. «Непрерывный режим» держит приложение активным: используется геолокация, в строке состояния появится её значок.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(NPTheme.textSecondary)
+                        .lineSpacing(2)
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    viewModel.enableContinuousModeFromHint()
+                } label: {
+                    Text("Включить")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("continuousModeHintEnable")
+
+                Button {
+                    viewModel.dismissContinuousModeHint(forever: false)
+                } label: {
+                    Text("Позже")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    viewModel.dismissContinuousModeHint(forever: true)
+                } label: {
+                    Text("Не показывать")
+                        .font(.system(size: 12))
+                        .foregroundStyle(NPTheme.textSecondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .npGlassCard(cornerRadius: 14)
+    }
+
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
@@ -43,6 +97,11 @@ public struct DashboardView: View {
 
                 ScrollView {
                     VStack(spacing: 18) {
+                        // 0. Остров замирал, пока приложение было свёрнуто, а непрерывный режим выключен
+                        if viewModel.showContinuousModeHint {
+                            continuousModeHintCard
+                        }
+
                         // 1. Интерактивный замер скорости (Speedtest 2026)
                         SpeedtestHeroView(
                             isRunning: viewModel.isSpeedtestRunning,
@@ -125,17 +184,7 @@ public struct DashboardView: View {
                         if !ActivityManager.shared.isLiveActivityActive {
                             viewModel.toggleLiveActivity(enabled: true)
                         } else {
-                            ActivityManager.shared.restartActivity(
-                                downloadSpeedText: viewModel.liveBandwidth.formattedDownloadSpeed,
-                                uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
-                                compactDownloadText: viewModel.liveBandwidth.compactDownload,
-                                compactUploadText: viewModel.liveBandwidth.compactUpload,
-                                pingMs: currentPing,
-                                jitterMs: currentJitter,
-                                isTesting: viewModel.isSpeedtestRunning,
-                                connectionType: viewModel.systemInfo.connectionType.rawValue,
-                                ispName: viewModel.systemInfo.ispName ?? "Интернет"
-                            )
+                            viewModel.restartLiveActivity()
                         }
                     } label: {
                         HStack(spacing: 5) {

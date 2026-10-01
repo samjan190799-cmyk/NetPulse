@@ -153,6 +153,15 @@ public final class NetworkMonitorViewModel {
     }
     /// Фактическое состояние режима: ждёт разрешения, работает, доступ запрещён и т. д.
     public private(set) var continuousModeState: ContinuousModeManager.State = .off
+    /// Уровень удержания в фоне: «Надёжный» (GPS) или «Экономный»
+    public var continuousModeLevel: ContinuousModeManager.Level = ContinuousModeManager.shared.level {
+        didSet { ContinuousModeManager.shared.setLevel(continuousModeLevel) }
+    }
+    /// Сколько раз приложение приостанавливали в фоне, пока непрерывный режим работал
+    public private(set) var continuousModePauses: Int = 0
+    /// Подсказка на главном экране: остров замирал, а непрерывный режим выключен
+    public var showContinuousModeHint: Bool = false
+    private static let kContinuousHintDismissedKey = "netpulse_continuous_hint_dismissed"
 
     public var floatingHUDEnabled: Bool {
         didSet {
@@ -201,8 +210,15 @@ public final class NetworkMonitorViewModel {
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
     /// Метка времени последнего успешного обновления Live Activity (watchdog)
     public var lastLiveActivityUpdateDate: Date?
+    /// Когда приложение свернули (для подсказки про непрерывный режим)
+    private var backgroundedAt: Date?
+    /// Когда в последний раз записывали остаток памяти в журнал
+    private var lastMemorySampleAt = Date.distantPast
 
     public init() {
+        // Журнал острова: заодно проверяет, не был ли предыдущий запуск закрыт системой без штатного выхода
+        IslandDiagnostics.shared.beginSession()
+
         // Значения по умолчанию видны и тем, кто читает ключи напрямую (BackgroundTaskManager): иначе на свежей
         // установке `bool(forKey:)` возвращал false, хотя в приложении функции включены.
         UserDefaults.standard.register(defaults: [
@@ -260,6 +276,37 @@ public final class NetworkMonitorViewModel {
         if hapticsEnabled {
             HapticManager.shared.impactLight()
         }
+    }
+
+    /// Настоящий перезапуск острова (кнопка «Перезапустить» и значок на главном экране): активность создаётся заново
+    public func restartLiveActivity() {
+        ActivityManager.shared.restartActivity(
+            downloadSpeedText: liveBandwidth.formattedDownloadSpeed,
+            uploadSpeedText: liveBandwidth.formattedUploadSpeed,
+            compactDownloadText: liveBandwidth.compactDownload,
+            compactUploadText: liveBandwidth.compactUpload,
+            pingMs: currentAveragePing,
+            jitterMs: currentAverageJitter,
+            isTesting: isSpeedtestRunning,
+            connectionType: systemInfo.connectionType.rawValue,
+            ispName: systemInfo.ispName ?? "Интернет",
+            isGamingMode: floatingHUDEnabled,
+            packetLossPct: currentPacketLossPct
+        )
+    }
+
+    /// Скрывает подсказку про непрерывный режим; `forever` — больше не показывать
+    public func dismissContinuousModeHint(forever: Bool) {
+        showContinuousModeHint = false
+        if forever {
+            UserDefaults.standard.set(true, forKey: Self.kContinuousHintDismissedKey)
+        }
+    }
+
+    /// Кнопка «Включить» в подсказке
+    public func enableContinuousModeFromHint() {
+        showContinuousModeHint = false
+        toggleContinuousMode(enabled: true)
     }
 
     public func toggleLiveActivity(enabled: Bool) {
@@ -362,6 +409,9 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleDidEnterBackground() {
+        backgroundedAt = Date()
+        IslandDiagnostics.shared.log("Приложение свёрнуто. \(ContinuousModeManager.shared.diagnosticContext())", .lifecycle)
+
         // 1. Принудительный сброс несохраненных данных трафика на диск
         Task {
             await TrafficStorage.shared.flush()
@@ -391,6 +441,7 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleWillEnterForeground() {
+        IslandDiagnostics.shared.log("Приложение возвращается на экран.", .lifecycle)
         endBackgroundAssertion()
         Task {
             let info = await self.diagnostics.collectSystemInfo()
@@ -417,6 +468,21 @@ public final class NetworkMonitorViewModel {
         // подхватываются изменения, сделанные в Настройках iOS (разрешение, Live Activities)
         refreshContinuousMode()
 
+        // Сколько приложение пробыло свёрнутым. Без непрерывного режима iOS усыпляет его примерно через 30 секунд,
+        // и остров всё это время стоял на последних цифрах — предлагаем включить режим.
+        let awaySeconds = backgroundedAt.map { Date().timeIntervalSince($0) }
+        backgroundedAt = nil
+        if let away = awaySeconds, away > 40, liveActivityEnabled, !continuousModeEnabled,
+           !UserDefaults.standard.bool(forKey: Self.kContinuousHintDismissedKey) {
+            showContinuousModeHint = true
+        }
+
+        // Остров, который не обновился после возврата из фона, пересоздаётся сам. При холодном запуске и коротких
+        // прерываниях (системные окна) проверка не нужна: приложение не сворачивалось, и остров обновляется как обычно.
+        if liveActivityEnabled, awaySeconds != nil {
+            ActivityManager.shared.scheduleForegroundHealthCheck()
+        }
+
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
@@ -442,6 +508,8 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleWillTerminate() {
+        IslandDiagnostics.shared.log("Штатное завершение приложения.", .lifecycle)
+        IslandDiagnostics.shared.endSession()
         endBackgroundAssertion()
         BackgroundTelemetryKeeper.shared.stopKeepAlive()
         Task {
@@ -597,11 +665,44 @@ public final class NetworkMonitorViewModel {
         addTarget(name: cleaned, address: cleaned, port: 443)
     }
 
+    /// Следит за ровностью цикла обновления: пауза между тиками означает, что код не выполнялся.
+    /// В фоне это значит, что iOS приостановила приложение, и именно поэтому остров замирает.
+    private func observeLoopTick(now: Date, previousTickAt: Date, previousWasBackground: Bool, isBackground: Bool) {
+        let journal = IslandDiagnostics.shared
+        journal.heartbeat(isBackground: isBackground, now: now)
+
+        let gap = now.timeIntervalSince(previousTickAt)
+        switch LoopTiming.classify(gap: gap, previousTickWasBackground: previousWasBackground) {
+        case .normal:
+            break
+        case .suspendedInBackground(let seconds):
+            journal.recordPause(
+                seconds: seconds,
+                inBackground: true,
+                context: ContinuousModeManager.shared.diagnosticContext(),
+                now: now
+            )
+            ContinuousModeManager.shared.noteBackgroundPause(seconds: seconds, now: now)
+            continuousModePauses = ContinuousModeManager.shared.pausesWhileRunning
+        case .stalledInForeground(let seconds):
+            journal.recordPause(seconds: seconds, inBackground: false, context: "", now: now)
+        }
+
+        // Остаток памяти до лимита системы: в фоне раз в 5 минут, при открытом приложении раз в 15
+        let sampleInterval: TimeInterval = isBackground ? 300 : 900
+        if now.timeIntervalSince(lastMemorySampleAt) >= sampleInterval {
+            lastMemorySampleAt = now
+            journal.sampleMemory(isBackground: isBackground, now: now)
+        }
+    }
+
     /// Изолированная задача замера реальной скорости, сохранения трафика и непрерывного обновления Dynamic Island
     public func startBandwidthTask() {
         guard bandwidthTask == nil || bandwidthTask?.isCancelled == true else { return }
         bandwidthTask = Task { [weak self] in
             var loopCount = 0
+            var lastTickAt = Date()
+            var lastTickWasBackground = UIApplication.shared.applicationState == .background
             defer {
                 // Гарантированная очистка ссылки при любом завершении цикла — позволяет перезапуск
                 Task { @MainActor [weak self] in
@@ -614,10 +715,21 @@ public final class NetworkMonitorViewModel {
                 guard self.isMonitoringActive || self.backgroundMonitoringEnabled || self.liveActivityEnabled || self.floatingHUDEnabled else {
                     // Все флаги выключены — ждём, не ломаем цикл
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    lastTickAt = Date()
                     continue
                 }
 
+                let tickStartedAt = Date()
                 let isAppInBackground = UIApplication.shared.applicationState == .background
+                // Пауза между тиками — признак того, что приложение усыпили (в фоне) или оно было занято (на экране)
+                self.observeLoopTick(
+                    now: tickStartedAt,
+                    previousTickAt: lastTickAt,
+                    previousWasBackground: lastTickWasBackground,
+                    isBackground: isAppInBackground
+                )
+                lastTickAt = tickStartedAt
+                lastTickWasBackground = isAppInBackground
 
                 // Пассивный замер системного трафика через счетчики ядра BSD getifaddrs (0 сетевых пакетов, 0 Вт, защита от нагрева)
                 let snapshot = self.bandwidthEngine.sampleBandwidth(activeConnectionType: self.systemInfo.connectionType)

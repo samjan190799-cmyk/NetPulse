@@ -85,6 +85,8 @@ final class NetPulseUITests: XCTestCase {
     }
 
     /// Прокручивает экран, пока элемент не станет видимым (строки SwiftUI-списка создаются лениво).
+    /// Сначала ищет ниже по списку, затем возвращается выше: после чтения диагностики список остаётся прокрученным
+    /// до её кнопки, и нужная строка (например, «Перезапустить») оказывается над экраном.
     /// Найденному элементу даётся «доехать»: после прокрутки список ещё движется по инерции, и нажатие по старым
     /// координатам попадает мимо (из-за этого переключатель иногда не включался).
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 15) -> Bool {
@@ -98,7 +100,16 @@ final class NetPulseUITests: XCTestCase {
             app.swipeUp()
             if visibleAndSettled() { return true }
         }
+        for _ in 0..<(maxSwipes * 2) {
+            app.swipeDown()
+            if visibleAndSettled() { return true }
+        }
         return false
+    }
+
+    /// Возвращает список в начало: после чтения диагностики он остаётся там, где была её кнопка
+    @MainActor private func scrollToTop(_ app: XCUIApplication, swipes: Int = 6) {
+        for _ in 0..<swipes { app.swipeDown() }
     }
 
     /// Нажимает на сам переключатель (правая часть строки), а не на подпись.
@@ -142,6 +153,12 @@ final class NetPulseUITests: XCTestCase {
         attachScreenshot("island-diagnostics")
         let close = app.buttons["islandDiagnosticsClose"]
         if close.exists { close.tap() }
+
+        // Дожидаемся закрытия экрана и возвращаем список настроек в начало: следующий поиск элементов начнётся оттуда
+        let closeDeadline = Date().addingTimeInterval(5)
+        while summary.exists, Date() < closeDeadline { Thread.sleep(forTimeInterval: 0.3) }
+        Thread.sleep(forTimeInterval: 0.5)
+        scrollToTop(app)
         return text
     }
 
@@ -300,10 +317,12 @@ final class NetPulseUITests: XCTestCase {
         let after = readIslandDiagnostics(app)
         logDiagnostics(after, label: "после перезапуска")
         attachScreenshot("after-restart")
+        let sentAfter = sentFrames(in: after) ?? -1
+        print("NETPULSE-CI: кадров до перезапуска: \(sentBefore), после: \(sentAfter)")
         XCTAssertTrue(after.contains("Остров: активна"), "После перезапуска остров не активен:\n\(after)")
-        XCTAssertGreaterThan(sentFrames(in: after) ?? 0, 0, "После перезапуска кадры не уходят:\n\(after)")
+        // Счётчик не обнуляется при перезапуске: рост значит, что новая активность действительно получает кадры
+        XCTAssertGreaterThan(sentAfter, sentBefore, "После перезапуска кадры не уходят:\n\(after)")
         XCTAssertTrue(after.contains("Зависших отправок: 0"), "После перезапуска отправки зависали:\n\(after)")
-        print("NETPULSE-CI: кадров до перезапуска: \(sentBefore), после: \(sentFrames(in: after) ?? -1)")
     }
 
     @MainActor func testContinuousModeCanBeEnabled() throws {

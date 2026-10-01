@@ -16,96 +16,17 @@ import AppTrackingTransparency
 import FBAudienceNetwork
 #endif
 
-/// Конфигурация идентификаторов Meta Audience Network (Meta Ads 2026)
+/// Конфигурация идентификаторов Meta Audience Network (Meta Ads 2026).
+///
+/// ВАЖНО: ниже — ЗАГЛУШКИ. Реальные App ID и Placement ID выдаёт Meta Business Suite; с заглушками реклама
+/// не загрузится (баннеры просто не показываются). Те же значения нужно прописать в Info.plist
+/// (`FacebookAppID`, `FacebookClientToken`).
 public struct MetaAdConfig: Sendable {
     public static let appID = "987654321098765"
     public static let bannerPlacementID = "987654321098765_1234567890"
     public static let interstitialPlacementID = "987654321098765_3456789012"
     public static let rewardedPlacementID = "987654321098765_4567890123"
     public static let nativePlacementID = "987654321098765_2345678901"
-}
-
-/// Модель резервного рекламного объявления Meta (Graceful Fallback при No Fill / отсутствии сети)
-public struct MetaAdItem: Identifiable, Sendable, Equatable {
-    public let id: String
-    public let title: String
-    public let subtitle: String
-    public let ctaText: String
-    public let iconSystemName: String
-    public let customLogoGradient: [Color]
-    public let rating: Double
-    public let reviewsCount: String
-    public let destinationURL: String
-    public let sponsorTag: String
-    public let category: String
-
-    public static let defaultMetaAds: [MetaAdItem] = [
-        MetaAdItem(
-            id: "meta_quest_3s",
-            title: "Meta Quest 3S",
-            subtitle: "Пространственные игры и сверхбыстрый Wi-Fi 6E стриминг",
-            ctaText: "В магазин",
-            iconSystemName: "vr.headset.fill",
-            customLogoGradient: [Color(red: 0.0, green: 0.5, blue: 1.0), Color(red: 0.6, green: 0.1, blue: 0.9)],
-            rating: 4.9,
-            reviewsCount: "42K",
-            destinationURL: "https://www.meta.com/quest",
-            sponsorTag: "Meta Hardware",
-            category: "Гейминг и VR"
-        ),
-        MetaAdItem(
-            id: "threads_app",
-            title: "Threads от Meta",
-            subtitle: "Платформа для живых обсуждений новостей и трендов в реальном времени",
-            ctaText: "Открыть",
-            iconSystemName: "bubble.left.and.text.bubble.right.fill",
-            customLogoGradient: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.2, green: 0.2, blue: 0.3)],
-            rating: 4.8,
-            reviewsCount: "128K",
-            destinationURL: "https://www.threads.net",
-            sponsorTag: "Meta Verified",
-            category: "Социальные сети"
-        ),
-        MetaAdItem(
-            id: "whatsapp_business",
-            title: "WhatsApp Business API",
-            subtitle: "Автоматизация сообщений и техподдержка клиентов через Cloud API",
-            ctaText: "Подключить",
-            iconSystemName: "phone.bubble.fill",
-            customLogoGradient: [Color(red: 0.15, green: 0.75, blue: 0.4), Color(red: 0.05, green: 0.5, blue: 0.25)],
-            rating: 4.9,
-            reviewsCount: "85K",
-            destinationURL: "https://business.whatsapp.com",
-            sponsorTag: "Meta Business",
-            category: "Бизнес и API"
-        ),
-        MetaAdItem(
-            id: "meta_ai_llama",
-            title: "Meta AI & Llama 3",
-            subtitle: "Передовой искусственный интеллект для анализа данных и автоматизации",
-            ctaText: "Изучить",
-            iconSystemName: "sparkles",
-            customLogoGradient: [Color(red: 0.3, green: 0.4, blue: 1.0), Color(red: 0.8, green: 0.2, blue: 0.6)],
-            rating: 5.0,
-            reviewsCount: "150K",
-            destinationURL: "https://ai.meta.com",
-            sponsorTag: "Meta AI Lab",
-            category: "Искусственный интеллект"
-        ),
-        MetaAdItem(
-            id: "instagram_creators",
-            title: "Instagram Creators Pro",
-            subtitle: "Монетизация контента и инструменты охвата аудитории",
-            ctaText: "Перейти",
-            iconSystemName: "camera.viewfinder",
-            customLogoGradient: [Color(red: 0.95, green: 0.2, blue: 0.4), Color(red: 0.98, green: 0.6, blue: 0.15)],
-            rating: 4.8,
-            reviewsCount: "310K",
-            destinationURL: "https://about.instagram.com",
-            sponsorTag: "Meta Verified",
-            category: "Креаторы"
-        )
-    ]
 }
 
 /// Централизованный менеджер рекламы Meta Audience Network (2026)
@@ -117,12 +38,11 @@ public final class MetaAdManager: NSObject {
     // MARK: - Состояние SDK и аукциона
     public var isSDKInitialized: Bool = false
     public var isATTAuthorized: Bool = false
-    public var isLocalServingActive: Bool = true
     public var isStickyBannerVisible: Bool = true
 
-    /// Флаг доступности рекламы (полностью скрыта для пользователей NetPulse PRO / Owner)
+    /// Флаг доступности рекламы (полностью скрыта для пользователей NetPulse PRO)
     public var isBannerEnabled: Bool {
-        !AdMobManager.shared.isPremiumUser && !AdMobManager.shared.isOwnerUnlocked
+        !AdMobManager.shared.isPremiumUser
     }
 
     public var canShowAds: Bool {
@@ -143,21 +63,9 @@ public final class MetaAdManager: NSObject {
     public var isRewardedVideoLoaded: Bool = false
     public var onRewardConfirmedCallback: (@MainActor () -> Void)?
 
-    // MARK: - Резервные объявления (Fallback)
-    public var adsList: [MetaAdItem] = MetaAdItem.defaultMetaAds
-    public var currentAdIndex: Int = 0
-    private var rotationTimer: AnyCancellable?
-
-    public var currentAd: MetaAdItem {
-        guard !adsList.isEmpty else { return MetaAdItem.defaultMetaAds[0] }
-        let safeIndex = currentAdIndex % adsList.count
-        return adsList[safeIndex]
-    }
-
     // MARK: - Инициализация
     private override init() {
         super.init()
-        startRotationTimer()
     }
 
     /// Инициализация официального SDK Meta Audience Network
@@ -274,8 +182,16 @@ public final class MetaAdManager: NSObject {
         #endif
     }
 
-    /// Показ рекламы за вознаграждение (например, для бесплатного сеанса AI-диагностики)
-    public func showRewardedVideo(from viewController: UIViewController? = nil, onRewardConfirmed: @escaping @MainActor () -> Void) {
+    /// Показ рекламы за вознаграждение (например, для бонусного глубокого AI-аудита).
+    ///
+    /// Награда выдаётся ТОЛЬКО после реального просмотра ролика. Если ролик не загружен (нет сети, нет заполнения,
+    /// идентификаторы площадок — заглушки), вызывается `onUnavailable`: раньше в этом случае награда «симулировалась»
+    /// и выдавалась мгновенно, то есть просмотр рекламы ничего не значил.
+    public func showRewardedVideo(
+        from viewController: UIViewController? = nil,
+        onRewardConfirmed: @escaping @MainActor () -> Void,
+        onUnavailable: (@MainActor () -> Void)? = nil
+    ) {
         self.onRewardConfirmedCallback = onRewardConfirmed
 
         #if canImport(FBAudienceNetwork)
@@ -290,10 +206,10 @@ public final class MetaAdManager: NSObject {
         }
         #endif
 
-        // Локальная симуляция награды, если видео не загружено
-        print("ℹ [Meta Audience Network] Локальная симуляция награды за просмотр видео")
-        HapticManager.shared.notificationSuccess()
-        onRewardConfirmed()
+        // Ролика нет — награду не симулируем
+        print("ℹ [Meta Audience Network] Ролик не загружен — награда не выдана")
+        self.onRewardConfirmedCallback = nil
+        onUnavailable?()
     }
 
     // MARK: - Вспомогательные методы
@@ -303,42 +219,6 @@ public final class MetaAdManager: NSObject {
             return nil
         }
         return rootVC
-    }
-
-    // MARK: - Ротация локальных креативов (Fallback)
-    public func startRotationTimer(interval: TimeInterval = 18.0) {
-        rotationTimer?.cancel()
-        rotationTimer = Timer.publish(every: interval, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.rotateToNextAd()
-                }
-            }
-    }
-
-    public func rotateToNextAd() {
-        guard !adsList.isEmpty else { return }
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            currentAdIndex = (currentAdIndex + 1) % adsList.count
-        }
-    }
-
-    public func adForContext(_ context: String?) -> MetaAdItem {
-        guard let ctx = context?.lowercased() else { return currentAd }
-        if ctx.contains("гейминг") || ctx.contains("game") {
-            return adsList.first(where: { $0.id == "meta_quest_3s" }) ?? currentAd
-        } else if ctx.contains("ai") || ctx.contains("ии") {
-            return adsList.first(where: { $0.id == "meta_ai_llama" }) ?? currentAd
-        } else if ctx.contains("трафик") || ctx.contains("api") || ctx.contains("бизнес") {
-            return adsList.first(where: { $0.id == "whatsapp_business" }) ?? currentAd
-        }
-        return currentAd
-    }
-
-    public func recordAdClick(ad: MetaAdItem) {
-        HapticManager.shared.impactMedium()
-        print("⚡ [Meta Audience Network] Клик по объявлению: \(ad.title) (\(ad.destinationURL))")
     }
 }
 

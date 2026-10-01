@@ -178,7 +178,7 @@ public struct NetPulseLiveActivityWidget: Widget {
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
         if s.isEmpty || s == "0B" {
-            return "0K"
+            return "0"
         }
         return s
     }
@@ -188,7 +188,7 @@ public struct NetPulseLiveActivityWidget: Widget {
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
         if s.isEmpty || s == "0B" {
-            return "0K"
+            return "0"
         }
         return s
     }
@@ -199,22 +199,29 @@ public struct NetPulseLiveActivityWidget: Widget {
     }
 
     private func pingColor(_ ping: Double?) -> Color {
-        guard let p = ping else { return .green }
+        // Нет данных о пинге — серый индикатор (раньше «зелёный, всё хорошо»)
+        guard let p = ping else { return .gray }
         if p < 45 { return .green }
         if p < 95 { return .yellow }
         return .red
     }
 
+    /// Подпись провайдера как есть: раньше пустое значение и «Интернет» подменялись на «Мобильный интернет»,
+    /// хотя устройство могло быть в Wi-Fi или вообще без сети.
     private func cleanISP(_ text: String) -> String {
-        if text.isEmpty || text == "Подключение отсутствует" || text == "Интернет" {
-            return "Мобильный интернет"
+        if text.isEmpty || text == "Подключение отсутствует" {
+            return "—"
         }
         return text
     }
 
+    /// Тип подключения как есть: раньше «нет соединения» превращалось в «5G / LTE».
     private func cleanConnType(_ text: String) -> String {
-        if text.isEmpty || text == "Нет соединения" || text == "Поиск сети..." {
-            return "5G / LTE"
+        if text.isEmpty {
+            return "—"
+        }
+        if text == "Нет соединения" || text == "Поиск сети..." {
+            return "Нет подключения"
         }
         return text
     }
@@ -225,7 +232,7 @@ private struct LockScreenLiveActivityView: View {
     let state: NetPulseAttributes.ContentState
 
     private var statusColor: Color {
-        guard let p = state.pingMs else { return .green }
+        guard let p = state.pingMs else { return .gray }
         if p < 45 { return .green }
         if p < 95 { return .yellow }
         return .red
@@ -290,7 +297,7 @@ private struct LockScreenLiveActivityView: View {
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(statusColor)
                     } else {
-                        Text("LIVE")
+                        Text("— ms")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundStyle(statusColor)
                     }

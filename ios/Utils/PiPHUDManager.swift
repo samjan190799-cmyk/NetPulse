@@ -18,11 +18,11 @@ public final class PiPHUDManager: NSObject, ObservableObject, @preconcurrency AV
     @Published public var isPiPSupported: Bool = AVPictureInPictureController.isPictureInPictureSupported()
 
     // Живая телеметрия для непрерывного фонового обновления в PiP
-    @Published public var downloadText: String = "0 КБ/с"
-    @Published public var uploadText: String = "0 КБ/с"
+    @Published public var downloadText: String = "—"
+    @Published public var uploadText: String = "—"
     @Published public var pingMs: Double? = nil
     @Published public var jitterMs: Double? = nil
-    @Published public var connectionType: String = "5G"
+    @Published public var connectionType: String = "—"
     @Published public var isTesting: Bool = false
 
     private var pipController: AVPictureInPictureController?

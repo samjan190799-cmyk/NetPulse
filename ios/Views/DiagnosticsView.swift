@@ -137,7 +137,8 @@ public struct DiagnosticsView: View {
                 TracerouteSheetView(
                     targetHost: viewModel.selectedTracerouteTarget,
                     hops: viewModel.tracerouteHops,
-                    isRunning: viewModel.isTracerouteRunning
+                    isRunning: viewModel.isTracerouteRunning,
+                    errorMessage: viewModel.tracerouteError
                 )
             }
             .sheet(isPresented: $isExporting) {

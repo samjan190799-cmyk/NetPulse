@@ -11,37 +11,15 @@ import SwiftUI
 public struct DashboardView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
-    private var isCellular: Bool {
-        viewModel.systemInfo.connectionType == .cellular
-    }
-
+    /// Пинг и джиттер — единые для всего приложения (среднее по узлам, отвечающим прямо сейчас).
+    /// Раньше экран брал пинг до шлюза, остров и виджеты — среднее по узлам, и при отказе всех узлов подставлялся
+    /// пинг прошлого speedtest или выдуманные «28 мс» / «1,5 мс».
     private var currentPing: Double? {
-        // На сотовой сети локальный шлюз (роутер) отсутствует — берем публичные хосты
-        if !isCellular, let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), let lat = gw.lastLatencyMs, lat > 0 {
-            return lat
-        }
-        let reachableLatencies = viewModel.hostMetrics.values
-            .filter { !($0.isGateway && isCellular) }
-            .compactMap { $0.lastLatencyMs }
-            .filter { $0 > 0 }
-        guard !reachableLatencies.isEmpty else {
-            return viewModel.lastSpeedtestResult?.pingMs
-        }
-        return (reachableLatencies.reduce(0, +) / Double(reachableLatencies.count) * 10).rounded() / 10
+        viewModel.currentAveragePing
     }
 
     private var currentJitter: Double? {
-        if !isCellular, let gw = viewModel.hostMetrics.values.first(where: { $0.isGateway }), gw.jitterMs > 0 {
-            return gw.jitterMs
-        }
-        let reachableJitters = viewModel.hostMetrics.values
-            .filter { !($0.isGateway && isCellular) }
-            .map { $0.jitterMs }
-            .filter { $0 > 0 }
-        guard !reachableJitters.isEmpty else {
-            return viewModel.lastSpeedtestResult?.jitterMs ?? 1.5
-        }
-        return (reachableJitters.reduce(0, +) / Double(reachableJitters.count) * 10).rounded() / 10
+        viewModel.currentAverageJitter
     }
 
     private var capabilities: [CapabilityItem] {
@@ -106,6 +84,24 @@ public struct DashboardView: View {
                             .transition(.scale.combined(with: .opacity))
                         }
 
+                        // Ошибка или неполный результат замера: значения не выдумываются, причина показывается явно
+                        if let speedError = viewModel.speedtestError, !viewModel.isSpeedtestRunning {
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(NPTheme.semanticWarn)
+
+                                Text(speedError)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(NPTheme.textPrimary)
+                                    .lineSpacing(2)
+
+                                Spacer()
+                            }
+                            .padding(14)
+                            .npGlassCard(cornerRadius: 14)
+                        }
+
                         // 2. Рекламный баннер Meta Audience Network на самом видном месте
                         MetaBannerView(contextTag: "Сетевые утилиты")
 
@@ -134,11 +130,11 @@ public struct DashboardView: View {
                                 uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
                                 compactDownloadText: viewModel.liveBandwidth.compactDownload,
                                 compactUploadText: viewModel.liveBandwidth.compactUpload,
-                                pingMs: currentPing ?? 28.0,
+                                pingMs: currentPing,
                                 jitterMs: currentJitter,
                                 isTesting: viewModel.isSpeedtestRunning,
                                 connectionType: viewModel.systemInfo.connectionType.rawValue,
-                                ispName: viewModel.systemInfo.ispName ?? "Мобильный интернет"
+                                ispName: viewModel.systemInfo.ispName ?? "Интернет"
                             )
                         }
                     } label: {

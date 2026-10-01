@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Экран сканера локальной сети (Wi-Fi Audit & Device Discovery)
+/// Экран сканера локальной сети: поиск устройств по ответам на TCP-порты (ARP-таблица приложениям iOS недоступна)
 public struct LANScannerView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -16,6 +16,12 @@ public struct LANScannerView: View {
     @State private var scanProgress: Double = 0.0
     @State private var scannedHostCount: Int = 0
     @State private var selectedDevice: LANDevice?
+    @State private var totalHostCount: Int = 0
+    @State private var subnet: LANSubnet?
+    @State private var scanTask: Task<Void, Never>?
+    @State private var errorMessage: String?
+    @State private var accessDenied: Bool = false
+    @State private var hasCompletedScan: Bool = false
 
     private var securityRiskCount: Int {
         devices.flatMap { $0.openPorts }.filter { $0.isCriticalSecurityRisk }.count
@@ -40,6 +46,10 @@ public struct LANScannerView: View {
                         scanProgressCard
                     }
 
+                    if let errorMessage {
+                        scanErrorCard(message: errorMessage)
+                    }
+
                     // 3. Список обнаруженных устройств
                     devicesListSection
 
@@ -53,6 +63,10 @@ public struct LANScannerView: View {
         .navigationTitle("LAN Сканер")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .onDisappear {
+            // Сканирование создаёт десятки соединений — при уходе с экрана оно останавливается
+            scanTask?.cancel()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -101,7 +115,7 @@ public struct LANScannerView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
 
-                    Text("Подсеть: \(viewModel.systemInfo.localIP)/24")
+                    Text("Подсеть: \(subnet?.cidrDescription ?? viewModel.systemInfo.localIP)")
                         .font(.system(size: 12, design: .monospaced))
                         .monospacedDigit()
                         .foregroundStyle(NPTheme.textSecondary)
@@ -115,7 +129,7 @@ public struct LANScannerView: View {
                         .monospacedDigit()
                         .foregroundStyle(NPTheme.accentPrimary)
 
-                    Text("в сети")
+                    Text("найдено")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(NPTheme.textTertiary)
                 }
@@ -130,7 +144,9 @@ public struct LANScannerView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(securityRiskCount > 0 ? NPTheme.semanticWarn : NPTheme.accentPrimary)
 
-                    Text(securityRiskCount > 0 ? "Обнаружены открытые порты (\(securityRiskCount))" : "Критических рисков не выявлено")
+                    Text(securityRiskCount > 0
+                         ? "Служб, которые стоит проверить: \(securityRiskCount)"
+                         : (hasCompletedScan ? "Среди проверенных портов таких служб нет" : "Сканирование не выполнялось"))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(NPTheme.textPrimary)
                 }
@@ -168,7 +184,7 @@ public struct LANScannerView: View {
 
                 Spacer()
 
-                Text("\(scannedHostCount)/254")
+                Text("\(scannedHostCount)/\(totalHostCount)")
                     .font(.system(size: 11, design: .monospaced))
                     .monospacedDigit()
                     .foregroundStyle(NPTheme.textSecondary)
@@ -197,7 +213,9 @@ public struct LANScannerView: View {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .font(.system(size: 32))
                         .foregroundStyle(NPTheme.textTertiary)
-                    Text("Нажмите «Сканировать», чтобы найти устройства в вашей Wi-Fi сети")
+                    Text(hasCompletedScan
+                         ? "Устройства не найдены. Проверьте, что NetPulse разрешён доступ к локальной сети (Настройки iOS → Конфиденциальность → Локальная сеть)."
+                         : "Нажмите «Сканировать», чтобы найти устройства в вашей Wi-Fi сети")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -267,6 +285,11 @@ public struct LANScannerView: View {
                             Text("• \(vendor)")
                                 .font(.system(size: 11))
                                 .foregroundStyle(NPTheme.textTertiary)
+                        } else if let hint = device.serviceHint {
+                            Text("• \(hint)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(NPTheme.textTertiary)
+                                .lineLimit(1)
                         }
                     }
                 }
@@ -310,11 +333,50 @@ public struct LANScannerView: View {
                     .foregroundStyle(NPTheme.textPrimary)
             }
 
-            Text("Сканер находит потенциально уязвимые порты (например, незащищенный порт 22 SSH, 80 HTTP админки или 554 RTSP видеопотока камер). Неизвестные устройства могут быть несанкционированными подключениями к вашему Wi-Fi.")
+            Text("Сканер находит устройства, которые открыли один из 9 проверяемых TCP-портов или ответили отказом в соединении, и отмечает службы, на которые стоит обратить внимание (SSH, общие папки SMB, видеопоток RTSP). Это не полноценный аудит безопасности.")
                 .font(.system(size: 11))
                 .foregroundStyle(NPTheme.textSecondary)
+
+            Text("Ограничение: устройства, которые молча отбрасывают такие соединения (многие смартфоны, умные колонки, часть IoT), в списке не появятся. Полный список подключённых устройств есть в панели управления роутера.")
+                .font(.system(size: 11))
+                .foregroundStyle(NPTheme.textTertiary)
+
+            if subnet?.isTruncated == true {
+                Text("Сеть шире /24: проверен только блок /24, в котором находится это устройство.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(NPTheme.semanticWarn)
+            }
         }
         .padding(14)
+        .npGlassCard(cornerRadius: 14)
+        .padding(.horizontal)
+    }
+
+    // MARK: - Ошибки
+
+    private func scanErrorCard(message: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(NPTheme.semanticWarn)
+                Text(message)
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.textSecondary)
+                    .multilineTextAlignment(.leading)
+            }
+
+            if accessDenied {
+                Button("Открыть Настройки iOS") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(NPTheme.accentPrimary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .npGlassCard(cornerRadius: 14)
         .padding(.horizontal)
     }
@@ -326,16 +388,25 @@ public struct LANScannerView: View {
         isScanning = true
         scanProgress = 0.0
         scannedHostCount = 0
+        totalHostCount = 0
         devices = []
+        errorMessage = nil
+        accessDenied = false
         HapticManager.shared.impactMedium()
 
-        Task {
-            let found = await LANScannerEngine.shared.scanSubnet(
-                localIP: viewModel.systemInfo.localIP,
-                gatewayIP: viewModel.systemInfo.gatewayIP
+        let localIP = viewModel.systemInfo.localIP
+        let gatewayIP = viewModel.systemInfo.gatewayIP
+        let connectionType = viewModel.systemInfo.connectionType
+
+        scanTask = Task {
+            let result = await LANScannerEngine.shared.scanSubnet(
+                localIP: localIP,
+                gatewayIP: gatewayIP,
+                connectionType: connectionType
             ) { current, total, newDevice in
                 Task { @MainActor in
                     self.scannedHostCount = current
+                    self.totalHostCount = total
                     self.scanProgress = total > 0 ? Double(current) / Double(total) : 0.0
                     if let dev = newDevice, !self.devices.contains(where: { $0.ipAddress == dev.ipAddress }) {
                         self.devices.append(dev)
@@ -343,9 +414,22 @@ public struct LANScannerView: View {
                 }
             }
 
-            self.devices = found
+            switch result {
+            case .success(let report):
+                self.devices = report.devices
+                self.subnet = report.subnet
+                self.totalHostCount = report.scannedHostCount
+                self.hasCompletedScan = true
+                HapticManager.shared.notificationSuccess()
+            case .failure(let error):
+                if error != .cancelled {
+                    self.errorMessage = error.localizedDescription
+                    self.accessDenied = (error == .localNetworkAccessDenied)
+                    HapticManager.shared.notificationWarning()
+                }
+            }
             self.isScanning = false
-            HapticManager.shared.notificationSuccess()
+            self.scanTask = nil
         }
     }
 }
@@ -377,6 +461,13 @@ private struct LANDeviceDetailSheet: View {
                                 .font(.system(size: 14, design: .monospaced))
                                 .monospacedDigit()
                                 .foregroundStyle(NPTheme.textSecondary)
+
+                            if let hint = device.serviceHint {
+                                Text(hint)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(NPTheme.textTertiary)
+                                    .multilineTextAlignment(.center)
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(20)
@@ -384,12 +475,12 @@ private struct LANDeviceDetailSheet: View {
 
                         // Открытые порты
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("ОТКРЫТЫЕ ПОРТЫ И СЛУЖБЫ:")
+                            Text("ОТКРЫТЫЕ ПОРТЫ (ИЗ ПРОВЕРЕННЫХ):")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(NPTheme.textTertiary)
 
                             if device.openPorts.isEmpty {
-                                Text("На устройстве не обнаружено открытых публичных портов.")
+                                Text("Из проверенных портов (22, 53, 80, 443, 445, 554, 7000, 8080, 62078) открытых нет: устройство ответило отказом в соединении.")
                                     .font(.system(size: 12))
                                     .foregroundStyle(NPTheme.textSecondary)
                                     .padding(14)
@@ -411,7 +502,7 @@ private struct LANDeviceDetailSheet: View {
                                         Spacer()
 
                                         if port.isCriticalSecurityRisk {
-                                            Text("ВНИМАНИЕ")
+                                            Text("ПРОВЕРИТЬ")
                                                 .font(.system(size: 9, weight: .black))
                                                 .foregroundStyle(.white)
                                                 .padding(.horizontal, 6)

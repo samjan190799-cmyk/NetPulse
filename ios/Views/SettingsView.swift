@@ -18,7 +18,14 @@ public struct SettingsView: View {
     @State private var newHostPort: String = "443"
     @State private var showResetTrafficAlert: Bool = false
     @State private var showProUpgradeSheet: Bool = false
-    @State private var ownerTapCount: Int = 0
+    @State private var addHostError: String?
+
+    /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
+    private var appVersionText: String {
+        let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "—"
+        let build = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "—"
+        return "\(version) (\(build))"
+    }
 
     public var body: some View {
         NavigationStack {
@@ -75,11 +82,12 @@ public struct SettingsView: View {
                         }
                     }
 
-                    Picker("Интервал проверки", selection: $viewModel.pollingInterval) {
-                        Text("0.5 сек").tag(0.5)
-                        Text("1.0 сек (по умолч.)").tag(1.0)
-                        Text("2.0 сек").tag(2.0)
-                        Text("5.0 сек").tag(5.0)
+                    Picker("Пауза между проверками", selection: $viewModel.pollingInterval) {
+                        Text("1 сек").tag(1.0)
+                        Text("2 сек").tag(2.0)
+                        Text("4 сек (по умолч.)").tag(4.0)
+                        Text("10 сек").tag(10.0)
+                        Text("30 сек").tag(30.0)
                     }
                     .onChange(of: viewModel.pollingInterval) { _, _ in
                         HapticManager.shared.selectionChanged()
@@ -113,7 +121,8 @@ public struct SettingsView: View {
                         }
                     }
                     .onDelete { indexSet in
-                        viewModel.targets.remove(atOffsets: indexSet)
+                        // Вместе с узлом удаляются и его метрики (раньше они оставались и влияли на средние значения)
+                        viewModel.removeTargets(atOffsets: indexSet)
                         HapticManager.shared.notificationWarning()
                     }
 
@@ -131,19 +140,40 @@ public struct SettingsView: View {
                             .keyboardType(.numberPad)
 
                         Button("Добавить узел") {
-                            guard !newHostAddress.isEmpty else { return }
-                            let port = Int(newHostPort) ?? 443
-                            let name = newHostName.isEmpty ? newHostAddress : newHostName
-                            let newTarget = HostTarget(name: name, address: newHostAddress, tcpPort: port)
-                            viewModel.targets.append(newTarget)
-                            newHostName = ""
-                            newHostAddress = ""
-                            newHostPort = "443"
-                            HapticManager.shared.impactMedium()
+                            // Порт обязан быть 1–65535: значение вне диапазона раньше приводило к аварийному
+                            // завершению приложения при ближайшей проверке
+                            guard let port = Int(newHostPort.trimmingCharacters(in: .whitespaces)), (1...65_535).contains(port) else {
+                                addHostError = "Порт должен быть числом от 1 до 65535"
+                                HapticManager.shared.notificationWarning()
+                                return
+                            }
+                            switch viewModel.addTarget(name: newHostName, address: newHostAddress, port: port) {
+                            case .added:
+                                newHostName = ""
+                                newHostAddress = ""
+                                newHostPort = "443"
+                                addHostError = nil
+                                HapticManager.shared.impactMedium()
+                            case .invalidAddress:
+                                addHostError = "Введите корректный IP-адрес или доменное имя (без пробелов и спецсимволов)"
+                                HapticManager.shared.notificationWarning()
+                            case .invalidPort:
+                                addHostError = "Порт должен быть числом от 1 до 65535"
+                                HapticManager.shared.notificationWarning()
+                            case .duplicate:
+                                addHostError = "Такой узел уже есть в списке"
+                                HapticManager.shared.notificationWarning()
+                            }
                         }
                         .disabled(newHostAddress.isEmpty)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(NPTheme.accentPrimary)
+
+                        if let addHostError {
+                            Text(addHostError)
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.semanticCritical)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -179,9 +209,9 @@ public struct SettingsView: View {
                 Section("Фоновая работа и учет трафика") {
                     Toggle(isOn: $viewModel.backgroundMonitoringEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Фоновый учет 24/7 (Zero-Loss)")
+                            Text("Фоновый учет трафика")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("Непрерывный замер трафика при свернутом приложении и автоматическая сверка со счетчиками ядра iOS при закрытии.")
+                            Text("iOS приостанавливает свернутые приложения. Трафик за время «сна» NetPulse не теряет: при возвращении он сверяется со счетчиками сетевых интерфейсов ядра iOS и добавляется в статистику.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -245,17 +275,16 @@ public struct SettingsView: View {
                             Spacer()
                             Button("Перезапустить") {
                                 HapticManager.shared.impactMedium()
-                                let ping = viewModel.currentAveragePing ?? 28.0
                                 ActivityManager.shared.restartActivity(
                                     downloadSpeedText: viewModel.liveBandwidth.formattedDownloadSpeed,
                                     uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
                                     compactDownloadText: viewModel.liveBandwidth.compactDownload,
                                     compactUploadText: viewModel.liveBandwidth.compactUpload,
-                                    pingMs: ping,
+                                    pingMs: viewModel.currentAveragePing,
                                     jitterMs: viewModel.currentAverageJitter,
                                     isTesting: viewModel.isSpeedtestRunning,
                                     connectionType: viewModel.systemInfo.connectionType.rawValue,
-                                    ispName: viewModel.systemInfo.ispName ?? "Мобильный интернет"
+                                    ispName: viewModel.systemInfo.ispName ?? "Интернет"
                                 )
                             }
                             .font(.system(size: 12, weight: .bold))
@@ -272,7 +301,7 @@ public struct SettingsView: View {
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundStyle(Color.yellow)
                             }
-                            Text("По архитектуре iOS сторонние приложения усыпляются в фоне через 30 сек. Для непрерывного мониторинга 24/7 поверх YouTube и игр активируйте оверлей HUD (PiP).")
+                            Text("iOS приостанавливает свернутые приложения примерно через 30 секунд, поэтому Dynamic Island и виджеты показывают последние полученные данные и со временем устаревают. Оверлей HUD (картинка в картинке) поддерживается не на всех устройствах и версиях iOS.")
                                 .font(.system(size: 11))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -313,7 +342,7 @@ public struct SettingsView: View {
                                     .background(Color.yellow.opacity(0.18))
                                     .clipShape(Capsule())
                             }
-                            Text("Мини-виджет пинга поверх экрана и Picture-in-Picture для онлайн-игр")
+                            Text("Мини-виджет пинга и скорости поверх экрана; режим «картинка в картинке» доступен, если его поддерживает устройство")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -355,7 +384,7 @@ public struct SettingsView: View {
                                         .clipShape(Capsule())
                                 }
 
-                                Text("Вся реклама отключена • Безлимитный AI")
+                                Text("Реклама отключена • Игровой HUD-оверлей")
                                     .font(.system(size: 12))
                                     .foregroundStyle(NPTheme.textSecondary)
                             }
@@ -390,7 +419,7 @@ public struct SettingsView: View {
                                             .foregroundStyle(Color.yellow)
                                     }
 
-                                    Text("Полное отключение рекламы и Pro-фичи")
+                                    Text("Без рекламы и игровой HUD-оверлей")
                                         .font(.system(size: 12))
                                         .foregroundStyle(NPTheme.textSecondary)
                                 }
@@ -432,15 +461,27 @@ public struct SettingsView: View {
                             Text("Восстановить покупки")
                                 .font(.system(size: 14))
                             Spacer()
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 12))
-                                .foregroundStyle(NPTheme.textTertiary)
+                            if AdMobManager.shared.isPurchaseInProgress {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(NPTheme.textTertiary)
+                            }
                         }
+                    }
+                    .disabled(AdMobManager.shared.isPurchaseInProgress)
+
+                    // Результат восстановления/покупки (например, «Активных покупок не найдено»)
+                    if let message = AdMobManager.shared.purchaseMessage {
+                        Text(message)
+                            .font(.system(size: 12))
+                            .foregroundStyle(NPTheme.semanticWarn)
                     }
                 } header: {
                     Label("Подписка NetPulse PRO", systemImage: "crown.fill")
                 } footer: {
-                    Text("Подписка полностью удаляет рекламные баннеры и нативные объявления Google AdMob, открывает приоритетный замер скорости и безлимитного AI-инженера.")
+                    Text("NetPulse PRO отключает рекламу и открывает игровой HUD-оверлей. Покупка оформляется через App Store; восстановить её можно на любом устройстве с тем же Apple ID.")
                 }
 
                 // 8. Обратная связь
@@ -460,96 +501,84 @@ public struct SettingsView: View {
 
                 // 9. О приложении
                 Section("О приложении") {
-                    Button {
-                        ownerTapCount += 1
-                        if ownerTapCount >= 5 {
-                            ownerTapCount = 0
-                            AdMobManager.shared.toggleOwnerMode()
-                        } else {
-                            HapticManager.shared.impactLight()
-                        }
-                    } label: {
-                        HStack {
-                            Text("Версия")
-                                .foregroundStyle(NPTheme.textPrimary)
-                            Spacer()
-                            if AdMobManager.shared.isOwnerUnlocked {
-                                Text("👑 Владелец (PRO Полный Доступ)")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(Color.yellow)
-                            } else {
-                                Text("2.2.0 (Build 2026.08)")
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                        }
+                    HStack {
+                        Text("Версия")
+                            .foregroundStyle(NPTheme.textPrimary)
+                        Spacer()
+                        Text(appVersionText)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
-                    .buttonStyle(.plain)
 
                     HStack {
-                        Text("Движок сети")
+                        Text("Метод проверки узлов")
                         Spacer()
-                        Text("ICMP v4/v6 • Darwin BSD")
+                        Text("TCP-соединение (Network.framework)")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.accentPrimary)
                     }
 
                     HStack {
-                        Text("Движок анализатора трафика")
+                        Text("Источник данных о трафике")
                         Spacer()
-                        Text("nstat + IOKitBSD")
+                        Text("Счётчики интерфейсов (getifaddrs)")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.accentPrimary)
                     }
                 }
 
-                // 10. Диагностика Meta Audience Network (Только для разработчика / Владельца)
-                if AdMobManager.shared.isOwnerUnlocked {
-                    Section {
-                        HStack {
-                            Text("Статус SDK Meta")
-                            Spacer()
-                            Text(MetaAdManager.shared.isSDKInitialized ? "Инициализирован" : "Ожидание")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(MetaAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
-                        }
+                #if DEBUG
+                // 10. Диагностика Meta Audience Network (только в отладочных сборках)
+                Section {
+                    HStack {
+                        Text("Статус SDK Meta")
+                        Spacer()
+                        Text(MetaAdManager.shared.isSDKInitialized ? "Инициализирован" : "Ожидание")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(MetaAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
+                    }
 
-                        HStack {
-                            Text("ATT Авторизация")
-                            Spacer()
-                            Text(MetaAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(MetaAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
-                        }
+                    HStack {
+                        Text("ATT Авторизация")
+                        Spacer()
+                        Text(MetaAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(MetaAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
+                    }
 
-                        HStack {
-                            Text("Interstitial Ad")
-                            Spacer()
-                            Text(MetaAdManager.shared.isInterstitialLoaded ? "Готов к показу" : "Кэшируется")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(NPTheme.textSecondary)
-                        }
+                    HStack {
+                        Text("Interstitial Ad")
+                        Spacer()
+                        Text(MetaAdManager.shared.isInterstitialLoaded ? "Готов к показу" : "Кэшируется")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
 
-                        Button("Тест показа Interstitial Meta") {
-                            HapticManager.shared.impactMedium()
-                            MetaAdManager.shared.recordActionAndTriggerInterstitial()
-                        }
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(NPTheme.accentPrimary)
+                    Button("Тест показа Interstitial Meta") {
+                        HapticManager.shared.impactMedium()
+                        MetaAdManager.shared.recordActionAndTriggerInterstitial()
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(NPTheme.accentPrimary)
 
-                        Button("Тест Rewarded Video Meta") {
-                            HapticManager.shared.impactMedium()
-                            MetaAdManager.shared.showRewardedVideo {
+                    Button("Тест Rewarded Video Meta") {
+                        HapticManager.shared.impactMedium()
+                        MetaAdManager.shared.showRewardedVideo(
+                            onRewardConfirmed: {
                                 HapticManager.shared.notificationSuccess()
+                            },
+                            onUnavailable: {
+                                HapticManager.shared.notificationWarning()
                             }
-                        }
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                    } header: {
-                        Label("Разработчик: Meta Ads 2026", systemImage: "infinity")
-                    } footer: {
-                        Text("Инженерная панель Meta Audience Network. Доступна исключительно в режиме владельца приложения.")
+                        )
                     }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                } header: {
+                    Label("Отладка: Meta Ads", systemImage: "infinity")
+                } footer: {
+                    Text("Инженерная панель Meta Audience Network. Видна только в отладочных сборках.")
                 }
+                #endif
             }
             .navigationTitle("Настройки")
             .confirmationDialog(

@@ -11,7 +11,7 @@ import UIKit
 /// Главный навигационный контейнер приложения NetPulse (Apple HIG 2026)
 /// 5 разделов: Скорость, Узлы (Диагностика), Трафик, AI Диагност, Настройки.
 public struct ContentView: View {
-    @State private var viewModel = NetworkMonitorViewModel()
+    @State private var viewModel = NetworkMonitorViewModel.shared
     @State private var selectedTab: Int = 0
 
     public var body: some View {

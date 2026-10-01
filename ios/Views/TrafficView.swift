@@ -47,25 +47,19 @@ public struct TrafficView: View {
                         }
                     }
 
-                    // Баннер фонового мониторинга
+                    // Как считается трафик. Раньше здесь всегда писалось «Фоновый учет 24/7 активен», хотя iOS
+                    // приостанавливает свернутое приложение: трафик за это время добавляется при возврате.
                     HStack(spacing: 8) {
-                        Image(systemName: "bolt.shield.fill")
+                        Image(systemName: "info.circle.fill")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
 
-                        Text("Фоновый учет 24/7 активен")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(NPTheme.textPrimary)
+                        Text("Трафик считается по счётчикам сетевых интерфейсов iOS. Пока приложение свернуто, оно приостановлено; израсходованное за это время добавляется при возврате.")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(NPTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                        Spacer()
-
-                        Text("Ядро Darwin BSD")
-                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(NPTheme.accentPrimary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(NPTheme.accentPrimary.opacity(0.12))
-                            .clipShape(Capsule())
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -499,7 +493,7 @@ public struct TrafficView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(NPTheme.textSecondary)
 
-                    Text("Категории сетевой активности")
+                    Text("Категории сетевой активности (оценка)")
                         .font(.system(size: 16, weight: .heavy))
                         .foregroundStyle(NPTheme.textPrimary)
                 }
@@ -509,7 +503,7 @@ public struct TrafficView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 10, weight: .bold))
-                    Text("AI-анализ")
+                    Text("Оценка по профилю")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                 }
                 .foregroundStyle(NPTheme.accentPrimary)
@@ -710,7 +704,7 @@ public struct TrafficView: View {
             }
 
             if viewModel.trafficBudget.isEnabled {
-                let used = viewModel.trafficSummary.totalTraffic
+                let used = viewModel.budgetUsedBytes
                 let pct = viewModel.trafficBudget.usagePercentage(usedBytes: used)
                 let isWarn = viewModel.trafficBudget.isWarning(usedBytes: used)
                 let isExceeded = viewModel.trafficBudget.isExceeded(usedBytes: used)

@@ -12,7 +12,14 @@ public struct TracerouteSheetView: View {
     public let targetHost: String
     public let hops: [TracerouteHop]
     public let isRunning: Bool
+    /// Причина, по которой трассировку выполнить не удалось (nil — всё в порядке)
+    public var errorMessage: String? = nil
     @Environment(\.dismiss) private var dismiss
+
+    /// Ни один узел маршрута не ответил (или трассировка не запускалась)
+    private var hasNoAnswers: Bool {
+        !hops.contains(where: { $0.ipAddress != nil })
+    }
 
     private var averageLatency: Double? {
         let validLatencies = hops.compactMap { $0.latencyMs }
@@ -53,6 +60,19 @@ public struct TracerouteSheetView: View {
                                 .padding(.vertical, 5)
                                 .background(NPTheme.accentPrimary.opacity(0.12))
                                 .clipShape(Capsule())
+                            } else if errorMessage != nil || hasNoAnswers {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(NPTheme.semanticWarn)
+                                    Text(hasNoAnswers ? "Трассировка не удалась" : "Маршрут неполный")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(NPTheme.textPrimary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(NPTheme.cardBackgroundTertiary)
+                                .clipShape(Capsule())
                             } else {
                                 HStack(spacing: 4) {
                                     Image(systemName: "checkmark.seal.fill")
@@ -67,6 +87,13 @@ public struct TracerouteSheetView: View {
                                 .background(NPTheme.cardBackgroundTertiary)
                                 .clipShape(Capsule())
                             }
+                        }
+
+                        if !isRunning, let message = errorMessage {
+                            Text(message)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(NPTheme.semanticWarn)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
                         // Сводка хопов
@@ -96,7 +123,8 @@ public struct TracerouteSheetView: View {
                                 NodeHopRowView(
                                     hop: hop,
                                     isFirst: index == 0,
-                                    isLast: index == hops.count - 1
+                                    isLast: index == hops.count - 1,
+                                    targetHost: targetHost
                                 )
                             }
                         }
@@ -148,11 +176,17 @@ private struct NodeHopRowView: View {
     let hop: TracerouteHop
     let isFirst: Bool
     let isLast: Bool
+    let targetHost: String
+
+    /// Последний хоп — целевой узел, только если ответил именно он (иначе маршрут оборван молчащими узлами)
+    private var isTarget: Bool {
+        isLast && hop.ipAddress != nil && hop.ipAddress == targetHost
+    }
 
     private var nodeIcon: String {
         if isFirst {
             return "wifi.router.fill"
-        } else if isLast {
+        } else if isTarget {
             return "server.rack"
         } else {
             return "point.3.connected.trianglepath.dotted"
@@ -161,11 +195,11 @@ private struct NodeHopRowView: View {
 
     private var nodeRoleName: String {
         if isFirst {
-            return "Локальный шлюз (Wi-Fi/LAN)"
-        } else if isLast {
-            return "Целевой сервер"
+            return "Первый узел (шлюз доступа)"
+        } else if isTarget {
+            return "Целевой узел"
         } else {
-            return "Магистральный узел #\(hop.hopNumber)"
+            return "Промежуточный узел"
         }
     }
 

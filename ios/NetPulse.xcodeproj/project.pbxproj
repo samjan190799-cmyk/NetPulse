@@ -71,7 +71,6 @@
 		A100009C2C1234560000009C /* NetworkGlossarySheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */; };
 		A10000A02C123456000000A0 /* AdMobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000A02C123456000000A0 /* AdMobManager.swift */; };
 		A10000A12C123456000000A1 /* AdMobBannerContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000A12C123456000000A1 /* AdMobBannerContainerView.swift */; };
-		A10000A22C123456000000A2 /* AdMobNativeAdCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */; };
 		A10000B02C123456000000B0 /* MetaAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B02C123456000000B0 /* MetaAdManager.swift */; };
 		A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B12C123456000000B1 /* MetaBannerView.swift */; };
 		A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */; };
@@ -176,7 +175,6 @@
 		B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkGlossarySheetView.swift; sourceTree = "<group>"; };
 		B10000A02C123456000000A0 /* AdMobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AdMobManager.swift; sourceTree = "<group>"; };
 		B10000A12C123456000000A1 /* AdMobBannerContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AdMobBannerContainerView.swift; sourceTree = "<group>"; };
-		B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AdMobNativeAdCardView.swift; sourceTree = "<group>"; };
 		B10000B02C123456000000B0 /* MetaAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/MetaAdManager.swift; sourceTree = "<group>"; };
 		B10000B12C123456000000B1 /* MetaBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaBannerView.swift; sourceTree = "<group>"; };
 		B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaStickyBottomBannerView.swift; sourceTree = "<group>"; };
@@ -322,7 +320,6 @@
 				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
 				B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */,
 				B10000A12C123456000000A1 /* AdMobBannerContainerView.swift */,
-				B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */,
 				B10000B12C123456000000B1 /* MetaBannerView.swift */,
 				B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */,
 				B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */,
@@ -524,7 +521,6 @@
 				A100009C2C1234560000009C /* NetworkGlossarySheetView.swift in Sources */,
 				A10000A02C123456000000A0 /* AdMobManager.swift in Sources */,
 				A10000A12C123456000000A1 /* AdMobBannerContainerView.swift in Sources */,
-				A10000A22C123456000000A2 /* AdMobNativeAdCardView.swift in Sources */,
 				A10000B02C123456000000B0 /* MetaAdManager.swift in Sources */,
 				A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */,
 				A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */,

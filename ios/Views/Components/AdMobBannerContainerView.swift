@@ -2,114 +2,13 @@
 //  AdMobBannerContainerView.swift
 //  NetPulse
 //
-//  Created for iOS (Swift 6.0+ / SwiftUI / AdMob 2026).
+//  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
+//  Здесь остался только экран покупки NetPulse PRO (самодельный контейнер «рекламы AdMob» удалён: он нигде
+//  не использовался, а SDK AdMob в проект не подключён).
 //
 
 import SwiftUI
 import UIKit
-
-/// Адаптивный баннерный контейнер Google AdMob с поддержкой Glassmorphism и NetPulse Pro
-@MainActor
-public struct AdMobBannerContainerView: View {
-    private var adManager = AdMobManager.shared
-    @State private var currentSponsor: SponsorAdItem = SponsorAdItem.defaults[0]
-    @State private var showProUpgradeSheet: Bool = false
-
-    public init() {}
-
-    public var body: some View {
-        if adManager.canShowAds && adManager.isBannerEnabled {
-            VStack(spacing: 0) {
-                // Тонкая разделительная световая линия
-                Divider()
-                    .background(NPTheme.border)
-
-                HStack(spacing: 12) {
-                    // Иконка спонсора / рекламодателя
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(NPTheme.accentPrimary.opacity(0.15))
-                            .frame(width: 36, height: 36)
-
-                        Image(systemName: currentSponsor.iconName)
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(NPTheme.accentPrimary)
-                    }
-
-                    // Текстовый блок
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(currentSponsor.title)
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(NPTheme.textPrimary)
-                                .lineLimit(1)
-
-                            // Бейдж "Реклама" по стандартам Apple и Google AdMob
-                            Text("РЕКЛАМА")
-                                .font(.system(size: 8, weight: .black))
-                                .foregroundStyle(NPTheme.textTertiary)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1.5)
-                                .background(Color.white.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                        }
-
-                        Text(currentSponsor.subtitle)
-                            .font(.system(size: 10))
-                            .foregroundStyle(NPTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 4)
-
-                    // Кнопка перехода
-                    if let targetURL = URL(string: currentSponsor.destinationURL) ?? URL(string: "https://netpulse.app") {
-                        Link(destination: targetURL) {
-                            Text(currentSponsor.ctaText)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(NPTheme.backgroundDeep)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(NPTheme.accentPrimary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(NPPressableButtonStyle(scale: 0.94))
-                    }
-
-                    // Кнопка перехода на PRO для скрытия баннеров
-                    Button {
-                        showProUpgradeSheet = true
-                        HapticManager.shared.impactLight()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(NPTheme.textTertiary)
-                            .frame(width: 22, height: 22)
-                            .background(Color.white.opacity(0.05))
-                            .clipShape(Circle())
-                    }
-                    .npMinHitTarget()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    Rectangle()
-                        .fill(NPTheme.cardBackground.opacity(0.92))
-                        .background(.ultraThinMaterial)
-                )
-            }
-            .sheet(isPresented: $showProUpgradeSheet) {
-                NetPulseProUpgradeSheet()
-            }
-            .onAppear {
-                // Ротация спонсорского контента при каждом показе
-                if let randomItem = SponsorAdItem.defaults.randomElement() {
-                    currentSponsor = randomItem
-                }
-            }
-        }
-    }
-}
 
 /// Модальный экран предложения отключения рекламы (NetPulse Pro)
 @MainActor
@@ -154,7 +53,7 @@ public struct NetPulseProUpgradeSheet: View {
                                 .font(.system(size: 24, weight: .heavy, design: .rounded))
                                 .foregroundStyle(NPTheme.textPrimary)
 
-                            Text("Максимальная производительность без рекламы")
+                            Text("Без рекламы и с игровым HUD-оверлеем")
                                 .font(.system(size: 13))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -163,26 +62,14 @@ public struct NetPulseProUpgradeSheet: View {
                         VStack(spacing: 12) {
                             proFeatureRow(
                                 icon: "bolt.shield.fill",
-                                title: "100% Без рекламы",
-                                description: "Полное отключение всех баннеров и нативных объявлений AdMob."
-                            )
-
-                            proFeatureRow(
-                                icon: "sparkles",
-                                title: "Безлимитный AI Диагност",
-                                description: "Неограниченные глубокие сетевые аудиты и мастер устранения проблем."
-                            )
-
-                            proFeatureRow(
-                                icon: "gauge.with.dots.needle.67percent",
-                                title: "Приоритетный Speedtest 10G",
-                                description: "Выделенные гигабитные каналы для максимально точного замера."
+                                title: "Без рекламы",
+                                description: "Баннеры и рекламные блоки в приложении отключаются."
                             )
 
                             proFeatureRow(
                                 icon: "gamecontroller.fill",
-                                title: "PRO Gaming Radar",
-                                description: "Непрерывный мониторинг серверов 30+ игр с микро-джиттером."
+                                title: "Игровой HUD-оверлей",
+                                description: "Мини-виджет пинга и скорости поверх экрана; режим «картинка в картинке» работает, если его поддерживает устройство."
                             )
                         }
                         .padding(16)
@@ -191,13 +78,29 @@ public struct NetPulseProUpgradeSheet: View {
 
                         // Кнопка покупки
                         VStack(spacing: 10) {
+                            if adManager.isPremiumUser {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundStyle(NPTheme.semanticOK)
+                                    Text("NetPulse PRO активен")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundStyle(NPTheme.textPrimary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 15)
+                                .npGlassCard(cornerRadius: 14)
+                            } else {
                             Button {
                                 adManager.purchaseProVersion()
-                                dismiss()
                             } label: {
                                 HStack(spacing: 8) {
-                                    Image(systemName: "sparkles")
-                                    Text("Активировать NetPulse PRO")
+                                    if adManager.isPurchaseInProgress {
+                                        ProgressView()
+                                            .tint(NPTheme.backgroundDeep)
+                                    } else {
+                                        Image(systemName: "sparkles")
+                                    }
+                                    Text(adManager.proPriceText.map { "Купить NetPulse PRO — \($0)" } ?? "Купить NetPulse PRO")
                                 }
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(NPTheme.backgroundDeep)
@@ -214,15 +117,25 @@ public struct NetPulseProUpgradeSheet: View {
                                 .shadow(color: NPTheme.accentPrimary.opacity(0.35), radius: 10, y: 4)
                             }
                             .buttonStyle(NPPressableButtonStyle())
+                            .disabled(adManager.isPurchaseInProgress)
+                            }
+
+                            if let message = adManager.purchaseMessage {
+                                Text(message)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(NPTheme.semanticWarn)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity)
+                            }
 
                             Button {
                                 adManager.restorePurchases()
-                                dismiss()
                             } label: {
                                 Text("Восстановить покупки")
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(NPTheme.textSecondary)
                             }
+                            .disabled(adManager.isPurchaseInProgress)
                             .npMinHitTarget()
                         }
                         .padding(.horizontal)

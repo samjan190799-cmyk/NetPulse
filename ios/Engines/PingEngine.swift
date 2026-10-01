@@ -32,6 +32,28 @@ private final class SafeContinuation<T: Sendable, E: Error>: @unchecked Sendable
     }
 }
 
+/// Результат TCP-проверки: задержка и признак «порт закрыт, но хост ответил RST».
+private struct TCPProbeResult: Sendable {
+    let latencyMs: Double
+    let refused: Bool
+}
+
+/// Ошибка превышения времени ожидания (отличается от прочих сетевых ошибок текстом в записи).
+private struct PingTimeoutError: Error {}
+
+/// ECONNREFUSED / ECONNRESET: узел ответил (RST), то есть он доступен, просто порт закрыт.
+/// Network.framework при ECONNREFUSED обычно не переходит в `.failed`, а остаётся в `.waiting` с POSIX-ошибкой.
+private func isConnectionRefused(_ error: NWError) -> Bool {
+    if case .posix(let code) = error {
+        return code == .ECONNREFUSED || code == .ECONNRESET
+    }
+    return false
+}
+
+private func elapsedMilliseconds(_ duration: Duration) -> Double {
+    Double(duration.components.attoseconds) / 1_000_000_000_000_000.0 + Double(duration.components.seconds) * 1000.0
+}
+
 /// Асинхронный многопоточный движок сетевого пинга для iOS.
 public actor PingEngine {
     private let timeoutInterval: TimeInterval
@@ -42,11 +64,18 @@ public actor PingEngine {
 
     /// Проверка одиночного хоста через TCP Connect (Network.framework)
     public func pingTarget(_ target: HostTarget) async -> PingRecord {
-        let hostStr: String
-        if (target.address == "gateway" || target.address.isEmpty) && target.isGateway {
-            hostStr = "192.168.1.1"
-        } else {
-            hostStr = target.address
+        let hostStr = target.address
+
+        // Шлюз, адрес которого ещё не определён, не проверяется: раньше вместо него опрашивался
+        // жёстко заданный 192.168.1.1, которого в большинстве сетей не существует.
+        if target.isGateway && (hostStr == "gateway" || hostStr.isEmpty) {
+            return PingRecord(
+                host: hostStr,
+                targetName: target.name,
+                isSuccess: false,
+                errorMessage: "Адрес шлюза пока не определён",
+                protocolType: "unknown"
+            )
         }
 
         guard !hostStr.isEmpty else {
@@ -58,47 +87,51 @@ public actor PingEngine {
             )
         }
 
-        // Для локального шлюза проверяем DNS (53) или HTTPS (443), для серверов — порт 443
-        let portNum: UInt16 = target.isGateway ? 53 : UInt16(target.tcpPort > 0 ? target.tcpPort : 443)
-        let clock = ContinuousClock()
-        let start = clock.now
+        // Для локального шлюза проверяем DNS (53), для остальных — заданный порт.
+        // Порт проверяется на диапазон: UInt16(Int) вне 0...65535 аварийно завершает приложение.
+        let requestedPort = target.isGateway ? 53 : target.tcpPort
+        let portNum: UInt16 = (requestedPort > 0 && requestedPort <= 65_535) ? UInt16(requestedPort) : 443
 
         do {
-            let latencyMs = try await withTimeout(seconds: min(timeoutInterval, 1.2)) {
+            let probe = try await withTimeout(seconds: timeoutInterval) {
                 try await self.tcpConnect(host: hostStr, port: portNum)
             }
             return PingRecord(
                 host: hostStr,
                 targetName: target.name,
                 isSuccess: true,
-                latencyMs: latencyMs,
+                latencyMs: probe.latencyMs,
+                protocolType: probe.refused ? "tcp:rst:\(portNum)" : "tcp:\(portNum)"
+            )
+        } catch is PingTimeoutError {
+            return PingRecord(
+                host: hostStr,
+                targetName: target.name,
+                isSuccess: false,
+                latencyMs: nil,
+                errorMessage: "Таймаут ответа",
+                protocolType: "tcp:\(portNum)"
+            )
+        } catch is CancellationError {
+            // Проверка прервана (остановка мониторинга) — это не потеря пакета, но запись должна быть неуспешной
+            return PingRecord(
+                host: hostStr,
+                targetName: target.name,
+                isSuccess: false,
+                latencyMs: nil,
+                errorMessage: "Проверка отменена",
                 protocolType: "tcp:\(portNum)"
             )
         } catch {
-            let elapsed = clock.now - start
-            let elapsedMs = Double(elapsed.components.attoseconds) / 1_000_000_000_000_000.0 + Double(elapsed.components.seconds) * 1000.0
-
-            // Если узел отклонил порт (Connection Refused / RST), но ответил за <500мс — узел онлайн!
-            let errStr = error.localizedDescription.lowercased()
-            if (errStr.contains("refused") || errStr.contains("61") || errStr.contains("reset")) && elapsedMs < 500 {
-                return PingRecord(
-                    host: hostStr,
-                    targetName: target.name,
-                    isSuccess: true,
-                    latencyMs: max(1.0, (elapsedMs * 10).rounded() / 10),
-                    protocolType: "tcp:rst:\(portNum)"
-                )
-            }
+            return PingRecord(
+                host: hostStr,
+                targetName: target.name,
+                isSuccess: false,
+                latencyMs: nil,
+                errorMessage: "Соединение не установлено",
+                protocolType: "tcp:\(portNum)"
+            )
         }
-
-        return PingRecord(
-            host: hostStr,
-            targetName: target.name,
-            isSuccess: false,
-            latencyMs: nil,
-            errorMessage: "Таймаут ответа",
-            protocolType: "tcp:\(target.tcpPort)"
-        )
     }
 
     /// Параллельный опрос группы целевых хостов
@@ -120,7 +153,7 @@ public actor PingEngine {
 
     // MARK: - Внутренняя реализация подключения
 
-    private func tcpConnect(host: String, port: UInt16) async throws -> Double {
+    private func tcpConnect(host: String, port: UInt16) async throws -> TCPProbeResult {
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
             port: NWEndpoint.Port(rawValue: port) ?? .https
@@ -140,14 +173,27 @@ public actor PingEngine {
                 connection.stateUpdateHandler = { state in
                     switch state {
                     case .ready:
-                        let duration = clock.now - startTime
-                        let ms = Double(duration.components.attoseconds) / 1_000_000_000_000_000.0 + Double(duration.components.seconds) * 1000.0
+                        let ms = elapsedMilliseconds(clock.now - startTime)
                         connection.cancel()
-                        safeContinuation.resume(returning: (ms * 10).rounded() / 10)
+                        safeContinuation.resume(returning: TCPProbeResult(latencyMs: (ms * 10).rounded() / 10, refused: false))
+
+                    case .waiting(let err):
+                        // ECONNREFUSED: узел жив (прислал RST). Остальные причины ожидания (нет маршрута и т.п.)
+                        // не завершают проверку досрочно — их обработает общий таймаут.
+                        if isConnectionRefused(err) {
+                            let ms = elapsedMilliseconds(clock.now - startTime)
+                            connection.cancel()
+                            safeContinuation.resume(returning: TCPProbeResult(latencyMs: max(0.1, (ms * 10).rounded() / 10), refused: true))
+                        }
 
                     case .failed(let err):
                         connection.cancel()
-                        safeContinuation.resume(throwing: err)
+                        if isConnectionRefused(err) {
+                            let ms = elapsedMilliseconds(clock.now - startTime)
+                            safeContinuation.resume(returning: TCPProbeResult(latencyMs: max(0.1, (ms * 10).rounded() / 10), refused: true))
+                        } else {
+                            safeContinuation.resume(throwing: err)
+                        }
 
                     case .cancelled:
                         safeContinuation.resume(throwing: CancellationError())
@@ -174,12 +220,12 @@ public actor PingEngine {
             }
 
             group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                throw NSError(domain: "NetPulsePing", code: -1001, userInfo: [NSLocalizedDescriptionKey: "Таймаут соединения"])
+                try await Task.sleep(nanoseconds: UInt64(max(0.1, seconds) * 1_000_000_000))
+                throw PingTimeoutError()
             }
 
             guard let result = try await group.next() else {
-                throw NSError(domain: "NetPulsePing", code: -1001, userInfo: [NSLocalizedDescriptionKey: "Ошибка выполнения"])
+                throw PingTimeoutError()
             }
 
             group.cancelAll()

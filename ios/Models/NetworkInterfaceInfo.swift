@@ -13,10 +13,11 @@ public enum NetworkConnectionType: String, Codable, Sendable {
     case cellular = "Мобильная сеть (5G/LTE)"
     case ethernet = "Ethernet"
     case loopback = "Loopback"
-    case unavailable = "Поиск сети..."
+    case unavailable = "Нет подключения"
 }
 
-/// Информация о локальной сетевой конфигурации и провайдере
+/// Информация о локальной сетевой конфигурации и провайдере.
+/// Значение, которое определить не удалось, — `nil` (для `localIP` — «—»), а не правдоподобная выдумка.
 public struct NetworkInterfaceInfo: Codable, Sendable {
     public var localIP: String
     public var gatewayIP: String?
@@ -29,13 +30,29 @@ public struct NetworkInterfaceInfo: Codable, Sendable {
     public var isExpensive: Bool
     public var isConstrained: Bool
 
+    /// Подпись сети: провайдер, а если он неизвестен — тип подключения
+    public var displayTitle: String {
+        switch connectionType {
+        case .wifi:
+            return ispName ?? "Wi-Fi Сеть"
+        case .cellular:
+            return ispName ?? "Мобильный интернет (5G/LTE)"
+        case .ethernet:
+            return ispName ?? "Ethernet Сеть"
+        case .loopback:
+            return "Локальная петля"
+        case .unavailable:
+            return "Нет подключения"
+        }
+    }
+
     public init(
-        localIP: String = "127.0.0.1",
+        localIP: String = "—",
         gatewayIP: String? = nil,
         connectionType: NetworkConnectionType = .cellular,
         dnsServers: [String] = [],
         publicIP: String? = nil,
-        ispName: String? = "Мобильный интернет",
+        ispName: String? = nil,
         country: String? = nil,
         city: String? = nil,
         isExpensive: Bool = false,

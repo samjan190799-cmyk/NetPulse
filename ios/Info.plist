@@ -17,9 +17,9 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>CFBundleIcons</key>
@@ -59,7 +59,7 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>NetPulse использует микрофон для голосовой диктовки запросов сетевому диагносту.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>NetPulse использует доступ к локальной сети для поиска подключенных Wi-Fi устройств и аудита открытых портов.</string>
+    <string>NetPulse использует доступ к локальной сети, чтобы найти устройства в вашей Wi-Fi сети и проверить их открытые порты.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
@@ -70,11 +70,6 @@
         <string>com.samvel.netpulse.telemetry</string>
         <string>com.samvel.netpulse.refresh</string>
     </array>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true/>
-    </dict>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
@@ -97,10 +92,10 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
-    <key>GADApplicationIdentifier</key>
-    <string>ca-app-pub-3940256099942544~1458602516</string>
     <key>NSUserTrackingUsageDescription</key>
     <string>NetPulse использует идентификатор для персонализации рекламных предложений и предотвращения повторных показов.</string>
+    <!-- ЗАГЛУШКИ: подставьте App ID и Client Token из Meta Business Suite (те же значения, что в MetaAdConfig).
+         Пока здесь тестовые значения, реклама Meta не загружается. -->
     <key>FacebookAppID</key>
     <string>987654321098765</string>
     <key>FacebookClientToken</key>
@@ -109,6 +104,15 @@
     <string>NetPulse</string>
     <key>SKAdNetworkItems</key>
     <array>
+        <!-- Идентификаторы Meta Audience Network -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>v9wttpbfk9.skadnetwork</string>
+        </dict>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>n38lu8286q.skadnetwork</string>
+        </dict>
         <dict>
             <key>SKAdNetworkIdentifier</key>
             <string>v9wttpbfk9.skadnetwork</string>

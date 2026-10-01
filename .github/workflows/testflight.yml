@@ -1,5 +1,7 @@
 name: "Выгрузка в TestFlight (Apple App Store Connect)"
 
+# Выгрузка в TestFlight запускается ТОЛЬКО вручную. Раньше любой push в ios/** на main автоматически отправлял
+# сборку тестировщикам, а новый запуск отменял предыдущий (в том числе во время загрузки).
 on:
   workflow_dispatch:
     inputs:
@@ -7,20 +9,13 @@ on:
         description: 'Маркетинговая версия (например: 1.0.0)'
         required: true
         default: '1.0.0'
-      release_notes:
-        description: 'Описание изменений для тестировщиков'
-        required: false
-        default: 'Релиз NetPulse: мониторинг сети, джиттер RFC 3550, Swift Charts и замер скорости Speedtest.'
-  push:
-    branches:
-      - main
-    paths:
-      - 'ios/**'
-      - '.github/workflows/testflight.yml'
+
+permissions:
+  contents: read
 
 concurrency:
   group: testflight-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-upload:
@@ -64,8 +59,16 @@ jobs:
       - name: "Генерация иконок приложения"
         working-directory: ./ios
         run: |
-          python3 -m pip install --upgrade --break-system-packages Pillow --quiet || true
           ICONSET="Assets.xcassets/AppIcon.appiconset"
+
+          # Каталог иконок лежит в репозитории: перезаписывать его нечем и незачем.
+          # Генерация ниже — запасной путь на случай, если иконок в репозитории нет.
+          if [ -f "$ICONSET/AppIcon-1024.png" ] && [ -f "$ICONSET/Contents.json" ]; then
+            echo "✔ Иконки приложения уже в репозитории — генерация не требуется"
+            exit 0
+          fi
+
+          python3 -m pip install --upgrade --break-system-packages Pillow --quiet
           mkdir -p "$ICONSET"
           
           # Если мастер-логотип существует в assets/, генерируем все размеры напрямую из него
@@ -166,17 +169,17 @@ jobs:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
         run: |
+          umask 077
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+          printf '%s\n' "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
 
       - name: "Импорт сертификата Apple Distribution (при наличии)"
         if: env.APPLE_CERTIFICATE_BASE64 != ''
         env:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: "netpulse_build_keychain_2026"
         run: |
+          KEYCHAIN_PASSWORD="$(uuidgen)"
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
@@ -188,18 +191,28 @@ jobs:
 
       - name: "Сборка архива NetPulse.xcarchive"
         working-directory: ./ios
+        env:
+          # Значения из inputs передаются через окружение, а не подставляются в текст скрипта (защита от инъекции команд)
+          VERSION_NAME: ${{ github.event.inputs.version_name }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
-          BUILD_NUM=${{ github.run_number }}
-          VERSION="${{ github.event.inputs.version_name || '1.0.0' }}"
-          xcrun agvtool new-version -all $BUILD_NUM || true
-          xcrun agvtool new-marketing-version $VERSION || true
+          set -euo pipefail
+          if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "❌ Некорректная версия: '$VERSION_NAME' (ожидается вид 1.0.0)"
+            exit 1
+          fi
 
+          # Версия и номер сборки задаются настройками сборки для обоих таргетов (приложение и виджеты);
+          # Info.plist читают их через $(MARKETING_VERSION) и $(CURRENT_PROJECT_VERSION).
+          # Раньше agvtool с `|| true` молча не срабатывал, а в plist были зашиты 1.0.0 и 1.
           xcodebuild archive \
             -project NetPulse.xcodeproj \
             -scheme NetPulse \
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/NetPulse.xcarchive \
+            MARKETING_VERSION="$VERSION_NAME" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
@@ -208,7 +221,7 @@ jobs:
           ARCHIVE_PLIST="build/NetPulse.xcarchive/Products/Applications/NetPulse.app/Info.plist"
           if [ -f "$ARCHIVE_PLIST" ]; then
             echo "✔ Внедрение CFBundleIconName в $ARCHIVE_PLIST"
-            plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST" || true
+            plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST"
           fi
 
       - name: "Экспорт и подпись IPA через App Store Connect API"

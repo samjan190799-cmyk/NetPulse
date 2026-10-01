@@ -1,0 +1,473 @@
+/* NetPulse Web Dashboard — стили.
+   Без внешних шрифтов и CDN: панель работает офлайн и не передаёт посторонним сайтам факт её открытия. */
+:root {
+    --bg-primary: #0d1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2128;
+    --border-color: #30363d;
+    --accent-blue: #2f81f7;
+    --accent-green: #3fb950;
+    --accent-yellow: #d29922;
+    --accent-red: #f85149;
+    --text-primary: #f0f6fc;
+    --text-secondary: #8b949e;
+    --text-tertiary: #6e7681;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.container {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.logo-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.logo-box h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.badge-live {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--accent-green);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-live::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+    border-radius: 50%;
+}
+
+.badge-live.offline {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--accent-red);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.updated-at {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+}
+
+/* Speedtest Hero Card */
+.speedtest-hero {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.speed-server-name {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.speedtest-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    align-items: center;
+}
+
+@media (max-width: 860px) {
+    body {
+        padding: 12px;
+    }
+
+    .speedtest-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.speed-gauge-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.speed-value-big {
+    font-size: 48px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.speed-unit {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.speed-status-text {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+}
+
+.speed-status-text.error {
+    color: var(--accent-red);
+}
+
+.speed-status-text.warn {
+    color: var(--accent-yellow);
+}
+
+.speed-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.metrics-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+}
+
+.metric-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.metric-card-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.metric-card-val {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+}
+
+.btn-speedtest {
+    background: var(--accent-blue);
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    font-family: inherit;
+}
+
+.btn-speedtest:hover {
+    background: #1f6feb;
+}
+
+.btn-speedtest:disabled {
+    background: #21262d;
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #21262d;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-decoration: none;
+    display: inline-block;
+    font-family: inherit;
+}
+
+.btn-secondary:hover {
+    background: #30363d;
+}
+
+button:focus-visible,
+a.btn-secondary:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+
+/* Topology Grid */
+.grid-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    min-width: 0;
+}
+
+.card-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-val {
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+}
+
+.card-val.small {
+    font-size: 14px;
+}
+
+/* Targets Table */
+.table-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    min-width: 760px;           /* на узком экране таблица прокручивается внутри .table-box, а не схлопывается */
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 13px;
+}
+
+th {
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    overflow-wrap: break-word;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: var(--bg-card-hover);
+}
+
+td.empty {
+    text-align: center;
+    color: var(--text-tertiary);
+}
+
+td.rtt-lost {
+    color: var(--accent-red);
+}
+
+.status-pill {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-ok { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); }
+.status-warn { background: rgba(210, 153, 34, 0.15); color: var(--accent-yellow); }
+.status-crit { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); }
+.status-unknown { background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); }
+
+.chart-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    height: 300px;
+}
+
+.chart-canvas-wrap {
+    position: relative;
+    height: 230px;
+}
+
+.chart-box .card-label {
+    margin-bottom: 12px;
+}
+
+.chart-note {
+    color: var(--text-tertiary);
+    font-size: 13px;
+    padding: 24px 0;
+    text-align: center;
+}
+
+/* Alerts */
+.alerts-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px 20px;
+}
+
+.alerts-box .card-label {
+    margin-bottom: 10px;
+}
+
+.alerts-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.alert-item {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.alert-item:last-child {
+    border-bottom: none;
+}
+
+.alert-time {
+    font-family: var(--font-mono);
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.alert-sev {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.sev-info { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); }
+.sev-warning { background: rgba(210, 153, 34, 0.15); color: var(--accent-yellow); }
+.sev-critical { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); }
+
+.alert-msg {
+    overflow-wrap: anywhere;
+}
+
+.alerts-empty {
+    color: var(--text-tertiary);
+    font-size: 13px;
+}

@@ -11,6 +11,8 @@ env/
 venv/
 ENV/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 
@@ -21,6 +23,9 @@ htmlcov/
 *.sqlite
 *.sqlite3
 netpulse_history.db
+*.db-wal
+*.db-shm
+*.db-journal
 netpulse_report_*.json
 netpulse_metrics_*.csv
 NetPulse_Report_*.json

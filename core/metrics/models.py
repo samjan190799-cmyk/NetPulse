@@ -31,27 +31,31 @@ class HostStats:
     name: str
     address: str
     is_gateway: bool = False
-    
+
     # Счетчики
     sent_count: int = 0
     received_count: int = 0
     lost_count: int = 0
-    
+    consecutive_failures: int = 0   # неудачных проверок подряд (для статуса DOWN)
+
     # Метрики задержки (мс)
     last_latency_ms: Optional[float] = None
     min_latency_ms: Optional[float] = None
     max_latency_ms: Optional[float] = None
     avg_latency_ms: Optional[float] = None
+    p50_latency_ms: Optional[float] = None
     p95_latency_ms: Optional[float] = None
     p99_latency_ms: Optional[float] = None
-    
+
     # Джиттер (RFC 3550)
     jitter_ms: float = 0.0
-    
+
     # Потери пакетов
     loss_rate_pct: float = 0.0
-    loss_window_pct: float = 0.0  # за последнее скользящее окно
-    
+    loss_window_pct: float = 0.0   # за скользящее окно истории (для отображения)
+    loss_recent_pct: float = 0.0   # за последние N проверок (для статуса и алертов)
+    recent_count: int = 0          # сколько проверок реально попало в «недавнее» окно
+
     # Статус
     status: str = "UNKNOWN"  # OK, WARN, CRIT, DOWN
     last_updated: Optional[datetime] = None
@@ -92,7 +96,7 @@ class SpeedtestResult:
     upload_mbps: float
     server_name: str = "Cloudflare CDN"
     duration_s: float = 0.0
-    status: str = "SUCCESS"
+    status: str = "SUCCESS"  # SUCCESS | PARTIAL (нет upload) | FAILED | BUSY
 
 
 @dataclass

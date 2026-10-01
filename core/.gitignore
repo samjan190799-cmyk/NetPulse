@@ -26,3 +26,15 @@ htmlcov/
 .idea/
 *.swp
 *.swo
+
+# SQLite в режиме WAL создаёт файлы-спутники рядом с базой
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Кэши линтера/типизатора и артефакты сборки
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/

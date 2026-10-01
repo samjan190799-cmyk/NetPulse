@@ -68,6 +68,14 @@ final class NetPulseUITests: XCTestCase {
         add(attachment)
     }
 
+    /// Иерархия доступности приложения как текстовое вложение: по ней видно, что было на экране в момент сбоя.
+    @MainActor private func attachHierarchy(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(string: app.debugDescription)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     @MainActor private func openSettings(_ app: XCUIApplication) {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 30), "Панель вкладок не появилась: приложение не запустилось или упало")
@@ -112,13 +120,20 @@ final class NetPulseUITests: XCTestCase {
         if !isOn(toggle) { flip(toggle) }
         dismissSystemAlerts()
 
+        // После системного окна список настроек может оказаться прокрученным в другое место (в первом прогоне
+        // строка статуса осталась за пределами экрана), поэтому строку ищем прокруткой, а не там, где она была.
         let status = app.staticTexts["continuousModeStatus"]
-        _ = status.waitForExistence(timeout: 15)
+        guard reveal(status, in: app) else {
+            attachScreenshot("continuous-status-not-found")
+            attachHierarchy(app, name: "continuous-status-not-found-hierarchy")
+            print("NETPULSE-CI: строка статуса непрерывного режима не найдена")
+            return "(строка статуса не найдена)"
+        }
         let deadline = Date().addingTimeInterval(20)
-        while Date() < deadline, !status.label.hasPrefix("Активен") {
+        while Date() < deadline, !(status.exists && status.label.hasPrefix("Активен")) {
             Thread.sleep(forTimeInterval: 0.5)
         }
-        let finalStatus = status.exists ? status.label : "(строка статуса не появилась)"
+        let finalStatus = status.exists ? status.label : "(строка статуса пропала с экрана)"
         print("NETPULSE-CI: статус непрерывного режима: \(finalStatus)")
         return finalStatus
     }

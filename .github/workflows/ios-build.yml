@@ -96,6 +96,16 @@ jobs:
             -resultBundlePath build/unit.xcresult \
             2>&1 | tee build/unit.log | tail -n 60
 
+      - name: "Скорость скачивания на раннере (для сравнения с островом)"
+        continue-on-error: true
+        run: |
+          curl -fsS --max-time 40 -o /dev/null \
+            -w "размер=%{size_download} байт, скорость=%{speed_download} байт/с\n" \
+            "https://speed.cloudflare.com/__down?bytes=50000000" | tee build_speed.txt || echo "замер скорости не удался"
+          if [ -f build_speed.txt ]; then
+            awk -F'скорость=' '{split($2,a," "); printf "≈ %.1f Мбит/с\n", a[1]*8/1000000}' build_speed.txt
+          fi
+
       - name: "UI-тест в симуляторе (на раннере идёт сетевой трафик)"
         id: ui
         continue-on-error: true
@@ -107,8 +117,10 @@ jobs:
           # остров показывал бы одни нули, и проверять было бы нечего.
           traffic() {
             while true; do
-              curl -sS --max-time 60 -o /dev/null "https://speed.cloudflare.com/__down?bytes=100000000" \
-                || curl -sS --max-time 60 -o /dev/null "http://speedtest.tele2.net/100MB.zip" \
+              curl -fsS --max-time 60 -o /dev/null -w "cloudflare: http=%{http_code} скорость=%{speed_download} байт/с\n" \
+                "https://speed.cloudflare.com/__down?bytes=100000000" \
+                || curl -fsS --max-time 60 -o /dev/null -w "tele2: http=%{http_code} скорость=%{speed_download} байт/с\n" \
+                  "http://speedtest.tele2.net/100MB.zip" \
                 || sleep 3
             done
           }
@@ -128,7 +140,10 @@ jobs:
       - name: "Строки NETPULSE-CI из журнала UI-теста"
         if: always()
         working-directory: ./ios
-        run: grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+        run: |
+          grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+          echo "=== Генератор трафика на раннере (последние строки) ==="
+          tail -n 12 build/traffic.log 2>/dev/null || echo "(журнала генератора нет)"
 
       - name: "Экспорт скриншотов и распознавание текста"
         if: always()
@@ -142,10 +157,22 @@ jobs:
             ls -1 build/attachments | head -n 100
             echo "=== Текст на скриншотах (Vision) ==="
             shopt -s nullglob
-            swift ci/ocr_screenshots.swift build/attachments/*.png 2>&1 | head -n 400 || true
+            swift ci/ocr_screenshots.swift build/attachments/*.png > build/ocr.txt 2>&1 || true
+            head -n 400 build/ocr.txt
           else
             echo "build/ui.xcresult нет: UI-тест не запускался"
           fi
+
+      - name: "Проверка Dynamic Island по скриншотам"
+        if: always()
+        working-directory: ./ios
+        run: |
+          {
+            echo "### Dynamic Island: числа на скриншотах (симулятор не усыпляет приложение, поэтому замирание на устройстве здесь не проверяется)"
+            echo '```'
+            python3 ci/island_check.py build/ocr.txt
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: "Журнал приложения и отчёты о падениях"
         if: always()
@@ -173,13 +200,24 @@ jobs:
             python3 ci/xcresult_report.py summary build/ui.xcresult "UI-тест в симуляторе"
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: "Артефакты: скриншоты, журналы, результаты"
+      - name: "Артефакт: скриншоты"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: |
+            ios/build/attachments/*.png
+            ios/build/attachments/*.txt
+            ios/build/ocr.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: "Артефакт: журналы и результаты тестов"
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
           path: |
-            ios/build/attachments
             ios/build/diagnostics
             ios/build/*.log
             ios/build/unit.xcresult

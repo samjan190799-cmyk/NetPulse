@@ -4,8 +4,8 @@
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-brightgreen.svg)](https://www.python.org/)
 [![Swift: 6.0+](https://img.shields.io/badge/Swift-6.0%2B-orange.svg)](https://swift.org)
 [![iOS: 17.0+](https://img.shields.io/badge/iOS-17.0%2B-purple.svg)](https://developer.apple.com/ios/)
-[![TestFlight: Ready](https://img.shields.io/badge/TestFlight-v1.0.0-blue.svg)](https://appstoreconnect.apple.com/)
-[![CI/CD: GitHub Actions](https://img.shields.io/badge/CI%2FCD-Active-success.svg)](.github/workflows/testflight.yml)
+[![Core tests](https://github.com/samjan190799-cmyk/netpulse/actions/workflows/core-tests.yml/badge.svg)](.github/workflows/core-tests.yml)
+[![iOS build](https://github.com/samjan190799-cmyk/netpulse/actions/workflows/ios-build.yml/badge.svg)](.github/workflows/ios-build.yml)
 
 **NetPulse** — это кроссплатформенный набор легковесных, высокопроизводительных инструментов для мониторинга качества сетевого соединения в реальном времени, анализа стабильности каналов связи, расчета джиттера по стандарту **RFC 3550**, потокового замера скорости (Speedtest) и автоматической MTR-трассировки.
 
@@ -25,8 +25,9 @@ NetPulse/
 │   └── requirements.txt
 │
 └── ios/                          # 📱 Нативное приложение для iOS (Swift 6.0+ / SwiftUI)
+    ├── NetPulse.xcodeproj        # Готовый проект Xcode (приложение + расширение виджетов)
     ├── Models/                   # Sendable структуры (HostTarget, PingRecord, HostMetrics)
-    ├── Engines/                  # PingEngine (NWConnection), SpeedtestEngine, NetworkDiagnostics
+    ├── Engines/                  # PingEngine (NWConnection), SpeedtestEngine, трассировка, DNS, LAN
     ├── ViewModels/               # NetworkMonitorViewModel на базе макроса @Observable
     ├── Views/                    # DashboardView, SettingsView, Swift Charts, Glassmorphism UI
     ├── Utils/                    # Тактильная отдача (HapticManager), экспорт JSON/CSV
@@ -48,7 +49,7 @@ NetPulse/
 - Подсчет процента потерь пакетов (**Packet Loss %**) в скользящем окне и за сессию.
 
 ### 3. Авто-MTR / Traceroute
-- Автоматический запуск трассировки маршрута при фиксации скачка задержки (> 150 мс) или потерь пакетов (> 5%) для точной локализации проблемного узла.
+- Автоматический запуск трассировки при критическом алерте (узел недоступен, потери ≥ 8 %, задержка ≥ 180 мс, джиттер ≥ 40 мс; пороги задаются в `core/config/settings.py`) для локализации проблемного узла.
 
 ### 4. Измерение пропускной способности (Bandwidth & Speedtest)
 - Встроенный потоковый замер скорости скачивания (**Download Mbps**) и отдачи (**Upload Mbps**) через CDN-эндпоинты Cloudflare без использования тяжелых внешних утилит.
@@ -79,8 +80,9 @@ python main.py --web --port 8080
 # 3. Мониторинг пользовательских хостов
 python main.py --hosts "1.1.1.1,8.8.8.8,google.com" --interval 0.5
 
-# 4. Запуск тестов
-python -m unittest discover tests
+# 4. Запуск тестов (герметичные, интернет не нужен)
+pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 #### Горячие клавиши в терминале:
@@ -94,10 +96,11 @@ python -m unittest discover tests
 
 ### 📱 Запуск iOS-версии (Swift 6.0+ / SwiftUI)
 
-1. Откройте **Xcode 16+** на macOS.
-2. Создайте новый проект (*iOS -> App -> SwiftUI*).
-3. Перенесите файлы из папки `ios/` в проект Xcode.
-4. Скомпилируйте и запустите на симуляторе iPhone 15 Pro / iPhone 16 или реальном устройстве (**Cmd + R**).
+1. Откройте `ios/NetPulse.xcodeproj` в **Xcode 16+** на macOS (Swift Package Manager сам подтянет зависимости).
+2. Выберите схему **NetPulse** и в *Signing & Capabilities* укажите свою команду разработчика (для приложения и расширения виджетов; группа приложения — `group.com.samvel.netpulse`).
+3. Запустите на симуляторе или реальном устройстве (**Cmd + R**). Live Activity, виджеты и доступ к локальной сети лучше проверять на устройстве.
+
+Подробности, ограничения и список того, что нужно настроить перед выпуском, — в [`ios/README.md`](ios/README.md).
 
 ---
 

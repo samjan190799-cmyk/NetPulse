@@ -1,14 +1,14 @@
 # ⚡ NetPulse iOS — Real-Time Network Quality Monitor
 
-Нативное мобильное приложение для iOS (стандарты 2026 года), предназначенное для непрерывного мониторинга качества сетевого подключения, расчета джиттера по стандарту **RFC 3550**, замера пропускной способности (Speedtest), трассировки пути (MTR) и экспорта телеметрии.
+Нативное приложение для iOS: мониторинг качества сетевого подключения, расчёт джиттера по **RFC 3550**, замер скорости, трассировка маршрута, учёт трафика, диагностика (Bufferbloat, DNS, локальная сеть) и AI-диагност.
 
 ---
 
-## 🌟 Технологический стек и стандарты 2026 года
+## 🌟 Технологический стек
 
 - **Язык программирования:** Swift 6.0+ со строгой проверкой многопоточности (**Strict Concurrency**).
-- **UI-фреймворк:** **SwiftUI** (iOS 17+ / iOS 18+) на базе макроса `@Observable`.
-- **Сетевой стек:** `Network.framework` (`NWConnection`, `NWPathMonitor`), асинхронные акторы (`actor`), `TaskGroup` и потоковый `URLSession.bytes`.
+- **UI-фреймворк:** **SwiftUI** (iOS 17+) на базе макроса `@Observable`.
+- **Сетевой стек:** `Network.framework` (`NWConnection`, `NWPathMonitor`), асинхронные акторы (`actor`), `TaskGroup`, `URLSession` с потоковым приёмом данных, ICMP-датаграммные сокеты для трассировки.
 - **Графика и чарты:** **Swift Charts** (`import Charts`) с живыми интерактивными градиентными графиками задержки RTT и спарклайнами.
 - **Премиальный UX/UI:**
   - Эффект глубокого стекла (**Glassmorphism**) с `.ultraThinMaterial`.
@@ -28,17 +28,22 @@ NetPulse-iOS/
 ├── Models/
 │   ├── HostTarget.swift          # Модель целевого узла (Cloudflare, Google, Gateway)
 │   ├── PingRecord.swift          # Модель единичного измерения (Sendable)
-│   ├── HostMetrics.swift         # Агрегированная статистика (Jitter RFC 3550, Loss, P50/P95/P99)
+│   ├── HostMetrics.swift         # Агрегированная статистика (джиттер RFC 3550, потери, Min/Avg/Max RTT)
 │   ├── NetworkInterfaceInfo.swift# Параметры Wi-Fi/Cellular, шлюз, DNS, внешний IP, ISP
 │   ├── SpeedtestResult.swift     # Результаты теста скорости (Download/Upload Mbps)
 │   ├── TracerouteHop.swift       # Узел пути трассировки
 │   └── NetworkAlert.swift        # Модель сетевого алерта
 ├── Engines/
-│   ├── PingEngine.swift          # Асинхронный многопоточный TCP Ping на Network.framework
-│   ├── JitterAnalyzer.swift      # Стандарт RFC 3550 и расчет перцентилей задержки
-│   ├── SpeedtestEngine.swift     # Потоковый замер пропускной способности (Download/Upload)
-│   ├── NetworkDiagnostics.swift  # Определение локального IP, шлюза, DNS и ASN провайдера
-│   └── TracerouteEngine.swift    # Асинхронный MTR/Traceroute сканер
+│   ├── PingEngine.swift          # Проверка узлов: время установления TCP-соединения (RST = узел жив)
+│   ├── SpeedtestEngine.swift     # Многопоточный замер скорости загрузки и отдачи
+│   ├── NetworkDiagnostics.swift  # Тип сети, локальный IP, шлюз (NWPath), публичный IP и провайдер
+│   ├── TracerouteEngine.swift    # Трассировка по ICMP-датаграммному сокету (реальные хопы)
+│   ├── BandwidthEngine.swift     # Скорость и счётчики трафика по интерфейсам (getifaddrs)
+│   ├── BufferbloatEngine.swift   # Задержка под нагрузкой (скачивание/отдача)
+│   ├── DNSBenchmarkEngine.swift  # Реальные DNS-запросы (UDP/53) к публичным серверам
+│   ├── LANScannerEngine.swift    # Поиск устройств в Wi-Fi по TCP-портам (Wi-Fi/Ethernet, RFC 1918)
+│   ├── GamingRadarEngine.swift   # Задержка до облачных регионов AWS (ориентир для игр)
+│   └── AIDiagnosticsEngine.swift # Оценка сети, мастер траблшутинга, агент с инструментами, провайдеры AI
 ├── ViewModels/
 │   └── NetworkMonitorViewModel.swift # Реактивная модель представления (@Observable @MainActor)
 ├── Views/
@@ -53,23 +58,40 @@ NetPulse-iOS/
 │       └── AlertsBannerView.swift     # Всплывающие алерты
 ├── Utils/
 │   ├── HapticManager.swift       # Генератор тактильной отдачи (Haptics)
-│   └── HistoryStorage.swift      # Локальное хранилище и экспорт отчетов (JSON/CSV)
+│   ├── HistoryStorage.swift      # История сеанса и экспорт отчётов (JSON/CSV)
+│   ├── TrafficStorage.swift      # Учёт трафика, сессии, квоты
+│   └── AdMobManager.swift        # Покупка NetPulse PRO (StoreKit 2) и запрос ATT
 └── README.md
 ```
 
+Не вошедшие в схему файлы (виджеты, Live Activity, остальные экраны) лежат в `NetPulseWidgets/`, `Views/` и `Models/`.
+
 ---
 
-## 🚀 Инструкция по сборке и запуску в Xcode
+## ℹ️ Как работают измерения и чего приложение не умеет
 
-1. Откройте **Xcode 16+** на macOS.
-2. Выберите **File -> New -> Project -> iOS -> App**.
-3. Укажите:
-   - **Product Name:** `NetPulse`
-   - **Interface:** `SwiftUI`
-   - **Language:** `Swift`
-   - **Minimum Deployments:** `iOS 17.0` (или выше).
-4. Скопируйте папки `Models/`, `Engines/`, `ViewModels/`, `Views/`, `Utils/` и файлы `ContentView.swift`, `NetPulseApp.swift` в ваш Xcode-проект.
-5. Запустите приложение на **iOS Simulator** (iPhone 15 Pro / iPhone 16) или на реальном устройстве (**Cmd + R**).
+- **Пинг — это время установления TCP-соединения**, а не ICMP. Закрытый порт, на который узел ответил `RST`, считается «узел жив». Значения немного выше ICMP-пинга.
+- **Фон.** iOS приостанавливает свернутое приложение (обычно через ~30 секунд). Dynamic Island и виджеты показывают последние полученные данные; трафик за время «сна» добавляется по счётчикам интерфейсов при возврате. Фоновые задачи (BGTaskScheduler) запускает система — гарантий по времени нет.
+- **Нет данных — нет значения.** Если измерить нельзя (нет сети, замер не удался), приложение показывает «—» или объясняет причину, а не подставляет «нормальные» цифры.
+- **Что iOS не сообщает приложениям:** DNS-серверы сети, диапазон и канал Wi-Fi, MAC-адреса устройств в локальной сети. Поэтому такие данные приложением не определяются.
+- **Сканер локальной сети** находит устройства, открывшие один из проверяемых TCP-портов или ответившие отказом; устройства, молча отбрасывающие соединения, не видны. Работает только в Wi-Fi/Ethernet и требует разрешения «Локальная сеть».
+
+---
+
+## 🔧 Что настроить перед выпуском
+
+1. **Meta Audience Network:** в `Info.plist` (`FacebookAppID`, `FacebookClientToken`) и в `MetaAdConfig` (`Utils/MetaAdManager.swift`) сейчас **заглушки** — подставьте значения из Meta Business Suite, иначе реклама не загрузится.
+2. **NetPulse PRO:** создайте в App Store Connect продукт с идентификатором `com.samvel.netpulse.pro` (см. `StoreConfig` в `Utils/AdMobManager.swift`). Пока продукта нет, покупка сообщает «недоступна», и PRO не выдаётся.
+3. **Подпись и App Group:** группа приложения — `group.com.samvel.netpulse` (приложение и расширение виджетов).
+4. **Сборка и выгрузка:** workflow *iOS: проверка сборки* компилирует проект на каждый pull request; выгрузка в TestFlight запускается только вручную (*Actions → Выгрузка в TestFlight*).
+
+---
+
+## 🚀 Сборка и запуск в Xcode
+
+1. Откройте `NetPulse.xcodeproj` в **Xcode 16+** на macOS; Swift Package Manager сам подтянет зависимости (FBAudienceNetwork).
+2. Выберите схему **NetPulse**, в *Signing & Capabilities* укажите свою команду разработчика для приложения и расширения виджетов.
+3. Запустите приложение на **iOS Simulator** или на реальном устройстве (**Cmd + R**). Live Activity, виджеты, доступ к локальной сети и фоновые задачи надёжно проверяются только на устройстве.
 
 ---
 

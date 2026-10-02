@@ -77,9 +77,7 @@ struct HomeMapLayer: View {
 
         Map(position: $camera) {
             if showsUserDot {
-                UserAnnotation {
-                    HomeUserMarker(quality: haloQuality)
-                }
+                UserAnnotation()
             }
 
             // Покрытие: широкие полупрозрачные полосы лежат под линией маршрута, прежние маршруты — под показанным

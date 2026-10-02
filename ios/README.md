@@ -50,7 +50,7 @@ NetPulse-iOS/
 │   └── NetworkMonitorViewModel.swift # Реактивная модель представления (@Observable @MainActor)
 ├── Views/
 │   ├── DashboardView.swift       # Главный экран с карточками и графиками
-│   ├── NetworkMapView.swift      # «Карта сети»: запись маршрута, карта по качеству сети, история
+│   ├── NetworkMapView.swift      # «Карта сети»: Apple Maps (MapKit) с маршрутом по качеству сети, схема и спутник, запись, история
 │   ├── SettingsView.swift        # Экран управления узлами и порогами
 │   └── Components/
 │       ├── NetworkInfoCardView.swift   # Glassmorphic карточка топологии

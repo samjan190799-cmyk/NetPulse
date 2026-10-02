@@ -393,6 +393,12 @@ final class NetPulseUITests: XCTestCase {
         openSettings(app)
         openNetworkMap(app)
 
+        // Карта Apple Maps видна и до первой записи (раньше вместо неё была заглушка)
+        let mapVisible = app.maps.firstMatch.waitForExistence(timeout: 10)
+            || app.descendants(matching: .any)["networkMapMap"].waitForExistence(timeout: 2)
+        print("NETPULSE-CI: карта на экране до записи: \(mapVisible ? "есть" : "НЕТ")")
+        attachScreenshot("map-idle")
+
         let demo = app.buttons["networkMapDemoButton"]
         XCTAssertTrue(reveal(demo, in: app), "Нет кнопки «Показать пример»")
         demo.tap()
@@ -404,6 +410,13 @@ final class NetPulseUITests: XCTestCase {
         print("NETPULSE-CI: сводка примера: \(summary.label)")
         XCTAssertTrue(summary.label.hasPrefix("Точек: 72"), "Сводка примера: «\(summary.label)»")
         attachScreenshot("map-demo")
+
+        // Переключатель «Схема / Спутник» на карте
+        let styleButton = app.buttons["networkMapStyleButton"]
+        XCTAssertTrue(reveal(styleButton, in: app), "На карте нет кнопки «Спутник»")
+        styleButton.tap()
+        Thread.sleep(forTimeInterval: 3)
+        attachScreenshot("map-demo-satellite")
     }
 
     /// Контрольный прогон: свёрнутое приложение без записи маршрута. После возврата на главном экране появляется

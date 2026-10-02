@@ -30,8 +30,10 @@ public struct NetworkMapView: View {
     @State private var selectedID: UUID?
     @State private var showsDemo = false
     @State private var metric: RouteMetric = .latency
-    @State private var camera: MapCameraPosition = .automatic
+    /// Пока маршрута нет и во время записи карта смотрит на вас; у готового маршрута — на весь маршрут целиком
+    @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var confirmDeleteAll = false
+    @AppStorage("netpulse_map_satellite") private var satellite = false
 
     public init() {}
 
@@ -87,8 +89,11 @@ public struct NetworkMapView: View {
         .task {
             await recorder.reloadHistory()
         }
+        .onAppear {
+            updateCamera()
+        }
         .onChange(of: displayedRoute?.id) { _, _ in
-            camera = .automatic
+            updateCamera()
         }
         .onChange(of: recorder.isActive) { _, active in
             if active {
@@ -109,24 +114,28 @@ public struct NetworkMapView: View {
 
     // MARK: - Карта
 
-    @ViewBuilder
+    private var hasRoutePoints: Bool {
+        !(displayedRoute?.points.isEmpty ?? true)
+    }
+
+    /// Карта Apple Maps (MapKit) видна всегда: и до первой записи, чтобы экран выглядел как карта, а не как форма
     private var mapCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let route = displayedRoute, !route.points.isEmpty {
-                ZStack(alignment: .topLeading) {
-                    routeMap(for: route)
-                        .frame(height: 320)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(NPTheme.border, lineWidth: 1)
-                        )
-                        .accessibilityLabel("Карта маршрута")
-                        .accessibilityIdentifier("networkMapMap")
+            ZStack {
+                networkMap
+                    .frame(height: 380)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(NPTheme.border, lineWidth: 1)
+                    )
+                    .accessibilityLabel("Карта маршрута")
+                    .accessibilityIdentifier("networkMapMap")
 
-                    mapBadge
-                        .padding(10)
-                }
+                mapOverlays
+            }
+
+            if hasRoutePoints {
                 legend
                 if hasSpeedData {
                     Picker("Показатель", selection: $metric) {
@@ -137,46 +146,59 @@ public struct NetworkMapView: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("networkMapMetricPicker")
                 }
-            } else {
-                mapPlaceholder
             }
         }
     }
 
-    private var mapPlaceholder: some View {
-        VStack(spacing: 10) {
-            Image(systemName: recorder.isActive ? "location.circle" : "map")
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(NPTheme.accentPrimary)
-            Text(recorder.isActive ? "Ждём первую точку GPS…" : "Здесь появится карта вашего маршрута")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(NPTheme.textPrimary)
-            Text(recorder.isActive
-                 ? "Выйдите на открытое место: GPS ловит сигнал не сразу."
-                 : "Начните запись и двигайтесь: цвет линии покажет качество сети на каждом участке.")
-                .font(.system(size: 12))
-                .foregroundStyle(NPTheme.textSecondary)
-                .multilineTextAlignment(.center)
+    /// Куда смотрит карта: при записи и пока маршрута нет — на вас, иначе — на весь показанный маршрут
+    private func updateCamera() {
+        if recorder.current != nil || !hasRoutePoints {
+            camera = .userLocation(fallback: .automatic)
+        } else {
+            camera = .automatic
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-        .padding(.horizontal, 20)
-        .npGlassCard(cornerRadius: 16)
     }
 
-    private func routeMap(for route: RouteRecord) -> some View {
-        let segments = RouteAnalyzer.segments(for: route.points, metric: metric)
-        let zones = RouteAnalyzer.deadZones(in: route.points)
+    private var mapStyleValue: MapStyle {
+        // Приглушённая схема без значков заведений: цветная линия маршрута читается лучше, чем на пёстрой карте
+        satellite
+            ? .hybrid(pointsOfInterest: .excludingAll)
+            : .standard(emphasis: .muted, pointsOfInterest: .excludingAll)
+    }
+
+    private func coordinates(of segment: RouteSegment) -> [CLLocationCoordinate2D] {
+        segment.path.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+    }
+
+    private func coordinate(of point: RoutePoint) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)
+    }
+
+    private var networkMap: some View {
+        let points = displayedRoute?.points ?? []
+        let segments = RouteAnalyzer.segments(for: points, metric: metric)
+        let zones = RouteAnalyzer.deadZones(in: points)
         let isLive = recorder.current != nil
-        let first = route.points.first
-        let last = route.points.last
+        let first = points.first
+        let last = points.last
+        // Синяя точка «вы здесь» нужна при записи и на пустой карте; у сохранённого маршрута она только отвлекала бы
+        let showsUserDot = isLive || points.isEmpty
 
         return Map(position: $camera) {
+            if showsUserDot {
+                UserAnnotation()
+            }
+
+            // Тёмная подложка под линией: цвет виден и на светлых улицах, и на спутниковом снимке
             ForEach(segments) { segment in
-                MapPolyline(coordinates: segment.path.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) })
+                MapPolyline(coordinates: coordinates(of: segment))
+                    .stroke(Color.black.opacity(0.55), style: StrokeStyle(lineWidth: 9.5, lineCap: .round, lineJoin: .round))
+            }
+            ForEach(segments) { segment in
+                MapPolyline(coordinates: coordinates(of: segment))
                     .stroke(
                         segment.quality.displayColor,
-                        style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: segment.quality == .dead ? [2, 7] : [])
+                        style: StrokeStyle(lineWidth: 5.5, lineCap: .round, lineJoin: .round, dash: segment.quality == .dead ? [1, 8] : [])
                     )
             }
 
@@ -186,23 +208,82 @@ public struct NetworkMapView: View {
                 }
             }
 
-            if let first {
-                Marker("Старт", systemImage: "flag.fill", coordinate: CLLocationCoordinate2D(latitude: first.latitude, longitude: first.longitude))
+            if let first, points.count > 1 {
+                Marker("Старт", systemImage: "flag.fill", coordinate: coordinate(of: first))
                     .tint(.green)
             }
 
-            if let last, !isLive, route.points.count > 1 {
-                Marker("Финиш", systemImage: "flag.checkered", coordinate: CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude))
+            if let last, !isLive, points.count > 1 {
+                Marker("Финиш", systemImage: "flag.checkered", coordinate: coordinate(of: last))
                     .tint(.red)
             }
+        }
+        .mapStyle(mapStyleValue)
+    }
 
-            if let last, isLive {
-                Annotation("Сейчас", coordinate: CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude)) {
-                    liveMarker
+    /// Плашка состояния слева сверху, кнопки «Схема / Спутник» и «К моему положению» справа, подсказка снизу
+    private var mapOverlays: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top) {
+                mapBadge
+                Spacer(minLength: 8)
+                VStack(spacing: 8) {
+                    mapControlButton(
+                        systemImage: satellite ? "map.fill" : "globe.europe.africa.fill",
+                        label: satellite ? "Схема" : "Спутник",
+                        identifier: "networkMapStyleButton"
+                    ) {
+                        satellite.toggle()
+                        HapticManager.shared.selectionChanged()
+                    }
+                    mapControlButton(
+                        systemImage: "location.fill",
+                        label: "К моему положению",
+                        identifier: "networkMapRecenterButton"
+                    ) {
+                        updateCamera()
+                        HapticManager.shared.selectionChanged()
+                    }
                 }
             }
+            Spacer(minLength: 0)
+            if let hint = mapHint {
+                Text(hint)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .accessibilityIdentifier("networkMapHint")
+            }
         }
-        .mapStyle(.standard)
+        .padding(10)
+    }
+
+    private var mapHint: String? {
+        if hasRoutePoints { return nil }
+        return recorder.current != nil
+            ? "Ждём первую точку GPS: выйдите на открытое место"
+            : "Запишите маршрут: цвет линии покажет качество сети"
+    }
+
+    private func mapControlButton(
+        systemImage: String,
+        label: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 38, height: 38)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 1))
+        }
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     private var deadZoneMarker: some View {
@@ -217,14 +298,6 @@ public struct NetworkMapView: View {
         .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.5))
     }
 
-    private var liveMarker: some View {
-        Circle()
-            .fill(NPTheme.accentPrimary)
-            .frame(width: 16, height: 16)
-            .overlay(Circle().stroke(Color.white, lineWidth: 3))
-            .shadow(color: Color.black.opacity(0.35), radius: 3)
-    }
-
     @ViewBuilder
     private var mapBadge: some View {
         if recorder.current != nil {
@@ -232,7 +305,7 @@ public struct NetworkMapView: View {
         } else if isShowingDemo {
             badge("ПРИМЕР · ДЕМО-ДАННЫЕ", color: NPTheme.accentPrimary)
                 .accessibilityIdentifier("networkMapDemoBadge")
-        } else if let route = displayedRoute {
+        } else if let route = displayedRoute, !route.points.isEmpty {
             badge(route.startedAt.formatted(.dateTime.day().month(.abbreviated).hour().minute()), color: NPTheme.cardBackgroundTertiary)
         }
     }
@@ -283,9 +356,21 @@ public struct NetworkMapView: View {
 
     private var idleBlock: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Запишите маршрут, и на карте будет видно, где сеть была быстрой, медленной или пропадала.")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(NPTheme.textPrimary)
+            Button {
+                HapticManager.shared.impactMedium()
+                recorder.start()
+            } label: {
+                Label("Начать запись маршрута", systemImage: "record.circle")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("networkMapStartButton")
+
+            Text("Запись покажет на карте, где сеть была быстрой, медленной или пропадала. Пока она идёт, приложение работает и в фоне: в строке состояния iOS виден значок геолокации, а Dynamic Island продолжает показывать скорость. Маршруты хранятся только на этом устройстве.")
+                .font(.system(size: 11))
+                .foregroundStyle(NPTheme.textSecondary)
                 .lineSpacing(2)
 
             if recorder.state.needsAttention {
@@ -322,23 +407,6 @@ public struct NetworkMapView: View {
                 }
             }
             .accessibilityIdentifier("networkMapSpeedToggle")
-
-            Button {
-                HapticManager.shared.impactMedium()
-                recorder.start()
-            } label: {
-                Label("Начать запись маршрута", systemImage: "record.circle")
-                    .font(.system(size: 15, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("networkMapStartButton")
-
-            Text("Пока запись идёт, приложение работает и в фоне: в строке состояния iOS виден значок геолокации, а Dynamic Island продолжает показывать скорость. Маршруты хранятся только на этом устройстве.")
-                .font(.system(size: 11))
-                .foregroundStyle(NPTheme.textSecondary)
-                .lineSpacing(2)
 
             if !showsDemo {
                 Button {

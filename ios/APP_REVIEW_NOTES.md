@@ -37,6 +37,10 @@ User control and transparency:
 A side effect of recording: while the app records in the background, the Dynamic Island keeps showing
 live network speed.
 
+The map is Apple's MapKit (Apple Maps). The blue dot with the user's position is drawn by MapKit only
+while the screen is open and location is authorized; the route lines are drawn from the points recorded
+by the app.
+
 HOW TO TEST
 1. Dashboard ("Скорость" tab) → tap the "Карта сети" (Network Map) chip. (Also: Settings → "Карта сети".)
 2. Tap "Показать пример" (Show example): a clearly labelled DEMO route (not real data) is drawn on the map.

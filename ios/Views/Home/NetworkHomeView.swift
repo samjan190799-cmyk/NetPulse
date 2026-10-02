@@ -140,6 +140,10 @@ public struct NetworkHomeView: View {
             .onChange(of: showsDemo) { _, _ in
                 updateCamera()
             }
+            .onChange(of: recorder.history.first?.id) { _, _ in
+                // Список маршрутов подгружается с диска уже после появления экрана
+                updateCamera()
+            }
             .onChange(of: recorder.isActive) { _, active in
                 if active {
                     showsDemo = false
@@ -248,11 +252,7 @@ public struct NetworkHomeView: View {
 
     /// «К моему положению»; у готового маршрута та же кнопка возвращает вид на весь маршрут
     private func recenter() {
-        if isRouteMode {
-            camera = .automatic
-        } else {
-            camera = .userLocation(fallback: .automatic)
-        }
+        updateCamera()
         HapticManager.shared.selectionChanged()
     }
 

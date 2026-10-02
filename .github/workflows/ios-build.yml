@@ -184,7 +184,7 @@ jobs:
                 echo "❌ Некорректное имя теста: '$name'"
                 exit 1
               fi
-              ONLY_ARGS+=("-only-testing:NetPulseUITests/$name")
+              ONLY_ARGS+=("-only-testing:NetPulseUITests/NetPulseUITests/$name")
             done
             set +f
           fi

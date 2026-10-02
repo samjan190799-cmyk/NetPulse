@@ -376,17 +376,23 @@ def set_availability(app_id, territories):
     print(f"    страны: {len(chosen)}")
 
 
-def attach_build(app_id, version_id, number):
-    found = get("/v1/builds", {"filter[app]": app_id, "filter[version]": str(number), "include": "preReleaseVersion", "limit": 5})
-    builds = found.get("data", [])
-    if not builds:
-        raise ApiError(0, f"сборка {number} не найдена", "GET", "builds")
-    build = builds[0]
-    state = build["attributes"].get("processingState")
-    pre = next((i for i in found.get("included", []) if i.get("type") == "preReleaseVersions"), None)
-    print(f"    сборка {number}: {state}, версия в сборке {(pre or {}).get('attributes', {}).get('version')}")
-    if state != "VALID":
-        raise ApiError(0, f"сборка {number} ещё не готова: {state}", "GET", "builds")
+def attach_build(app_id, version_id, number, wait_minutes=22):
+    """Привязывает сборку к версии. Только что выгруженная сборка обрабатывается в Apple 5–20 минут: ждём её."""
+    deadline = time.time() + wait_minutes * 60
+    while True:
+        found = get("/v1/builds", {"filter[app]": app_id, "filter[version]": str(number), "include": "preReleaseVersion", "limit": 5})
+        builds = found.get("data", [])
+        build = builds[0] if builds else None
+        state = build["attributes"].get("processingState") if build else None
+        pre = next((i for i in found.get("included", []) if i.get("type") == "preReleaseVersions"), None)
+        print(f"    сборка {number}: {state or 'ещё не появилась'}, версия в сборке {(pre or {}).get('attributes', {}).get('version')}")
+        if state == "VALID":
+            break
+        if state in ("FAILED", "INVALID"):
+            raise ApiError(0, f"сборка {number} не прошла обработку: {state}", "GET", "builds")
+        if time.time() > deadline:
+            raise ApiError(0, f"сборка {number} не обработана за {wait_minutes} мин: {state or 'нет в списке'}", "GET", "builds")
+        time.sleep(30)
     request("PATCH", f"/v1/appStoreVersions/{version_id}/relationships/build", body={"data": {"type": "builds", "id": build["id"]}})
     print(f"    к версии привязана сборка {number}")
 
@@ -503,6 +509,10 @@ def prepare():
         existing = get(f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail").get("data")
         attrs = {"demoAccountRequired": False, "notes": notes}
         if existing:
+            if (existing.get("attributes") or {}).get("notes") == notes:
+                # Пока владелец не внёс контакты, Apple отклоняет любое изменение этой записи (409), а менять нечего
+                print(f"    заметки для рецензента уже актуальны ({len(notes)} симв.)")
+                return
             request("PATCH", f"/v1/appStoreReviewDetails/{existing['id']}", body=payload("appStoreReviewDetails", attrs, id_=existing["id"]))
             print(f"    заметки для рецензента обновлены ({len(notes)} симв.)")
         else:

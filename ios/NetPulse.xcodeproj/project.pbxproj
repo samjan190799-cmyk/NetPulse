@@ -92,6 +92,13 @@
 		A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D12C123456000000D1 /* IslandDiagnostics.swift */; };
 		A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */; };
 		A30000052C12345600000005 /* IslandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000052C12345600000005 /* IslandTests.swift */; };
+		A10000D32C123456000000D3 /* RouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D32C123456000000D3 /* RouteModels.swift */; };
+		A10000D42C123456000000D4 /* RouteStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D42C123456000000D4 /* RouteStorage.swift */; };
+		A10000D52C123456000000D5 /* RouteLocationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D52C123456000000D5 /* RouteLocationSession.swift */; };
+		A10000D62C123456000000D6 /* RouteRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D62C123456000000D6 /* RouteRecorder.swift */; };
+		A10000D72C123456000000D7 /* NetworkProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D72C123456000000D7 /* NetworkProbe.swift */; };
+		A30000062C12345600000006 /* RouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000062C12345600000006 /* RouteTests.swift */; };
+		A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000072C12345600000007 /* RouteRecorderTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -223,6 +230,13 @@
 		B10000D12C123456000000D1 /* IslandDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandDiagnostics.swift; sourceTree = "<group>"; };
 		B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/IslandDiagnosticsView.swift; sourceTree = "<group>"; };
 		B30000052C12345600000005 /* IslandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandTests.swift; sourceTree = "<group>"; };
+		B10000D32C123456000000D3 /* RouteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/RouteModels.swift; sourceTree = "<group>"; };
+		B10000D42C123456000000D4 /* RouteStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteStorage.swift; sourceTree = "<group>"; };
+		B10000D52C123456000000D5 /* RouteLocationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteLocationSession.swift; sourceTree = "<group>"; };
+		B10000D62C123456000000D6 /* RouteRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteRecorder.swift; sourceTree = "<group>"; };
+		B10000D72C123456000000D7 /* NetworkProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/NetworkProbe.swift; sourceTree = "<group>"; };
+		B30000062C12345600000006 /* RouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteTests.swift; sourceTree = "<group>"; };
+		B30000072C12345600000007 /* RouteRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteRecorderTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -308,6 +322,7 @@
 				B10000912C12345600000091 /* GamingRadarModels.swift */,
 				B10000922C12345600000092 /* BufferbloatModels.swift */,
 				B10000932C12345600000093 /* LANDeviceModels.swift */,
+				B10000D32C123456000000D3 /* RouteModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -328,6 +343,7 @@
 				B10000952C12345600000095 /* GamingRadarEngine.swift */,
 				B10000962C12345600000096 /* BufferbloatEngine.swift */,
 				B10000972C12345600000097 /* LANScannerEngine.swift */,
+				B10000D72C123456000000D7 /* NetworkProbe.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -397,6 +413,9 @@
 				B10000B02C123456000000B0 /* MetaAdManager.swift */,
 				B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */,
 				B10000D12C123456000000D1 /* IslandDiagnostics.swift */,
+				B10000D42C123456000000D4 /* RouteStorage.swift */,
+				B10000D52C123456000000D5 /* RouteLocationSession.swift */,
+				B10000D62C123456000000D6 /* RouteRecorder.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -420,6 +439,8 @@
 				B30000032C12345600000003 /* ToolsLogicTests.swift */,
 				B30000042C12345600000004 /* ModesAndPrivacyTests.swift */,
 				B30000052C12345600000005 /* IslandTests.swift */,
+				B30000062C12345600000006 /* RouteTests.swift */,
+				B30000072C12345600000007 /* RouteRecorderTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -667,6 +688,11 @@
 				A10000D02C123456000000D0 /* IslandUpdatePipeline.swift in Sources */,
 				A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */,
 				A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */,
+				A10000D32C123456000000D3 /* RouteModels.swift in Sources */,
+				A10000D42C123456000000D4 /* RouteStorage.swift in Sources */,
+				A10000D52C123456000000D5 /* RouteLocationSession.swift in Sources */,
+				A10000D62C123456000000D6 /* RouteRecorder.swift in Sources */,
+				A10000D72C123456000000D7 /* NetworkProbe.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -691,6 +717,8 @@
 				A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */,
 				A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */,
 				A30000052C12345600000005 /* IslandTests.swift in Sources */,
+				A30000062C12345600000006 /* RouteTests.swift in Sources */,
+				A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

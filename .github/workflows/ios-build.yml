@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       ui_tests:
-        description: 'Только эти UI-тесты (имя метода, например testRecordingSavesRouteWithPoints); пусто — все'
+        description: 'Только эти UI-тесты (имена методов через запятую, например testRecordingSavesRouteWithPoints); пусто — все'
         required: false
         default: ''
       skip_unit:
@@ -175,13 +175,18 @@ jobs:
           ONLY_UI_TESTS: ${{ inputs.ui_tests }}
         run: |
           set -o pipefail
-          ONLY="NetPulseUITests"
+          ONLY_ARGS=(-only-testing:NetPulseUITests)
           if [ -n "$ONLY_UI_TESTS" ]; then
-            if ! [[ "$ONLY_UI_TESTS" =~ ^[A-Za-z0-9_]+$ ]]; then
-              echo "❌ Некорректное имя теста: '$ONLY_UI_TESTS'"
-              exit 1
-            fi
-            ONLY="NetPulseUITests/$ONLY_UI_TESTS"
+            ONLY_ARGS=()
+            set -f
+            for name in ${ONLY_UI_TESTS//,/ }; do
+              if ! [[ "$name" =~ ^[A-Za-z0-9_]+$ ]]; then
+                echo "❌ Некорректное имя теста: '$name'"
+                exit 1
+              fi
+              ONLY_ARGS+=("-only-testing:NetPulseUITests/$name")
+            done
+            set +f
           fi
           # Скорость в приложении считается по счётчикам сетевых интерфейсов хоста: без нагрузки на раннере
           # остров показывал бы одни нули, и проверять было бы нечего.
@@ -222,7 +227,10 @@ jobs:
             -scheme NetPulse \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
-            -only-testing:"$ONLY" \
+            "${ONLY_ARGS[@]}" \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 420 \
+            -maximum-test-execution-time-allowance 420 \
             -resultBundlePath build/ui.xcresult \
             2>&1 | tee build/ui.log | tail -n 80
 
@@ -231,6 +239,10 @@ jobs:
         working-directory: ./ios
         run: |
           grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+          echo "=== Ход UI-тестов (начало, итог и ошибки по журналу xcodebuild) ==="
+          grep -E "Test Case .* (started|passed|failed)|Test Suite .* (started|passed|failed)|exceeded|timed out|Restarting after|crash|error:" build/ui.log 2>/dev/null | tail -n 60 || true
+          echo "=== Хвост журнала xcodebuild ==="
+          tail -n 40 build/ui.log 2>/dev/null || echo "(журнала нет)"
           echo "=== Генератор трафика на раннере (последние строки) ==="
           tail -n 12 build/traffic.log 2>/dev/null || echo "(журнала генератора нет)"
           echo "=== Имитация положения в симуляторе (для записи маршрута) ==="
@@ -305,6 +317,10 @@ jobs:
           cp ~/Library/Logs/DiagnosticReports/NetPulse* build/diagnostics/ 2>/dev/null || true
           echo "=== Файлы диагностики ==="
           ls -la build/diagnostics | head -n 20
+          echo "=== Отчёты о падениях в системном каталоге ==="
+          ls -la ~/Library/Logs/DiagnosticReports 2>/dev/null | head -n 20 || echo "(каталога нет)"
+          echo "=== Хвост журнала приложения ==="
+          tail -n 60 build/diagnostics/app-log.txt 2>/dev/null || true
           for report in build/diagnostics/NetPulse*.ips; do
             if [ -f "$report" ]; then
               echo "--- Отчёт о падении: $report"

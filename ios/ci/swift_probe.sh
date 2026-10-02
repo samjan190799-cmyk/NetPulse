@@ -16,9 +16,10 @@ xcrun swiftc --version 2>&1 | head -n 2
 
 files=()
 if [ $# -eq 0 ]; then
-  for file in "$dir"/*.swift; do
-    [ -f "$file" ] && files+=("$file")
-  done
+  # Через find, а не через звёздочку: раскрытие шаблонов выше отключено (set -f)
+  while IFS= read -r file; do
+    files+=("$file")
+  done < <(find "$dir" -maxdepth 1 -name '*.swift' | sort)
 else
   for name in "$@"; do
     if ! printf '%s' "$name" | grep -Eq '^[A-Za-z0-9_.-]+\.swift$'; then

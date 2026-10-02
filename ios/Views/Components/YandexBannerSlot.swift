@@ -24,13 +24,18 @@ struct YandexBannerSlot: View {
     /// Пришло ли объявление: по этому признаку родитель рисует рамку и прячет запасное предложение
     @Binding var isLoaded: Bool
     /// Скругление углов самого объявления
-    var cornerRadius: CGFloat = 0
+    private let cornerRadius: CGFloat
 
     private let manager = YandexAdManager.shared
     @State private var bannerState: BannerState?
     @State private var attempt = 0
     @State private var failures = 0
     @State private var retryTask: Task<Void, Never>?
+
+    init(isLoaded: Binding<Bool>, cornerRadius: CGFloat = 0) {
+        self._isLoaded = isLoaded
+        self.cornerRadius = cornerRadius
+    }
 
     private var width: CGFloat { YandexAdConfig.bannerWidth }
     private var height: CGFloat { YandexAdConfig.bannerHeight }

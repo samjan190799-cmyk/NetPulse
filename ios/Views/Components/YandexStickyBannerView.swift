@@ -15,6 +15,8 @@ struct YandexStickyBannerView: View {
     @State private var isLoaded = false
     @State private var isClosedTemporarily = false
 
+    init() {}
+
     var body: some View {
         if manager.canShowAds && !isClosedTemporarily {
             VStack(spacing: 0) {

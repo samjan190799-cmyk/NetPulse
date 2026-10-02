@@ -32,19 +32,15 @@ on:
         type: boolean
         required: false
         default: false
-      sdk_probe:
-        description: 'Только справка по SDK: напечатать объявления API из установленного Xcode (без сборки, около 2 минут)'
+      swift_probe:
+        description: 'Только проверка фрагментов Swift настоящим компилятором (файлы из ios/ci/probes, без сборки приложения, около 2 минут)'
         type: boolean
         required: false
         default: false
-      sdk_pattern:
-        description: 'Для справки по SDK: что искать (регулярное выражение), например "UserAnnotation|struct UserLocation"'
+      probe_files:
+        description: 'Для проверки фрагментов: имена файлов из ios/ci/probes через пробел (пусто — все)'
         required: false
-        default: 'UserAnnotation'
-      sdk_parts:
-        description: 'Для справки по SDK: слова в пути интерфейсов через пробел (по умолчанию MapKit)'
-        required: false
-        default: 'MapKit'
+        default: ''
 
 permissions:
   contents: read
@@ -54,9 +50,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sdk-probe:
-    name: "Справка по SDK (объявления API из установленного Xcode)"
-    if: ${{ inputs.sdk_probe }}
+  swift-probe:
+    name: "Проверка фрагментов Swift компилятором Xcode"
+    if: ${{ inputs.swift_probe }}
     runs-on: macos-15
     timeout-minutes: 10
 
@@ -77,16 +73,18 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: "Объявления API"
+      - name: "Проверка фрагментов"
         env:
-          # Значения проходят через окружение и проверяются в скрипте (защита от инъекции команд)
-          SDK_PATTERN: ${{ inputs.sdk_pattern }}
-          SDK_PARTS: ${{ inputs.sdk_parts }}
-        run: bash ios/ci/sdk_probe.sh "$SDK_PATTERN" "$SDK_PARTS"
+          # Значение проходит через окружение, имена файлов проверяются в скрипте (защита от инъекции команд)
+          PROBE_FILES: ${{ inputs.probe_files }}
+        run: |
+          set -f
+          # shellcheck disable=SC2086
+          bash ios/ci/swift_probe.sh $PROBE_FILES
 
   test:
     name: "Сборка, юнит-тесты и UI-тест в симуляторе"
-    if: ${{ !inputs.sdk_probe }}
+    if: ${{ !inputs.swift_probe }}
     runs-on: macos-15
     timeout-minutes: 60
 

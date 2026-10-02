@@ -33,8 +33,8 @@ public struct DiagnosticsView: View {
                             }
                         )
 
-                        // 2. Рекламный баннер Meta Audience Network на видном месте
-                        MetaBannerView(contextTag: "Диагностика сети")
+                        // 2. Рекламный баннер Яндекса на видном месте
+                        YandexBannerView(contextTag: "Диагностика сети")
 
                         // 3. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
                         proUtilitiesHub
@@ -49,7 +49,7 @@ public struct DiagnosticsView: View {
                         targetsSection
                     }
                     .padding(16)
-                    .padding(.bottom, 110) // Безопасный отступ для закрепленного баннера Meta и таб-бара
+                    .padding(.bottom, 110) // Безопасный отступ для закрепленного рекламного баннера и таб-бара
                 }
 
                 // Всплывающий баннер алертов

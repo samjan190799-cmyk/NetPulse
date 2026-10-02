@@ -106,6 +106,13 @@
 		A10000E02C123456000000E0 /* HomeFloatingCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E02C123456000000E0 /* HomeFloatingCards.swift */; };
 		A10000E12C123456000000E1 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E12C123456000000E1 /* HomeModels.swift */; };
 		A30000082C12345600000008 /* HomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000082C12345600000008 /* HomeTests.swift */; };
+		A10000E22C123456000000E2 /* AdModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E22C123456000000E2 /* AdModels.swift */; };
+		A10000E32C123456000000E3 /* YandexAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E32C123456000000E3 /* YandexAdManager.swift */; };
+		A10000E42C123456000000E4 /* YandexBannerSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E42C123456000000E4 /* YandexBannerSlot.swift */; };
+		A10000E52C123456000000E5 /* YandexStickyBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E52C123456000000E5 /* YandexStickyBannerView.swift */; };
+		A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E62C123456000000E6 /* YandexBannerView.swift */; };
+		A30000092C12345600000009 /* AdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000092C12345600000009 /* AdTests.swift */; };
+		A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -251,6 +258,12 @@
 		B10000E02C123456000000E0 /* HomeFloatingCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeFloatingCards.swift; sourceTree = "<group>"; };
 		B10000E12C123456000000E1 /* HomeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HomeModels.swift; sourceTree = "<group>"; };
 		B30000082C12345600000008 /* HomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/HomeTests.swift; sourceTree = "<group>"; };
+		B10000E22C123456000000E2 /* AdModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AdModels.swift; sourceTree = "<group>"; };
+		B10000E32C123456000000E3 /* YandexAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/YandexAdManager.swift; sourceTree = "<group>"; };
+		B10000E42C123456000000E4 /* YandexBannerSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerSlot.swift; sourceTree = "<group>"; };
+		B10000E52C123456000000E5 /* YandexStickyBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexStickyBannerView.swift; sourceTree = "<group>"; };
+		B10000E62C123456000000E6 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
+		B30000092C12345600000009 /* AdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/AdTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -259,6 +272,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000B42C123456000000B4 /* FBAudienceNetwork in Frameworks */,
+				A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -338,6 +352,7 @@
 				B10000932C12345600000093 /* LANDeviceModels.swift */,
 				B10000D32C123456000000D3 /* RouteModels.swift */,
 				B10000E12C123456000000E1 /* HomeModels.swift */,
+				B10000E22C123456000000E2 /* AdModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -413,6 +428,9 @@
 				B10000B12C123456000000B1 /* MetaBannerView.swift */,
 				B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */,
 				B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */,
+				B10000E42C123456000000E4 /* YandexBannerSlot.swift */,
+				B10000E52C123456000000E5 /* YandexStickyBannerView.swift */,
+				B10000E62C123456000000E6 /* YandexBannerView.swift */,
 			);
 			name = Components;
 			sourceTree = "<group>";
@@ -436,6 +454,7 @@
 				B10000D42C123456000000D4 /* RouteStorage.swift */,
 				B10000D52C123456000000D5 /* RouteLocationSession.swift */,
 				B10000D62C123456000000D6 /* RouteRecorder.swift */,
+				B10000E32C123456000000E3 /* YandexAdManager.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -462,6 +481,7 @@
 				B30000062C12345600000006 /* RouteTests.swift */,
 				B30000072C12345600000007 /* RouteRecorderTests.swift */,
 				B30000082C12345600000008 /* HomeTests.swift */,
+				B30000092C12345600000009 /* AdTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -493,6 +513,7 @@
 			);
 			packageProductDependencies = (
 				E40000012C12345600000001 /* FBAudienceNetwork */,
+				E40000022C12345600000002 /* YandexMobileAds */,
 			);
 			name = NetPulse;
 			productName = NetPulse;
@@ -588,6 +609,7 @@
 			mainGroup = E10000002C12345600000000;
 			packageReferences = (
 				E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */,
+				E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */,
 			);
 			productRefGroup = E10000082C12345600000008 /* Products */;
 			projectDirPath = "";
@@ -720,6 +742,11 @@
 				A10000DF2C123456000000DF /* HomeRoutePanel.swift in Sources */,
 				A10000E02C123456000000E0 /* HomeFloatingCards.swift in Sources */,
 				A10000E12C123456000000E1 /* HomeModels.swift in Sources */,
+				A10000E22C123456000000E2 /* AdModels.swift in Sources */,
+				A10000E32C123456000000E3 /* YandexAdManager.swift in Sources */,
+				A10000E42C123456000000E4 /* YandexBannerSlot.swift in Sources */,
+				A10000E52C123456000000E5 /* YandexStickyBannerView.swift in Sources */,
+				A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -747,6 +774,7 @@
 				A30000062C12345600000006 /* RouteTests.swift in Sources */,
 				A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */,
 				A30000082C12345600000008 /* HomeTests.swift in Sources */,
+				A30000092C12345600000009 /* AdTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -850,6 +878,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -873,6 +902,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1063,6 +1093,14 @@
 				minimumVersion = 6.22.0;
 			};
 		};
+		E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/yandexmobile/yandex-ads-sdk-ios";
+			requirement = {
+				kind = exactVersion;
+				version = 8.6.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1070,6 +1108,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */;
 			productName = FBAudienceNetwork;
+		};
+		E40000022C12345600000002 /* YandexMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */;
+			productName = YandexMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 

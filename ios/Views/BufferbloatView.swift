@@ -40,8 +40,8 @@ public struct BufferbloatView: View {
                     // 2. Фазы тестирования (Индикатор текущего этапа)
                     testingPhasesCard
 
-                    // Рекламный баннер Meta Audience Network на видном месте
-                    MetaBannerView(contextTag: "Оборудование и роутеры")
+                    // Рекламный баннер Яндекса на видном месте
+                    YandexBannerView(contextTag: "Оборудование и роутеры")
                         .padding(.horizontal)
 
                     // 3. Детальное сравнение ненагруженного и нагруженного пинга

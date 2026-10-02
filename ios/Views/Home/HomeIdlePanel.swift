@@ -142,7 +142,7 @@ struct HomeIdlePanel: View {
                 }
             }
 
-            MetaStickyBottomBannerView()
+            YandexStickyBannerView()
         }
         .frame(maxWidth: .infinity)
         .background(HomePanelBackground())

@@ -63,11 +63,13 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // 2. Спонсорский блок Meta Audience Network на видном месте
-                Section(header: Label("Партнер и спонсор", systemImage: "infinity")) {
-                    MetaBannerView(contextTag: "Meta Ads")
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                        .listRowBackground(Color.clear)
+                // 2. Рекламный блок Яндекса на видном месте (у владельцев PRO его нет)
+                if YandexAdManager.shared.canShowAds {
+                    Section(header: Label("Реклама", systemImage: "megaphone")) {
+                        YandexBannerView(contextTag: "Настройки")
+                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                            .listRowBackground(Color.clear)
+                    }
                 }
 
                 // 3. Статус и параметры опроса
@@ -537,42 +539,58 @@ public struct SettingsView: View {
                 }
 
                 #if DEBUG
-                // 10. Диагностика Meta Audience Network (только в отладочных сборках)
+                // 10. Диагностика рекламы Яндекса (только в отладочных сборках)
                 Section {
                     HStack {
-                        Text("Статус SDK Meta")
+                        Text("Статус SDK Яндекса")
                         Spacer()
-                        Text(MetaAdManager.shared.isSDKInitialized ? "Инициализирован" : "Ожидание")
+                        Text(YandexAdManager.shared.isSDKInitialized ? "Запущен" : "Ожидание")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(MetaAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
+                            .foregroundStyle(YandexAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
                     }
 
                     HStack {
                         Text("ATT Авторизация")
                         Spacer()
-                        Text(MetaAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
+                        Text(YandexAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(MetaAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
+                            .foregroundStyle(YandexAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
                     }
 
                     HStack {
-                        Text("Interstitial Ad")
+                        Text("Межстраничная реклама")
                         Spacer()
-                        Text(MetaAdManager.shared.isInterstitialLoaded ? "Готов к показу" : "Кэшируется")
+                        Text(YandexAdManager.shared.isInterstitialLoaded ? "Готова к показу" : "Загружается")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.textSecondary)
                     }
 
-                    Button("Тест показа Interstitial Meta") {
+                    HStack {
+                        Text("Реклама за награду")
+                        Spacer()
+                        Text(YandexAdManager.shared.isRewardedLoaded ? "Готова к показу" : "Загружается")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+
+                    HStack {
+                        Text("Рекламные блоки")
+                        Spacer()
+                        Text(YandexAdConfig.usesDemoUnits ? "Демо (тестовая реклама)" : "Боевые")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(YandexAdConfig.usesDemoUnits ? Color.orange : Color.green)
+                    }
+
+                    Button("Тест показа межстраничной рекламы") {
                         HapticManager.shared.impactMedium()
-                        MetaAdManager.shared.recordActionAndTriggerInterstitial()
+                        YandexAdManager.shared.presentInterstitial()
                     }
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(NPTheme.accentPrimary)
 
-                    Button("Тест Rewarded Video Meta") {
+                    Button("Тест рекламы за награду") {
                         HapticManager.shared.impactMedium()
-                        MetaAdManager.shared.showRewardedVideo(
+                        YandexAdManager.shared.showRewarded(
                             onRewardConfirmed: {
                                 HapticManager.shared.notificationSuccess()
                             },
@@ -582,11 +600,11 @@ public struct SettingsView: View {
                         )
                     }
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                    .foregroundStyle(NPTheme.accentPrimary)
                 } header: {
-                    Label("Отладка: Meta Ads", systemImage: "infinity")
+                    Label("Отладка: реклама Яндекса", systemImage: "megaphone")
                 } footer: {
-                    Text("Инженерная панель Meta Audience Network. Видна только в отладочных сборках.")
+                    Text("Инженерная панель рекламы. Видна только в отладочных сборках.")
                 }
                 #endif
             }

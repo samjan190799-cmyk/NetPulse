@@ -155,6 +155,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee build/build.log | tail -n 40
 
+      - name: "Ошибки и предупреждения сборки"
+        if: always()
+        working-directory: ./ios
+        run: |
+          echo "=== Ошибки компиляции и сборки ==="
+          grep -E "error:" build/build.log 2>/dev/null | sort -u | head -n 60 || true
+          echo "=== Предупреждения про рекламу, изоляцию акторов и Sendable (Swift 6) ==="
+          grep -E "warning:" build/build.log 2>/dev/null | grep -Ei "yandex|banner|interstitial|rewarded|AdManager|AdModels|isolat|sendable" | sort -u | head -n 60 || true
+
       - name: "Юнит-тесты"
         id: unit
         if: ${{ !inputs.skip_unit }}
@@ -301,7 +310,7 @@ jobs:
           python3 -m pip install --break-system-packages --quiet Pillow || true
           python3 ci/screen_map.py build/attachments \
             "home-medium" "home-expanded.png" "route-recording" "route-saved" "map-demo.png" "control-hint.png" \
-            "coverage-idle" "coverage-off" || true
+            "coverage-idle" "coverage-off" "ads-home" "ads-tab-hosts" || true
 
       - name: "Цветные зоны на скриншотах (покрытие сети)"
         if: always()
@@ -344,6 +353,13 @@ jobs:
               head -n 60 "$report"
             fi
           done
+
+      - name: "Журнал рекламы Яндекса (из приложения в симуляторе)"
+        if: always()
+        run: |
+          # Строки категории ads пишет YandexAdManager и баннеры: запуск SDK, ответ на запрос разрешения, загрузка и ошибки рекламы
+          xcrun simctl spawn "$UDID" log show --last 90m --style compact \
+            --predicate 'process == "NetPulse" AND category == "ads"' 2>/dev/null | tail -n 150 || true
 
       - name: "Сводка результатов"
         if: always()

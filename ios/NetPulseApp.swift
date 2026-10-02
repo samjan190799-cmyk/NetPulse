@@ -15,8 +15,7 @@ struct NetPulseApp: App {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
 
-        // Инициализация официального SDK Meta Audience Network (Meta Ads 2026)
-        MetaAdManager.shared.initialize()
+        // Рекламу Яндекса запускает onAppear/активация: при фоновом запуске (например, по геолокации) ей делать нечего
     }
 
     var body: some Scene {
@@ -24,12 +23,14 @@ struct NetPulseApp: App {
             ContentView()
                 .onAppear {
                     restoreLiveActivityIfNeeded()
-                    MetaAdManager.shared.requestTrackingAuthorization()
+                    YandexAdManager.shared.start()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
-                        MetaAdManager.shared.requestTrackingAuthorization()
+                        YandexAdManager.shared.start()
+                        // Окно разрешения на отслеживание показывается только у активного приложения: повторяем запрос
+                        YandexAdManager.shared.requestTrackingAuthorization()
                     }
                 }
         }

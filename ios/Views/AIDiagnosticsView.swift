@@ -39,8 +39,8 @@ public struct AIDiagnosticsView: View {
                             // 3. Быстрые интеллектуальные действия (Мастер проблем и Претензия ISP)
                             quickActionsHub
 
-                            // 3.1 Бонусный глубокий AI-аудит за просмотр спонсорского видео Meta
-                            if MetaAdManager.shared.canShowAds {
+                            // 3.1 Бонусный глубокий AI-аудит за просмотр рекламного ролика Яндекса
+                            if YandexAdManager.shared.canShowAds {
                                 rewardedAIAnalysisCard
                             }
 
@@ -57,8 +57,8 @@ public struct AIDiagnosticsView: View {
                                 issuesAndRecommendationsSection(report: report)
                             }
 
-                            // 7. Рекламный баннер Meta Audience Network на видном месте
-                            MetaBannerView(contextTag: "AI и безопасность")
+                            // 7. Рекламный баннер Яндекса на видном месте
+                            YandexBannerView(contextTag: "AI и безопасность")
                                 .padding(.horizontal)
 
                             // 8. Сценарии интерактивного мастера траблшутинга
@@ -73,7 +73,7 @@ public struct AIDiagnosticsView: View {
                                 .id("bottomID")
                         }
                         .padding(.vertical)
-                        .padding(.bottom, 70) // Безопасный отступ для закрепленного баннера Meta и таб-бара
+                        .padding(.bottom, 70) // Безопасный отступ для закрепленного рекламного баннера и таб-бара
                     }
                     .onChange(of: viewModel.aiMessages.count) { _, _ in
                         withAnimation {
@@ -290,7 +290,7 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 3.1 Бонусный глубокий AI-аудит (Meta Rewarded Video)
+    // MARK: - 3.1 Бонусный глубокий AI-аудит (реклама за вознаграждение)
 
     /// Запуск полного аудита. Аудит локальный и бесплатный (его же запускает «Обновить аудит»), поэтому
     /// он выполняется и после просмотра ролика, и когда ролика нет — отсутствие рекламы не блокирует пользователя.
@@ -303,7 +303,7 @@ public struct AIDiagnosticsView: View {
 
     private var rewardedAIAnalysisCard: some View {
         Button {
-            MetaAdManager.shared.showRewardedVideo(
+            YandexAdManager.shared.showRewarded(
                 onRewardConfirmed: { runDeepAudit() },
                 onUnavailable: { runDeepAudit() }
             )

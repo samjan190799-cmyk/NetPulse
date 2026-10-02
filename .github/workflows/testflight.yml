@@ -215,13 +215,18 @@ jobs:
           # в основной бинарник. Xcode всё равно встраивает их в Frameworks/, и App Store Connect
           # отклоняет такую загрузку («Invalid Signature»). Удаляем встроенные копии статических библиотек.
           APP_DIR="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
+          ls -la "$APP_DIR/Frameworks" 2>/dev/null || echo "ℹ Каталога Frameworks в приложении нет"
           for fw in "$APP_DIR"/Frameworks/*.framework; do
             [ -d "$fw" ] || continue
             bin="$fw/$(basename "$fw" .framework)"
-            if [ -f "$bin" ] && head -c 7 "$bin" | grep -q '!<arch>'; then
-              echo "✔ Удаляю встроенную статическую библиотеку: $fw"
-              rm -rf "$fw"
-            fi
+            kind="$(file -b "$bin" 2>/dev/null || true)"
+            echo "ℹ $(basename "$fw"): $kind"
+            case "$kind" in
+              *"ar archive"*)
+                echo "✔ Удаляю встроенную статическую библиотеку: $fw"
+                rm -rf "$fw"
+                ;;
+            esac
           done
           rmdir "$APP_DIR/Frameworks" 2>/dev/null || true
 

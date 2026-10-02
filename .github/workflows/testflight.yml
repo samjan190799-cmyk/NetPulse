@@ -226,6 +226,12 @@ jobs:
                 echo "✔ Удаляю встроенную статическую библиотеку: $fw"
                 rm -rf "$fw"
                 ;;
+              *"Mach-O"*)
+                # После копирования Xcode прежняя подпись вендора становится недействительной
+                # (lipo меняет бинарник) — снимаем её, чтобы экспорт подписал фреймворк заново.
+                echo "✔ Снимаю устаревшую подпись: $fw"
+                codesign --remove-signature "$fw" 2>&1 || true
+                ;;
             esac
           done
           rmdir "$APP_DIR/Frameworks" 2>/dev/null || true
@@ -248,6 +254,24 @@ jobs:
             -authenticationKeyID "$KEY_ID" \
             -authenticationKeyIssuerID "$ISSUER_ID" \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
+
+      - name: "Диагностика подписи IPA"
+        working-directory: ./ios
+        continue-on-error: true
+        run: |
+          IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
+          rm -rf build/ipa_x && mkdir -p build/ipa_x && unzip -q -o "$IPA_PATH" -d build/ipa_x
+          APP="build/ipa_x/Payload/NetPulse.app"
+          echo "== Frameworks в IPA =="; ls -la "$APP/Frameworks" 2>&1 || true
+          for fw in "$APP"/Frameworks/*.framework; do
+            [ -d "$fw" ] || continue
+            echo "== $(basename "$fw") =="
+            ls -la "$fw" || true
+            file "$fw/$(basename "$fw" .framework)" || true
+            codesign -dvv "$fw" 2>&1 | head -20 || true
+            codesign --verify --strict -vvv "$fw" 2>&1 | head -10 || true
+          done
+          echo "== Приложение =="; codesign -dvv "$APP" 2>&1 | head -12 || true
 
       - name: "Выгрузка в TestFlight"
         working-directory: ./ios

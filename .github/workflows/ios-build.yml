@@ -221,6 +221,16 @@ jobs:
             echo "build/ui.xcresult нет: UI-тест не запускался"
           fi
 
+      - name: "Карта экрана по скриншотам (раскладка символами)"
+        if: always()
+        working-directory: ./ios
+        run: |
+          # Картинки в журнал не попадают, поэтому раскладку главного экрана (панель, плашки, кнопки, цветные линии
+          # маршрута) печатаем грубой сеткой символов: по ней видно наложения и обрезанные элементы.
+          python3 -m pip install --break-system-packages --quiet Pillow || true
+          python3 ci/screen_map.py build/attachments \
+            "home-medium" "home-expanded.png" "route-recording" "route-saved" "map-demo.png" "control-hint.png" || true
+
       - name: "Проверка Dynamic Island по скриншотам"
         if: always()
         working-directory: ./ios

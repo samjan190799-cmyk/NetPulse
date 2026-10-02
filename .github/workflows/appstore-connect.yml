@@ -46,6 +46,13 @@ jobs:
       - name: "Зависимости Python"
         run: python3 -m pip install --quiet pyjwt cryptography
 
+      - name: "Скриншоты из ветки appstore-assets"
+        run: |
+          git fetch --depth=1 origin appstore-assets \
+            && git checkout FETCH_HEAD -- screenshots \
+            && find screenshots -type f | sort \
+            || echo "Ветки appstore-assets или скриншотов ещё нет"
+
       - name: "Что запрошено"
         id: request
         env:

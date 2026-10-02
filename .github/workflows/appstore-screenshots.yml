@@ -174,6 +174,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+    concurrency:
+      group: appstore-assets-branch
+      cancel-in-progress: false
 
     steps:
       - name: "Проверка репозитория"
@@ -210,6 +213,10 @@ jobs:
             echo "Изменений нет"
           else
             git commit -q -m "Скриншоты для App Store Connect (запуск ${GITHUB_RUN_NUMBER}, ${GITHUB_SHA::7})"
-            git push origin appstore-assets
+            for attempt in 1 2 3; do
+              if git push origin appstore-assets; then break; fi
+              git fetch origin appstore-assets
+              git rebase origin/appstore-assets
+            done
           fi
           find screenshots -type f | sort

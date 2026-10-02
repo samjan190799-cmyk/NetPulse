@@ -1,0 +1,65 @@
+{
+  "locale": "ru",
+  "switchPrimaryLocale": true,
+  "name": "NetPulse скорость трафика",
+  "versionString": "1.0",
+  "build": null,
+  "primaryCategory": "UTILITIES",
+  "secondaryCategory": null,
+  "releaseType": "MANUAL",
+  "territories": null,
+  "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT",
+  "displayTypes": {
+    "iphone": [
+      "APP_IPHONE_69",
+      "APP_IPHONE_67"
+    ],
+    "ipad": [
+      "APP_IPAD_PRO_3GEN_129"
+    ]
+  },
+  "screenshots": {
+    "iphone": [
+      "02-route-demo",
+      "01-home",
+      "03-recording",
+      "06-hosts",
+      "09-dns",
+      "08-ai",
+      "07-traffic"
+    ],
+    "ipad": [
+      "02-route-demo",
+      "01-home",
+      "03-recording",
+      "06-hosts",
+      "09-dns",
+      "08-ai",
+      "07-traffic"
+    ]
+  },
+  "ageRating": {
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "contests": "NONE",
+    "gamblingSimulated": "NONE",
+    "gunsOrOtherWeapons": "NONE",
+    "horrorOrFearThemes": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "medicalOrTreatmentInformation": "NONE",
+    "profanityOrCrudeHumor": "NONE",
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealistic": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "gambling": false,
+    "lootBox": false,
+    "messagingAndChat": false,
+    "parentalControls": false,
+    "ageAssurance": false,
+    "unrestrictedWebAccess": false,
+    "userGeneratedContent": false,
+    "healthOrWellnessTopics": false,
+    "advertising": true
+  }
+}

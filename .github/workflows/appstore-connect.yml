@@ -1,0 +1,52 @@
+name: "App Store Connect: карточка приложения"
+
+# Работа с карточкой приложения в App Store Connect через официальный API (ключ из секретов репозитория,
+# тот же, что у выгрузки в TestFlight). Запускается только вручную.
+#   inspect — только чтение: что уже заполнено и чего не хватает;
+#   prepare — заполнение карточки (тексты, категории, возрастной рейтинг, скриншоты, сведения для рецензента);
+#   submit  — отправка версии на проверку в Apple (нужно ввести слово ОТПРАВИТЬ в поле confirm).
+# Репозиторий публичный: журнал виден всем, поэтому скрипт не печатает контактные данные и токены.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Что сделать'
+        type: choice
+        required: true
+        default: inspect
+        options:
+          - inspect
+          - prepare
+          - submit
+      confirm:
+        description: 'Для submit: введите слово ОТПРАВИТЬ'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appstore-connect
+  cancel-in-progress: false
+
+jobs:
+  asc:
+    name: "App Store Connect"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Зависимости Python"
+        run: python3 -m pip install --quiet pyjwt cryptography
+
+      - name: "Работа с App Store Connect"
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          ASC_ACTION: ${{ inputs.action }}
+          ASC_CONFIRM: ${{ inputs.confirm }}
+        run: python3 ios/ci/asc.py "$ASC_ACTION"

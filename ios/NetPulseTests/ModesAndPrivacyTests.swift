@@ -39,6 +39,14 @@ final class ContinuousModeStateTests: XCTestCase {
         XCTAssertFalse((purpose ?? "").isEmpty, "В Info.plist нет текста запроса геолокации")
     }
 
+    /// Длинный текст запроса делает системное окно выше экрана: видна только первая кнопка («Однократно»), а нужная
+    /// «При использовании приложения» уезжает вниз (так было при 307 символах). Текст — одно короткое предложение.
+    func testLocationPromptTextIsShortEnoughForAllButtonsToFit() {
+        let purpose = Bundle.main.object(forInfoDictionaryKey: "NSLocationWhenInUseUsageDescription") as? String ?? ""
+        XCTAssertFalse(purpose.isEmpty)
+        XCTAssertLessThanOrEqual(purpose.count, 140, "Текст запроса геолокации слишком длинный (\(purpose.count) символов): кнопки не поместятся в окне")
+    }
+
     /// Аудио-режим убран из-за правила App Store 2.5.4 и не должен вернуться незаметно.
     func testInfoPlistHasNoAudioBackgroundMode() {
         let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []

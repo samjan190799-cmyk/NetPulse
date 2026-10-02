@@ -1,0 +1,3 @@
+# Запрос съёмки скриншотов для App Store: любое изменение файла в ветке fix/audit-bugs запускает workflow
+# «App Store: скриншоты» (.github/workflows/appstore-screenshots.yml).
+запуск=1

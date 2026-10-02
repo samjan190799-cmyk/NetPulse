@@ -7,7 +7,7 @@
 
 import XCTest
 
-/// Проверка приложения в симуляторе: запуск, вкладки, экран настроек, Dynamic Island и «Карта сети» (запись маршрута).
+/// Проверка приложения в симуляторе: запуск, вкладки, главный экран с картой, настройки, Dynamic Island и запись маршрута.
 ///
 /// Что симулятор доказать НЕ может: усыпление свёрнутого приложения на реальном iPhone он не воспроизводит,
 /// поэтому «остров не замирает в фоне» окончательно проверяется только на устройстве. Здесь проверяется всё
@@ -76,10 +76,47 @@ final class NetPulseUITests: XCTestCase {
         add(attachment)
     }
 
+    /// Ждёт панель вкладок и главный экран с картой (кнопка «Записать маршрут»)
+    @MainActor private func waitForHome(_ app: XCUIApplication) {
+        let tabBar = app.tabBars.firstMatch
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 30), "Панель вкладок не появилась: приложение не запустилось или упало")
+        let start = app.buttons["networkMapStartButton"]
+        if !start.waitForExistence(timeout: 20) {
+            attachScreenshot("home-not-found")
+            attachHierarchy(app, name: "home-not-found-hierarchy")
+        }
+        XCTAssertTrue(start.exists, "На главном экране нет кнопки «Записать маршрут»")
+    }
+
+    /// Открывает настройки кнопкой с ползунками на главном экране
     @MainActor private func openSettings(_ app: XCUIApplication) {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 30), "Панель вкладок не появилась: приложение не запустилось или упало")
-        app.tabBars.buttons["Настройки"].tap()
+        let button = app.buttons["homeSettingsButton"]
+        if !button.waitForExistence(timeout: 20) {
+            attachScreenshot("settings-button-not-found")
+            attachHierarchy(app, name: "settings-button-not-found-hierarchy")
+        }
+        XCTAssertTrue(button.exists, "На главном экране нет кнопки «Настройки»")
+        button.tap()
+        let opened = app.navigationBars["Настройки"].waitForExistence(timeout: 10)
+        if !opened {
+            attachScreenshot("settings-not-opened")
+            attachHierarchy(app, name: "settings-not-opened-hierarchy")
+        }
+        XCTAssertTrue(opened, "Экран «Настройки» не открылся")
+    }
+
+    /// Закрывает настройки кнопкой «Готово» и ждёт возвращения на главный экран
+    @MainActor private func closeSettings(_ app: XCUIApplication) {
+        let close = app.buttons["settingsCloseButton"]
+        guard close.waitForExistence(timeout: 5) else {
+            attachScreenshot("settings-close-not-found")
+            XCTFail("В настройках нет кнопки «Готово»")
+            return
+        }
+        close.tap()
+        XCTAssertTrue(app.buttons["homeSettingsButton"].waitForExistence(timeout: 10), "После закрытия настроек главный экран не появился")
     }
 
     /// Прокручивает экран, пока элемент не станет видимым (строки SwiftUI-списка создаются лениво).
@@ -173,32 +210,27 @@ final class NetPulseUITests: XCTestCase {
         print("NETPULSE-CI: диагностика острова (\(label)): " + summary.replacingOccurrences(of: "\n", with: " | "))
     }
 
-    /// Заголовок подсказки «остров замирал» на главном экране
+    /// Заголовок подсказки «остров замирал» над нижней панелью главного экрана
     @MainActor private func recordingHintTitle(_ app: XCUIApplication) -> XCUIElement {
         app.staticTexts["Остров замирал, пока приложение было свёрнуто"]
     }
 
-    /// Открывает «Карту сети» из настроек
-    @MainActor private func openNetworkMap(_ app: XCUIApplication) {
-        let link = app.descendants(matching: .any)["networkMapLink"]
-        guard reveal(link, in: app) else {
-            attachScreenshot("network-map-link-not-found")
-            attachHierarchy(app, name: "network-map-link-not-found-hierarchy")
-            XCTFail("В настройках нет входа в «Карту сети»")
+    /// Разворачивает нижнюю панель главного экрана: нажатие на ряд «Мои маршруты»
+    @MainActor private func expandPanel(_ app: XCUIApplication) {
+        let row = app.buttons["homeRoutesRow"]
+        guard row.waitForExistence(timeout: 10) else {
+            attachScreenshot("routes-row-not-found")
+            attachHierarchy(app, name: "routes-row-not-found-hierarchy")
+            XCTFail("На главном экране нет ряда «Мои маршруты»")
             return
         }
-        link.tap()
-        let opened = app.navigationBars["Карта сети"].waitForExistence(timeout: 10)
-        if !opened {
-            attachScreenshot("network-map-not-opened")
-            attachHierarchy(app, name: "network-map-not-opened-hierarchy")
-        }
-        XCTAssertTrue(opened, "Экран «Карта сети» не открылся")
+        row.tap()
+        Thread.sleep(forTimeInterval: 1)       // панель «доезжает» до развёрнутого положения
     }
 
     /// Число записанных точек из строки состояния записи («Точек: 12 · 450 м · …»); `nil` — строки нет
     @MainActor private func recordedPoints(_ app: XCUIApplication) -> Int? {
-        let status = app.staticTexts["networkMapStatus"]
+        let status = app.descendants(matching: .any)["networkMapStatus"]
         guard status.exists else { return nil }
         let label = status.label
         guard label.hasPrefix("Точек:") else { return nil }
@@ -217,20 +249,25 @@ final class NetPulseUITests: XCTestCase {
         return last
     }
 
-    /// Начинает запись маршрута на открытом экране «Карта сети»: нажимает кнопку, отвечает на запрос геолокации
+    /// Начинает запись маршрута на главном экране: нажимает кнопку, отвечает на запрос геолокации
     /// и дожидается строки состояния записи. Возвращает `false`, если запись не началась.
     @discardableResult
     @MainActor private func startRecording(_ app: XCUIApplication) -> Bool {
         let start = app.buttons["networkMapStartButton"]
-        guard reveal(start, in: app) else {
+        guard start.waitForExistence(timeout: 10) else {
             attachScreenshot("recording-start-not-found")
             attachHierarchy(app, name: "recording-start-not-found-hierarchy")
             return false
         }
         start.tap()
+        return waitForRecordingStatus(app)
+    }
+
+    /// Отвечает на запрос геолокации (если он есть) и ждёт строку состояния идущей записи
+    @MainActor private func waitForRecordingStatus(_ app: XCUIApplication) -> Bool {
         dismissSystemAlerts(timeout: 8)       // запрос геолокации, если разрешение ещё не выдано
 
-        let status = app.staticTexts["networkMapStatus"]
+        let status = app.descendants(matching: .any)["networkMapStatus"]
         guard status.waitForExistence(timeout: 20) else {
             attachScreenshot("recording-status-not-found")
             attachHierarchy(app, name: "recording-status-not-found-hierarchy")
@@ -240,10 +277,10 @@ final class NetPulseUITests: XCTestCase {
         return true
     }
 
-    /// Останавливает запись на открытом экране «Карта сети»
+    /// Останавливает запись на главном экране
     @MainActor private func stopRecording(_ app: XCUIApplication) {
         let stop = app.buttons["networkMapStopButton"]
-        guard reveal(stop, in: app) else {
+        guard stop.waitForExistence(timeout: 10) else {
             attachScreenshot("recording-stop-not-found")
             attachHierarchy(app, name: "recording-stop-not-found-hierarchy")
             XCTFail("Кнопка «Остановить и сохранить» не найдена")
@@ -252,12 +289,7 @@ final class NetPulseUITests: XCTestCase {
         stop.tap()
     }
 
-    /// Возвращается с экрана «Карта сети» на предыдущий
-    @MainActor private func goBack(_ app: XCUIApplication) {
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-    }
-
-    /// Уходит на главный экран и фиксирует состояние приложения и скриншот через заданные паузы.
+    /// Уходит на главный экран устройства и фиксирует состояние приложения и скриншот через заданные паузы.
     @MainActor private func sampleBackground(_ app: XCUIApplication, prefix: String, pauses: [TimeInterval]) {
         XCUIDevice.shared.press(.home)
         for (index, pause) in pauses.enumerated() {
@@ -272,17 +304,23 @@ final class NetPulseUITests: XCTestCase {
 
     @MainActor func testAppLaunchesAndShowsAllTabs() throws {
         let app = launchApp()
-
-        let tabBar = app.tabBars.firstMatch
-        XCTAssertTrue(tabBar.waitForExistence(timeout: 30), "Панель вкладок не появилась: приложение не запустилось или упало")
+        waitForHome(app)
         attachScreenshot("launch-home")
 
+        // Главный экран: карта, плашка связи, кнопки справа и две главные кнопки в нижней панели
+        for identifier in ["homeSettingsButton", "networkMapStyleButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
+            XCTAssertTrue(app.buttons[identifier].exists, "На главном экране нет элемента «\(identifier)»")
+        }
+
         let tabs: [(title: String, slug: String)] = [
-            ("Скорость", "speed"), ("Узлы", "hosts"), ("Трафик", "traffic"), ("AI Диагност", "ai"), ("Настройки", "settings")
+            ("Сеть", "map"), ("Узлы", "hosts"), ("Трафик", "traffic"), ("AI Диагност", "ai")
         ]
         for tab in tabs {
             XCTAssertTrue(app.tabBars.buttons[tab.title].exists, "Нет вкладки «\(tab.title)»")
         }
+        // Настройки больше не вкладка: они открываются кнопкой на главном экране
+        XCTAssertFalse(app.tabBars.buttons["Настройки"].exists, "Вкладки «Настройки» быть не должно")
+
         for tab in tabs {
             app.tabBars.buttons[tab.title].tap()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(tab.title)»")
@@ -290,18 +328,25 @@ final class NetPulseUITests: XCTestCase {
         }
     }
 
-    @MainActor func testSettingsContainIslandAndNetworkMapEntry() throws {
+    @MainActor func testSettingsOpenFromHomeAndContainIslandControls() throws {
         let app = launchApp()
         openSettings(app)
 
         XCTAssertTrue(reveal(app.switches["dynamicIslandToggle"], in: app), "Тумблер Dynamic Island не найден")
-        XCTAssertTrue(reveal(app.descendants(matching: .any)["networkMapLink"], in: app), "В настройках нет входа в «Карту сети»")
         attachScreenshot("settings-island-controls")
 
         XCTAssertFalse(
             app.switches["continuousModeToggle"].exists,
             "Отдельного тумблера, который держит приложение геолокацией без записи маршрута, быть не должно"
         )
+        XCTAssertFalse(
+            app.descendants(matching: .any)["networkMapLink"].exists,
+            "«Карта сети» теперь главный экран: отдельного входа в неё из настроек быть не должно"
+        )
+
+        scrollToTop(app)
+        closeSettings(app)
+        attachScreenshot("settings-closed")
     }
 
     @MainActor func testLiveActivityStartsInSimulator() throws {
@@ -362,14 +407,49 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(after.contains("Зависших отправок: 0"), "После перезапуска отправки зависали:\n\(after)")
     }
 
-    /// Запись маршрута: старт, точки с положением и проверкой сети, остановка, маршрут в истории. Положение в симуляторе
-    /// меняет скрипт CI (`simctl location`), поэтому точки должны прибавляться.
+    /// Нижнюю панель можно развернуть: в ней маршруты, настройки записи, инструменты и оценка возможностей сети.
+    @MainActor func testHomePanelExpandsAndCollapses() throws {
+        let app = launchApp()
+        waitForHome(app)
+        attachScreenshot("home-medium")
+
+        let speed = app.descendants(matching: .any)["homeSpeedValue"]
+        XCTAssertTrue(speed.waitForExistence(timeout: 10), "На главном экране нет блока со скоростью")
+
+        expandPanel(app)
+        attachScreenshot("home-expanded")
+        XCTAssertTrue(
+            reveal(app.descendants(matching: .any)["networkMapSpeedToggle"], in: app),
+            "В развёрнутой панели нет переключателя «Замерять скорость на маршруте»"
+        )
+        XCTAssertTrue(
+            reveal(app.descendants(matching: .any)["homeToolDNS"], in: app),
+            "В развёрнутой панели нет входа в инструменты"
+        )
+        XCTAssertTrue(
+            reveal(app.descendants(matching: .any)["networkMapHistoryEmpty"], in: app)
+                || app.descendants(matching: .any)["networkMapHistoryRow"].exists,
+            "В развёрнутой панели нет списка маршрутов"
+        )
+        attachScreenshot("home-expanded-tools")
+
+        // Ручка сворачивает панель обратно
+        let handle = app.descendants(matching: .any)["homePanelHandle"]
+        XCTAssertTrue(handle.waitForExistence(timeout: 5), "У панели нет ручки")
+        handle.tap()
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertTrue(app.buttons["homeSpeedButton"].isHittable, "После сворачивания панели кнопка замера недоступна")
+        attachScreenshot("home-collapsed-again")
+    }
+
+    /// Запись маршрута: старт, точки с положением и проверкой сети, остановка, итог маршрута и маршрут в списке.
+    /// Положение в симуляторе меняет скрипт CI (`simctl location`), поэтому точки должны прибавляться.
     @MainActor func testRecordingSavesRouteWithPoints() throws {
         let app = launchApp()
-        openSettings(app)
-        openNetworkMap(app)
+        waitForHome(app)
 
         XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
+        XCTAssertTrue(app.descendants(matching: .any)["recordingBanner"].waitForExistence(timeout: 10), "Нет плашки «Запись» над картой")
         let points = waitForPoints(app, atLeast: 3, timeout: 75)
         print("NETPULSE-CI: запись маршрута: набрано точек \(points)")
         attachScreenshot("route-recording")
@@ -378,20 +458,28 @@ final class NetPulseUITests: XCTestCase {
 
         stopRecording(app)
 
-        let row = app.descendants(matching: .any).matching(identifier: "networkMapHistoryRow").firstMatch
-        XCTAssertTrue(reveal(row, in: app), "После остановки маршрут не появился в истории")
-        let summary = app.staticTexts["networkMapSummary"]
-        XCTAssertTrue(reveal(summary, in: app), "Нет сводки по сохранённому маршруту")
+        // Сразу после остановки панель показывает итог сохранённого маршрута
+        let summary = app.descendants(matching: .any)["networkMapSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 15), "После остановки нет итога маршрута")
         print("NETPULSE-CI: сводка сохранённого маршрута: \(summary.label)")
         attachScreenshot("route-saved")
         XCTAssertTrue(summary.label.hasPrefix("Точек:"), "Странная сводка: «\(summary.label)»")
+
+        // «Готово» возвращает обычный вид, а маршрут лежит в списке
+        let done = app.buttons["homeDoneButton"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "В итоге маршрута нет кнопки «Готово»")
+        done.tap()
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После «Готово» не вернулся обычный вид")
+        expandPanel(app)
+        let row = app.descendants(matching: .any).matching(identifier: "networkMapHistoryRow").firstMatch
+        XCTAssertTrue(reveal(row, in: app), "Маршрут не появился в списке «Мои маршруты»")
+        attachScreenshot("route-in-list")
     }
 
-    /// Пока записи нет, на экране «Карта сети» есть пример: так видно, что покажет функция, даже если ещё не двигались
+    /// Пока записей нет, в развёрнутой панели есть пример: так видно, что покажет функция, даже если ещё не двигались
     @MainActor func testDemoRouteShowsMapAndSummary() throws {
         let app = launchApp()
-        openSettings(app)
-        openNetworkMap(app)
+        waitForHome(app)
 
         // Карта Apple Maps видна и до первой записи (раньше вместо неё была заглушка)
         let mapVisible = app.maps.firstMatch.waitForExistence(timeout: 10)
@@ -399,31 +487,39 @@ final class NetPulseUITests: XCTestCase {
         print("NETPULSE-CI: карта на экране до записи: \(mapVisible ? "есть" : "НЕТ")")
         attachScreenshot("map-idle")
 
+        expandPanel(app)
         let demo = app.buttons["networkMapDemoButton"]
-        XCTAssertTrue(reveal(demo, in: app), "Нет кнопки «Показать пример»")
+        XCTAssertTrue(reveal(demo, in: app), "Нет кнопки «Показать пример маршрута»")
         demo.tap()
 
         let badge = app.descendants(matching: .any)["networkMapDemoBadge"]
         XCTAssertTrue(badge.waitForExistence(timeout: 10), "Пример не показан или не подписан как демо-данные")
-        let summary = app.staticTexts["networkMapSummary"]
-        XCTAssertTrue(reveal(summary, in: app), "Нет сводки по примеру")
+        let summary = app.descendants(matching: .any)["networkMapSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5), "Нет итога по примеру")
         print("NETPULSE-CI: сводка примера: \(summary.label)")
         XCTAssertTrue(summary.label.hasPrefix("Точек: 72"), "Сводка примера: «\(summary.label)»")
         attachScreenshot("map-demo")
 
         // Переключатель «Схема / Спутник» на карте
         let styleButton = app.buttons["networkMapStyleButton"]
-        XCTAssertTrue(reveal(styleButton, in: app), "На карте нет кнопки «Спутник»")
+        XCTAssertTrue(styleButton.waitForExistence(timeout: 5), "На карте нет кнопки «Спутник»")
         styleButton.tap()
         Thread.sleep(forTimeInterval: 3)
         attachScreenshot("map-demo-satellite")
+
+        // «Скрыть пример» возвращает обычный вид
+        let hide = app.buttons["networkMapDemoHideButton"]
+        XCTAssertTrue(hide.waitForExistence(timeout: 5), "Нет кнопки «Скрыть пример»")
+        hide.tap()
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После скрытия примера не вернулся обычный вид")
+        attachScreenshot("map-demo-hidden")
     }
 
-    /// Контрольный прогон: свёрнутое приложение без записи маршрута. После возврата на главном экране появляется
-    /// подсказка, и она ведёт на «Карту сети».
-    @MainActor func testBackgroundWithoutRecordingShowsHintThatOpensMap() throws {
+    /// Контрольный прогон: свёрнутое приложение без записи маршрута. После возврата над нижней панелью появляется
+    /// подсказка, и её кнопка начинает запись маршрута.
+    @MainActor func testBackgroundWithoutRecordingShowsHintThatStartsRecording() throws {
         let app = launchApp()
-        openSettings(app)
+        waitForHome(app)
         attachScreenshot("control-0-before-home")
 
         sampleBackground(app, prefix: "control-bg", pauses: [6, 20, 20])
@@ -432,29 +528,27 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Приложение не вернулось на передний план")
 
         // Пока приложение было свёрнуто дольше 40 секунд, а запись не шла, на главном экране появляется подсказка
-        app.tabBars.buttons["Скорость"].tap()
         let hint = recordingHintTitle(app)
         let hintShown = hint.waitForExistence(timeout: 10)
         print("NETPULSE-CI: подсказка после долгого фона без записи маршрута: \(hintShown ? "показана" : "НЕ показана")")
         attachScreenshot("control-hint")
         XCTAssertTrue(hintShown, "После долгого фона без записи маршрута подсказка не появилась")
 
-        let open = app.buttons["recordingHintOpenMap"]
-        XCTAssertTrue(open.waitForExistence(timeout: 3), "В подсказке нет кнопки «Открыть карту сети»")
-        open.tap()
-        XCTAssertTrue(
-            app.buttons["networkMapStartButton"].waitForExistence(timeout: 10),
-            "Кнопка из подсказки не открыла «Карту сети»"
-        )
-        attachScreenshot("control-hint-opened-map")
+        let start = app.buttons["recordingHintStart"]
+        XCTAssertTrue(start.waitForExistence(timeout: 3), "В подсказке нет кнопки «Записать маршрут»")
+        start.tap()
+        XCTAssertTrue(waitForRecordingStatus(app), "Кнопка из подсказки не начала запись маршрута")
+        attachScreenshot("control-hint-started-recording")
+
+        // Уборка: останавливаем запись, чтобы она не мешала следующим тестам
+        stopRecording(app)
     }
 
     /// Основной прогон: запись маршрута идёт, пока приложение свёрнуто. Точки продолжают прибавляться, подсказки нет,
     /// на главном экране видна плашка записи, а остров не зависал.
     @MainActor func testRecordingContinuesInBackground() throws {
         let app = launchApp()
-        openSettings(app)
-        openNetworkMap(app)
+        waitForHome(app)
 
         XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
         let before = waitForPoints(app, atLeast: 2, timeout: 60)
@@ -473,25 +567,24 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertGreaterThan(after, before, "Запись маршрута не продолжалась в фоне")
 
         // На главном экране: плашка записи есть, подсказки «остров замирал» нет
-        goBack(app)
-        app.tabBars.buttons["Скорость"].tap()
         let banner = app.descendants(matching: .any)["recordingBanner"]
-        XCTAssertTrue(banner.waitForExistence(timeout: 10), "На главном экране нет плашки «Идёт запись маршрута»")
+        XCTAssertTrue(banner.waitForExistence(timeout: 10), "На главном экране нет плашки «Запись»")
         let hintShown = recordingHintTitle(app).waitForExistence(timeout: 3)
         print("NETPULSE-CI: подсказка во время записи маршрута: \(hintShown ? "ПОКАЗАНА (ошибка)" : "не показана")")
         XCTAssertFalse(hintShown, "Во время записи маршрута подсказка показываться не должна")
         attachScreenshot("recording-dashboard-banner")
 
         // Конвейер острова после фона: отправки не зависали, запись видна в диагностике
-        app.tabBars.buttons["Настройки"].tap()
+        openSettings(app)
         let summary = readIslandDiagnostics(app)
         logDiagnostics(summary, label: "после фона с записью маршрута")
         XCTAssertTrue(summary.contains("Остров: активна"), "После фона остров не активен:\n\(summary)")
         XCTAssertTrue(summary.contains("Зависших отправок: 0"), "В фоне отправки зависали:\n\(summary)")
         XCTAssertTrue(summary.contains("Запись маршрута: идёт"), "Диагностика не видит идущей записи:\n\(summary)")
+        scrollToTop(app)
+        closeSettings(app)
 
         // Уборка: останавливаем запись, чтобы она не мешала следующим тестам
-        openNetworkMap(app)
         stopRecording(app)
     }
 }

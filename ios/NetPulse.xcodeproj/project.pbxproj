@@ -23,7 +23,6 @@
 		A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E2C1234560000000E /* TracerouteEngine.swift */; };
 		A10000292C12345600000033 /* BandwidthEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000292C12345600000033 /* BandwidthEngine.swift */; };
 		A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */; };
-		A10000102C12345600000010 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000102C12345600000010 /* DashboardView.swift */; };
 		A10000112C12345600000011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000112C12345600000011 /* SettingsView.swift */; };
 		A10000122C12345600000012 /* NetworkInfoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000122C12345600000012 /* NetworkInfoCardView.swift */; };
 		A10000132C12345600000013 /* HostMetricCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000132C12345600000013 /* HostMetricCardView.swift */; };
@@ -33,7 +32,6 @@
 		A10000172C12345600000017 /* AlertsBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000172C12345600000017 /* AlertsBannerView.swift */; };
 		A10000182C12345600000018 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000182C12345600000018 /* HapticManager.swift */; };
 		A10000192C12345600000019 /* HistoryStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000192C12345600000019 /* HistoryStorage.swift */; };
-		A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000212C1234560000002B /* SpeedtestHeroView.swift */; };
 		A10000222C1234560000002C /* NetworkCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000222C1234560000002C /* NetworkCapability.swift */; };
 		A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000232C1234560000002D /* NetworkCapabilityCardView.swift */; };
 		A10000242C1234560000002E /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000242C1234560000002E /* DiagnosticsView.swift */; };
@@ -98,7 +96,16 @@
 		A10000D72C123456000000D7 /* NetworkProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D72C123456000000D7 /* NetworkProbe.swift */; };
 		A30000062C12345600000006 /* RouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000062C12345600000006 /* RouteTests.swift */; };
 		A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000072C12345600000007 /* RouteRecorderTests.swift */; };
-		A10000D82C123456000000D8 /* NetworkMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D82C123456000000D8 /* NetworkMapView.swift */; };
+		A10000D92C123456000000D9 /* NetworkHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D92C123456000000D9 /* NetworkHomeView.swift */; };
+		A10000DA2C123456000000DA /* HomeMapLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DA2C123456000000DA /* HomeMapLayer.swift */; };
+		A10000DB2C123456000000DB /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DB2C123456000000DB /* HomeComponents.swift */; };
+		A10000DC2C123456000000DC /* HomeTopBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DC2C123456000000DC /* HomeTopBar.swift */; };
+		A10000DD2C123456000000DD /* HomeIdlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DD2C123456000000DD /* HomeIdlePanel.swift */; };
+		A10000DE2C123456000000DE /* HomeRecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DE2C123456000000DE /* HomeRecordingPanel.swift */; };
+		A10000DF2C123456000000DF /* HomeRoutePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DF2C123456000000DF /* HomeRoutePanel.swift */; };
+		A10000E02C123456000000E0 /* HomeFloatingCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E02C123456000000E0 /* HomeFloatingCards.swift */; };
+		A10000E12C123456000000E1 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E12C123456000000E1 /* HomeModels.swift */; };
+		A30000082C12345600000008 /* HomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000082C12345600000008 /* HomeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -160,7 +167,6 @@
 		B100000E2C1234560000000E /* TracerouteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/TracerouteEngine.swift; sourceTree = "<group>"; };
 		B10000292C12345600000033 /* BandwidthEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/BandwidthEngine.swift; sourceTree = "<group>"; };
 		B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/NetworkMonitorViewModel.swift; sourceTree = "<group>"; };
-		B10000102C12345600000010 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DashboardView.swift; sourceTree = "<group>"; };
 		B10000242C1234560000002E /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DiagnosticsView.swift; sourceTree = "<group>"; };
 		B10000112C12345600000011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
 		B10000122C12345600000012 /* NetworkInfoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkInfoCardView.swift; sourceTree = "<group>"; };
@@ -169,7 +175,6 @@
 		B10000152C12345600000015 /* SpeedtestGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/SpeedtestGaugeView.swift; sourceTree = "<group>"; };
 		B10000162C12345600000016 /* TracerouteSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/TracerouteSheetView.swift; sourceTree = "<group>"; };
 		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AlertsBannerView.swift; sourceTree = "<group>"; };
-		B10000212C1234560000002B /* SpeedtestHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/SpeedtestHeroView.swift; sourceTree = "<group>"; };
 		B10000232C1234560000002D /* NetworkCapabilityCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkCapabilityCardView.swift; sourceTree = "<group>"; };
 		B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
 		B10000282C12345600000032 /* FloatingGameOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/FloatingGameOverlayView.swift; sourceTree = "<group>"; };
@@ -236,7 +241,16 @@
 		B10000D72C123456000000D7 /* NetworkProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/NetworkProbe.swift; sourceTree = "<group>"; };
 		B30000062C12345600000006 /* RouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteTests.swift; sourceTree = "<group>"; };
 		B30000072C12345600000007 /* RouteRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteRecorderTests.swift; sourceTree = "<group>"; };
-		B10000D82C123456000000D8 /* NetworkMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/NetworkMapView.swift; sourceTree = "<group>"; };
+		B10000D92C123456000000D9 /* NetworkHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/NetworkHomeView.swift; sourceTree = "<group>"; };
+		B10000DA2C123456000000DA /* HomeMapLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeMapLayer.swift; sourceTree = "<group>"; };
+		B10000DB2C123456000000DB /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeComponents.swift; sourceTree = "<group>"; };
+		B10000DC2C123456000000DC /* HomeTopBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeTopBar.swift; sourceTree = "<group>"; };
+		B10000DD2C123456000000DD /* HomeIdlePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeIdlePanel.swift; sourceTree = "<group>"; };
+		B10000DE2C123456000000DE /* HomeRecordingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeRecordingPanel.swift; sourceTree = "<group>"; };
+		B10000DF2C123456000000DF /* HomeRoutePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeRoutePanel.swift; sourceTree = "<group>"; };
+		B10000E02C123456000000E0 /* HomeFloatingCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeFloatingCards.swift; sourceTree = "<group>"; };
+		B10000E12C123456000000E1 /* HomeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HomeModels.swift; sourceTree = "<group>"; };
+		B30000082C12345600000008 /* HomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/HomeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -323,6 +337,7 @@
 				B10000922C12345600000092 /* BufferbloatModels.swift */,
 				B10000932C12345600000093 /* LANDeviceModels.swift */,
 				B10000D32C123456000000D3 /* RouteModels.swift */,
+				B10000E12C123456000000E1 /* HomeModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -359,7 +374,6 @@
 		E10000052C12345600000005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B10000102C12345600000010 /* DashboardView.swift */,
 				B10000422C12345600000042 /* TrafficView.swift */,
 				B10000522C12345600000052 /* AIDiagnosticsView.swift */,
 				B10000242C1234560000002E /* DiagnosticsView.swift */,
@@ -370,7 +384,14 @@
 				B100009B2C1234560000009B /* LANScannerView.swift */,
 				E10000062C12345600000006 /* Components */,
 				B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */,
-				B10000D82C123456000000D8 /* NetworkMapView.swift */,
+				B10000D92C123456000000D9 /* NetworkHomeView.swift */,
+				B10000DA2C123456000000DA /* HomeMapLayer.swift */,
+				B10000DB2C123456000000DB /* HomeComponents.swift */,
+				B10000DC2C123456000000DC /* HomeTopBar.swift */,
+				B10000DD2C123456000000DD /* HomeIdlePanel.swift */,
+				B10000DE2C123456000000DE /* HomeRecordingPanel.swift */,
+				B10000DF2C123456000000DF /* HomeRoutePanel.swift */,
+				B10000E02C123456000000E0 /* HomeFloatingCards.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -384,7 +405,6 @@
 				B10000152C12345600000015 /* SpeedtestGaugeView.swift */,
 				B10000162C12345600000016 /* TracerouteSheetView.swift */,
 				B10000172C12345600000017 /* AlertsBannerView.swift */,
-				B10000212C1234560000002B /* SpeedtestHeroView.swift */,
 				B10000232C1234560000002D /* NetworkCapabilityCardView.swift */,
 				B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */,
 				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
@@ -441,6 +461,7 @@
 				B30000052C12345600000005 /* IslandTests.swift */,
 				B30000062C12345600000006 /* RouteTests.swift */,
 				B30000072C12345600000007 /* RouteRecorderTests.swift */,
+				B30000082C12345600000008 /* HomeTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -633,7 +654,6 @@
 				A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */,
 				A10000292C12345600000033 /* BandwidthEngine.swift in Sources */,
 				A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */,
-				A10000102C12345600000010 /* DashboardView.swift in Sources */,
 				A10000112C12345600000011 /* SettingsView.swift in Sources */,
 				A10000122C12345600000012 /* NetworkInfoCardView.swift in Sources */,
 				A10000132C12345600000013 /* HostMetricCardView.swift in Sources */,
@@ -643,7 +663,6 @@
 				A10000172C12345600000017 /* AlertsBannerView.swift in Sources */,
 				A10000182C12345600000018 /* HapticManager.swift in Sources */,
 				A10000192C12345600000019 /* HistoryStorage.swift in Sources */,
-				A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */,
 				A10000222C1234560000002C /* NetworkCapability.swift in Sources */,
 				A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */,
 				A10000242C1234560000002E /* DiagnosticsView.swift in Sources */,
@@ -692,7 +711,15 @@
 				A10000D52C123456000000D5 /* RouteLocationSession.swift in Sources */,
 				A10000D62C123456000000D6 /* RouteRecorder.swift in Sources */,
 				A10000D72C123456000000D7 /* NetworkProbe.swift in Sources */,
-				A10000D82C123456000000D8 /* NetworkMapView.swift in Sources */,
+				A10000D92C123456000000D9 /* NetworkHomeView.swift in Sources */,
+				A10000DA2C123456000000DA /* HomeMapLayer.swift in Sources */,
+				A10000DB2C123456000000DB /* HomeComponents.swift in Sources */,
+				A10000DC2C123456000000DC /* HomeTopBar.swift in Sources */,
+				A10000DD2C123456000000DD /* HomeIdlePanel.swift in Sources */,
+				A10000DE2C123456000000DE /* HomeRecordingPanel.swift in Sources */,
+				A10000DF2C123456000000DF /* HomeRoutePanel.swift in Sources */,
+				A10000E02C123456000000E0 /* HomeFloatingCards.swift in Sources */,
+				A10000E12C123456000000E1 /* HomeModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -719,6 +746,7 @@
 				A30000052C12345600000005 /* IslandTests.swift in Sources */,
 				A30000062C12345600000006 /* RouteTests.swift in Sources */,
 				A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */,
+				A30000082C12345600000008 /* HomeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

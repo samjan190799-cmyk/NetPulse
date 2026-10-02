@@ -20,6 +20,8 @@ public struct SettingsView: View {
     @State private var showProUpgradeSheet: Bool = false
     @State private var showIslandDiagnostics: Bool = false
     @State private var addHostError: String?
+    /// Настройки открываются поверх главного экрана (кнопка с ползунками): «Готово» закрывает их
+    @Environment(\.dismiss) private var dismiss
 
     /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
     private var appVersionText: String {
@@ -285,24 +287,20 @@ public struct SettingsView: View {
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
 
-                        // Карта сети: запись маршрута. Пока она идёт, приложение активно в фоне и остров обновляется
-                        NavigationLink(destination: NetworkMapView()) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "map.fill")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(NPTheme.accentPrimary)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Карта сети")
-                                        .font(.system(size: 15, weight: .medium))
-                                    Text(RouteRecorder.shared.isActive
-                                         ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
-                                         : "Запись маршрута показывает на карте, где сеть пропадала. Пока она идёт, остров обновляется и в фоне.")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(NPTheme.textSecondary)
-                                }
-                            }
+                        // Запись маршрута (кнопка «Записать маршрут» на главном экране): пока она идёт,
+                        // приложение активно в фоне и остров обновляется
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(NPTheme.accentPrimary)
+                            Text(RouteRecorder.shared.isActive
+                                 ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
+                                 : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»).")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
                         }
-                        .accessibilityIdentifier("networkMapLink")
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("islandRecordingNote")
 
                         // Журнал: что происходило с островом, пока приложение было свёрнуто
                         Button {
@@ -593,6 +591,15 @@ public struct SettingsView: View {
                 #endif
             }
             .navigationTitle("Настройки")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Готово") {
+                        dismiss()
+                    }
+                    .font(.system(size: 16, weight: .semibold))
+                    .accessibilityIdentifier("settingsCloseButton")
+                }
+            }
             .confirmationDialog(
                 "Сбросить историю трафика?",
                 isPresented: $showResetTrafficAlert,

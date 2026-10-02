@@ -169,8 +169,9 @@ public enum NPTheme {
     /// Основной текст
     public static let textPrimary = Color.white
 
-    /// Вторичный текст: Slate-400
-    public static let textSecondary = Color(red: 0.392, green: 0.455, blue: 0.545)
+    /// Вторичный текст: Slate-400 (#94A3B8). Прежний #64748B давал на тёмных карточках контраст около 3,9:1
+    /// при требуемых 4,5:1; этот цвет — около 7:1.
+    public static let textSecondary = Color(red: 0.580, green: 0.639, blue: 0.722)
 
     /// Третичный текст: Slate-500
     public static let textTertiary = Color(red: 0.278, green: 0.333, blue: 0.412)

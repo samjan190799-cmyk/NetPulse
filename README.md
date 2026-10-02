@@ -29,7 +29,7 @@ NetPulse/
     ├── Models/                   # Sendable структуры (HostTarget, PingRecord, HostMetrics)
     ├── Engines/                  # PingEngine (NWConnection), SpeedtestEngine, трассировка, DNS, LAN
     ├── ViewModels/               # NetworkMonitorViewModel на базе макроса @Observable
-    ├── Views/                    # DashboardView, SettingsView, Swift Charts, Glassmorphism UI
+    ├── Views/                    # NetworkHomeView (карта и скорость), SettingsView, Swift Charts, Glassmorphism UI
     ├── Utils/                    # Тактильная отдача (HapticManager), экспорт JSON/CSV
     └── NetPulseApp.swift         # Точка входа в iOS-приложение
 ```

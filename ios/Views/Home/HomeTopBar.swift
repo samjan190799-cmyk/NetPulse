@@ -24,6 +24,8 @@ struct HomeTopBar: View {
     let recorder: RouteRecorder
     let style: HomeTopBarStyle
     let lastRouteChip: String?
+    /// Нижняя панель развёрнута: над ней остаётся только первый ряд (связь и настройки)
+    let compact: Bool
     @Binding var satellite: Bool
     let onSettings: () -> Void
     let onRecenter: () -> Void
@@ -54,9 +56,11 @@ struct HomeTopBar: View {
         case .idle:
             VStack(alignment: .leading, spacing: 4) {
                 HomeLinkPill(connection: connectionName, icon: connectionIcon, quality: linkQuality)
-                HomeIslandPill(viewModel: viewModel)
-                if let lastRouteChip {
-                    HomeChip(text: lastRouteChip)
+                if !compact {
+                    HomeIslandPill(viewModel: viewModel)
+                    if let lastRouteChip {
+                        HomeChip(text: lastRouteChip)
+                    }
                 }
             }
         case .recording:
@@ -114,8 +118,10 @@ struct HomeTopBar: View {
                 if style == .idle {
                     settingsButton
                 }
-                styleButton
-                recenterButton
+                if !(style == .idle && compact) {
+                    styleButton
+                    recenterButton
+                }
             }
         }
     }

@@ -29,6 +29,8 @@ struct HomeIdlePanel: View {
     private static let mediumScrollHeight: CGFloat = 254
     /// Высота ручки панели
     private static let handleHeight: CGFloat = 24
+    /// Метка начала прокручиваемой области: к ней возвращается прокрутка при сворачивании панели
+    private static let topAnchor = "homePanelTop"
 
     // MARK: - Размеры и жест
 
@@ -113,23 +115,32 @@ struct HomeIdlePanel: View {
     var body: some View {
         VStack(spacing: 0) {
             handle
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    speedHeader
-                    tiles
-                        .padding(.top, 8)
-                    actionButtons
-                        .padding(.top, 10)
-                    routesRow
-                        .padding(.top, 8)
-                    if detent == .expanded {
-                        extras
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        speedHeader
+                            .id(Self.topAnchor)
+                        tiles
+                            .padding(.top, 8)
+                        actionButtons
+                            .padding(.top, 10)
+                        routesRow
+                            .padding(.top, 8)
+                        if detent == .expanded {
+                            extras
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .scrollDisabled(detent == .medium)
+                .frame(height: scrollHeight)
+                .onChange(of: detent) { _, newValue in
+                    // После сворачивания панели прокрутка не должна остаться смещённой: в обычном положении она отключена
+                    if newValue == .medium {
+                        proxy.scrollTo(Self.topAnchor, anchor: .top)
                     }
                 }
-                .padding(.horizontal, 20)
             }
-            .scrollDisabled(detent == .medium)
-            .frame(height: scrollHeight)
 
             MetaStickyBottomBannerView()
         }

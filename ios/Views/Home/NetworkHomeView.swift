@@ -88,6 +88,11 @@ public struct NetworkHomeView: View {
         return false
     }
 
+    /// Нижняя панель обычного режима развёрнута почти на весь экран
+    private var panelIsExpanded: Bool {
+        mode == .idle && detent == .expanded
+    }
+
     // MARK: - Экран
 
     public var body: some View {
@@ -114,6 +119,7 @@ public struct NetworkHomeView: View {
                         recorder: recorder,
                         style: topBarStyle,
                         lastRouteChip: lastRouteChip,
+                        compact: panelIsExpanded,
                         satellite: $satellite,
                         onSettings: { showSettings = true },
                         onRecenter: { recenter() },
@@ -188,12 +194,15 @@ public struct NetworkHomeView: View {
 
     private func bottomStack(containerHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
-            HomeFloatingCards(
-                viewModel: viewModel,
-                recorder: recorder,
-                isIdle: mode == .idle,
-                dismissedAISummary: $dismissedAISummary
-            )
+            // У развёрнутой панели нет запаса по высоте: сообщения появятся, когда её свернут
+            if !panelIsExpanded {
+                HomeFloatingCards(
+                    viewModel: viewModel,
+                    recorder: recorder,
+                    isIdle: mode == .idle,
+                    dismissedAISummary: $dismissedAISummary
+                )
+            }
             panel(containerHeight: containerHeight)
         }
     }

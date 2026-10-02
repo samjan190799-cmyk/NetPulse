@@ -17,8 +17,14 @@ public struct SettingsView: View {
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
     @State private var showResetTrafficAlert: Bool = false
-    @State private var showProUpgradeSheet: Bool = false
-    @State private var ownerTapCount: Int = 0
+
+    /// Версия и номер сборки из Info.plist
+    private var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
+    }
 
     public var body: some View {
         NavigationStack {
@@ -255,7 +261,7 @@ public struct SettingsView: View {
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
 
-                        // Подсказка по правилам фонового режима iOS и выгоде PRO HUD
+                        // Подсказка по правилам фонового режима iOS и выгоде HUD
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 5) {
                                 Image(systemName: "lightbulb.fill")
@@ -272,16 +278,10 @@ public struct SettingsView: View {
                         .padding(.vertical, 2)
                     }
 
-                    // Плавающий игровой оверлей (HUD) - PRO Функция
+                    // Плавающий игровой оверлей (HUD)
                     Toggle(isOn: Binding(
                         get: { viewModel.floatingHUDEnabled },
                         set: { enabled in
-                            if enabled && !AdMobManager.shared.isPremiumUser {
-                                // Доступно только в PRO
-                                showProUpgradeSheet = true
-                                HapticManager.shared.notificationWarning()
-                                return
-                            }
                             viewModel.floatingHUDEnabled = enabled
                             if enabled {
                                 BackgroundTelemetryKeeper.shared.startKeepAlive()
@@ -298,142 +298,12 @@ public struct SettingsView: View {
                             HStack(spacing: 6) {
                                 Text("Плавающий игровой оверлей (HUD)")
                                     .font(.system(size: 15, weight: .medium))
-                                Text("PRO")
-                                    .font(.system(size: 9, weight: .black))
-                                    .foregroundStyle(Color.yellow)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1.5)
-                                    .background(Color.yellow.opacity(0.18))
-                                    .clipShape(Capsule())
                             }
                             Text("Мини-виджет пинга поверх экрана и Picture-in-Picture для онлайн-игр")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
-                }
-
-                // 7. NetPulse PRO и Монетизация
-                Section {
-                    if AdMobManager.shared.isPremiumUser {
-                        // Карточка активной PRO-подписки
-                        HStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.yellow, Color.orange],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 44, height: 44)
-
-                                Image(systemName: "crown.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(Color.black)
-                            }
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack(spacing: 6) {
-                                    Text("NetPulse PRO")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(NPTheme.textPrimary)
-                                    Text("АКТИВЕН")
-                                        .font(.system(size: 9, weight: .black))
-                                        .foregroundStyle(Color.yellow)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.yellow.opacity(0.15))
-                                        .clipShape(Capsule())
-                                }
-
-                                Text("Вся реклама отключена • Безлимитный AI")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    } else {
-                        // Премиальная карточка перехода на NetPulse PRO
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [NPTheme.accentPrimary, Color.yellow.opacity(0.8)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                        .frame(width: 44, height: 44)
-
-                                    Image(systemName: "crown.fill")
-                                        .font(.system(size: 22))
-                                        .foregroundStyle(Color.black)
-                                }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack(spacing: 6) {
-                                        Text("NetPulse PRO")
-                                            .font(.system(size: 16, weight: .heavy, design: .rounded))
-                                            .foregroundStyle(NPTheme.textPrimary)
-                                        Image(systemName: "sparkles")
-                                            .foregroundStyle(Color.yellow)
-                                    }
-
-                                    Text("Полное отключение рекламы и Pro-фичи")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(NPTheme.textSecondary)
-                                }
-                            }
-
-                            Button {
-                                showProUpgradeSheet = true
-                                HapticManager.shared.impactMedium()
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    Text("Оформить NetPulse PRO")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(NPTheme.backgroundDeep)
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(NPTheme.backgroundDeep)
-                                    Spacer()
-                                }
-                                .padding(.vertical, 10)
-                                .background(
-                                    LinearGradient(
-                                        colors: [NPTheme.accentPrimary, Color.yellow],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            }
-                            .buttonStyle(NPPressableButtonStyle(scale: 0.98))
-                        }
-                        .padding(.vertical, 4)
-                    }
-
-                    Button {
-                        Task { await StoreManager.shared.restore() }
-                    } label: {
-                        HStack {
-                            Text("Восстановить покупки")
-                                .font(.system(size: 14))
-                            Spacer()
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 12))
-                                .foregroundStyle(NPTheme.textTertiary)
-                        }
-                    }
-                } header: {
-                    Label("Подписка NetPulse PRO", systemImage: "crown.fill")
-                } footer: {
-                    Text("Подписка NetPulse PRO отключает рекламу, открывает глубокий AI-аудит без просмотра ролика и игровой оверлей (HUD). Автопродление можно отключить в настройках Apple ID.")
                 }
 
                 // 8. Обратная связь
@@ -453,30 +323,13 @@ public struct SettingsView: View {
 
                 // 9. О приложении
                 Section("О приложении") {
-                    Button {
-                        ownerTapCount += 1
-                        if ownerTapCount >= 5 {
-                            ownerTapCount = 0
-                            AdMobManager.shared.toggleOwnerMode()
-                        } else {
-                            HapticManager.shared.impactLight()
-                        }
-                    } label: {
-                        HStack {
-                            Text("Версия")
-                                .foregroundStyle(NPTheme.textPrimary)
-                            Spacer()
-                            if AdMobManager.shared.isOwnerUnlocked {
-                                Text("👑 Владелец (PRO Полный Доступ)")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(Color.yellow)
-                            } else {
-                                Text("2.2.0 (Build 2026.08)")
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                        }
+                    HStack {
+                        Text("Версия")
+                            .foregroundStyle(NPTheme.textPrimary)
+                        Spacer()
+                        Text(appVersionString)
+                            .foregroundStyle(NPTheme.textSecondary)
                     }
-                    .buttonStyle(.plain)
 
                     HStack {
                         Text("Движок сети")
@@ -510,9 +363,6 @@ public struct SettingsView: View {
                 Button("Отмена", role: .cancel) {}
             } message: {
                 Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
-            }
-            .sheet(isPresented: $showProUpgradeSheet) {
-                NetPulseProUpgradeSheet()
             }
         }
     }

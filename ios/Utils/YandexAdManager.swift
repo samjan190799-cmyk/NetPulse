@@ -5,6 +5,7 @@
 //  Менеджер рекламы Yandex Mobile Ads SDK 8.x (баннер, межстраничная, вознаграждаемая).
 //
 
+import AppTrackingTransparency
 import SwiftUI
 import UIKit
 import YandexMobileAds
@@ -40,9 +41,9 @@ public final class YandexAdManager: NSObject {
     public private(set) var isInterstitialLoaded = false
     public private(set) var isRewardedLoaded = false
 
-    /// Показывать ли рекламу: SDK настроен и у пользователя нет NetPulse Pro / режима владельца
+    /// Показывать ли рекламу: заданы боевые ID блоков (или Debug-сборка)
     public var canShowAds: Bool {
-        YandexAdConfig.isEnabled && AdMobManager.shared.canShowAds
+        YandexAdConfig.isEnabled
     }
 
     private let interstitialLoader = InterstitialAdLoader()
@@ -71,6 +72,26 @@ public final class YandexAdManager: NSObject {
             self.isSDKInitialized = true
             self.loadInterstitial()
             self.loadRewarded()
+        }
+    }
+
+    // MARK: - Запрос разрешения App Tracking Transparency (ATT)
+
+    /// Обёртка вне MainActor: колбэк ATT приходит не на главной очереди (иначе падение _dispatch_assert_queue_fail)
+    private nonisolated static func requestATTAuth() async -> ATTrackingManager.AuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            ATTrackingManager.requestTrackingAuthorization { status in
+                continuation.resume(returning: status)
+            }
+        }
+    }
+
+    public func requestTrackingAuthorization() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined,
+                  UIApplication.shared.applicationState == .active else { return }
+            _ = await Self.requestATTAuth()
         }
     }
 
@@ -123,7 +144,7 @@ public final class YandexAdManager: NSObject {
         }
     }
 
-    /// Показывает вознаграждаемое видео. Если рекламы нет (не загружена, Pro, выключена) — функция выдаётся сразу.
+    /// Показывает вознаграждаемое видео. Если рекламы нет (не загружена, выключена) — функция выдаётся сразу.
     public func showRewardedVideo(onReward: @escaping () -> Void) {
         guard canShowAds, let ad = rewardedAd, let controller = Self.topViewController() else {
             onReward()

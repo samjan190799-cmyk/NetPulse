@@ -18,9 +18,6 @@ struct NetPulseApp: App {
         // Инициализация Yandex Mobile Ads SDK (только если заданы боевые ID рекламных блоков)
         YandexAdManager.shared.initialize()
 
-        // Подписка NetPulse PRO: тарифы и актуальный статус
-        StoreManager.shared.start()
-
     }
 
     var body: some Scene {
@@ -39,10 +36,10 @@ struct NetPulseApp: App {
         }
     }
 
-    /// Системный запрос на отслеживание (ATT) — только когда реклама реально включена и у пользователя нет Pro
+    /// Системный запрос на отслеживание (ATT) — только когда реклама реально включена
     private func requestTrackingIfAdsEnabled() {
         guard YandexAdManager.shared.canShowAds else { return }
-        AdMobManager.shared.requestTrackingAuthorization()
+        YandexAdManager.shared.requestTrackingAuthorization()
     }
 
     private func restoreLiveActivityIfNeeded() {

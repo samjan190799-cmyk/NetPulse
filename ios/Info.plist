@@ -1014,7 +1014,5 @@
     </array>
     <key>NSUserTrackingUsageDescription</key>
     <string>Идентификатор рекламы используется, чтобы показывать более подходящую рекламу и не повторять одни и те же объявления. Вы можете отказаться — приложение будет работать так же.</string>
-    <key>GADApplicationIdentifier</key>
-    <string>ca-app-pub-3940256099942544~1458602516</string>
 </dict>
 </plist>

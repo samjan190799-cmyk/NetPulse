@@ -207,3 +207,145 @@ final class RouteTitleTests: XCTestCase {
         XCTAssertEqual(title(of: route), "Сегодня, 18:40 — 18:50")
     }
 }
+
+// MARK: - Покрытие сети на карте
+
+private let coverageBase = Date(timeIntervalSince1970: 1_700_000_000)
+
+/// Маршрут из точек с заданными задержками (мс; `nil` — узел не ответил): точки идут на север, по одной в `step` секунд
+private func coverageRoute(
+    latencies: [Double?],
+    latitude: Double = 55.0,
+    step: Double = 10,
+    id: UUID = UUID()
+) -> RouteRecord {
+    let points = latencies.enumerated().map { index, latency in
+        RoutePoint(
+            time: coverageBase.addingTimeInterval(Double(index) * step),
+            latitude: latitude + Double(index) * 0.0001,
+            longitude: 37.0,
+            latencyMs: latency,
+            reachable: latency != nil
+        )
+    }
+    return RouteRecord(id: id, startedAt: coverageBase, points: points)
+}
+
+final class HomeHaloTests: XCTestCase {
+    func testIdleShowsLinkQuality() {
+        XCTAssertEqual(HomeHalo.quality(isRecording: false, lastRecorded: .poor, link: .good), .good)
+        XCTAssertEqual(HomeHalo.quality(isRecording: false, lastRecorded: nil, link: .dead), .dead)
+    }
+
+    func testRecordingPrefersTheLastRecordedPoint() {
+        // Тот же цвет, что в карточке «Связь сейчас»: она тоже показывает оценку последней точки
+        XCTAssertEqual(HomeHalo.quality(isRecording: true, lastRecorded: .poor, link: .good), .poor)
+    }
+
+    func testRecordingWithoutAPointYetFallsBackToTheLink() {
+        XCTAssertEqual(HomeHalo.quality(isRecording: true, lastRecorded: nil, link: .fair), .fair)
+    }
+
+    func testNoVerdictMeansNoHalo() {
+        XCTAssertNil(HomeHalo.quality(isRecording: false, lastRecorded: nil, link: nil))
+        XCTAssertNil(HomeHalo.quality(isRecording: true, lastRecorded: nil, link: nil))
+    }
+
+    func testRecordedPointIsUsedEvenWithoutLinkVerdict() {
+        XCTAssertEqual(HomeHalo.quality(isRecording: true, lastRecorded: .good, link: nil), .good)
+    }
+}
+
+final class CoverageBuilderTests: XCTestCase {
+    func testRunsFollowQualityChangesAlongTheRoute() {
+        let route = coverageRoute(latencies: Array(repeating: 50, count: 5) + Array(repeating: 400, count: 5) + Array(repeating: 50, count: 5))
+        let runs = CoverageBuilder.runs(from: [route], metric: .latency)
+        XCTAssertEqual(runs.map(\.quality), [.good, .poor, .good])
+    }
+
+    func testDeadStretchBecomesItsOwnRun() {
+        let route = coverageRoute(latencies: [50, 50, nil, nil, nil, 50, 50])
+        let runs = CoverageBuilder.runs(from: [route], metric: .latency)
+        XCTAssertTrue(runs.map(\.quality).contains(.dead), "Участок без сети пропал с карты: \(runs.map(\.quality))")
+    }
+
+    func testRunIdsAreUniqueAndStableBetweenCalls() {
+        let route = coverageRoute(latencies: [50, 50, 400, 400, 50, 50])
+        let first = CoverageBuilder.runs(from: [route], metric: .latency)
+        let second = CoverageBuilder.runs(from: [route], metric: .latency)
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(Set(first.map(\.id)).count, first.count)
+    }
+
+    func testOlderRoutesAreDrawnFirstAndNewerOnTop() {
+        let newer = coverageRoute(latencies: [50, 50, 50], latitude: 55.0)
+        let older = coverageRoute(latencies: [50, 50, 50], latitude: 56.0)
+        // Маршруты передаются новыми первыми, а рисуются в обратном порядке: новые поверх старых
+        let runs = CoverageBuilder.runs(from: [newer, older], metric: .latency)
+        XCTAssertEqual(runs.count, 2)
+        XCTAssertEqual(runs.first?.path.first?.latitude ?? 0, 56.0, accuracy: 0.001)
+        XCTAssertEqual(runs.last?.path.first?.latitude ?? 0, 55.0, accuracy: 0.001)
+    }
+
+    func testLimitKeepsNewestRoutesWhole() {
+        let latencies: [Double?] = [50, 50, 400, 400]   // две полосы на маршрут
+        let newest = coverageRoute(latencies: latencies, latitude: 55.0)
+        let middle = coverageRoute(latencies: latencies, latitude: 56.0)
+        let oldest = coverageRoute(latencies: latencies, latitude: 57.0)
+
+        let runs = CoverageBuilder.runs(from: [newest, middle, oldest], metric: .latency, maxRuns: 5)
+        XCTAssertEqual(runs.count, 4)
+        XCTAssertFalse(runs.contains { $0.id.hasPrefix(oldest.id.uuidString) }, "Самый старый маршрут не должен попасть на карту")
+        XCTAssertTrue(runs.contains { $0.id.hasPrefix(newest.id.uuidString) })
+        XCTAssertTrue(runs.contains { $0.id.hasPrefix(middle.id.uuidString) })
+    }
+
+    func testNewestRouteIsCutWhenItAloneExceedsTheLimit() {
+        let route = coverageRoute(latencies: [50, 50, 400, 400, 50, 50])   // три полосы
+        let runs = CoverageBuilder.runs(from: [route], metric: .latency, maxRuns: 2)
+        XCTAssertEqual(runs.map(\.quality), [.good, .poor])
+    }
+
+    func testRoutesWithoutAnyLineAreSkipped() {
+        // Две точки с промежутком больше предела: линию между ними не проводим, полос нет
+        let gap = coverageRoute(latencies: [50, 50], step: RouteAnalyzer.maxGapSeconds + 110)
+        let normal = coverageRoute(latencies: [50, 50, 50], latitude: 56.0)
+        let runs = CoverageBuilder.runs(from: [gap, normal], metric: .latency)
+        XCTAssertEqual(runs.count, 1)
+        XCTAssertEqual(runs.first?.path.first?.latitude ?? 0, 56.0, accuracy: 0.001)
+        XCTAssertTrue(CoverageBuilder.runs(from: [], metric: .latency).isEmpty)
+    }
+
+    func testSpeedMetricShowsNothingWithoutSpeedMeasurements() {
+        let route = coverageRoute(latencies: [50, 50, 50, 50])
+        XCTAssertTrue(CoverageBuilder.runs(from: [route], metric: .speed).isEmpty)
+        XCTAssertFalse(CoverageBuilder.runs(from: [route], metric: .latency).isEmpty)
+    }
+
+    func testLongRunIsThinned() {
+        let route = coverageRoute(latencies: Array(repeating: 50, count: 300), step: 5)
+        let runs = CoverageBuilder.runs(from: [route], metric: .latency)
+        XCTAssertEqual(runs.count, 1)
+        XCTAssertEqual(runs.first?.path.count, CoverageBuilder.maxPathPoints)
+    }
+
+    func testThinningKeepsEndsOrderAndLimit() {
+        let path = (0..<1000).map { GeoCoordinate(latitude: 55.0 + Double($0) * 0.00001, longitude: 37.0) }
+        let thinned = CoverageBuilder.thinned(path, limit: 80)
+        XCTAssertEqual(thinned.count, 80)
+        XCTAssertEqual(thinned.first, path.first)
+        XCTAssertEqual(thinned.last, path.last)
+        XCTAssertTrue(zip(thinned, thinned.dropFirst()).allSatisfy { $0.latitude < $1.latitude }, "Порядок точек нарушен")
+    }
+
+    func testThinningLeavesShortPathsAndNeverDropsBelowTwoPoints() {
+        let short = (0..<5).map { GeoCoordinate(latitude: 55.0 + Double($0) * 0.0001, longitude: 37.0) }
+        XCTAssertEqual(CoverageBuilder.thinned(short, limit: 80), short)
+
+        let long = (0..<50).map { GeoCoordinate(latitude: 55.0 + Double($0) * 0.0001, longitude: 37.0) }
+        let tiny = CoverageBuilder.thinned(long, limit: 0)
+        XCTAssertEqual(tiny.count, 2)
+        XCTAssertEqual(tiny.first, long.first)
+        XCTAssertEqual(tiny.last, long.last)
+    }
+}

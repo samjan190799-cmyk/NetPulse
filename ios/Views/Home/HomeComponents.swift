@@ -41,6 +41,14 @@ enum HomePalette {
     static let softRed = Color(red: 1.0, green: 0.541, blue: 0.502)
 }
 
+@MainActor
+extension NetworkMonitorViewModel {
+    /// Оценка связи сейчас: одна и та же в плашке над картой и в цветной зоне вокруг точки «вы здесь»
+    var homeLinkQuality: RouteQuality? {
+        HomeLinkStatus.quality(isOnline: systemInfo.connectionType != .unavailable, pingMs: currentAveragePing)
+    }
+}
+
 // MARK: - Стекло поверх карты
 
 /// Полупрозрачная тёмная подложка с размытием и тонкой обводкой: плашки и кнопки поверх карты
@@ -84,11 +92,13 @@ struct HomePanelBackground: View {
 
 // MARK: - Кнопки и плашки
 
-/// Круглая стеклянная кнопка поверх карты (настройки, схема/спутник, к моему положению)
+/// Круглая стеклянная кнопка поверх карты (настройки, схема/спутник, покрытие, к моему положению)
 @MainActor
 struct GlassCircleButton: View {
     let systemImage: String
     let label: String
+    /// Состояние переключателя для VoiceOver («Показано» / «Скрыто»); у обычных кнопок его нет
+    var value: String?
     let identifier: String
     let action: () -> Void
 
@@ -102,6 +112,7 @@ struct GlassCircleButton: View {
         }
         .buttonStyle(NPPressableButtonStyle(scale: 0.94))
         .accessibilityLabel(label)
+        .accessibilityValue(value ?? "")
         .accessibilityIdentifier(identifier)
     }
 }
@@ -241,5 +252,93 @@ struct QualitySwatch: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
             .frame(width: 12, height: 12)
+    }
+}
+
+// MARK: - Покрытие сети на карте
+
+/// Точка «вы здесь» с цветной зоной вокруг: цвет показывает связь прямо сейчас — зелёный «хорошо», жёлтый «средне»,
+/// оранжевый «плохо», красный «нет сети». Зона не имеет размера на местности: это связь именно в вашей точке,
+/// а не карта покрытия оператора. Пока оценки нет, рисуется одна точка.
+@MainActor
+struct HomeUserMarker: View {
+    let quality: RouteQuality?
+
+    private static let haloDiameter: CGFloat = 96
+
+    var body: some View {
+        ZStack {
+            if let quality {
+                Circle()
+                    .fill(quality.displayColor.opacity(0.22))
+                    .frame(width: Self.haloDiameter, height: Self.haloDiameter)
+                    .overlay(Circle().stroke(quality.displayColor.opacity(0.7), lineWidth: 1.5))
+            }
+            Circle()
+                .fill(Color.white)
+                .frame(width: 22, height: 22)
+                .shadow(color: Color.black.opacity(0.35), radius: 3, x: 0, y: 1)
+            Circle()
+                .fill(Color(red: 0.04, green: 0.52, blue: 1.0))
+                .frame(width: 15, height: 15)
+        }
+        .animation(.easeInOut(duration: 0.4), value: quality)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Что значат цвета полос покрытия на карте: те же цвета и слова, что в итоге маршрута
+@MainActor
+struct HomeCoverageLegend: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            ViewThatFits(in: .horizontal) {
+                singleRow
+                twoRows
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .homeGlass(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Цвета покрытия: хорошо, средне, плохо, нет сети")
+        .accessibilityIdentifier("homeCoverageLegend")
+    }
+
+    private func item(_ quality: RouteQuality) -> some View {
+        HStack(spacing: 5) {
+            QualitySwatch(quality: quality)
+            Text(quality.title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(NPTheme.textPrimary)
+                .lineLimit(1)
+                .fixedSize()
+        }
+    }
+
+    private var singleRow: some View {
+        HStack(spacing: 12) {
+            ForEach(RouteQuality.allCases, id: \.self) { quality in
+                item(quality)
+            }
+        }
+    }
+
+    /// Запасной вид для узких экранов
+    private var twoRows: some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+            GridRow {
+                item(.good)
+                item(.fair)
+            }
+            GridRow {
+                item(.poor)
+                item(.dead)
+            }
+        }
     }
 }

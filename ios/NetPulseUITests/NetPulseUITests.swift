@@ -277,6 +277,16 @@ final class NetPulseUITests: XCTestCase {
         return true
     }
 
+    /// Ждёт, пока элемент исчезнет с экрана
+    @MainActor private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !element.exists { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        return !element.exists
+    }
+
     /// Останавливает запись на главном экране
     @MainActor private func stopRecording(_ app: XCUIApplication) {
         let stop = app.buttons["networkMapStopButton"]
@@ -308,7 +318,7 @@ final class NetPulseUITests: XCTestCase {
         attachScreenshot("launch-home")
 
         // Главный экран: карта, плашка связи, кнопки справа и две главные кнопки в нижней панели
-        for identifier in ["homeSettingsButton", "networkMapStyleButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
+        for identifier in ["homeSettingsButton", "networkMapStyleButton", "homeCoverageButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
             XCTAssertTrue(app.buttons[identifier].exists, "На главном экране нет элемента «\(identifier)»")
         }
 
@@ -470,6 +480,25 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(done.waitForExistence(timeout: 5), "В итоге маршрута нет кнопки «Готово»")
         done.tap()
         XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После «Готово» не вернулся обычный вид")
+
+        // Покрытие сети: в обычном режиме над панелью легенда цветов, а кнопка справа прячет и возвращает покрытие
+        let legend = app.descendants(matching: .any)["homeCoverageLegend"]
+        XCTAssertTrue(legend.waitForExistence(timeout: 10), "После записи маршрута нет легенды покрытия")
+        Thread.sleep(forTimeInterval: 2)       // карта дорисовывает полосы и цветную зону вокруг точки
+        attachScreenshot("coverage-idle")
+        let coverage = app.buttons["homeCoverageButton"]
+        XCTAssertTrue(coverage.waitForExistence(timeout: 5), "На карте нет кнопки «Покрытие сети»")
+        XCTAssertEqual(coverage.value as? String, "Показано", "Покрытие по умолчанию должно быть включено")
+        coverage.tap()
+        XCTAssertTrue(waitUntilGone(legend, timeout: 5), "Легенда покрытия осталась после выключения")
+        XCTAssertEqual(coverage.value as? String, "Скрыто")
+        Thread.sleep(forTimeInterval: 2)
+        attachScreenshot("coverage-off")
+        coverage.tap()
+        XCTAssertTrue(legend.waitForExistence(timeout: 5), "Легенда покрытия не вернулась после включения")
+        XCTAssertEqual(coverage.value as? String, "Показано")
+        print("NETPULSE-CI: покрытие сети: легенда и кнопка работают")
+
         expandPanel(app)
         let row = app.descendants(matching: .any).matching(identifier: "networkMapHistoryRow").firstMatch
         XCTAssertTrue(reveal(row, in: app), "Маршрут не появился в списке «Мои маршруты»")

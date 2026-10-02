@@ -27,6 +27,8 @@ struct HomeTopBar: View {
     /// Нижняя панель развёрнута: над ней остаётся только первый ряд (связь и настройки)
     let compact: Bool
     @Binding var satellite: Bool
+    /// Показывать ли покрытие сети (цветная зона вокруг вас и полосы прежних маршрутов) в обычном режиме
+    @Binding var coverageOn: Bool
     let onSettings: () -> Void
     let onRecenter: () -> Void
     let onBack: () -> Void
@@ -97,10 +99,7 @@ struct HomeTopBar: View {
     }
 
     private var linkQuality: RouteQuality? {
-        HomeLinkStatus.quality(
-            isOnline: viewModel.systemInfo.connectionType != .unavailable,
-            pingMs: viewModel.currentAveragePing
-        )
+        viewModel.homeLinkQuality
     }
 
     // MARK: - Справа
@@ -120,6 +119,9 @@ struct HomeTopBar: View {
                 }
                 if !(style == .idle && compact) {
                     styleButton
+                    if style == .idle {
+                        coverageButton
+                    }
                     recenterButton
                 }
             }
@@ -142,6 +144,19 @@ struct HomeTopBar: View {
             identifier: "networkMapStyleButton"
         ) {
             satellite.toggle()
+            HapticManager.shared.selectionChanged()
+        }
+    }
+
+    /// Включает и выключает покрытие сети на карте; при записи и у готового маршрута оно показывается всегда
+    private var coverageButton: some View {
+        GlassCircleButton(
+            systemImage: coverageOn ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash",
+            label: "Покрытие сети",
+            value: coverageOn ? "Показано" : "Скрыто",
+            identifier: "homeCoverageButton"
+        ) {
+            coverageOn.toggle()
             HapticManager.shared.selectionChanged()
         }
     }

@@ -60,6 +60,81 @@ extension RouteQuality {
     }
 }
 
+// MARK: - Покрытие сети на карте
+
+/// Цветная зона вокруг точки «вы здесь»
+public enum HomeHalo {
+    /// Какую оценку показывает зона. Во время записи — оценку последней записанной точки: ту же, что в карточке
+    /// «Связь сейчас», чтобы на экране не было двух разных цветов; пока точки нет — связь сейчас.
+    /// В обычном режиме — связь сейчас. `nil` — оценки пока нет, и зона не рисуется наугад.
+    public static func quality(isRecording: Bool, lastRecorded: RouteQuality?, link: RouteQuality?) -> RouteQuality? {
+        if isRecording, let lastRecorded { return lastRecorded }
+        return link
+    }
+}
+
+/// Участок одного качества для широкой цветной полосы «покрытия» вдоль записанного маршрута
+public struct CoverageRun: Identifiable, Sendable, Equatable {
+    /// Не меняется, пока не меняется маршрут: карта перерисовывает только то, что изменилось
+    public let id: String
+    public let quality: RouteQuality
+    public let path: [GeoCoordinate]
+
+    public init(id: String, quality: RouteQuality, path: [GeoCoordinate]) {
+        self.id = id
+        self.quality = quality
+        self.path = path
+    }
+}
+
+/// Полосы покрытия по записанным маршрутам: так карта показывает, где сеть была хорошей, а где пропадала.
+/// Всё считается по измерениям, сделанным на этом устройстве; других данных о покрытии у приложения нет.
+public enum CoverageBuilder {
+    /// Сколько полос рисуется на карте самое большее: каждая полоса — отдельный слой карты
+    public static let maxRuns = 400
+    /// Сколько вершин остаётся в одной полосе: полосе шириной в десятки пунктов точность до метра не нужна
+    public static let maxPathPoints = 80
+
+    /// Полосы по маршрутам (новые первыми) в порядке рисования: старые лежат внизу, новые поверх.
+    /// Маршруты берутся целиком, пока не исчерпан предел полос: самый новый маршрут показывается всегда
+    /// (если в нём больше полос, чем предел, берётся его начало), а более старые, которым не хватило места, пропускаются.
+    public static func runs(from routes: [RouteRecord], metric: RouteMetric, maxRuns: Int = CoverageBuilder.maxRuns) -> [CoverageRun] {
+        var groups: [[CoverageRun]] = []
+        var total = 0
+
+        for route in routes {
+            let routeRuns = RouteAnalyzer.segments(for: route.points, metric: metric).map { segment in
+                CoverageRun(
+                    id: "\(route.id.uuidString)-\(segment.id)",
+                    quality: segment.quality,
+                    path: thinned(segment.path, limit: maxPathPoints)
+                )
+            }
+            if routeRuns.isEmpty { continue }
+
+            if total + routeRuns.count > maxRuns {
+                if groups.isEmpty {
+                    groups.append(Array(routeRuns.prefix(max(0, maxRuns))))
+                }
+                break
+            }
+            groups.append(routeRuns)
+            total += routeRuns.count
+        }
+        return groups.reversed().flatMap { $0 }
+    }
+
+    /// Прореживает путь до `limit` вершин (не меньше двух), сохраняя первую и последнюю
+    public static func thinned(_ path: [GeoCoordinate], limit: Int) -> [GeoCoordinate] {
+        let cap = max(2, limit)
+        guard path.count > cap else { return path }
+        let step = Double(path.count - 1) / Double(cap - 1)
+        return (0..<cap).map { index in
+            path[min(path.count - 1, Int((Double(index) * step).rounded()))]
+        }
+    }
+}
+
 // MARK: - На что хватает сети
 
 /// Короткая сводка «Хватает для: 4K · игры · звонки» по оценке возможностей сети

@@ -38,9 +38,15 @@ A side effect of recording: while the app records in the background, the Dynamic
 live network speed.
 
 The map is the home screen of the app (Apple's MapKit, Apple Maps). It is visible before any permission is
-requested (without location access it shows an overview of European Russia). The blue dot with the user's
-position is drawn by MapKit only while the screen is open and location is authorized; the route lines are
-drawn from the points recorded by the app.
+requested (without location access it shows an overview of European Russia). The user's position is shown by MapKit's user-location annotation only while the screen is open and location is
+authorized (the app supplies only its look, a blue dot); the route lines are drawn from the points recorded by the app.
+
+Coverage layer: along each recorded route the map draws a wide translucent band in the colour of the line
+(green good, yellow fair, orange poor, red no connection). It is drawn live while recording and, on the home
+screen, for earlier routes too (the "Покрытие сети" / Network coverage button hides it). Around the user's dot
+there is a coloured zone with the quality of the connection right now; its colour comes from the app's own
+network check (ping), not from location data. All of it is computed on the device from the app's own
+measurements; no data about operators' coverage is used or sent.
 
 HOW TO TEST
 1. The first screen ("Сеть" tab) is the map with the bottom panel (network speed and two buttons).

@@ -271,7 +271,18 @@ jobs:
           # маршрута) печатаем грубой сеткой символов: по ней видно наложения и обрезанные элементы.
           python3 -m pip install --break-system-packages --quiet Pillow || true
           python3 ci/screen_map.py build/attachments \
-            "home-medium" "home-expanded.png" "route-recording" "route-saved" "map-demo.png" "control-hint.png" || true
+            "home-medium" "home-expanded.png" "route-recording" "route-saved" "map-demo.png" "control-hint.png" \
+            "coverage-idle" "coverage-off" || true
+
+      - name: "Цветные зоны на скриншотах (покрытие сети)"
+        if: always()
+        working-directory: ./ios
+        run: |
+          # Тонкую обводку и слабую заливку зоны сетка символов не показывает, а доля цветных пикселей показывает:
+          # «покрытие включено» (coverage-idle) должно давать заметно больше зелёного в центре карты, чем «выключено».
+          python3 -m pip install --break-system-packages --quiet Pillow || true
+          python3 ci/screen_tint.py build/attachments \
+            "home-medium" "coverage-idle" "coverage-off" "route-recording" "route-saved" "map-demo.png" || true
 
       - name: "Проверка Dynamic Island по скриншотам"
         if: always()

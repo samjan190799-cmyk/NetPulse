@@ -39,7 +39,10 @@ public struct NetworkHomeView: View {
     @State private var pendingDeleteID: UUID?
     @State private var showDeleteRouteDialog = false
     @State private var dismissedAISummary: String?
+    /// Полосы прежних маршрутов: считаются один раз при изменении списка, а не при каждой перерисовке экрана
+    @State private var coverageRuns: [CoverageRun] = []
     @AppStorage("netpulse_map_satellite") private var satellite = false
+    @AppStorage("netpulse_map_coverage") private var coverageOn = true
 
     private var recorder: RouteRecorder {
         RouteRecorder.shared
@@ -93,6 +96,34 @@ public struct NetworkHomeView: View {
         mode == .idle && detent == .expanded
     }
 
+    // MARK: - Покрытие сети
+
+    /// Покрытие нарисовано. При записи и у готового маршрута оно показывается всегда (это и есть их содержание),
+    /// в обычном режиме его можно выключить кнопкой справа.
+    private var showsCoverage: Bool {
+        mode != .idle || coverageOn
+    }
+
+    /// Цветная зона вокруг точки «вы здесь»; у готового маршрута точки «вы здесь» нет
+    private var haloQuality: RouteQuality? {
+        guard showsCoverage, !isRouteMode else { return nil }
+        return HomeHalo.quality(
+            isRecording: recorder.isActive,
+            lastRecorded: recorder.lastQuality,
+            link: viewModel.homeLinkQuality
+        )
+    }
+
+    /// Легенда цветов нужна, пока на карте есть полосы прежних маршрутов или последний маршрут
+    private var showsCoverageLegend: Bool {
+        mode == .idle && coverageOn && !recorder.history.isEmpty
+    }
+
+    /// Последний маршрут нарисован отдельно (линией и полосой), остальные — только полосами
+    private func refreshCoverage() {
+        coverageRuns = CoverageBuilder.runs(from: Array(recorder.history.dropFirst()), metric: metric)
+    }
+
     // MARK: - Экран
 
     public var body: some View {
@@ -105,6 +136,10 @@ public struct NetworkHomeView: View {
                         isLive: recorder.current != nil,
                         showsUserDot: !isRouteMode,
                         satellite: satellite,
+                        haloQuality: haloQuality,
+                        showsRibbon: showsCoverage,
+                        coverage: mode == .idle && coverageOn ? coverageRuns : [],
+                        showsEndpoints: mode != .idle,
                         camera: $camera
                     )
                     .accessibilityLabel("Карта маршрута")
@@ -121,6 +156,7 @@ public struct NetworkHomeView: View {
                         lastRouteChip: lastRouteChip,
                         compact: panelIsExpanded,
                         satellite: $satellite,
+                        coverageOn: $coverageOn,
                         onSettings: { showSettings = true },
                         onRecenter: { recenter() },
                         onBack: { closeRoute() }
@@ -139,6 +175,7 @@ public struct NetworkHomeView: View {
                     viewModel.startMonitoring()
                 }
                 updateCamera()
+                refreshCoverage()
             }
             .onChange(of: selectedID) { _, _ in
                 updateCamera()
@@ -149,6 +186,12 @@ public struct NetworkHomeView: View {
             .onChange(of: recorder.history.first?.id) { _, _ in
                 // Список маршрутов подгружается с диска уже после появления экрана
                 updateCamera()
+            }
+            .onChange(of: recorder.history.map(\.id)) { _, _ in
+                refreshCoverage()
+            }
+            .onChange(of: metric) { _, _ in
+                refreshCoverage()
             }
             .onChange(of: recorder.isActive) { _, active in
                 if active {
@@ -202,6 +245,9 @@ public struct NetworkHomeView: View {
                     isIdle: mode == .idle,
                     dismissedAISummary: $dismissedAISummary
                 )
+                if showsCoverageLegend {
+                    HomeCoverageLegend()
+                }
             }
             panel(containerHeight: containerHeight)
         }

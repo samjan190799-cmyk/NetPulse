@@ -224,6 +224,31 @@ jobs:
             plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST"
           fi
 
+      - name: "Фреймворки в архиве: снять подпись линкера (ad hoc)"
+        working-directory: ./ios
+        run: |
+          # Статическую библиотеку (например, рекламу Яндекса) Xcode 26 кладёт в приложение «бескодовым» фреймворком
+          # и вставляет в него пустую заглушку, подписанную линкером (ad hoc). Архив собирается без подписи, и экспорт
+          # такую готовую подпись оставляет как есть: Apple отклоняет сборку («Invalid Signature … not properly signed»).
+          # Снимаем подпись линкера, чтобы экспорт подписал заглушку сертификатом распространения.
+          APP="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
+          shopt -s nullglob
+          for fw in "$APP"/Frameworks/*.framework; do
+            name="$(basename "$fw" .framework)"
+            exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$fw/Info.plist" 2>/dev/null || echo "$name")"
+            bin="$fw/$exe"
+            if [ ! -f "$bin" ]; then
+              echo "• $name: бинарного файла нет"
+              continue
+            fi
+            sig="$(codesign -dv --verbose=2 "$bin" 2>&1 | grep -E '^Signature=|^CodeDirectory' | tr '\n' ' ' || true)"
+            echo "• $name: ${sig:-не подписан}"
+            if echo "$sig" | grep -qi "adhoc"; then
+              codesign --remove-signature "$bin"
+              echo "    подпись линкера снята: подписать заглушку должен экспорт"
+            fi
+          done
+
       - name: "Экспорт и подпись IPA через App Store Connect API"
         working-directory: ./ios
         env:
@@ -243,13 +268,44 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID" \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
 
+      - name: "Проверка подписи в готовом IPA (до выгрузки)"
+        working-directory: ./ios
+        run: |
+          # Apple отклоняет сборку, если любой встроенный код подписан не сертификатом распространения.
+          # Проверяем это здесь, чтобы не тратить время на заведомо неудачную выгрузку.
+          set -e
+          rm -rf build/ipa_check && mkdir -p build/ipa_check
+          IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
+          unzip -q "$IPA_PATH" -d build/ipa_check
+          APP="$(echo build/ipa_check/Payload/*.app)"
+          shopt -s nullglob
+          bad=0
+          check() {
+            info="$(codesign -dvv "$1" 2>&1 || true)"
+            auth="$(echo "$info" | grep -E '^Authority=' | head -n 1 || true)"
+            team="$(echo "$info" | grep -E '^TeamIdentifier=' | head -n 1 || true)"
+            echo "• $2: ${auth:-без Authority} ${team:+| $team}"
+            if echo "$info" | grep -qE 'Signature=adhoc|not signed at all' || [ -z "$auth" ]; then
+              bad=1
+            fi
+          }
+          check "$APP" "приложение"
+          for item in "$APP"/Frameworks/*.framework "$APP"/PlugIns/*.appex; do
+            check "$item" "$(basename "$item")"
+          done
+          if [ "$bad" -ne 0 ]; then
+            echo "❌ Часть кода в IPA подписана не сертификатом распространения (ad hoc или без подписи): Apple отклонит сборку"
+            exit 1
+          fi
+          echo "✔ Весь код в IPA подписан сертификатом распространения"
+
       - name: "Выгрузка в TestFlight"
         working-directory: ./ios
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
-          set -e
+          set -eo pipefail
           IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
           if [ -z "$IPA_PATH" ]; then
             echo "❌ IPA файл не найден!"
@@ -257,10 +313,16 @@ jobs:
           fi
           echo "✔ Найден IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
 
+          # altool при отказе Apple печатает «UPLOAD FAILED», но завершается с кодом 0 — проверяем вывод сами
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
             --type ios \
             --apiKey "$KEY_ID" \
-            --apiIssuer "$ISSUER_ID"
+            --apiIssuer "$ISSUER_ID" 2>&1 | tee build/altool.log
+
+          if grep -qE "UPLOAD FAILED|Failed to upload package" build/altool.log; then
+            echo "❌ Apple отклонила загрузку (причина выше). Сборка НЕ отправлена."
+            exit 1
+          fi
 
           echo "🚀 Сборка успешно отправлена в Apple TestFlight!"

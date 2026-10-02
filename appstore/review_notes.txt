@@ -11,9 +11,6 @@ USER CONTROL
 
 The map (Apple MapKit) is the home screen and is visible before any permission is requested. Route lines are drawn from points recorded by the app. The "Network coverage" layer draws translucent bands along recorded routes and a coloured zone around the user's dot; its colour comes from the app's own ping, not from location data, and no operator coverage data is used.
 
-ADVERTISING
-The free app shows ads from the Yandex Advertising Network (Yandex Mobile Ads SDK): a small banner, an interstitial after some speed tests, and an optional rewarded video (AI tab). The device location is NOT passed to the ad SDK (location tracking is switched off for it). After launch the app shows the App Tracking Transparency prompt once; ads also work if the user declines ("Ask App Not to Track").
-
 HOW TO TEST
 1. The first screen is the map with the bottom panel (network speed and two buttons).
 2. Drag the panel up -> "Показать пример маршрута" (Show example route): a clearly labelled DEMO route is drawn on the map.

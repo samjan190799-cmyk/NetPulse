@@ -7,7 +7,7 @@
   "primaryCategory": "UTILITIES",
   "secondaryCategory": null,
   "releaseType": "MANUAL",
-  "territories": null,
+  "territories": "ALL",
   "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT",
   "displayTypes": {
     "iphone": [
@@ -60,6 +60,6 @@
     "unrestrictedWebAccess": false,
     "userGeneratedContent": false,
     "healthOrWellnessTopics": false,
-    "advertising": true
+    "advertising": false
   }
 }

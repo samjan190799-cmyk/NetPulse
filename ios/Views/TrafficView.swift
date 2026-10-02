@@ -78,9 +78,8 @@ public struct TrafficView: View {
                     // 3. Главная сводная карточка расхода трафика
                     heroSummaryCard
 
-                    // 4. Рекламный баннер Meta Audience Network на видном месте
-                    MetaBannerView(contextTag: "Трафик и безопасность")
-                        .padding(.horizontal)
+                    // Рекламный баннер Яндекса
+                    YandexBannerView()
 
                     // 5. 24-часовая тепловая карта сетевой активности (Traffic Heatmap)
                     trafficHeatmapSection
@@ -98,7 +97,7 @@ public struct TrafficView: View {
                     sessionsHistorySection
                 }
                 .padding(.vertical)
-                .padding(.bottom, 110) // Безопасный отступ для закрепленного баннера Meta и таб-бара
+                .padding(.bottom, 110) // Безопасный отступ для таб-бара
             }
             .npScreenBackground()
             .navigationTitle("Трафик")

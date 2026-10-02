@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000C02C123456000000C0 /* YandexAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C02C123456000000C0 /* YandexAdManager.swift */; };
+		A10000C12C123456000000C1 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C12C123456000000C1 /* YandexBannerView.swift */; };
+		A10000C22C123456000000C2 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
 		A10000012C12345600000001 /* NetPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000012C12345600000001 /* NetPulseApp.swift */; };
 		A10000022C12345600000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000022C12345600000002 /* ContentView.swift */; };
 		A10000032C12345600000003 /* HostTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000032C12345600000003 /* HostTarget.swift */; };
@@ -72,11 +75,6 @@
 		A10000A02C123456000000A0 /* AdMobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000A02C123456000000A0 /* AdMobManager.swift */; };
 		A10000A12C123456000000A1 /* AdMobBannerContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000A12C123456000000A1 /* AdMobBannerContainerView.swift */; };
 		A10000A22C123456000000A2 /* AdMobNativeAdCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */; };
-		A10000B02C123456000000B0 /* MetaAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B02C123456000000B0 /* MetaAdManager.swift */; };
-		A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B12C123456000000B1 /* MetaBannerView.swift */; };
-		A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */; };
-		A10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */; };
-		A10000B42C123456000000B4 /* FBAudienceNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = E40000012C12345600000001 /* FBAudienceNetwork */; };
 		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
 		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
 		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* NetPulseAttributes.swift */; };
@@ -110,6 +108,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B10000C02C123456000000C0 /* YandexAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/YandexAdManager.swift; sourceTree = "<group>"; };
+		B10000C12C123456000000C1 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
 		C10000002C12345600000000 /* NetPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000002C12345600000000 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000012C12345600000001 /* NetPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseApp.swift; sourceTree = "<group>"; };
@@ -177,10 +177,6 @@
 		B10000A02C123456000000A0 /* AdMobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AdMobManager.swift; sourceTree = "<group>"; };
 		B10000A12C123456000000A1 /* AdMobBannerContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AdMobBannerContainerView.swift; sourceTree = "<group>"; };
 		B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AdMobNativeAdCardView.swift; sourceTree = "<group>"; };
-		B10000B02C123456000000B0 /* MetaAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/MetaAdManager.swift; sourceTree = "<group>"; };
-		B10000B12C123456000000B1 /* MetaBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaBannerView.swift; sourceTree = "<group>"; };
-		B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaStickyBottomBannerView.swift; sourceTree = "<group>"; };
-		B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/MetaNativeBannerRepresentable.swift; sourceTree = "<group>"; };
 		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
 		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NetPulseWidgets/Info.plist; sourceTree = "<group>"; };
@@ -196,7 +192,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000B42C123456000000B4 /* FBAudienceNetwork in Frameworks */,
+				A10000C22C123456000000C2 /* YandexMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -322,10 +318,8 @@
 				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
 				B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */,
 				B10000A12C123456000000A1 /* AdMobBannerContainerView.swift */,
+				B10000C12C123456000000C1 /* YandexBannerView.swift */,
 				B10000A22C123456000000A2 /* AdMobNativeAdCardView.swift */,
-				B10000B12C123456000000B1 /* MetaBannerView.swift */,
-				B10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift */,
-				B10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift */,
 			);
 			name = Components;
 			sourceTree = "<group>";
@@ -343,7 +337,7 @@
 				B10000602C12345600000060 /* NetPulseTheme.swift */,
 				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 				B10000A02C123456000000A0 /* AdMobManager.swift */,
-				B10000B02C123456000000B0 /* MetaAdManager.swift */,
+				B10000C02C123456000000C0 /* YandexAdManager.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -374,10 +368,10 @@
 			dependencies = (
 				T20000012C12345600000001 /* PBXTargetDependency */,
 			);
-			packageProductDependencies = (
-				E40000012C12345600000001 /* FBAudienceNetwork */,
-			);
 			name = NetPulse;
+			packageProductDependencies = (
+				E40000022C12345600000002 /* YandexMobileAds */,
+			);
 			productName = NetPulse;
 			productReference = C10000002C12345600000000 /* NetPulse.app */;
 			productType = "com.apple.product-type.application";
@@ -426,7 +420,7 @@
 			);
 			mainGroup = E10000002C12345600000000;
 			packageReferences = (
-				E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */,
+				E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */,
 			);
 			productRefGroup = E10000082C12345600000008 /* Products */;
 			projectDirPath = "";
@@ -523,12 +517,10 @@
 				A100009B2C1234560000009B /* LANScannerView.swift in Sources */,
 				A100009C2C1234560000009C /* NetworkGlossarySheetView.swift in Sources */,
 				A10000A02C123456000000A0 /* AdMobManager.swift in Sources */,
+				A10000C02C123456000000C0 /* YandexAdManager.swift in Sources */,
+				A10000C12C123456000000C1 /* YandexBannerView.swift in Sources */,
 				A10000A12C123456000000A1 /* AdMobBannerContainerView.swift in Sources */,
 				A10000A22C123456000000A2 /* AdMobNativeAdCardView.swift in Sources */,
-				A10000B02C123456000000B0 /* MetaAdManager.swift in Sources */,
-				A10000B12C123456000000B1 /* MetaBannerView.swift in Sources */,
-				A10000B22C123456000000B2 /* MetaStickyBottomBannerView.swift in Sources */,
-				A10000B32C123456000000B3 /* MetaNativeBannerRepresentable.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -621,6 +613,10 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -644,6 +640,10 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -738,25 +738,25 @@
 		};
 /* End XCConfigurationList section */
 
+
 /* Begin XCRemoteSwiftPackageReference section */
-		E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */ = {
+		E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/facebook/FBAudienceNetwork";
+			repositoryURL = "https://github.com/yandexmobile/yandex-ads-sdk-ios";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 6.22.0;
+				minimumVersion = 8.6.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E40000012C12345600000001 /* FBAudienceNetwork */ = {
+		E40000022C12345600000002 /* YandexMobileAds */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E30000012C12345600000001 /* XCRemoteSwiftPackageReference "FBAudienceNetwork" */;
-			productName = FBAudienceNetwork;
+			package = E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */;
+			productName = YandexMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
-
 	};
 	rootObject = 010000002C12345600000000 /* Project object */;
 }

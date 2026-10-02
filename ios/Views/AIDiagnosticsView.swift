@@ -39,8 +39,8 @@ public struct AIDiagnosticsView: View {
                             // 3. Быстрые интеллектуальные действия (Мастер проблем и Претензия ISP)
                             quickActionsHub
 
-                            // 3.1 Бонусный глубокий AI-аудит за просмотр спонсорского видео Meta
-                            if MetaAdManager.shared.canShowAds {
+                            // 3.1 Бонусный глубокий AI-аудит за просмотр рекламного видео
+                            if YandexAdManager.shared.canShowAds {
                                 rewardedAIAnalysisCard
                             }
 
@@ -57,9 +57,8 @@ public struct AIDiagnosticsView: View {
                                 issuesAndRecommendationsSection(report: report)
                             }
 
-                            // 7. Рекламный баннер Meta Audience Network на видном месте
-                            MetaBannerView(contextTag: "AI и безопасность")
-                                .padding(.horizontal)
+                            // Рекламный баннер Яндекса
+                            YandexBannerView()
 
                             // 8. Сценарии интерактивного мастера траблшутинга
                             troubleshootingScenariosSection
@@ -73,7 +72,7 @@ public struct AIDiagnosticsView: View {
                                 .id("bottomID")
                         }
                         .padding(.vertical)
-                        .padding(.bottom, 70) // Безопасный отступ для закрепленного баннера Meta и таб-бара
+                        .padding(.bottom, 70) // Безопасный отступ для таб-бара
                     }
                     .onChange(of: viewModel.aiMessages.count) { _, _ in
                         withAnimation {
@@ -281,11 +280,11 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 3.1 Бонусный глубокий AI-аудит (Meta Rewarded Video)
+    // MARK: - 3.1 Бонусный глубокий AI-аудит (Yandex Rewarded)
 
     private var rewardedAIAnalysisCard: some View {
         Button {
-            MetaAdManager.shared.showRewardedVideo {
+            YandexAdManager.shared.showRewardedVideo {
                 Task {
                     await viewModel.runAIDiagnosticsAudit()
                     HapticManager.shared.notificationSuccess()
@@ -323,7 +322,7 @@ public struct AIDiagnosticsView: View {
                             Image(systemName: "infinity")
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                            Text("Meta Reward")
+                            Text("Реклама")
                                 .font(.system(size: 8, weight: .heavy, design: .rounded))
                                 .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
                         }

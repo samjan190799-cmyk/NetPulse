@@ -106,8 +106,8 @@ public struct DashboardView: View {
                             .transition(.scale.combined(with: .opacity))
                         }
 
-                        // 2. Рекламный баннер Meta Audience Network на самом видном месте
-                        MetaBannerView(contextTag: "Сетевые утилиты")
+                        // Рекламный баннер Яндекса
+                        YandexBannerView()
 
                         // 3. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN)
                         quickToolsSection
@@ -117,7 +117,7 @@ public struct DashboardView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
-                    .padding(.bottom, 110) // Безопасный отступ для закрепленного баннера Meta и таб-бара
+                    .padding(.bottom, 110) // Безопасный отступ для таб-бара
                 }
             }
             .navigationTitle("NetPulse")

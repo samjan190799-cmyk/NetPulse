@@ -866,8 +866,8 @@ public final class NetworkMonitorViewModel {
                 await self.storage.recordSpeedtest(result)
                 self.syncWidgetData(reloadTimelines: true)
 
-                // Триггер межстраничного объявления Meta Audience Network с учетом frequency capping
-                MetaAdManager.shared.recordActionAndTriggerInterstitial()
+                // Межстраничная реклама Яндекса с ограничением частоты показа
+                YandexAdManager.shared.recordActionAndTriggerInterstitial()
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
                 self.isSpeedtestRunning = false

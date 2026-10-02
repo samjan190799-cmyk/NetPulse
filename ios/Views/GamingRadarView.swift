@@ -32,10 +32,6 @@ public struct GamingRadarView: View {
                     // 2. Карточка лучшего сервера для матча (Matchmaking Advisor)
                     bestServerHeroCard
 
-                    // 3. Рекламный баннер Meta Audience Network на видном месте
-                    MetaBannerView(contextTag: "Гейминг")
-                        .padding(.horizontal)
-
                     // 4. Список дата-центров выбранной игры
                     clustersListSection
 

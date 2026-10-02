@@ -15,8 +15,9 @@ struct NetPulseApp: App {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
 
-        // Инициализация официального SDK Meta Audience Network (Meta Ads 2026)
-        MetaAdManager.shared.initialize()
+        // Инициализация Yandex Mobile Ads SDK (только если заданы боевые ID рекламных блоков)
+        YandexAdManager.shared.initialize()
+
     }
 
     var body: some Scene {
@@ -24,15 +25,21 @@ struct NetPulseApp: App {
             ContentView()
                 .onAppear {
                     restoreLiveActivityIfNeeded()
-                    MetaAdManager.shared.requestTrackingAuthorization()
+                    requestTrackingIfAdsEnabled()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
-                        MetaAdManager.shared.requestTrackingAuthorization()
+                        requestTrackingIfAdsEnabled()
                     }
                 }
         }
+    }
+
+    /// Системный запрос на отслеживание (ATT) — только когда реклама реально включена и у пользователя нет Pro
+    private func requestTrackingIfAdsEnabled() {
+        guard YandexAdManager.shared.canShowAds else { return }
+        AdMobManager.shared.requestTrackingAuthorization()
     }
 
     private func restoreLiveActivityIfNeeded() {

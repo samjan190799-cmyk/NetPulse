@@ -53,13 +53,6 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // 2. Спонсорский блок Meta Audience Network на видном месте
-                Section(header: Label("Партнер и спонсор", systemImage: "infinity")) {
-                    MetaBannerView(contextTag: "Meta Ads")
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                        .listRowBackground(Color.clear)
-                }
-
                 // 3. Статус и параметры опроса
                 Section(header: Label("Мониторинг сети", systemImage: "waveform.path.ecg")) {
                     HStack {
@@ -499,55 +492,6 @@ public struct SettingsView: View {
                         Text("nstat + IOKitBSD")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.accentPrimary)
-                    }
-                }
-
-                // 10. Диагностика Meta Audience Network (Только для разработчика / Владельца)
-                if AdMobManager.shared.isOwnerUnlocked {
-                    Section {
-                        HStack {
-                            Text("Статус SDK Meta")
-                            Spacer()
-                            Text(MetaAdManager.shared.isSDKInitialized ? "Инициализирован" : "Ожидание")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(MetaAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
-                        }
-
-                        HStack {
-                            Text("ATT Авторизация")
-                            Spacer()
-                            Text(MetaAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(MetaAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
-                        }
-
-                        HStack {
-                            Text("Interstitial Ad")
-                            Spacer()
-                            Text(MetaAdManager.shared.isInterstitialLoaded ? "Готов к показу" : "Кэшируется")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(NPTheme.textSecondary)
-                        }
-
-                        Button("Тест показа Interstitial Meta") {
-                            HapticManager.shared.impactMedium()
-                            MetaAdManager.shared.recordActionAndTriggerInterstitial()
-                        }
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(NPTheme.accentPrimary)
-
-                        Button("Тест Rewarded Video Meta") {
-                            HapticManager.shared.impactMedium()
-                            MetaAdManager.shared.showRewardedVideo {
-                                HapticManager.shared.notificationSuccess()
-                            }
-                        }
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                    } header: {
-                        Label("Разработчик: Meta Ads 2026", systemImage: "infinity")
-                    } footer: {
-                        Text("Инженерная панель Meta Audience Network. Доступна исключительно в режиме владельца приложения.")
                     }
                 }
             }

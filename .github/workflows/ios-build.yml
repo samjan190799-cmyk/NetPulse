@@ -168,7 +168,7 @@ jobs:
         id: ui
         if: ${{ !inputs.skip_ui }}
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 40
         working-directory: ./ios
         env:
           # Параметр ручного запуска передаётся через окружение и проверяется (защита от инъекции команд)
@@ -229,8 +229,8 @@ jobs:
             -derivedDataPath build/DerivedData \
             "${ONLY_ARGS[@]}" \
             -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 420 \
-            -maximum-test-execution-time-allowance 420 \
+            -default-test-execution-time-allowance 360 \
+            -maximum-test-execution-time-allowance 360 \
             -resultBundlePath build/ui.xcresult \
             2>&1 | tee build/ui.log | tail -n 80
 

@@ -32,6 +32,19 @@ on:
         type: boolean
         required: false
         default: false
+      sdk_probe:
+        description: 'Только справка по SDK: напечатать объявления API из установленного Xcode (без сборки, около 2 минут)'
+        type: boolean
+        required: false
+        default: false
+      sdk_pattern:
+        description: 'Для справки по SDK: что искать (регулярное выражение), например "UserAnnotation|struct UserLocation"'
+        required: false
+        default: 'UserAnnotation'
+      sdk_parts:
+        description: 'Для справки по SDK: слова в пути интерфейсов через пробел (по умолчанию MapKit)'
+        required: false
+        default: 'MapKit'
 
 permissions:
   contents: read
@@ -41,8 +54,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sdk-probe:
+    name: "Справка по SDK (объявления API из установленного Xcode)"
+    if: ${{ inputs.sdk_probe }}
+    runs-on: macos-15
+    timeout-minutes: 10
+
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Выбор Xcode"
+        run: |
+          if [ -d "/Applications/Xcode_26.0.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.1.app
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          elif [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: "Объявления API"
+        env:
+          # Значения проходят через окружение и проверяются в скрипте (защита от инъекции команд)
+          SDK_PATTERN: ${{ inputs.sdk_pattern }}
+          SDK_PARTS: ${{ inputs.sdk_parts }}
+        run: bash ios/ci/sdk_probe.sh "$SDK_PATTERN" "$SDK_PARTS"
+
   test:
     name: "Сборка, юнит-тесты и UI-тест в симуляторе"
+    if: ${{ !inputs.sdk_probe }}
     runs-on: macos-15
     timeout-minutes: 60
 

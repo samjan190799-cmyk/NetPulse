@@ -114,6 +114,8 @@
 		A30000092C12345600000009 /* AdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000092C12345600000009 /* AdTests.swift */; };
 		A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
 		A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000022C12345600000002 /* AppStoreScreenshotTests.swift */; };
+		A10000E82C123456000000E8 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E82C123456000000E8 /* AppLinks.swift */; };
+		A10000E92C123456000000E9 /* AppFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E92C123456000000E9 /* AppFeatures.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -266,6 +268,8 @@
 		B10000E62C123456000000E6 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
 		B30000092C12345600000009 /* AdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/AdTests.swift; sourceTree = "<group>"; };
 		B40000022C12345600000002 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
+		B10000E82C123456000000E8 /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AppLinks.swift; sourceTree = "<group>"; };
+		B10000E92C123456000000E9 /* AppFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AppFeatures.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -457,6 +461,8 @@
 				B10000D52C123456000000D5 /* RouteLocationSession.swift */,
 				B10000D62C123456000000D6 /* RouteRecorder.swift */,
 				B10000E32C123456000000E3 /* YandexAdManager.swift */,
+				B10000E82C123456000000E8 /* AppLinks.swift */,
+				B10000E92C123456000000E9 /* AppFeatures.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -750,6 +756,8 @@
 				A10000E42C123456000000E4 /* YandexBannerSlot.swift in Sources */,
 				A10000E52C123456000000E5 /* YandexStickyBannerView.swift in Sources */,
 				A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */,
+				A10000E82C123456000000E8 /* AppLinks.swift in Sources */,
+				A10000E92C123456000000E9 /* AppFeatures.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

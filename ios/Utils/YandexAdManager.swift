@@ -36,6 +36,21 @@ enum YandexAdConfig {
     static var usesDemoUnits: Bool {
         [bannerUnitID, interstitialUnitID, rewardedUnitID].contains { $0.hasPrefix("demo-") }
     }
+
+    /// Можно ли показывать рекламу в этой сборке. В отладочной (симулятор, CI) демо-блоки показывают тестовую
+    /// рекламу, чтобы проверять работу SDK. В выпускной (TestFlight, App Store) реклама молчит, пока блоки демо:
+    /// тестовая реклама пользователям ни к чему, а доход приносят только блоки из кабинета РСЯ.
+    static func isAllowed(inDebugBuild debug: Bool, usesDemoUnits demo: Bool) -> Bool {
+        debug || !demo
+    }
+
+    static var isAllowedInThisBuild: Bool {
+        #if DEBUG
+        return isAllowed(inDebugBuild: true, usesDemoUnits: usesDemoUnits)
+        #else
+        return isAllowed(inDebugBuild: false, usesDemoUnits: usesDemoUnits)
+        #endif
+    }
 }
 
 /// Менеджер рекламы Яндекса: запуск SDK, запрос разрешения на отслеживание (ATT), межстраничная реклама и реклама
@@ -57,9 +72,10 @@ final class YandexAdManager: NSObject {
     private(set) var isInterstitialLoaded = false
     private(set) var isRewardedLoaded = false
 
-    /// Реклама показывается, пока не куплен PRO
+    /// Реклама показывается, пока не куплен PRO и если сборка её допускает (в выпускной сборке — только с боевыми
+    /// блоками, см. `YandexAdConfig.isAllowed`)
     var canShowAds: Bool {
-        !Self.isDisabledForTesting && !AdMobManager.shared.isPremiumUser
+        !Self.isDisabledForTesting && YandexAdConfig.isAllowedInThisBuild && !AdMobManager.shared.isPremiumUser
     }
 
     /// Баннеры можно запрашивать, когда SDK инициализирован

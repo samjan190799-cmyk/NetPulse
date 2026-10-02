@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Рекламная карточка с баннером Яндекса для экранов-списков.
 /// Пока объявления нет (нет сети, нет подходящей рекламы, SDK ещё запускается), вместо него показывается
-/// собственное предложение приложения — NetPulse PRO.
+/// собственное предложение приложения — NetPulse PRO (только если платная версия включена: `AppFeatures`).
 @MainActor
 struct YandexBannerView: View {
     private let manager = YandexAdManager.shared
@@ -25,7 +25,7 @@ struct YandexBannerView: View {
     var body: some View {
         if manager.canShowAds {
             VStack(spacing: 6) {
-                if !isLoaded {
+                if !isLoaded && AppFeatures.proPurchaseEnabled {
                     fallbackCardView
                 }
                 adCard
@@ -56,13 +56,15 @@ struct YandexBannerView: View {
 
                     Spacer()
 
-                    Button {
-                        showProSheet = true
-                        HapticManager.shared.impactLight()
-                    } label: {
-                        Text("Отключить в PRO 💎")
-                            .font(.system(size: 8.5, weight: .semibold))
-                            .foregroundStyle(NPTheme.accentPrimary)
+                    if AppFeatures.proPurchaseEnabled {
+                        Button {
+                            showProSheet = true
+                            HapticManager.shared.impactLight()
+                        } label: {
+                            Text("Отключить в PRO 💎")
+                                .font(.system(size: 8.5, weight: .semibold))
+                                .foregroundStyle(NPTheme.accentPrimary)
+                        }
                     }
                 }
                 .padding(.horizontal, 4)

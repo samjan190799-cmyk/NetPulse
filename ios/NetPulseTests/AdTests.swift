@@ -109,6 +109,14 @@ final class YandexAdManagerTests: XCTestCase {
         XCTAssertFalse(YandexAdManager.shared.isInterstitialLoaded)
     }
 
+    /// В выпускной сборке с демо-блоками реклама молчит, в отладочной показывает тестовую; боевые блоки разрешены везде
+    func testReleaseBuildWithDemoUnitsShowsNoAds() {
+        XCTAssertTrue(YandexAdConfig.isAllowed(inDebugBuild: true, usesDemoUnits: true))
+        XCTAssertFalse(YandexAdConfig.isAllowed(inDebugBuild: false, usesDemoUnits: true))
+        XCTAssertTrue(YandexAdConfig.isAllowed(inDebugBuild: false, usesDemoUnits: false))
+        XCTAssertTrue(YandexAdConfig.isAllowed(inDebugBuild: true, usesDemoUnits: false))
+    }
+
     func testAdUnitIdentifiersAreFilled() {
         XCTAssertFalse(YandexAdConfig.bannerUnitID.isEmpty)
         XCTAssertFalse(YandexAdConfig.interstitialUnitID.isEmpty)

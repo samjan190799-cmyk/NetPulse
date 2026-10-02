@@ -208,3 +208,16 @@ final class HistoryExportTests: XCTestCase {
         XCTAssertFalse(csv.contains(",=HYPERLINK"), "Ячейка не должна начинаться с «=»")
     }
 }
+
+// MARK: - Ссылки на политику конфиденциальности и поддержку
+
+final class AppLinksTests: XCTestCase {
+    /// Правило App Store 5.1.1: политика конфиденциальности доступна по ссылке из приложения
+    func testPrivacyAndSupportLinksAreSecureWebPages() {
+        for url in [AppLinks.privacyPolicy, AppLinks.support] {
+            XCTAssertEqual(url.scheme, "https", "Ссылка должна быть защищённой: \(url)")
+            XCTAssertFalse((url.host ?? "").isEmpty, "У ссылки нет хоста: \(url)")
+        }
+        XCTAssertNotEqual(AppLinks.privacyPolicy, AppLinks.support)
+    }
+}

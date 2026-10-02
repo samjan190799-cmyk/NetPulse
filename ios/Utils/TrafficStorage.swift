@@ -21,6 +21,15 @@ public actor TrafficStorage {
     private var saveTask: Task<Void, Never>?
 
     private static let kLastHardwareCountersKey = "netpulse_last_hardware_counters"
+    private static let kLastBootTimeKey = "netpulse_last_boot_time"
+    private static let kLastCountersTimeKey = "netpulse_last_counters_time"
+
+    /// Максимум сессий на диске (раньше — 100: при смене сетей это ~3 недели, дальше статистика молча терялась)
+    private static let maxStoredSessions = 1000
+    /// Точки графика: минутные «корзины» за последние сутки, дальше — часовые, не старше 35 дней
+    private static let fineRetention: TimeInterval = 24 * 3600
+    private static let totalRetention: TimeInterval = 35 * 24 * 3600
+    private static let maxStoredDataPoints = 4000
 
     private static var sessionsFileURL: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -67,27 +76,15 @@ public actor TrafficStorage {
                 }
                 return nil
             }
-            loadedSessions = Array(sanitized.prefix(100))
+            loadedSessions = Array(sanitized.prefix(maxStoredSessions))
         }
 
-        // Однократная автоматическая санация ложной отдачи при раздаче интернета на ноутбук (Hotspot)
-        let kHotspotSanitizedKey = "netpulse_hotspot_v3_recalibrated"
-        if !UserDefaults.standard.bool(forKey: kHotspotSanitizedKey) {
-            UserDefaults.standard.set(true, forKey: kHotspotSanitizedKey)
-            loadedSessions = loadedSessions.map { session in
-                var s = session
-                // Если отдача в сотовой сети была ошибочно начислена из-за Wi-Fi моста на ноутбук (почти равна объему скачивания)
-                if s.connectionType.contains("Сотовая") && s.uploadedBytes > 10_000_000 && s.uploadedBytes >= (s.downloadedBytes / 2) {
-                    s.uploadedBytes = (s.downloadedBytes * 4) / 100 // Реальный TCP ACK трафик ~4%
-                }
-                return s
-            }
-        }
-
-        // Загрузка точек графиков
+        // Загрузка точек графиков (с компактизацией: старые минутные точки сворачиваются в часовые).
+        // Прежняя «санация» отдачи в сотовых сессиях (upload = 4 % от скачивания) удалена: она необратимо
+        // портила законные данные (выгрузка видео, звонки), а новый учёт больше не считает трафик раздачи дважды.
         if let data = try? Data(contentsOf: dataPointsFileURL),
            let decoded = try? JSONDecoder().decode([TrafficDataPoint].self, from: data) {
-            loadedPoints = Array(decoded.suffix(300))
+            loadedPoints = compactedDataPoints(decoded, now: Date())
         }
 
         // Загрузка квоты
@@ -102,10 +99,10 @@ public actor TrafficStorage {
     /// Прямая запись на диск без блокировок
     private func performDiskSave() {
         do {
-            let sData = try JSONEncoder().encode(Array(sessions.prefix(100)))
+            let sData = try JSONEncoder().encode(Array(sessions.prefix(Self.maxStoredSessions)))
             try sData.write(to: Self.sessionsFileURL, options: .atomic)
 
-            let pData = try JSONEncoder().encode(Array(dataPoints.suffix(300)))
+            let pData = try JSONEncoder().encode(dataPoints)
             try pData.write(to: Self.dataPointsFileURL, options: .atomic)
 
             let bData = try JSONEncoder().encode(budget)
@@ -150,13 +147,27 @@ public actor TrafficStorage {
 
     // MARK: - Фоновая синхронизация с аппаратными счетчиками ядра Darwin BSD (Zero-Loss)
 
-    /// Синхронизация трафика, потраченного строго пока приложение спало или было закрыто
+    /// Время последней перезагрузки устройства (kern.boottime). Счётчики интерфейсов при перезагрузке обнуляются.
+    private static func currentBootTime() -> TimeInterval? {
+        var bootTime = timeval()
+        var size = MemoryLayout<timeval>.stride
+        guard sysctlbyname("kern.boottime", &bootTime, &size, nil, 0) == 0 else { return nil }
+        return TimeInterval(bootTime.tv_sec)
+    }
+
+    /// Синхронизация трафика, потраченного строго пока приложение спало или было закрыто.
+    ///
+    /// Дельта считается по КАЖДОМУ типу сети отдельно и записывается в сессию своего типа независимо от текущего
+    /// подключения: раньше учитывалась только текущая сеть, и трафик другой (например, сотовой после ухода
+    /// с Wi-Fi в фоне) терялся. После перезагрузки счётчики начинаются с нуля, и раньше это принималось за
+    /// 32-битное переполнение (фантомные сотни мегабайт).
     public func reconcileBackgroundHardwareTraffic(
         currentConnectionType: String,
         currentNetworkName: String
     ) {
         let currentCounters = BandwidthEngine.fetchDetailedInterfaceBytes()
         let now = Date()
+        let bootNow = Self.currentBootTime()
 
         // 1. Считываем сохраненную базовую точку при уходе в фон
         guard let savedData = UserDefaults.standard.data(forKey: Self.kLastHardwareCountersKey),
@@ -168,94 +179,201 @@ public actor TrafficStorage {
             return
         }
 
-        // 2. Вычисляем пропущенные дельты физических интерфейсов
-        let missingWifiIn = BandwidthEngine.computeDelta(prev: saved.wifiIn, current: currentCounters.wifiIn)
-        let missingWifiOut = BandwidthEngine.computeDelta(prev: saved.wifiOut, current: currentCounters.wifiOut)
+        // 2. Что изменилось с момента сохранения: перезагрузка и прошедшее время
+        let savedBoot = UserDefaults.standard.object(forKey: Self.kLastBootTimeKey) as? Double
+        let rebooted: Bool
+        if let boot = bootNow, let previous = savedBoot {
+            rebooted = abs(boot - previous) > 5.0
+        } else {
+            rebooted = false
+        }
+        let savedTime = UserDefaults.standard.object(forKey: Self.kLastCountersTimeKey) as? Double
+        let elapsed: TimeInterval? = savedTime.map { max(now.timeIntervalSince1970 - $0, 1.0) }
+        // Правдоподобный максимум за прошедшее время (250 МБ/с): всё, что больше, — сброс счётчика, а не трафик
+        let plausibleCap: UInt64 = elapsed.map { UInt64(min($0 * 250_000_000.0, 4_000_000_000.0)) } ?? 2_000_000_000
 
-        let missingCellIn = BandwidthEngine.computeDelta(prev: saved.cellularIn, current: currentCounters.cellularIn)
-        let missingCellOut = BandwidthEngine.computeDelta(prev: saved.cellularOut, current: currentCounters.cellularOut)
+        func missing(_ previous: UInt64, _ current: UInt64) -> UInt64 {
+            if rebooted {
+                return current   // счётчики обнулились при перезагрузке: всё накопленное — трафик без нашего учёта
+            }
+            return BandwidthEngine.computeDelta(prev: previous, current: current, maxPlausibleDelta: plausibleCap)
+        }
 
-        let isWifi = currentConnectionType.contains("Wi-Fi") || currentConnectionType.lowercased().contains("wifi")
-        let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
-        let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
-        let ifName = isWifi ? "en0" : "pdp_ip0"
-
-        let totalMissingIn = isWifi ? missingWifiIn : missingCellIn
-        let totalMissingOut = isWifi ? missingWifiOut : missingCellOut
+        let wifiIn = missing(saved.wifiIn, currentCounters.wifiIn)
+        let wifiOut = missing(saved.wifiOut, currentCounters.wifiOut)
+        let cellIn = missing(saved.cellularIn, currentCounters.cellularIn)
+        let cellOut = missing(saved.cellularOut, currentCounters.cellularOut)
 
         // 3. НЕМЕДЛЕННО обновляем базовую точку в UserDefaults и в BandwidthEngine,
         // чтобы активный цикл не посчитал эти байты второй раз!
         persistHardwareCounters(currentCounters)
         BandwidthEngine.shared.resetBaseline(to: currentCounters)
 
-        if totalMissingIn > 0 || totalMissingOut > 0 {
-            let bgDistribution = TrafficClassifier.shared.distributeSample(
-                deltaDownload: totalMissingIn,
-                deltaUpload: totalMissingOut,
-                speedBps: Double(totalMissingIn + totalMissingOut),
-                isSpeedtestActive: false,
-                isBackground: true
-            )
+        // Окно, в течение которого трафик не наблюдался (для границ сессии)
+        var windowStart = now.addingTimeInterval(-60)
+        if let elapsedSeconds = elapsed, elapsedSeconds < 7 * 86400 {
+            windowStart = now.addingTimeInterval(-elapsedSeconds)
+        }
 
-            if let activeId = currentActiveSessionId,
-               let index = sessions.firstIndex(where: { $0.id == activeId }),
-               sessions[index].connectionType == normConnType {
-                sessions[index].downloadedBytes += totalMissingIn
-                sessions[index].uploadedBytes += totalMissingOut
-                sessions[index].endDate = now
-                sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
-                    existing: sessions[index].categoryUsages,
-                    additions: bgDistribution
-                )
-            } else {
-                if let activeId = currentActiveSessionId,
-                   let index = sessions.firstIndex(where: { $0.id == activeId }) {
-                    sessions[index].isActive = false
-                    sessions[index].endDate = now
-                }
-
-                let initialCategories = TrafficClassifier.shared.mergeCategoryUsages(
-                    existing: [],
-                    additions: bgDistribution
-                )
-                let backgroundSession = TrafficSession(
-                    networkName: normNetName,
-                    connectionType: normConnType,
-                    interfaceName: ifName,
-                    startDate: now.addingTimeInterval(-60),
-                    endDate: now,
-                    downloadedBytes: totalMissingIn,
-                    uploadedBytes: totalMissingOut,
-                    peakDownloadBps: Double(totalMissingIn),
-                    peakUploadBps: Double(totalMissingOut),
-                    isActive: true,
-                    categoryUsages: initialCategories
-                )
-                sessions.insert(backgroundSession, at: 0)
-                currentActiveSessionId = backgroundSession.id
-            }
-
-            // Добавляем точку на график
-            let point = TrafficDataPoint(
-                timestamp: now,
-                downloadBytes: totalMissingIn,
-                uploadBytes: totalMissingOut,
-                wifiBytes: isWifi ? (totalMissingIn + totalMissingOut) : 0,
-                cellularBytes: !isWifi ? (totalMissingIn + totalMissingOut) : 0
-            )
-            dataPoints.append(point)
-            if dataPoints.count > 300 {
-                dataPoints.removeFirst(dataPoints.count - 300)
-            }
-
+        var added = false
+        if wifiIn > 0 || wifiOut > 0 {
+            addBackgroundTraffic(isWifi: true, download: wifiIn, upload: wifiOut, windowStart: windowStart, now: now)
+            added = true
+        }
+        if cellIn > 0 || cellOut > 0 {
+            addBackgroundTraffic(isWifi: false, download: cellIn, upload: cellOut, windowStart: windowStart, now: now)
+            added = true
+        }
+        if added {
             scheduleDebouncedSave()
         }
+    }
+
+    /// Начисление трафика, прошедшего в фоне, в сессию соответствующего типа сети
+    private func addBackgroundTraffic(isWifi: Bool, download: UInt64, upload: UInt64, windowStart: Date, now: Date) {
+        let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
+        let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
+        let ifName = isWifi ? "en0" : "pdp_ip0"
+
+        let bgDistribution = TrafficClassifier.shared.distributeSample(
+            deltaDownload: download,
+            deltaUpload: upload,
+            speedBps: Double(download + upload),
+            isSpeedtestActive: false,
+            isBackground: true
+        )
+
+        if let activeId = currentActiveSessionId,
+           let index = sessions.firstIndex(where: { $0.id == activeId }),
+           sessions[index].connectionType == normConnType {
+            sessions[index].downloadedBytes += download
+            sessions[index].uploadedBytes += upload
+            sessions[index].endDate = now
+            sessions[index].categoryUsages = TrafficClassifier.shared.mergeCategoryUsages(
+                existing: sessions[index].categoryUsages,
+                additions: bgDistribution
+            )
+        } else {
+            if let activeId = currentActiveSessionId,
+               let index = sessions.firstIndex(where: { $0.id == activeId }) {
+                sessions[index].isActive = false
+                sessions[index].endDate = now
+            }
+
+            let initialCategories = TrafficClassifier.shared.mergeCategoryUsages(
+                existing: [],
+                additions: bgDistribution
+            )
+            let backgroundSession = TrafficSession(
+                networkName: normNetName,
+                connectionType: normConnType,
+                interfaceName: ifName,
+                startDate: windowStart,
+                endDate: now,
+                downloadedBytes: download,
+                uploadedBytes: upload,
+                peakDownloadBps: Double(download),
+                peakUploadBps: Double(upload),
+                isActive: true,
+                categoryUsages: initialCategories
+            )
+            sessions.insert(backgroundSession, at: 0)
+            currentActiveSessionId = backgroundSession.id
+        }
+
+        appendToDataPoints(
+            timestamp: now,
+            download: download,
+            upload: upload,
+            wifi: isWifi ? (download + upload) : 0,
+            cellular: isWifi ? 0 : (download + upload)
+        )
     }
 
     public func persistHardwareCounters(_ counters: InterfaceByteCounters) {
         if let encoded = try? JSONEncoder().encode(counters) {
             UserDefaults.standard.set(encoded, forKey: Self.kLastHardwareCountersKey)
         }
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.kLastCountersTimeKey)
+        if let boot = Self.currentBootTime() {
+            let saved = UserDefaults.standard.object(forKey: Self.kLastBootTimeKey) as? Double
+            if saved != boot {
+                UserDefaults.standard.set(boot, forKey: Self.kLastBootTimeKey)
+            }
+        }
+    }
+
+    // MARK: - Точки графика: минутные корзины с компактизацией
+
+    /// Добавляет байты в минутную «корзину». Раньше каждая секунда активности была отдельной точкой при лимите
+    /// в 300 точек, и графики «24 часа / 7 / 30 дней» охватывали лишь последние ~5 минут.
+    private func appendToDataPoints(timestamp: Date, download: UInt64, upload: UInt64, wifi: UInt64, cellular: UInt64) {
+        let bucketStart = Date(timeIntervalSince1970: (timestamp.timeIntervalSince1970 / 60.0).rounded(.down) * 60.0)
+        if let last = dataPoints.last, last.timestamp == bucketStart {
+            dataPoints[dataPoints.count - 1] = TrafficDataPoint(
+                id: last.id,
+                timestamp: bucketStart,
+                downloadBytes: last.downloadBytes + download,
+                uploadBytes: last.uploadBytes + upload,
+                wifiBytes: last.wifiBytes + wifi,
+                cellularBytes: last.cellularBytes + cellular
+            )
+        } else {
+            dataPoints.append(TrafficDataPoint(
+                timestamp: bucketStart,
+                downloadBytes: download,
+                uploadBytes: upload,
+                wifiBytes: wifi,
+                cellularBytes: cellular
+            ))
+            // Новая минута — подходящий момент свернуть старые точки (не каждую секунду)
+            dataPoints = Self.compactedDataPoints(dataPoints, now: timestamp)
+        }
+    }
+
+    /// Минутные точки старше суток сворачиваются в часовые, точки старше 35 дней отбрасываются.
+    /// Предполагает хронологический порядок точек (они только добавляются в конец).
+    private static func compactedDataPoints(_ points: [TrafficDataPoint], now: Date) -> [TrafficDataPoint] {
+        let fineCutoff = now.addingTimeInterval(-fineRetention)
+        let dropCutoff = now.addingTimeInterval(-totalRetention)
+
+        var result: [TrafficDataPoint] = []
+        result.reserveCapacity(points.count)
+
+        for point in points {
+            if point.timestamp < dropCutoff {
+                continue
+            }
+            if point.timestamp >= fineCutoff {
+                result.append(point)
+                continue
+            }
+            let hourStart = Date(timeIntervalSince1970: (point.timestamp.timeIntervalSince1970 / 3600.0).rounded(.down) * 3600.0)
+            if let last = result.last, last.timestamp == hourStart {
+                result[result.count - 1] = TrafficDataPoint(
+                    id: last.id,
+                    timestamp: hourStart,
+                    downloadBytes: last.downloadBytes + point.downloadBytes,
+                    uploadBytes: last.uploadBytes + point.uploadBytes,
+                    wifiBytes: last.wifiBytes + point.wifiBytes,
+                    cellularBytes: last.cellularBytes + point.cellularBytes
+                )
+            } else {
+                result.append(TrafficDataPoint(
+                    id: point.id,
+                    timestamp: hourStart,
+                    downloadBytes: point.downloadBytes,
+                    uploadBytes: point.uploadBytes,
+                    wifiBytes: point.wifiBytes,
+                    cellularBytes: point.cellularBytes
+                ))
+            }
+        }
+
+        if result.count > maxStoredDataPoints {
+            result.removeFirst(result.count - maxStoredDataPoints)
+        }
+        return result
     }
 
     // MARK: - Управление активной сессией сети (Реальный замер дельты)
@@ -274,7 +392,14 @@ public actor TrafficStorage {
         }
 
         let now = Date()
-        let isWifi = connectionType.contains("Wi-Fi") || connectionType.lowercased().contains("wifi")
+        // Тип сети — по тому, какой интерфейс реально передавал байты. Раньше брался `connectionType`, который
+        // обновляется раз в ~20 секунд: при переходе Wi-Fi → LTE первые секунды записывались не в ту сеть.
+        let isWifi: Bool
+        if snapshot.deltaWifiBytes > 0 || snapshot.deltaCellularBytes > 0 {
+            isWifi = snapshot.deltaWifiBytes >= snapshot.deltaCellularBytes
+        } else {
+            isWifi = connectionType.contains("Wi-Fi") || connectionType.lowercased().contains("wifi")
+        }
         let normConnType = isWifi ? "Wi-Fi" : "Сотовая связь"
         let normNetName = isWifi ? "Wi-Fi Подключение" : "Мобильная сеть (LTE/5G)"
 
@@ -333,20 +458,15 @@ public actor TrafficStorage {
             }
         }
 
-        // 3. Записываем реальную точку графика расхода, если была активность
+        // 3. Записываем реальный расход в минутную «корзину» графика, если была активность
         if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
-            let point = TrafficDataPoint(
+            appendToDataPoints(
                 timestamp: now,
-                downloadBytes: snapshot.deltaDownloadBytes,
-                uploadBytes: snapshot.deltaUploadBytes,
-                wifiBytes: isWifi ? (snapshot.deltaDownloadBytes + snapshot.deltaUploadBytes) : 0,
-                cellularBytes: !isWifi ? (snapshot.deltaDownloadBytes + snapshot.deltaUploadBytes) : 0
+                download: snapshot.deltaDownloadBytes,
+                upload: snapshot.deltaUploadBytes,
+                wifi: isWifi ? (snapshot.deltaDownloadBytes + snapshot.deltaUploadBytes) : 0,
+                cellular: isWifi ? 0 : (snapshot.deltaDownloadBytes + snapshot.deltaUploadBytes)
             )
-            dataPoints.append(point)
-
-            if dataPoints.count > 300 {
-                dataPoints.removeFirst(dataPoints.count - 300)
-            }
         }
 
         // 4. Синхронизируем базовую точку счетчиков в UserDefaults, исключая двойной подсчет при переходе в фон
@@ -371,15 +491,53 @@ public actor TrafficStorage {
         return sessions.first(where: { $0.isActive })
     }
 
+    /// Доля байт сессии, относящаяся к периоду, начинающемуся в `cutoff` (пропорционально времени пересечения).
+    /// Раньше сессия, пересекающая границу периода, учитывалась ЦЕЛИКОМ: начатая вчера в 07:00 в 00:30 попадала
+    /// в «Сегодня» вся (≈ 17,5 ч вместо 0,5 ч), что искажало и квоту, и предупреждения.
+    private static func periodFraction(of session: TrafficSession, cutoff: Date, now: Date) -> Double {
+        if session.startDate >= cutoff {
+            return 1.0
+        }
+        let end = min(session.endDate ?? now, now)
+        guard end > cutoff else { return 0.0 }
+        let total = end.timeIntervalSince(session.startDate)
+        guard total > 0 else { return 1.0 }
+        return min(1.0, max(0.0, end.timeIntervalSince(cutoff) / total))
+    }
+
+    private static func scaled(_ value: UInt64, by fraction: Double) -> UInt64 {
+        if fraction >= 1.0 { return value }
+        return UInt64((Double(value) * fraction).rounded())
+    }
+
+    /// Копия сессии с байтами, отнесёнными к периоду (для суммирования и разбивки по категориям)
+    private static func session(_ session: TrafficSession, scaledBy fraction: Double) -> TrafficSession {
+        if fraction >= 1.0 { return session }
+        var copy = session
+        copy.downloadedBytes = scaled(session.downloadedBytes, by: fraction)
+        copy.uploadedBytes = scaled(session.uploadedBytes, by: fraction)
+        copy.categoryUsages = session.categoryUsages.map { usage in
+            var u = usage
+            u.downloadBytes = scaled(usage.downloadBytes, by: fraction)
+            u.uploadBytes = scaled(usage.uploadBytes, by: fraction)
+            return u
+        }
+        return copy
+    }
+
     public func getSummary(for period: TrafficPeriod) -> TrafficSummary {
-        let cutoffDate = cutoffDate(for: period)
-        let filteredSessions = sessions.filter { $0.startDate >= cutoffDate || ($0.endDate.map { $0 >= cutoffDate } ?? false) || $0.isActive }
+        let now = Date()
+        let cutoff = cutoffDate(for: period)
 
         var summary = TrafficSummary()
-        summary.totalSessionsCount = filteredSessions.count
-        summary.activeSessionsCount = filteredSessions.filter { $0.isActive }.count
+        var inPeriod: [TrafficSession] = []
 
-        for s in filteredSessions {
+        for original in sessions {
+            let fraction = Self.periodFraction(of: original, cutoff: cutoff, now: now)
+            guard fraction > 0 else { continue }
+            let s = Self.session(original, scaledBy: fraction)
+            inPeriod.append(s)
+
             summary.totalDownload += s.downloadedBytes
             summary.totalUpload += s.uploadedBytes
 
@@ -392,8 +550,10 @@ public actor TrafficStorage {
             }
         }
 
+        summary.totalSessionsCount = inPeriod.count
+        summary.activeSessionsCount = inPeriod.filter { $0.isActive }.count
         summary.categoryBreakdown = TrafficClassifier.shared.aggregateCategoryBreakdown(
-            from: filteredSessions,
+            from: inPeriod,
             totalTraffic: summary.totalTraffic
         )
 
@@ -401,13 +561,14 @@ public actor TrafficStorage {
     }
 
     public func getSessions(for period: TrafficPeriod) -> [TrafficSession] {
-        let cutoffDate = cutoffDate(for: period)
-        return sessions.filter { $0.startDate >= cutoffDate || ($0.endDate.map { $0 >= cutoffDate } ?? false) || $0.isActive }
+        let now = Date()
+        let cutoff = cutoffDate(for: period)
+        return sessions.filter { Self.periodFraction(of: $0, cutoff: cutoff, now: now) > 0 }
     }
 
     public func getDataPoints(for period: TrafficPeriod) -> [TrafficDataPoint] {
-        let cutoffDate = cutoffDate(for: period)
-        return dataPoints.filter { $0.timestamp >= cutoffDate }
+        let cutoff = cutoffDate(for: period)
+        return dataPoints.filter { $0.timestamp >= cutoff }
     }
 
     public func getBudget() -> TrafficBudget {

@@ -3,338 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Всё нужное лежит локально (/static): ни CDN, ни внешних шрифтов. Inline-скриптов и стилей нет. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
     <title>NetPulse — Мониторинг сети и замер скорости</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="shortcut icon" href="/static/favicon.ico">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #0d1117;
-            --bg-card: #161b22;
-            --bg-card-hover: #1c2128;
-            --border-color: #30363d;
-            --accent-blue: #2f81f7;
-            --accent-green: #3fb950;
-            --accent-yellow: #d29922;
-            --accent-red: #f85149;
-            --text-primary: #f0f6fc;
-            --text-secondary: #8b949e;
-            --text-tertiary: #6e7681;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            padding: 24px;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .container {
-            max-width: 1300px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 24px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-        }
-
-        .logo-box {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-img {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            object-fit: cover;
-            border: 1px solid var(--border-color);
-        }
-
-        .logo-box h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-            letter-spacing: -0.3px;
-        }
-
-        .badge-live {
-            background: rgba(63, 185, 80, 0.15);
-            color: var(--accent-green);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .badge-live::before {
-            content: "";
-            width: 6px;
-            height: 6px;
-            background: var(--accent-green);
-            border-radius: 50%;
-        }
-
-        /* Speedtest Hero Card */
-        .speedtest-hero {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .section-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .speedtest-grid {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            gap: 24px;
-            align-items: center;
-        }
-
-        @media (max-width: 860px) {
-            .speedtest-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .speed-gauge-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: #0d1117;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .speed-value-big {
-            font-size: 48px;
-            font-weight: 700;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--text-primary);
-            line-height: 1;
-            margin-bottom: 4px;
-        }
-
-        .speed-unit {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .speed-status-text {
-            font-size: 12px;
-            color: var(--text-tertiary);
-            margin-top: 8px;
-        }
-
-        .metrics-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 12px;
-        }
-
-        .metric-card {
-            background: #0d1117;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 14px;
-        }
-
-        .metric-card-label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
-
-        .metric-card-val {
-            font-size: 18px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--text-primary);
-        }
-
-        .btn-speedtest {
-            background: var(--accent-blue);
-            color: #ffffff;
-            border: none;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.15s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-        }
-
-        .btn-speedtest:hover {
-            background: #1f6feb;
-        }
-
-        .btn-speedtest:disabled {
-            background: #21262d;
-            color: var(--text-tertiary);
-            cursor: not-allowed;
-        }
-
-        .btn-secondary {
-            background: #21262d;
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 500;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-
-        .btn-secondary:hover {
-            background: #30363d;
-        }
-
-        /* Topology Grid */
-        .grid-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-        }
-
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-        }
-
-        .card-label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .card-val {
-            font-size: 16px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Targets Table */
-        .table-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-        }
-
-        th {
-            text-align: left;
-            padding: 12px 16px;
-            color: var(--text-secondary);
-            background: #0d1117;
-            border-bottom: 1px solid var(--border-color);
-            font-weight: 500;
-            font-size: 12px;
-        }
-
-        td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tr:hover td {
-            background: var(--bg-card-hover);
-        }
-
-        .status-pill {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .status-ok { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); }
-        .status-warn { background: rgba(210, 153, 34, 0.15); color: var(--accent-yellow); }
-        .status-crit { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); }
-
-        .chart-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px;
-            height: 300px;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/dashboard.css">
+    <script src="/static/vendor/chart.umd.min.js" defer></script>
+    <script src="/static/dashboard.js" defer></script>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <header>
             <div class="logo-box">
-                <img src="/static/logo.png" alt="NetPulse" class="logo-img" onerror="this.style.display='none'">
+                <img src="/static/logo.png" alt="NetPulse" class="logo-img" id="logo-img">
                 <h1>NetPulse</h1>
-                <div class="badge-live">ONLINE</div>
+                <div class="badge-live offline" id="conn-badge" role="status">ПОДКЛЮЧЕНИЕ…</div>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-secondary" onclick="exportData('json')">Экспорт JSON</button>
-                <button class="btn-secondary" onclick="exportData('csv')">Экспорт CSV</button>
+            <div class="header-actions">
+                <span class="updated-at" id="updated-at"></span>
+                <a class="btn-secondary" href="/api/export/json" download>Экспорт JSON</a>
+                <a class="btn-secondary" href="/api/export/csv" download>Экспорт CSV</a>
             </div>
         </header>
 
@@ -342,17 +32,17 @@
         <div class="speedtest-hero">
             <div class="section-header">
                 <div class="section-title">Тест скорости соединения</div>
-                <div id="speed-server-name" style="font-size: 12px; color: var(--text-secondary);">Сервер: Cloudflare CDN Edge</div>
+                <div class="speed-server-name" id="speed-server-name">Сервер: Cloudflare CDN Edge</div>
             </div>
 
             <div class="speedtest-grid">
                 <div class="speed-gauge-box">
-                    <div class="speed-value-big" id="live-speed-val">0.0</div>
+                    <div class="speed-value-big" id="live-speed-val">—</div>
                     <div class="speed-unit">Мбит/с</div>
-                    <div class="speed-status-text" id="speed-status-label">Готов к замеру</div>
+                    <div class="speed-status-text" id="speed-status-label" aria-live="polite">Готов к замеру</div>
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div class="speed-col">
                     <div class="metrics-cards">
                         <div class="metric-card">
                             <div class="metric-card-label">↓ Скачивание</div>
@@ -363,16 +53,16 @@
                             <div class="metric-card-val" id="res-upload">—</div>
                         </div>
                         <div class="metric-card">
-                            <div class="metric-card-label">Пинг (RTT)</div>
+                            <div class="metric-card-label">RTT (средний по узлам)</div>
                             <div class="metric-card-val" id="res-ping">—</div>
                         </div>
                         <div class="metric-card">
-                            <div class="metric-card-label">Джиттер</div>
+                            <div class="metric-card-label">Джиттер (средний)</div>
                             <div class="metric-card-val" id="res-jitter">—</div>
                         </div>
                     </div>
 
-                    <button class="btn-speedtest" id="btn-run-speedtest" onclick="triggerSpeedtest()">
+                    <button type="button" class="btn-speedtest" id="btn-run-speedtest">
                         Начать тест скорости
                     </button>
                 </div>
@@ -383,27 +73,28 @@
         <div class="grid-info">
             <div class="card">
                 <div class="card-label">Локальный IP</div>
-                <div class="card-val" id="local-ip">...</div>
+                <div class="card-val" id="local-ip">…</div>
             </div>
             <div class="card">
                 <div class="card-label">Шлюз по умолчанию</div>
-                <div class="card-val" id="gateway-ip">...</div>
+                <div class="card-val" id="gateway-ip">…</div>
             </div>
             <div class="card">
-                <div class="card-label">Публичный IP & Провайдер</div>
-                <div class="card-val" id="public-ip" style="font-size: 14px;">...</div>
+                <div class="card-label">Публичный IP и провайдер</div>
+                <div class="card-val small" id="public-ip">…</div>
             </div>
             <div class="card">
                 <div class="card-label">Сетевой интерфейс</div>
-                <div class="card-val" id="iface-name">...</div>
+                <div class="card-val" id="iface-name">…</div>
             </div>
         </div>
 
         <!-- Latency Chart -->
         <div class="chart-box">
-            <div class="card-label" style="margin-bottom: 12px;">Динамика RTT (мс)</div>
-            <div style="position: relative; height: 230px;">
-                <canvas id="latencyChart"></canvas>
+            <div class="card-label">Динамика RTT (мс)</div>
+            <div class="chart-canvas-wrap">
+                <canvas id="latencyChart" role="img" aria-label="График задержки до наблюдаемых узлов"></canvas>
+                <div class="chart-note hidden" id="chart-note">График недоступен: не загрузилась библиотека Chart.js (/static/vendor). Таблица ниже работает.</div>
             </div>
         </div>
 
@@ -416,186 +107,25 @@
                         <th>Адрес</th>
                         <th>RTT (мс)</th>
                         <th>Min / Avg / Max</th>
+                        <th>P50 / P95 / P99</th>
                         <th>Джиттер</th>
-                        <th>Потери %</th>
+                        <th>Потери (окно / все)</th>
                         <th>Статус</th>
                     </tr>
                 </thead>
                 <tbody id="hosts-tbody">
-                    <tr><td colspan="7" style="text-align: center; color: var(--text-tertiary);">Загрузка узлов...</td></tr>
+                    <tr><td colspan="8" class="empty">Загрузка узлов…</td></tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- Alerts -->
+        <div class="alerts-box">
+            <div class="card-label">Последние события</div>
+            <ul class="alerts-list" id="alerts-list">
+                <li class="alerts-empty">Событий пока нет</li>
+            </ul>
+        </div>
     </div>
-
-    <script>
-        let latencyChart = null;
-        let chartHostLabels = [];
-        let chartDatasets = {};
-        const MAX_CHART_POINTS = 30;
-
-        function initChart() {
-            const ctx = document.getElementById('latencyChart').getContext('2d');
-            latencyChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: Array.from({length: MAX_CHART_POINTS}, (_, i) => ''),
-                    datasets: []
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 250 },
-                    elements: {
-                        line: { tension: 0.3, borderWidth: 2 },
-                        point: { radius: 0 }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { display: false }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255, 255, 255, 0.06)' },
-                            ticks: { color: '#8b949e', font: { family: 'JetBrains Mono', size: 11 } }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: { color: '#f0f6fc', boxWidth: 12, font: { family: 'Inter', size: 12 } }
-                        }
-                    }
-                }
-            });
-        }
-
-        async function fetchSystemInfo() {
-            try {
-                const res = await fetch('/api/system');
-                if (!res.ok) return;
-                const data = await res.json();
-                document.getElementById('local-ip').textContent = data.local_ip || '—';
-                document.getElementById('gateway-ip').textContent = data.gateway_ip || '—';
-                document.getElementById('public-ip').textContent = `${data.public_ip || '—'} (${data.isp_name || 'Локальная сеть'})`;
-                document.getElementById('iface-name').textContent = data.interface_name || 'Auto';
-            } catch (e) {
-                console.error('System info fetch error:', e);
-            }
-        }
-
-        const HOST_COLORS = ['#2f81f7', '#3fb950', '#d29922', '#a371f7', '#f85149'];
-
-        async function fetchStats() {
-            try {
-                const res = await fetch('/api/stats');
-                if (!res.ok) return;
-                const stats = await res.json();
-
-                const tbody = document.getElementById('hosts-tbody');
-                tbody.innerHTML = '';
-
-                let avgPing = 0;
-                let avgJitter = 0;
-                let validCount = 0;
-
-                stats.forEach((s, idx) => {
-                    const tr = document.createElement('tr');
-                    
-                    const statusClass = s.status === 'OK' ? 'status-ok' : (s.status === 'WARN' ? 'status-warn' : 'status-crit');
-                    const rttStr = s.last_latency_ms !== null ? s.last_latency_ms.toFixed(1) : 'LOST';
-                    const minAvgMax = `${Math.round(s.min_latency_ms || 0)} / ${Math.round(s.avg_latency_ms || 0)} / ${Math.round(s.max_latency_ms || 0)}`;
-                    
-                    tr.innerHTML = `
-                        <td><strong>${s.name}</strong> ${s.is_gateway ? '★' : ''}</td>
-                        <td>${s.address}</td>
-                        <td style="color: ${s.last_latency_ms !== null ? 'var(--text-primary)' : 'var(--accent-red)'}">${rttStr}</td>
-                        <td>${minAvgMax}</td>
-                        <td>${s.jitter_ms.toFixed(1)} мс</td>
-                        <td>${s.loss_window_pct.toFixed(1)}%</td>
-                        <td><span class="status-pill ${statusClass}">${s.status}</span></td>
-                    `;
-                    tbody.appendChild(tr);
-
-                    if (s.last_latency_ms !== null) {
-                        avgPing += s.last_latency_ms;
-                        avgJitter += s.jitter_ms;
-                        validCount++;
-                    }
-
-                    // Обновление графика
-                    if (!chartDatasets[s.name]) {
-                        const color = HOST_COLORS[idx % HOST_COLORS.length];
-                        chartDatasets[s.name] = {
-                            label: s.name,
-                            data: Array(MAX_CHART_POINTS).fill(null),
-                            borderColor: color,
-                            backgroundColor: color + '15',
-                            fill: false
-                        };
-                        latencyChart.data.datasets.push(chartDatasets[s.name]);
-                    }
-
-                    const ds = chartDatasets[s.name];
-                    ds.data.push(s.last_latency_ms);
-                    if (ds.data.length > MAX_CHART_POINTS) {
-                        ds.data.shift();
-                    }
-                });
-
-                if (validCount > 0) {
-                    document.getElementById('res-ping').textContent = (avgPing / validCount).toFixed(0) + ' мс';
-                    document.getElementById('res-jitter').textContent = (avgJitter / validCount).toFixed(1) + ' мс';
-                }
-
-                latencyChart.update('none');
-            } catch (e) {
-                console.error('Stats fetch error:', e);
-            }
-        }
-
-        async function triggerSpeedtest() {
-            const btn = document.getElementById('btn-run-speedtest');
-            const statusLabel = document.getElementById('speed-status-label');
-            const speedVal = document.getElementById('live-speed-val');
-            
-            btn.disabled = true;
-            btn.textContent = 'Выполняется замер...';
-            statusLabel.textContent = 'Замер пропускной способности...';
-            speedVal.textContent = '...';
-
-            try {
-                const res = await fetch('/api/speedtest', { method: 'POST' });
-                if (!res.ok) throw new Error('Ошибка запуска Speedtest');
-                const data = await res.json();
-
-                document.getElementById('res-download').textContent = data.download_mbps.toFixed(1) + ' Мбит/с';
-                document.getElementById('res-upload').textContent = data.upload_mbps.toFixed(1) + ' Мбит/с';
-                speedVal.textContent = data.download_mbps.toFixed(1);
-                statusLabel.textContent = `Завершено (${data.duration_s} сек)`;
-                if (data.server) {
-                    document.getElementById('speed-server-name').textContent = `Сервер: ${data.server}`;
-                }
-            } catch (e) {
-                statusLabel.textContent = 'Ошибка замера';
-                console.error(e);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Начать тест скорости';
-            }
-        }
-
-        function exportData(type) {
-            window.location.href = `/api/export/${type}`;
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            initChart();
-            fetchSystemInfo();
-            fetchStats();
-            setInterval(fetchStats, 1000);
-            setInterval(fetchSystemInfo, 10000);
-        });
-    </script>
 </body>
 </html>

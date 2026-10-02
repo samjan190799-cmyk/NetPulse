@@ -7,31 +7,41 @@
 
 import Foundation
 
-/// Менеджер поддержания фоновых задач телеметрии через легальный системный BGTaskScheduler (Apple Guideline 2.5.4 compliant).
-/// В продакшн-режиме не использует аудиоплеер и не удерживает аудиосессию, предотвращая перегрев процессора и отклонение цензорами App Store.
+/// Планирует системные фоновые задачи (BGTaskScheduler) для сверки трафика и обновления виджетов.
+///
+/// Это НЕ удержание приложения в фоне. iOS приостанавливает свернутое приложение, а фоновые задачи запускаются
+/// системой по её усмотрению (обычно не чаще раза в 15–30 минут и без гарантий). Аудиосессия и прочие приёмы
+/// удержания процесса намеренно не используются (правило App Store 2.5.4). Раньше класс назывался «keep-alive»
+/// и в интерфейсе подавался как «фоновый учёт 24/7».
 public final class BackgroundTelemetryKeeper: NSObject, @unchecked Sendable {
     public static let shared = BackgroundTelemetryKeeper()
 
-    private var isRunning: Bool = false
+    private let lock = NSLock()
+    private var isScheduled: Bool = false
 
     private override init() {
         super.init()
     }
 
-    /// Запуск фонового сбора телеметрии
+    /// Запрос на фоновые запуски (если они ещё не запрошены)
     public func startKeepAlive() {
-        guard !isRunning else { return }
-        isRunning = true
+        lock.lock()
+        let wasScheduled = isScheduled
+        isScheduled = true
+        lock.unlock()
 
-        // Регистрация на легальное фоновое обновление через системный BGTaskScheduler
+        guard !wasScheduled else { return }
         BackgroundTaskManager.shared.scheduleBackgroundFetch()
-        print("⚡️ [BackgroundTelemetryKeeper] Фоновая сессия телеметрии через BGTaskScheduler запущена")
     }
 
-    /// Остановка фонового сбора
+    /// Отмена запланированных фоновых запусков
     public func stopKeepAlive() {
-        guard isRunning else { return }
-        isRunning = false
-        print("🛑 [BackgroundTelemetryKeeper] Фоновая сессия телеметрии остановлена")
+        lock.lock()
+        let wasScheduled = isScheduled
+        isScheduled = false
+        lock.unlock()
+
+        guard wasScheduled else { return }
+        BackgroundTaskManager.shared.cancelScheduledTasks()
     }
 }

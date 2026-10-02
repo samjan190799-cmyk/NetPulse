@@ -2,120 +2,174 @@
 //  AdMobManager.swift
 //  NetPulse
 //
-//  Created for iOS (Swift 6.0+ / SwiftUI / AdMob 2026).
+//  Created for iOS (Swift 6.0+ / SwiftUI / StoreKit 2) - 2026.
 //
 
 import SwiftUI
-import Combine
+import StoreKit
 #if canImport(AppTrackingTransparency)
 import AppTrackingTransparency
 #endif
 
-/// Конфигурация рекламных блоков Google AdMob (официальные тестовые идентификаторы Apple iOS)
-public struct AdMobConfig: Sendable {
-    public static let appID = "ca-app-pub-3940256099942544~1458602516" // Google Test App ID
-    public static let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716"
-    public static let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
-    public static let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
-    public static let nativeAdUnitID = "ca-app-pub-3940256099942544/3986739490"
+/// Идентификаторы покупок App Store.
+///
+/// ВАЖНО: идентификатор должен совпадать с продуктом, созданным в App Store Connect
+/// (автообновляемая подписка или неисчерпываемая покупка «NetPulse PRO»). Пока продукта там нет,
+/// приложение честно сообщает «покупка недоступна» и PRO НЕ выдаётся.
+public enum StoreConfig {
+    public static let proProductID = "com.samvel.netpulse.pro"
 }
 
-/// Спонсорские нативные объявления по умолчанию (когда SDK не инициализирован или нет сети)
-public struct SponsorAdItem: Identifiable, Sendable {
-    public let id: String
-    public let title: String
-    public let subtitle: String
-    public let ctaText: String
-    public let iconName: String
-    public let rating: Double
-    public let destinationURL: String
-
-    public static let defaults: [SponsorAdItem] = [
-        SponsorAdItem(
-            id: "warp_plus",
-            title: "Cloudflare 1.1.1.1 + WARP",
-            subtitle: "Быстрый и защищенный интернет с протоколом WireGuard",
-            ctaText: "Установить",
-            iconName: "bolt.shield.fill",
-            rating: 4.9,
-            destinationURL: "https://1.1.1.1"
-        ),
-        SponsorAdItem(
-            id: "nextdns_pro",
-            title: "NextDNS Pro Security",
-            subtitle: "Блокировка трекеров, фишинга и рекламы на уровне DNS-шлюза",
-            ctaText: "Подробнее",
-            iconName: "shield.lefthalf.filled",
-            rating: 4.8,
-            destinationURL: "https://nextdns.io"
-        ),
-        SponsorAdItem(
-            id: "game_booster",
-            title: "Gaming Ping Accelerator",
-            subtitle: "Оптимизация сетевых маршрутов до серверов CS2 и Valorant",
-            ctaText: "Попробовать",
-            iconName: "gamecontroller.fill",
-            rating: 4.9,
-            destinationURL: "https://netpulse.app"
-        )
-    ]
-}
-
-/// Централизованный менеджер рекламы Google AdMob и подписки NetPulse Pro
+/// Менеджер покупки NetPulse PRO (StoreKit 2) и разрешения на отслеживание (ATT).
+///
+/// Статус PRO определяется ТОЛЬКО подтверждённой покупкой App Store. Раньше `purchaseProVersion()` просто
+/// выставлял флаг, «режим владельца» включался пятью нажатиями на строку «Версия», а `restorePurchases()`
+/// ничего не восстанавливал — PRO можно было получить бесплатно.
 @Observable
 @MainActor
 public final class AdMobManager {
     public static let shared = AdMobManager()
 
-    // MARK: - Состояние подписки и рекламы
-    public var isOwnerUnlocked: Bool {
+    private static let kEntitlementCacheKey = "netpulse_pro_entitlement_cache_v2"
+
+    // MARK: - Состояние PRO
+
+    /// Есть ли подтверждённая покупка. Устанавливается только после проверки транзакции StoreKit
+    /// (значение кэшируется, чтобы PRO не «пропадал» при запуске без сети, и перепроверяется при каждом старте).
+    public private(set) var isPremiumUser: Bool {
         didSet {
-            UserDefaults.standard.set(isOwnerUnlocked, forKey: "netpulse_owner_unlocked")
-            if isOwnerUnlocked {
-                self.isPremiumUser = true
+            UserDefaults.standard.set(isPremiumUser, forKey: Self.kEntitlementCacheKey)
+        }
+    }
+
+    public private(set) var isPurchaseInProgress: Bool = false
+
+    /// Сообщение пользователю о результате покупки/восстановления (nil — нечего показывать)
+    public var purchaseMessage: String?
+
+    /// Цена PRO в локальной валюте из App Store (nil — товар не загружен)
+    public private(set) var proPriceText: String?
+
+    /// Реклама показывается, пока PRO не куплен
+    public var canShowAds: Bool {
+        !isPremiumUser
+    }
+
+    @ObservationIgnored private var updatesTask: Task<Void, Never>?
+
+    private init() {
+        // Прежние локальные флаги («бесплатная покупка» и «режим владельца») больше не действуют
+        UserDefaults.standard.removeObject(forKey: "netpulse_owner_unlocked")
+        UserDefaults.standard.removeObject(forKey: "netpulse_is_premium_user")
+        self.isPremiumUser = UserDefaults.standard.bool(forKey: Self.kEntitlementCacheKey)
+
+        updatesTask = Task { [weak self] in
+            await self?.refreshEntitlements()
+            await self?.loadProductInfo()
+
+            // Транзакции, прошедшие вне приложения (продление, возврат, покупка на другом устройстве)
+            for await result in Transaction.updates {
+                guard let self else { return }
+                if case .verified(let transaction) = result {
+                    await transaction.finish()
+                }
+                await self.refreshEntitlements()
             }
         }
     }
 
-    public var isPremiumUser: Bool {
-        didSet {
-            UserDefaults.standard.set(isPremiumUser, forKey: "netpulse_is_premium_user")
+    // MARK: - Права доступа
+
+    /// Перепроверка действующих покупок по данным App Store
+    private func refreshEntitlements() async {
+        var entitled = false
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result,
+               transaction.productID == StoreConfig.proProductID,
+               transaction.revocationDate == nil {
+                entitled = true
+            }
+        }
+        isPremiumUser = entitled
+    }
+
+    private func loadProductInfo() async {
+        do {
+            let products = try await Product.products(for: [StoreConfig.proProductID])
+            proPriceText = products.first?.displayPrice
+        } catch {
+            proPriceText = nil
         }
     }
 
-    public var isBannerEnabled: Bool {
-        !isPremiumUser && !isOwnerUnlocked
+    // MARK: - Покупка NetPulse PRO
+
+    public func purchaseProVersion() {
+        guard !isPurchaseInProgress else { return }
+        isPurchaseInProgress = true
+        purchaseMessage = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            await self.performPurchase()
+            self.isPurchaseInProgress = false
+        }
     }
 
-    public var isNativeAdsEnabled: Bool {
-        !isPremiumUser && !isOwnerUnlocked
+    private func performPurchase() async {
+        do {
+            let products = try await Product.products(for: [StoreConfig.proProductID])
+            guard let product = products.first else {
+                purchaseMessage = "Покупка сейчас недоступна: товар не найден в App Store. Попробуйте позже."
+                return
+            }
+            proPriceText = product.displayPrice
+
+            let result = try await product.purchase()
+            switch result {
+            case .success(let verification):
+                switch verification {
+                case .verified(let transaction):
+                    await transaction.finish()
+                    isPremiumUser = true
+                    purchaseMessage = nil
+                    HapticManager.shared.notificationSuccess()
+                case .unverified:
+                    purchaseMessage = "Не удалось подтвердить покупку. Попробуйте ещё раз или восстановите покупки."
+                }
+            case .userCancelled:
+                break
+            case .pending:
+                purchaseMessage = "Покупка ожидает подтверждения (например, от организатора семейного доступа)."
+            @unknown default:
+                purchaseMessage = "Неизвестный результат покупки."
+            }
+        } catch {
+            purchaseMessage = "Не удалось выполнить покупку: \(error.localizedDescription)"
+        }
     }
 
-    public var isTestMode: Bool = false
+    /// Восстановление покупок: синхронизация с App Store и повторная проверка прав
+    public func restorePurchases() {
+        guard !isPurchaseInProgress else { return }
+        isPurchaseInProgress = true
+        purchaseMessage = nil
 
-    public var isShowingRewardedOverlay: Bool = false
-    public var rewardedCountdown: Int = 5
-
-    // Внутренний счетчик действий для умного показа межстраничной рекламы (Interstitial)
-    private var actionCount: Int = 0
-    private let interstitialFrequency: Int = 3 // Показ раз в 3 ключевых действия
-
-    private init() {
-        let isOwner = UserDefaults.standard.bool(forKey: "netpulse_owner_unlocked")
-        self.isOwnerUnlocked = isOwner
-        self.isPremiumUser = isOwner || UserDefaults.standard.bool(forKey: "netpulse_is_premium_user")
-    }
-
-    /// Переключение секретного режима владельца
-    public func toggleOwnerMode() {
-        self.isOwnerUnlocked.toggle()
-        self.isPremiumUser = self.isOwnerUnlocked
-        HapticManager.shared.notificationSuccess()
-    }
-
-    // MARK: - Проверка прав показа
-    public var canShowAds: Bool {
-        return !isPremiumUser && !isOwnerUnlocked
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await AppStore.sync()
+                await self.refreshEntitlements()
+                if self.isPremiumUser {
+                    HapticManager.shared.notificationSuccess()
+                } else {
+                    self.purchaseMessage = "Активных покупок NetPulse PRO не найдено."
+                }
+            } catch {
+                self.purchaseMessage = "Не удалось восстановить покупки: \(error.localizedDescription)"
+            }
+            self.isPurchaseInProgress = false
+        }
     }
 
     // MARK: - Запрос разрешения App Tracking Transparency (ATT)
@@ -144,58 +198,5 @@ public final class AdMobManager {
             }
         }
         #endif
-    }
-
-    // MARK: - Межстраничная реклама (Interstitial)
-    public func recordActionAndTriggerInterstitialIfNeeded(onDismiss: (() -> Void)? = nil) {
-        guard canShowAds else {
-            onDismiss?()
-            return
-        }
-
-        actionCount += 1
-        if actionCount >= interstitialFrequency {
-            actionCount = 0
-            // Показ полноэкранного межстраничного баннера
-            print("[AdMobManager] Triggering Interstitial Ad (Unit: \(AdMobConfig.interstitialAdUnitID))")
-            HapticManager.shared.impactLight()
-            onDismiss?()
-        } else {
-            onDismiss?()
-        }
-    }
-
-    // MARK: - Вознаграждаемая реклама (Rewarded Video)
-    public func showRewardedAd(forFeature featureName: String, onReward: @escaping () -> Void) {
-        guard canShowAds else {
-            onReward()
-            return
-        }
-
-        // Запуск модального окна просмотра вознаграждения
-        isShowingRewardedOverlay = true
-        rewardedCountdown = 5
-        HapticManager.shared.impactMedium()
-
-        Task {
-            for count in stride(from: 5, through: 1, by: -1) {
-                self.rewardedCountdown = count
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-            }
-            self.isShowingRewardedOverlay = false
-            HapticManager.shared.notificationSuccess()
-            onReward()
-        }
-    }
-
-    // MARK: - Покупка NetPulse Pro (Удаление рекламы)
-    public func purchaseProVersion() {
-        isPremiumUser = true
-        HapticManager.shared.notificationSuccess()
-    }
-
-    public func restorePurchases() {
-        // Логика восстановления покупок StoreKit
-        HapticManager.shared.notificationSuccess()
     }
 }

@@ -8,7 +8,10 @@
 import SwiftUI
 import Foundation
 
-/// Международный грейд качества Bufferbloat (RFC 8290)
+/// Международный грейд качества Bufferbloat (RFC 8290).
+///
+/// Границы по росту задержки под нагрузкой (максимум из скачивания и отдачи):
+/// A+ < 5 мс, A < 15 мс, B < 40 мс, C < 90 мс, D < 180 мс, F ≥ 180 мс.
 public enum BufferbloatGrade: String, CaseIterable, Codable, Sendable {
     case aPlus = "A+"
     case a = "A"
@@ -16,6 +19,29 @@ public enum BufferbloatGrade: String, CaseIterable, Codable, Sendable {
     case c = "C"
     case d = "D"
     case f = "F"
+
+    /// Грейд по росту задержки (мс)
+    public static func grade(forDelta delta: Double) -> BufferbloatGrade {
+        switch delta {
+        case ..<5.0: return .aPlus
+        case ..<15.0: return .a
+        case ..<40.0: return .b
+        case ..<90.0: return .c
+        case ..<180.0: return .d
+        default: return .f
+        }
+    }
+
+    /// Грейд на ступень хуже (потери проб под нагрузкой — признак переполненной очереди)
+    public func downgraded() -> BufferbloatGrade {
+        switch self {
+        case .aPlus: return .a
+        case .a: return .b
+        case .b: return .c
+        case .c: return .d
+        case .d, .f: return .f
+        }
+    }
 
     public var title: String {
         switch self {
@@ -42,17 +68,17 @@ public enum BufferbloatGrade: String, CaseIterable, Codable, Sendable {
     public var descriptionText: String {
         switch self {
         case .aPlus:
-            return "Ваш роутер и канал связи работают превосходно. При скачивании больших файлов онлайн-игры и видеозвонки не испытывают задержек."
+            return "Задержка под нагрузкой почти не растёт (меньше +5 мс). При скачивании больших файлов онлайн-игры и видеозвонки не испытывают задержек."
         case .a:
-            return "Незначительный рост задержки (+0..10 мс). Соединение стабильно даже при активном фоновом потреблении трафика."
+            return "Небольшой рост задержки (+5..15 мс). Соединение стабильно даже при активном фоновом потреблении трафика."
         case .b:
-            return "Рост задержки составляет +10..30 мс. Рекомендуется включить SQM (Smart Queue Management) на Wi-Fi роутере."
+            return "Рост задержки составляет +15..40 мс. Если канал домашний, стоит включить SQM (Smart Queue Management) на роутере."
         case .c:
-            return "Рост задержки +30..80 мс. Игры и FaceTime будут лагать, если кто-то дома смотрит 4K-видео или качает торренты."
+            return "Рост задержки +40..90 мс. Игры и FaceTime будут лагать, если кто-то дома смотрит 4K-видео или качает большие файлы."
         case .d:
-            return "Рост задержки +80..180 мс. Буферы пакетов на роутере переполняются, вызывая скачки пинга и потерю пакетов."
+            return "Рост задержки +90..180 мс. Очереди пакетов переполняются, вызывая скачки пинга и потерю пакетов."
         case .f:
-            return "Рост задержки >180 мс. Роутер критически перегружен. Требуется обновление прошивки или замена оборудования."
+            return "Рост задержки больше +180 мс. Очереди критически перегружены: под нагрузкой канал практически непригоден для игр и звонков."
         }
     }
 }
@@ -76,31 +102,66 @@ public enum BufferbloatPhase: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// Итоговый отчет замера Bufferbloat
+/// Причины, по которым тест не дал результата
+public enum BufferbloatError: Error, LocalizedError, Sendable, Equatable {
+    /// Без нагрузки не получено ни одной успешной пробы — измерять не с чем
+    case noConnection
+    /// Тест остановлен пользователем (например, экран закрыт)
+    case cancelled
+
+    public var errorDescription: String? {
+        switch self {
+        case .noConnection:
+            return "Не удалось измерить базовую задержку: опорный узел не отвечает. Проверьте подключение к интернету."
+        case .cancelled:
+            return "Тест остановлен."
+        }
+    }
+}
+
+/// Итоговый отчет замера Bufferbloat.
+///
+/// Если фазу нагрузки измерить не удалось, соответствующие значения равны `nil` (интерфейс показывает «—»):
+/// раньше вместо них подставлялась ненагруженная задержка, и неудачный замер превращался в оценку «A+».
 public struct BufferbloatReport: Identifiable, Codable, Sendable {
+    /// Доля потерянных проб под нагрузкой, начиная с которой грейд понижается на ступень
+    public static let lossPenaltyThresholdPercent: Double = 20.0
+
     public let id: UUID
     public let timestamp: Date
     public let unloadedPingMs: Double
-    public let loadedDownloadPingMs: Double
-    public let loadedUploadPingMs: Double
-    public let downloadDeltaMs: Double
-    public let uploadDeltaMs: Double
-    public let maxDeltaMs: Double
-    public let grade: BufferbloatGrade
-    public let downloadSpeedMbps: Double
-    public let uploadSpeedMbps: Double
+    public let loadedDownloadPingMs: Double?
+    public let loadedUploadPingMs: Double?
+    public let downloadDeltaMs: Double?
+    public let uploadDeltaMs: Double?
+    public let maxDeltaMs: Double?
+    /// `nil` — задержку под нагрузкой измерить не удалось ни в одной фазе
+    public let grade: BufferbloatGrade?
+    public let downloadSpeedMbps: Double?
+    public let uploadSpeedMbps: Double?
+    public let downloadLossPercent: Double?
+    public let uploadLossPercent: Double?
+    /// Пояснения к результату: что не удалось измерить и насколько результат надёжен
+    public let notes: [String]
     public let recommendations: [String]
 
     public var dynamicVerdictTitle: String {
+        guard let grade else {
+            return "Недостаточно данных для оценки"
+        }
         if (grade == .aPlus || grade == .a) && unloadedPingMs > 75.0 {
-            return "Буферизация низкая (A+), высокий базовый RTT"
+            return "Буферизация низкая (\(grade.rawValue)), высокий базовый RTT"
         }
         return grade.title
     }
 
     public var dynamicVerdictDescription: String {
+        guard let grade else {
+            return notes.first ?? "Не удалось измерить задержку под нагрузкой. Повторите тест позже."
+        }
         if (grade == .aPlus || grade == .a) && unloadedPingMs > 75.0 {
-            return "Буфер очередей не переполняется под нагрузкой (+0..5 мс). Однако базовая задержка вашей мобильной/сотовой сети (\(Int(unloadedPingMs)) мс) высока для соревновательных онлайн-игр."
+            let delta = Int((maxDeltaMs ?? 0).rounded())
+            return "Очереди не переполняются под нагрузкой (рост задержки +\(delta) мс). Однако базовая задержка (\(Int(unloadedPingMs)) мс) высока для соревновательных онлайн-игр."
         }
         return grade.descriptionText
     }
@@ -109,10 +170,13 @@ public struct BufferbloatReport: Identifiable, Codable, Sendable {
         id: UUID = UUID(),
         timestamp: Date = Date(),
         unloadedPingMs: Double,
-        loadedDownloadPingMs: Double,
-        loadedUploadPingMs: Double,
-        downloadSpeedMbps: Double = 0.0,
-        uploadSpeedMbps: Double = 0.0,
+        loadedDownloadPingMs: Double?,
+        loadedUploadPingMs: Double?,
+        downloadSpeedMbps: Double? = nil,
+        uploadSpeedMbps: Double? = nil,
+        downloadLossPercent: Double? = nil,
+        uploadLossPercent: Double? = nil,
+        notes: [String] = [],
         recommendations: [String] = []
     ) {
         self.id = id
@@ -120,27 +184,32 @@ public struct BufferbloatReport: Identifiable, Codable, Sendable {
         self.unloadedPingMs = unloadedPingMs
         self.loadedDownloadPingMs = loadedDownloadPingMs
         self.loadedUploadPingMs = loadedUploadPingMs
-        self.downloadDeltaMs = max(0, loadedDownloadPingMs - unloadedPingMs)
-        self.uploadDeltaMs = max(0, loadedUploadPingMs - unloadedPingMs)
-        let maxD = max(self.downloadDeltaMs, self.uploadDeltaMs)
-        self.maxDeltaMs = maxD
 
-        if maxD < 5.0 {
-            self.grade = .aPlus
-        } else if maxD < 15.0 {
-            self.grade = .a
-        } else if maxD < 40.0 {
-            self.grade = .b
-        } else if maxD < 90.0 {
-            self.grade = .c
-        } else if maxD < 180.0 {
-            self.grade = .d
+        let downloadDelta = loadedDownloadPingMs.map { max(0, $0 - unloadedPingMs) }
+        let uploadDelta = loadedUploadPingMs.map { max(0, $0 - unloadedPingMs) }
+        self.downloadDeltaMs = downloadDelta
+        self.uploadDeltaMs = uploadDelta
+
+        let measuredDeltas = [downloadDelta, uploadDelta].compactMap { $0 }
+        let maxDelta = measuredDeltas.max()
+        self.maxDeltaMs = maxDelta
+
+        if let maxDelta {
+            var computed = BufferbloatGrade.grade(forDelta: maxDelta)
+            let worstLoss = max(downloadLossPercent ?? 0, uploadLossPercent ?? 0)
+            if worstLoss >= Self.lossPenaltyThresholdPercent {
+                computed = computed.downgraded()
+            }
+            self.grade = computed
         } else {
-            self.grade = .f
+            self.grade = nil
         }
 
         self.downloadSpeedMbps = downloadSpeedMbps
         self.uploadSpeedMbps = uploadSpeedMbps
+        self.downloadLossPercent = downloadLossPercent
+        self.uploadLossPercent = uploadLossPercent
+        self.notes = notes
         self.recommendations = recommendations
     }
 }

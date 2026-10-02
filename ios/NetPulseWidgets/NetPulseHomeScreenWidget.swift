@@ -28,7 +28,8 @@ public struct NetPulseWidgetProvider: TimelineProvider {
     }
 
     public func getSnapshot(in context: Context, completion: @escaping @Sendable (NetPulseWidgetEntry) -> Void) {
-        let snapshotData = WidgetDataManager.shared.loadLatestSnapshot()
+        // Демонстрационные значения — только в галерее виджетов; в остальных случаях показываем реальные данные
+        let snapshotData = context.isPreview ? NetPulseWidgetData.placeholder : WidgetDataManager.shared.loadLatestSnapshot()
         let entry = NetPulseWidgetEntry(date: Date(), data: snapshotData)
         completion(entry)
     }
@@ -45,6 +46,24 @@ public struct NetPulseWidgetProvider: TimelineProvider {
     }
 }
 
+
+// MARK: - Вспомогательные функции представления
+
+/// Цвет индекса здоровья; серый — данных нет (раньше «здоровье» всегда было зелёным)
+private func healthColor(_ score: Int?) -> Color {
+    guard let score else { return .gray }
+    if score >= 80 { return .green }
+    if score >= 50 { return .orange }
+    return .red
+}
+
+/// Значок типа подключения (раньше всегда рисовался Wi-Fi, даже в мобильной сети и без сети)
+private func connectionIcon(_ type: String) -> String {
+    if type.contains("Wi-Fi") { return "wifi" }
+    if type.contains("Мобильная") || type.contains("5G") || type.contains("LTE") { return "antenna.radiowaves.left.and.right" }
+    if type.contains("Ethernet") { return "cable.connector" }
+    return "wifi.slash"
+}
 
 // MARK: - Представление виджета для всех семейств экранов
 
@@ -94,19 +113,20 @@ private struct SmallWidgetView: View {
     let data: NetPulseWidgetData
 
     private var statusColor: Color {
-        if let ping = data.pingMs {
+        // Нет свежего пинга — серый индикатор, а не «зелёный, всё хорошо»
+        if !data.isStale, let ping = data.pingMs {
             if ping < 50 { return .green }
             if ping < 120 { return .orange }
             return .red
         }
-        return .green
+        return .gray
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Верх: Иконка и тип подключения
             HStack(spacing: 5) {
-                Image(systemName: "wifi")
+                Image(systemName: connectionIcon(data.connectionType))
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.white)
 
@@ -133,7 +153,7 @@ private struct SmallWidgetView: View {
                     .tracking(0.5)
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(data.formattedPing)
+                    Text(data.pingValueText)
                         .font(.system(size: 30, weight: .heavy, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
@@ -167,15 +187,15 @@ private struct SmallWidgetView: View {
                 HStack(spacing: 2) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.green)
-                    Text("\(data.healthScore)")
+                        .foregroundStyle(healthColor(data.isStale ? nil : data.healthScore))
+                    Text(data.isStale ? "—" : (data.healthScore.map { "\($0)" } ?? "—"))
                         .font(.system(size: 10, weight: .heavy, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(.green)
+                        .foregroundStyle(healthColor(data.isStale ? nil : data.healthScore))
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(Color.green.opacity(0.12))
+                .background(healthColor(data.isStale ? nil : data.healthScore).opacity(0.12))
                 .clipShape(Capsule())
             }
         }
@@ -220,7 +240,7 @@ private struct MediumWidgetView: View {
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.white.opacity(0.5))
                         }
-                        Text(String(format: "%.1f", data.downloadSpeedMbps))
+                        Text(NetPulseWidgetData.speedText(data.downloadSpeedMbps))
                             .font(.system(size: 17, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
@@ -238,7 +258,7 @@ private struct MediumWidgetView: View {
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.cyan.opacity(0.7))
                         }
-                        Text(String(format: "%.1f", data.uploadSpeedMbps))
+                        Text(NetPulseWidgetData.speedText(data.uploadSpeedMbps))
                             .font(.system(size: 17, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.cyan)
@@ -271,9 +291,11 @@ private struct MediumWidgetView: View {
                             .foregroundStyle(.white.opacity(0.6))
                     }
                     Spacer()
-                    Text("\(data.healthScore)%")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.green)
+                    if !data.isStale, let score = data.healthScore {
+                        Text("Health \(score)")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundStyle(healthColor(score))
+                    }
                 }
 
                 Text(formattedTrafficMB)
@@ -290,7 +312,7 @@ private struct MediumWidgetView: View {
                         .clipShape(Capsule())
 
                     HStack {
-                        Text("\(Int(data.budgetProgress * 100))% лимита")
+                        Text(data.budgetTotalBytes > 0 ? "\(Int(data.budgetProgress * 100))% лимита" : "лимит не задан")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.white.opacity(0.5))
                         Spacer()
@@ -317,7 +339,7 @@ private struct LargeWidgetView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 6) {
-                        Image(systemName: "wifi")
+                        Image(systemName: connectionIcon(data.connectionType))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.cyan)
                         Text(data.connectionType)
@@ -336,23 +358,23 @@ private struct LargeWidgetView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.green)
-                    Text("Health \(data.healthScore)/100")
+                        .foregroundStyle(healthColor(data.isStale ? nil : data.healthScore))
+                    Text(data.isStale ? "Health —" : (data.healthScore.map { "Health \($0)/100" } ?? "Health —"))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(healthColor(data.isStale ? nil : data.healthScore))
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.green.opacity(0.12))
+                .background(healthColor(data.isStale ? nil : data.healthScore).opacity(0.12))
                 .clipShape(Capsule())
             }
 
             // Метрики качества в 4 ячейках
             HStack(spacing: 8) {
-                LargeMetricCell(title: "Скачивание", value: String(format: "%.1f", data.downloadSpeedMbps), unit: "Мбит/с", icon: "arrow.down", color: .white)
-                LargeMetricCell(title: "Отдача", value: String(format: "%.1f", data.uploadSpeedMbps), unit: "Мбит/с", icon: "arrow.up", color: .cyan)
-                LargeMetricCell(title: "Пинг", value: data.formattedPing, unit: "мс", icon: "network", color: .green)
-                LargeMetricCell(title: "Джиттер", value: data.formattedJitter, unit: "мс", icon: "waveform.path.ecg", color: .orange)
+                LargeMetricCell(title: "Скачивание", value: NetPulseWidgetData.speedText(data.downloadSpeedMbps), unit: "Мбит/с", icon: "arrow.down", color: .white)
+                LargeMetricCell(title: "Отдача", value: NetPulseWidgetData.speedText(data.uploadSpeedMbps), unit: "Мбит/с", icon: "arrow.up", color: .cyan)
+                LargeMetricCell(title: "Пинг", value: data.pingValueText, unit: "мс", icon: "network", color: .green)
+                LargeMetricCell(title: "Джиттер", value: data.jitterValueText, unit: "мс", icon: "waveform.path.ecg", color: .orange)
             }
 
             Divider()
@@ -366,7 +388,8 @@ private struct LargeWidgetView: View {
                     .tracking(0.5)
 
                 if data.dnsHosts.isEmpty {
-                    Text("1.1.1.1, 8.8.8.8, Шлюз LAN онлайн")
+                    // Раньше здесь всегда писалось «1.1.1.1, 8.8.8.8, Шлюз LAN онлайн», даже без единой проверки
+                    Text("Нет данных о проверках узлов — откройте NetPulse")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.7))
                 } else {
@@ -374,14 +397,14 @@ private struct LargeWidgetView: View {
                         ForEach(data.dnsHosts.prefix(4)) { host in
                             HStack(spacing: 5) {
                                 Circle()
-                                    .fill(host.isOK ? Color.green : Color.red)
+                                    .fill(data.isStale ? Color.gray : (host.isOK ? Color.green : Color.red))
                                     .frame(width: 6, height: 6)
                                 Text(host.name)
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Spacer()
-                                Text(host.latencyMs.map { String(format: "%.0f мс", $0) } ?? "—")
+                                Text(data.isStale ? "—" : (host.latencyMs.map { String(format: "%.0f мс", $0) } ?? "—"))
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .monospacedDigit()
                                     .foregroundStyle(.white.opacity(0.7))
@@ -399,7 +422,9 @@ private struct LargeWidgetView: View {
 
             // Нижняя плашка времени обновления
             HStack {
-                Text("Обновлено: \(data.lastUpdated.formatted(date: .omitted, time: .shortened))")
+                Text(data.lastUpdated == Date.distantPast
+                     ? "Обновлено: —"
+                     : "Обновлено: \(data.lastUpdated.formatted(date: .omitted, time: .shortened))")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.white.opacity(0.4))
                 Spacer()
@@ -476,7 +501,7 @@ private struct AccessoryRectangularView: View {
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .monospacedDigit()
 
-            Text("↓ \(String(format: "%.0f", data.downloadSpeedMbps)) Mbps • ↑ \(String(format: "%.0f", data.uploadSpeedMbps)) Mbps")
+            Text("↓ \(NetPulseWidgetData.speedText(data.downloadSpeedMbps, decimals: 0)) Mbps • ↑ \(NetPulseWidgetData.speedText(data.uploadSpeedMbps, decimals: 0)) Mbps")
                 .font(.system(size: 10, weight: .regular))
                 .monospacedDigit()
         }
@@ -489,7 +514,7 @@ private struct AccessoryInlineView: View {
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "bolt.fill")
-            Text("\(data.formattedPing) • ↓\(String(format: "%.0f", data.downloadSpeedMbps))M")
+            Text("\(data.formattedPing) • ↓\(NetPulseWidgetData.speedText(data.downloadSpeedMbps, decimals: 0))M")
                 .monospacedDigit()
         }
     }

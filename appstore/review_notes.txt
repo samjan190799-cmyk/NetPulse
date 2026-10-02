@@ -1,0 +1,21 @@
+BACKGROUND LOCATION
+The "location" background mode (UIBackgroundModes) is used by ONE feature only: Home screen ("Сеть" tab) -> "Record route" (Russian UI: «Записать маршрут»).
+While the user records a route, the app saves every few seconds the device position and the network quality at that place (TCP connect time to 1.1.1.1, connection type Wi-Fi / 5G / 4G / 3G / 2G, optionally a short download-speed sample). The map then shows the route coloured by quality (good / fair / poor / no connection) and marks places without connectivity. This needs continuous location while the phone is in a pocket, a car or a train.
+
+USER CONTROL
+- Recording starts ONLY when the user taps "Record route"; never at launch or after a restart.
+- While recording, the iOS location indicator is visible, the map screen shows a red "Recording" pill with a timer, and the user ends it with "Stop and save".
+- Location permission ("While Using the App") is requested only after that tap. The purpose string says the location is used to record a route and that the data stays on the device.
+- Routes are stored in the app's Application Support directory, excluded from backups, never uploaded; the user can delete one route or all routes. No account, no server.
+- All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
+
+The map (Apple MapKit) is the home screen and is visible before any permission is requested. Route lines are drawn from points recorded by the app. The "Network coverage" layer draws translucent bands along recorded routes and a coloured zone around the user's dot; its colour comes from the app's own ping, not from location data, and no operator coverage data is used.
+
+HOW TO TEST
+1. The first screen is the map with the bottom panel (network speed and two buttons).
+2. Drag the panel up -> "Показать пример маршрута" (Show example route): a clearly labelled DEMO route is drawn on the map.
+3. Tap "Записать маршрут" (Record route) -> allow "While Using the App". Walk or drive; the points counter grows. Locking the device or switching to another app keeps recording (location indicator in the status bar).
+4. Tap "Остановить и сохранить" (Stop and save): the route summary appears and the route is saved under "Мои маршруты" (My routes), where it can be deleted.
+In the Simulator use Features -> Location -> City Run / Freeway Drive. If the phone stays on a desk, points are written only every 30 seconds.
+
+The app's interface is in Russian.

@@ -15,6 +15,19 @@ public struct SpeedtestServer: Sendable {
     public let uploadURL: URL?
 }
 
+/// Ошибки замера скорости
+public enum SpeedtestError: Error, LocalizedError, Sendable {
+    /// Ни одного байта не получено — замера не было
+    case noConnection
+
+    public var errorDescription: String? {
+        switch self {
+        case .noConnection:
+            return "Не удалось получить данные с серверов измерения. Проверьте подключение к интернету."
+        }
+    }
+}
+
 /// Высокопроизводительный мультипоточный (Multi-Stream) движок замера скорости (Bandwidth & Speedtest) для iOS.
 /// Использует потоковое инкрементальное чтение чанков (URLSession.bytes),
 /// точный отсчет времени от старта передачи, скользящее окно 1.0 сек и сглаживание EMA.
@@ -55,6 +68,12 @@ public final class SpeedtestEngine: Sendable {
             progressHandler?(currentMbps, 0.0)
         }
 
+        // Ни одного байта не получено — замера не было. Раньше подставлялись 0,5 Мбит/с и «успех»,
+        // а замер отдачи тратил ещё 4 секунды на заведомо мёртвом соединении.
+        guard downloadSpeed > 0 else {
+            throw SpeedtestError.noConnection
+        }
+
         // 3. Параллельный мультипоточный замер отдачи (3 потока)
         let uploadSpeed = await measureMultiStreamUpload(
             endpoints: primaryUploadEndpoints,
@@ -67,17 +86,16 @@ public final class SpeedtestEngine: Sendable {
         let elapsed = ContinuousClock().now - startTime
         let durationSeconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000_000.0
 
-        let finalDownload = max(downloadSpeed, 0.5)
-        let finalUpload = uploadSpeed > 0 ? uploadSpeed : max((finalDownload * 0.55).rounded(), 0.5)
-
+        // Отдача 0 означает «измерить не удалось» (интерфейс показывает «—»), а не выдуманные «55 % от скачивания».
+        // isSuccess = false отмечает такой неполный результат.
         return SpeedtestResult(
-            downloadMbps: (finalDownload * 10).rounded() / 10,
-            uploadMbps: (finalUpload * 10).rounded() / 10,
+            downloadMbps: (downloadSpeed * 10).rounded() / 10,
+            uploadMbps: (uploadSpeed * 10).rounded() / 10,
             pingMs: measuredPing,
             jitterMs: measuredJitter,
             serverName: "Cloudflare Edge Anycast",
             durationSeconds: (durationSeconds * 10).rounded() / 10,
-            isSuccess: finalDownload > 0.5
+            isSuccess: uploadSpeed > 0
         )
     }
 
@@ -214,24 +232,29 @@ public final class SpeedtestEngine: Sendable {
 
     // MARK: - Высокоточный замер TCP пинга и джиттера
 
-    public func probeHostPingAndJitter(host: String) async -> (ping: Double, jitter: Double) {
+    /// Пинг и джиттер до узла по TCP-рукопожатию. `nil` — измерить не удалось
+    /// (раньше при отказе всех проб выдавались «28 мс / 1,5 мс», а джиттер никогда не опускался ниже 0,5 мс).
+    public func probeHostPingAndJitter(host: String) async -> (ping: Double?, jitter: Double?) {
         var samples: [Double] = []
-        for _ in 0..<3 {
+        for _ in 0..<4 {
             if let rtt = await probeTCPHandshake(host: host, port: 443) {
                 samples.append(rtt)
             }
         }
-        guard !samples.isEmpty else { return (28.0, 1.5) }
-        let avg = (samples.reduce(0, +) / Double(samples.count) * 10).rounded() / 10
-        if samples.count > 1 {
-            var diffs = 0.0
-            for i in 1..<samples.count {
-                diffs += abs(samples[i] - samples[i - 1])
-            }
-            let jitter = (diffs / Double(samples.count - 1) * 10).rounded() / 10
-            return (avg, max(jitter, 0.5))
+        // Первая проба включает разрешение DNS-имени — при достаточном числе замеров она не учитывается
+        if samples.count >= 3 {
+            samples.removeFirst()
         }
-        return (avg, 1.5)
+        guard !samples.isEmpty else { return (nil, nil) }
+        let avg = (samples.reduce(0, +) / Double(samples.count) * 10).rounded() / 10
+        guard samples.count > 1 else { return (avg, nil) }
+
+        var diffs = 0.0
+        for i in 1..<samples.count {
+            diffs += abs(samples[i] - samples[i - 1])
+        }
+        let jitter = (diffs / Double(samples.count - 1) * 10).rounded() / 10
+        return (avg, jitter)
     }
 
     private func probeTCPHandshake(host: String, port: UInt16) async -> Double? {

@@ -26,6 +26,8 @@ public struct HostMetrics: Identifiable, Codable, Sendable {
     public var sentCount: Int = 0
     public var receivedCount: Int = 0
     public var lostCount: Int = 0
+    /// Сколько проверок подряд остались без ответа (для статуса «недоступен»)
+    public var consecutiveFailures: Int = 0
 
     public var lastLatencyMs: Double?
     public var minLatencyMs: Double?

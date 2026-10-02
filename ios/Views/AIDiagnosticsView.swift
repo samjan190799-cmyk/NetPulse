@@ -39,8 +39,8 @@ public struct AIDiagnosticsView: View {
                             // 3. Быстрые интеллектуальные действия (Мастер проблем и Претензия ISP)
                             quickActionsHub
 
-                            // 3.1 Бонусный глубокий AI-аудит за просмотр спонсорского видео Meta
-                            if MetaAdManager.shared.canShowAds {
+                            // 3.1 Бонусный глубокий AI-аудит за просмотр рекламного ролика Яндекса
+                            if YandexAdManager.shared.canShowAds {
                                 rewardedAIAnalysisCard
                             }
 
@@ -57,8 +57,8 @@ public struct AIDiagnosticsView: View {
                                 issuesAndRecommendationsSection(report: report)
                             }
 
-                            // 7. Рекламный баннер Meta Audience Network на видном месте
-                            MetaBannerView(contextTag: "AI и безопасность")
+                            // 7. Рекламный баннер Яндекса на видном месте
+                            YandexBannerView(contextTag: "AI и безопасность")
                                 .padding(.horizontal)
 
                             // 8. Сценарии интерактивного мастера траблшутинга
@@ -73,7 +73,7 @@ public struct AIDiagnosticsView: View {
                                 .id("bottomID")
                         }
                         .padding(.vertical)
-                        .padding(.bottom, 70) // Безопасный отступ для закрепленного баннера Meta и таб-бара
+                        .padding(.bottom, 70) // Безопасный отступ для закрепленного рекламного баннера и таб-бара
                     }
                     .onChange(of: viewModel.aiMessages.count) { _, _ in
                         withAnimation {
@@ -89,7 +89,7 @@ public struct AIDiagnosticsView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(NPTheme.accentPrimary)
-                            Text("Официальная претензия для провайдера скопирована")
+                            Text("Обращение для провайдера скопировано")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundStyle(NPTheme.textPrimary)
                         }
@@ -157,9 +157,18 @@ public struct AIDiagnosticsView: View {
                 .fill(viewModel.aiProviderConfig.selectedProvider == .offlineSmart ? NPTheme.accentPrimary : NPTheme.accentSilver)
                 .frame(width: 7, height: 7)
 
-            Text(viewModel.aiProviderConfig.selectedProvider.rawValue)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(NPTheme.textPrimary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(viewModel.aiProviderConfig.selectedProvider.rawValue)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(NPTheme.textPrimary)
+
+                if viewModel.aiProviderConfig.selectedProvider.isCloud
+                    && viewModel.aiProviderConfig.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("Ключ API не задан — отвечает встроенный AI")
+                        .font(.system(size: 10))
+                        .foregroundStyle(NPTheme.semanticWarn)
+                }
+            }
 
             Spacer()
 
@@ -261,10 +270,10 @@ public struct AIDiagnosticsView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(NPTheme.semanticWarn)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Претензия ISP")
+                        Text("Обращение провайдеру")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(NPTheme.textPrimary)
-                        Text("MTR и регламенты")
+                        Text("Текст для техподдержки")
                             .font(.system(size: 10))
                             .foregroundStyle(NPTheme.textSecondary)
                     }
@@ -281,16 +290,23 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 3.1 Бонусный глубокий AI-аудит (Meta Rewarded Video)
+    // MARK: - 3.1 Бонусный глубокий AI-аудит (реклама за вознаграждение)
+
+    /// Запуск полного аудита. Аудит локальный и бесплатный (его же запускает «Обновить аудит»), поэтому
+    /// он выполняется и после просмотра ролика, и когда ролика нет — отсутствие рекламы не блокирует пользователя.
+    private func runDeepAudit() {
+        Task {
+            await viewModel.runAIDiagnosticsAudit()
+            HapticManager.shared.notificationSuccess()
+        }
+    }
 
     private var rewardedAIAnalysisCard: some View {
         Button {
-            MetaAdManager.shared.showRewardedVideo {
-                Task {
-                    await viewModel.runAIDiagnosticsAudit()
-                    HapticManager.shared.notificationSuccess()
-                }
-            }
+            YandexAdManager.shared.showRewarded(
+                onRewardConfirmed: { runDeepAudit() },
+                onUnavailable: { runDeepAudit() }
+            )
         } label: {
             HStack(spacing: 12) {
                 ZStack {
@@ -323,7 +339,7 @@ public struct AIDiagnosticsView: View {
                             Image(systemName: "infinity")
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                            Text("Meta Reward")
+                            Text("Спонсор")
                                 .font(.system(size: 8, weight: .heavy, design: .rounded))
                                 .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
                         }
@@ -333,7 +349,7 @@ public struct AIDiagnosticsView: View {
                         .clipShape(Capsule())
                     }
 
-                    Text("Короткий спонсорский ролик для мгновенного AI-анализа параметров")
+                    Text("Запустить полный анализ сети. Если доступен спонсорский ролик, он покажется перед аудитом")
                         .font(.system(size: 11))
                         .foregroundStyle(NPTheme.textSecondary)
                 }
@@ -366,7 +382,7 @@ public struct AIDiagnosticsView: View {
                             .foregroundStyle(NPTheme.textSecondary)
                         Spacer()
                         if let report = viewModel.currentHealthReport {
-                            Text("\(report.overallScore)/100")
+                            Text(report.overallScore.map { "\($0)/100" } ?? "—")
                                 .font(.system(size: 16, weight: .heavy, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(report.statusBadgeColor)
@@ -408,15 +424,19 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    private func healthScorePill(title: String, score: Int, icon: String) -> some View {
+    /// `score == nil` — для этой категории нет измерений: показывается «—», а не выдуманное значение
+    private func healthScorePill(title: String, score: Int?, icon: String) -> some View {
         VStack(spacing: 3) {
             Image(systemName: icon)
                 .font(.system(size: 12))
-                .foregroundStyle(score >= 80 ? NPTheme.accentPrimary : (score >= 50 ? NPTheme.semanticWarn : NPTheme.semanticCritical))
+                .foregroundStyle(
+                    score.map { $0 >= 80 ? NPTheme.accentPrimary : ($0 >= 50 ? NPTheme.semanticWarn : NPTheme.semanticCritical) }
+                        ?? NPTheme.textTertiary
+                )
             Text(title)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(NPTheme.textSecondary)
-            Text("\(score)%")
+            Text(score.map { "\($0)%" } ?? "—")
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(NPTheme.textPrimary)
@@ -436,12 +456,12 @@ public struct AIDiagnosticsView: View {
                     Image(systemName: "waveform.path.ecg")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(report.overallRiskLevel == .critical ? NPTheme.semanticCritical : NPTheme.semanticWarn)
-                    Text("Предиктивные аномалии сети (24ч)")
+                    Text("Отклонения по текущим измерениям")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
                 }
                 Spacer()
-                Text("\(report.anomalies.count) сигнала")
+                Text("Найдено: \(report.anomalies.count)")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(report.overallRiskLevel == .critical ? NPTheme.semanticCritical : NPTheme.semanticWarn)
                     .padding(.horizontal, 6)
@@ -613,6 +633,15 @@ public struct AIDiagnosticsView: View {
 
     private var chatInputBar: some View {
         VStack(spacing: 8) {
+            // Причина, по которой не работает голосовой ввод (нет доступа к микрофону и т.п.)
+            if let speechError = speechManager.errorMessage {
+                Text(speechError)
+                    .font(.system(size: 11))
+                    .foregroundStyle(NPTheme.semanticWarn)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+            }
+
             // Адаптивные динамические смарт-чипы
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -904,7 +933,7 @@ private struct TroubleshootingWizardSheet: View {
                                         .font(.system(size: 16))
                                         .foregroundStyle(report.isIssueFound ? NPTheme.semanticWarn : NPTheme.accentPrimary)
 
-                                    Text("План оптимизации от AI:")
+                                    Text("План действий:")
                                         .font(.system(size: 14, weight: .bold))
                                         .foregroundStyle(NPTheme.textPrimary)
                                 }
@@ -1012,6 +1041,7 @@ private struct TroubleshootingWizardSheet: View {
         case .success: return NPTheme.accentPrimary
         case .warning: return NPTheme.semanticWarn
         case .critical: return NPTheme.semanticCritical
+        case .skipped: return NPTheme.textTertiary
         }
     }
 
@@ -1037,6 +1067,10 @@ private struct TroubleshootingWizardSheet: View {
                 Image(systemName: "exclamationmark.octagon.fill")
                     .foregroundStyle(NPTheme.semanticCritical)
                     .font(.system(size: 12))
+            case .skipped:
+                Image(systemName: "questionmark.circle")
+                    .foregroundStyle(NPTheme.textTertiary)
+                    .font(.system(size: 12))
             }
         }
     }
@@ -1061,12 +1095,12 @@ private struct ISPDisputeLetterSheet: View {
                     VStack(spacing: 16) {
                         // Выбор шаблона претензии
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("ШАБЛОН ОФИЦИАЛЬНОЙ ПРЕТЕНЗИИ")
+                            Text("ШАБЛОН ОБРАЩЕНИЯ")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(NPTheme.textTertiary)
                                 .tracking(0.5)
 
-                            Picker("Шаблон претензии", selection: $selectedTemplate) {
+                            Picker("Шаблон обращения", selection: $selectedTemplate) {
                                 ForEach(ISPDisputeTemplate.allCases) { t in
                                     Text(t.rawValue).tag(t)
                                 }
@@ -1080,7 +1114,7 @@ private struct ISPDisputeLetterSheet: View {
                             HStack {
                                 Image(systemName: "doc.text.fill")
                                     .foregroundStyle(NPTheme.accentPrimary)
-                                Text("Текст претензии для отправки:")
+                                Text("Текст обращения:")
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(NPTheme.textPrimary)
                                 Spacer()
@@ -1108,7 +1142,7 @@ private struct ISPDisputeLetterSheet: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "doc.on.doc.fill")
-                                    Text("Скопировать текст претензии")
+                                    Text("Скопировать текст обращения")
                                 }
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(NPTheme.backgroundDeep)
@@ -1124,7 +1158,7 @@ private struct ISPDisputeLetterSheet: View {
                     .padding(.vertical)
                 }
             }
-            .navigationTitle("Претензия провайдеру")
+            .navigationTitle("Обращение провайдеру")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -1165,12 +1199,17 @@ private struct AIProviderSettingsSheet: View {
                         }
                     }
                     .onChange(of: selectedProvider) { _, newProv in
-                        customModel = newProv.defaultModelName
+                        // У каждого провайдера свой ключ и своя модель (раньше ключ оставался от предыдущего провайдера)
+                        apiKey = AIConfigStore.apiKey(for: newProv)
+                        customModel = AIConfigStore.storedModel(for: newProv)
                     }
                 }
 
                 if selectedProvider != .offlineSmart {
-                    Section(header: Text("Параметры API (\(selectedProvider.rawValue))"), footer: Text("API-ключ надежно сохраняется в локальной конфигурации вашего устройства.")) {
+                    Section(
+                        header: Text("Параметры API (\(selectedProvider.rawValue))"),
+                        footer: Text("API-ключ хранится в Keychain на этом устройстве. Облачному провайдеру отправляются ваш вопрос и сводные метрики сети (пинг, джиттер, потери, скорость); IP-адреса и название вашего провайдера связи не передаются.")
+                    ) {
                         SecureField("API Key", text: $apiKey)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -1180,11 +1219,11 @@ private struct AIProviderSettingsSheet: View {
                             .autocorrectionDisabled()
                     }
                 } else {
-                    Section(footer: Text("Встроенный AI выполняет автономный вызов сетевых инструментов (Tool Calling), анализ RFC 3550, Bufferbloat, DNS и задержек полностью локально без отправки данных в интернет.")) {
+                    Section(footer: Text("Встроенный AI формирует ответы на устройстве по готовым правилам (это не нейросеть, поэтому свободные вопросы он понимает ограниченно). Замеры (пинг, DNS, трассировка) выполняются напрямую с вашего устройства; AI-провайдерам ничего не отправляется.")) {
                         HStack {
                             Image(systemName: "checkmark.shield.fill")
                                 .foregroundStyle(NPTheme.accentPrimary)
-                            Text("100% Приватность и автономная работа")
+                            Text("Данные не отправляются AI-провайдерам")
                                 .font(.system(size: 14))
                         }
                     }

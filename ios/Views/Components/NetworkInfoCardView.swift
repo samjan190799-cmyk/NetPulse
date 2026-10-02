@@ -58,13 +58,15 @@ public struct NetworkInfoCardView: View {
                             .scaleEffect(isMonitoring ? 1.1 : 0.9)
                             .animation(.easeInOut(duration: 0.8).repeatForever(), value: isMonitoring)
 
-                        Text(isMonitoring ? "ONLINE" : "PAUSED")
+                        // Статус относится к мониторингу, а не к связи: раньше «ONLINE» означало лишь «мониторинг включён»,
+                        // в том числе без сети
+                        Text(statusText)
                             .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(isMonitoring ? NPTheme.accentPrimary : NPTheme.semanticWarn)
+                            .foregroundStyle(isLive ? NPTheme.accentPrimary : NPTheme.semanticWarn)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(isMonitoring ? NPTheme.accentPrimary.opacity(0.08) : NPTheme.semanticWarn.opacity(0.1))
+                    .background(isLive ? NPTheme.accentPrimary.opacity(0.08) : NPTheme.semanticWarn.opacity(0.1))
                     .clipShape(Capsule())
                 }
             }
@@ -75,13 +77,22 @@ public struct NetworkInfoCardView: View {
             // Сетка параметров
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                 InfoItem(title: "Локальный IP", value: info.localIP, icon: "network", onTap: onInfoTap)
-                InfoItem(title: "Шлюз", value: info.gatewayIP ?? "...", icon: "arrow.triangle.branch", onTap: onInfoTap)
-                InfoItem(title: "Публичный IP", value: info.publicIP ?? "...", icon: "globe", onTap: onInfoTap)
-                InfoItem(title: "Провайдер", value: info.ispName ?? "...", icon: "antenna.radiowaves.left.and.right", onTap: onInfoTap)
+                InfoItem(title: "Шлюз", value: info.gatewayIP ?? "—", icon: "arrow.triangle.branch", onTap: onInfoTap)
+                InfoItem(title: "Публичный IP", value: info.publicIP ?? "—", icon: "globe", onTap: onInfoTap)
+                InfoItem(title: "Провайдер", value: info.ispName ?? "—", icon: "antenna.radiowaves.left.and.right", onTap: onInfoTap)
             }
         }
         .padding(14)
         .npCardStyle()
+    }
+
+    private var isLive: Bool {
+        isMonitoring && info.connectionType != .unavailable
+    }
+
+    private var statusText: String {
+        if info.connectionType == .unavailable { return "НЕТ СЕТИ" }
+        return isMonitoring ? "МОНИТОРИНГ" : "ПАУЗА"
     }
 
     private func iconForConnectionType(_ type: NetworkConnectionType) -> String {

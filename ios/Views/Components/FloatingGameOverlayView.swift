@@ -22,7 +22,8 @@ public struct FloatingGameOverlayView: View {
     @State private var offset: CGSize = CGSize(width: 16, height: 110)
     @State private var dragTranslation: CGSize = .zero
     @State private var isDragging: Bool = false
-    @State private var pingHistory: [Double] = [24, 26, 25, 23, 28, 24, 25, 27, 24, 23]
+    // Только реальные замеры: раньше график заранее заполнялся выдуманными значениями 23–28 мс
+    @State private var pingHistory: [Double] = []
 
     public var body: some View {
         GeometryReader { geometry in

@@ -9,18 +9,19 @@ import SwiftUI
 import UIKit
 
 /// Главный навигационный контейнер приложения NetPulse (Apple HIG 2026)
-/// 5 разделов: Скорость, Узлы (Диагностика), Трафик, AI Диагност, Настройки.
+/// 4 раздела: Сеть (карта, скорость и запись маршрута), Узлы (Диагностика), Трафик, AI Диагност.
+/// Настройки открываются кнопкой на главном экране.
 public struct ContentView: View {
-    @State private var viewModel = NetworkMonitorViewModel()
+    @State private var viewModel = NetworkMonitorViewModel.shared
     @State private var selectedTab: Int = 0
 
     public var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                // 1. Скорость и возможности сети
-                DashboardView(viewModel: viewModel)
+                // 1. Карта сети на весь экран, скорость, запись маршрута, инструменты
+                NetworkHomeView(viewModel: viewModel)
                     .tabItem {
-                        Label("Скорость", systemImage: "gauge.with.dots.needle.67percent")
+                        Label("Сеть", systemImage: "map.fill")
                     }
                     .tag(0)
 
@@ -44,13 +45,6 @@ public struct ContentView: View {
                         Label("AI Диагност", systemImage: "sparkles")
                     }
                     .tag(3)
-
-                // 5. Настройки и темы оформления
-                SettingsView(viewModel: viewModel)
-                    .tabItem {
-                        Label("Настройки", systemImage: "gearshape.fill")
-                    }
-                    .tag(4)
             }
             .tint(NPTheme.accentPrimary)
             .preferredColorScheme(.dark)
@@ -71,13 +65,16 @@ public struct ContentView: View {
                 }
             }
 
-            // Закрепленный рекламный баннер Meta Audience Network над системным таб-баром
-            VStack(spacing: 0) {
-                Spacer()
-                MetaStickyBottomBannerView()
-                    .padding(.bottom, 49) // Высота стандартного таб-бара iOS
+            // Закрепленный рекламный баннер Яндекса над системным таб-баром.
+            // На главном экране (карта) баннер стоит внутри нижней панели и ничего не перекрывает.
+            if selectedTab != 0 {
+                VStack(spacing: 0) {
+                    Spacer()
+                    YandexStickyBannerView()
+                        .padding(.bottom, 49) // Высота стандартного таб-бара iOS
+                }
+                .ignoresSafeArea(.keyboard)
             }
-            .ignoresSafeArea(.keyboard)
 
             // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх других приложений и рабочего стола
             if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {

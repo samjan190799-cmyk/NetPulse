@@ -21,6 +21,34 @@
                ReferencedContainer = "container:NetPulse.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F30000012C12345600000001"
+               BuildableName = "NetPulseTests.xctest"
+               BlueprintName = "NetPulseTests"
+               ReferencedContainer = "container:NetPulse.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F40000012C12345600000001"
+               BuildableName = "NetPulseUITests.xctest"
+               BlueprintName = "NetPulseUITests"
+               ReferencedContainer = "container:NetPulse.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -29,6 +57,30 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F30000012C12345600000001"
+               BuildableName = "NetPulseTests.xctest"
+               BlueprintName = "NetPulseTests"
+               ReferencedContainer = "container:NetPulse.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F40000012C12345600000001"
+               BuildableName = "NetPulseUITests.xctest"
+               BlueprintName = "NetPulseUITests"
+               ReferencedContainer = "container:NetPulse.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

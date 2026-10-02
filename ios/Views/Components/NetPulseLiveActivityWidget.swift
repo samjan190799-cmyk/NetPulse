@@ -21,7 +21,7 @@ public struct NetPulseLiveActivityWidget: Widget {
     public var body: some WidgetConfiguration {
         ActivityConfiguration(for: NetPulseAttributes.self) { context in
             // Экран блокировки / Баннер уведомлений
-            LockScreenLiveActivityView(state: context.state)
+            LockScreenLiveActivityView(state: context.state, isStale: context.isStale)
         } dynamicIsland: { context in
             DynamicIsland {
                 // MARK: - Расширенный вид (Expanded Region) по долгому зажатию островка
@@ -43,6 +43,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
+                            .opacity(context.isStale ? 0.4 : 1)
                     }
                     .padding(.leading, 8)
                 }
@@ -65,82 +66,99 @@ public struct NetPulseLiveActivityWidget: Widget {
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
+                            .opacity(context.isStale ? 0.4 : 1)
                     }
                     .padding(.trailing, 8)
                 }
 
                 // Нижний регион (по зажатию): Панель задержки (Ping RTT), джиттера, потерь и сети
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 8) {
-                        // Чип пинга с цветным индикатором задержки
-                        HStack(spacing: 5) {
-                            Circle()
-                                .fill(pingColor(context.state.pingMs))
-                                .frame(width: 6, height: 6)
-                            Text(formatPingText(context.state.pingMs))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(.white)
-                            Text("•")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white.opacity(0.4))
-                            Text(cleanConnType(context.state.connectionType))
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.8))
+                    if context.isStale {
+                        // Обновления не приходят: приложение приостановлено системой
+                        HStack(spacing: 6) {
+                            Image(systemName: "pause.circle.fill")
+                                .foregroundStyle(Color.orange)
+                            Text("Нет обновлений — приложение приостановлено")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.orange)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
                         .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(Capsule())
+                        .padding(.top, 4)
+                    } else {
+                        HStack(spacing: 8) {
+                            // Чип пинга с цветным индикатором задержки
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(pingColor(context.state.pingMs))
+                                    .frame(width: 6, height: 6)
+                                Text(formatPingText(context.state.pingMs))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                                Text("•")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.white.opacity(0.4))
+                                Text(cleanConnType(context.state.connectionType))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Capsule())
 
-                        Spacer()
+                            Spacer()
 
-                        // Правый блок: Джиттер, потери или статус Speedtest
-                        if context.state.isTesting {
-                            Text("Speedtest активен")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.cyan)
-                        } else {
-                            HStack(spacing: 6) {
-                                if let jitter = context.state.jitterMs, jitter > 0 {
-                                    Text("±\(String(format: "%.1f", jitter))мс")
-                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                        .monospacedDigit()
-                                        .foregroundStyle(.white.opacity(0.6))
+                            // Правый блок: Джиттер, потери или статус Speedtest
+                            if context.state.isTesting {
+                                Text("Speedtest активен")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.cyan)
+                            } else {
+                                HStack(spacing: 6) {
+                                    if let jitter = context.state.jitterMs, jitter > 0 {
+                                        Text("±\(String(format: "%.1f", jitter))мс")
+                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                            .monospacedDigit()
+                                            .foregroundStyle(.white.opacity(0.6))
+                                    }
+
+                                    if let loss = context.state.packetLossPct, loss > 0 {
+                                        Text("Loss \(Int(loss))%")
+                                            .font(.system(size: 9, weight: .heavy))
+                                            .foregroundStyle(.red)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(Color.red.opacity(0.18))
+                                            .clipShape(Capsule())
+                                    }
+
+                                    Text(cleanISP(context.state.ispName))
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.5))
+                                        .lineLimit(1)
                                 }
-
-                                if let loss = context.state.packetLossPct, loss > 0 {
-                                    Text("Loss \(Int(loss))%")
-                                        .font(.system(size: 9, weight: .heavy))
-                                        .foregroundStyle(.red)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 2)
-                                        .background(Color.red.opacity(0.18))
-                                        .clipShape(Capsule())
-                                }
-
-                                Text(cleanISP(context.state.ispName))
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.5))
-                                    .lineLimit(1)
                             }
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.top, 4)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
                 }
             } compactLeading: {
                 // MARK: - Компактный вид слева: Скачивание (Download)
                 HStack(spacing: 2) {
-                    Image(systemName: "arrow.down")
+                    Image(systemName: context.isStale ? "pause.fill" : "arrow.down")
                         .font(.system(size: 9, weight: .heavy))
-                        .foregroundStyle(Color.cyan)
+                        .foregroundStyle(context.isStale ? Color.orange : Color.cyan)
                     Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                        .opacity(context.isStale ? 0.4 : 1)
                 }
             } compactTrailing: {
                 // MARK: - Компактный вид справа: Выгрузка / Отдача (Upload)
@@ -151,22 +169,24 @@ public struct NetPulseLiveActivityWidget: Widget {
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Image(systemName: "arrow.up")
+                        .opacity(context.isStale ? 0.4 : 1)
+                    Image(systemName: context.isStale ? "pause.fill" : "arrow.up")
                         .font(.system(size: 9, weight: .heavy))
-                        .foregroundStyle(Color.mint)
+                        .foregroundStyle(context.isStale ? Color.orange : Color.mint)
                 }
             } minimal: {
                 // MARK: - Минимальный вид (Apple HIG: скорость загрузки с направляющей стрелкой)
                 HStack(spacing: 1) {
-                    Image(systemName: "arrow.down")
+                    Image(systemName: context.isStale ? "pause.fill" : "arrow.down")
                         .font(.system(size: 7, weight: .heavy))
-                        .foregroundStyle(Color.cyan)
+                        .foregroundStyle(context.isStale ? Color.orange : Color.cyan)
                     Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                        .opacity(context.isStale ? 0.4 : 1)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -178,7 +198,7 @@ public struct NetPulseLiveActivityWidget: Widget {
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
         if s.isEmpty || s == "0B" {
-            return "0K"
+            return "0"
         }
         return s
     }
@@ -188,7 +208,7 @@ public struct NetPulseLiveActivityWidget: Widget {
             .replacingOccurrences(of: "↑", with: "")
             .trimmingCharacters(in: .whitespaces)
         if s.isEmpty || s == "0B" {
-            return "0K"
+            return "0"
         }
         return s
     }
@@ -199,22 +219,29 @@ public struct NetPulseLiveActivityWidget: Widget {
     }
 
     private func pingColor(_ ping: Double?) -> Color {
-        guard let p = ping else { return .green }
+        // Нет данных о пинге — серый индикатор (раньше «зелёный, всё хорошо»)
+        guard let p = ping else { return .gray }
         if p < 45 { return .green }
         if p < 95 { return .yellow }
         return .red
     }
 
+    /// Подпись провайдера как есть: раньше пустое значение и «Интернет» подменялись на «Мобильный интернет»,
+    /// хотя устройство могло быть в Wi-Fi или вообще без сети.
     private func cleanISP(_ text: String) -> String {
-        if text.isEmpty || text == "Подключение отсутствует" || text == "Интернет" {
-            return "Мобильный интернет"
+        if text.isEmpty || text == "Подключение отсутствует" {
+            return "—"
         }
         return text
     }
 
+    /// Тип подключения как есть: раньше «нет соединения» превращалось в «5G / LTE».
     private func cleanConnType(_ text: String) -> String {
-        if text.isEmpty || text == "Нет соединения" || text == "Поиск сети..." {
-            return "5G / LTE"
+        if text.isEmpty {
+            return "—"
+        }
+        if text == "Нет соединения" || text == "Поиск сети..." {
+            return "Нет подключения"
         }
         return text
     }
@@ -223,9 +250,11 @@ public struct NetPulseLiveActivityWidget: Widget {
 /// Баннер на экране блокировки с реальной скоростью и пингом
 private struct LockScreenLiveActivityView: View {
     let state: NetPulseAttributes.ContentState
+    /// Обновления перестали приходить (приложение приостановлено): цифры тускнеют, вместо пинга — «пауза»
+    let isStale: Bool
 
     private var statusColor: Color {
-        guard let p = state.pingMs else { return .green }
+        guard let p = state.pingMs else { return .gray }
         if p < 45 { return .green }
         if p < 95 { return .yellow }
         return .red
@@ -264,6 +293,7 @@ private struct LockScreenLiveActivityView: View {
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
+                            .opacity(isStale ? 0.4 : 1)
                     }
 
                     HStack(spacing: 4) {
@@ -274,6 +304,7 @@ private struct LockScreenLiveActivityView: View {
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
+                            .opacity(isStale ? 0.4 : 1)
                     }
                 }
             }
@@ -283,14 +314,18 @@ private struct LockScreenLiveActivityView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(statusColor)
+                        .fill(isStale ? Color.orange : statusColor)
                         .frame(width: 6, height: 6)
-                    if let p = state.pingMs, p > 0 {
+                    if isStale {
+                        Text("пауза")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.orange)
+                    } else if let p = state.pingMs, p > 0 {
                         Text(String(format: "%.0f ms", p))
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(statusColor)
                     } else {
-                        Text("LIVE")
+                        Text("— ms")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundStyle(statusColor)
                     }

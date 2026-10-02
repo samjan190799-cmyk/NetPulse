@@ -8,80 +8,94 @@
 import Foundation
 import Network
 
-/// Асинхронный движок параллельного замера пинга до игровых кластеров
+/// Асинхронный движок параллельного замера задержки до региональных узлов (AWS).
 public actor GamingRadarEngine {
     public static let shared = GamingRadarEngine()
 
+    /// Число учитываемых замеров на регион
+    private static let samplesPerRegion = 5
+    /// Таймаут одного соединения
+    private static let timeoutSeconds: Double = 1.5
+
     public init() {}
 
-    /// Параллельный опрос всех кластеров для выбранной игры
-    public func scanGameClusters(
-        for game: GameTitle,
+    /// Параллельный замер всех региональных узлов
+    public func scanRegions(
+        regions: [GameClusterInfo] = GameClusterInfo.referenceRegions,
         onProgress: (@Sendable (GameClusterResult) -> Void)? = nil
     ) async -> [GameClusterResult] {
-        let clusters = GameClusterInfo.defaultClusters.filter { $0.game == game }
         var results: [GameClusterResult] = []
 
         await withTaskGroup(of: GameClusterResult.self) { group in
-            for cluster in clusters {
+            for region in regions {
                 group.addTask {
-                    await self.pingCluster(cluster)
+                    await self.pingRegion(region)
                 }
             }
 
-            for await res in group {
-                results.append(res)
-                onProgress?(res)
+            for await result in group {
+                results.append(result)
+                onProgress?(result)
             }
         }
 
-        return results.sorted { (a, b) -> Bool in
-            if a.isReachable && !b.isReachable { return true }
-            if !a.isReachable && b.isReachable { return false }
-            return (a.latencyMs ?? 9999.0) < (b.latencyMs ?? 9999.0)
+        return results.sorted { a, b in
+            if a.isReachable != b.isReachable { return a.isReachable }
+            return (a.latencyMs ?? .infinity) < (b.latencyMs ?? .infinity)
         }
     }
 
-    /// Замер одиночного игрового дата-центра
-    public func pingCluster(_ cluster: GameClusterInfo) async -> GameClusterResult {
-        var latencies: [Double] = []
-        let attempts = 4
+    /// Замер одного регионального узла
+    public func pingRegion(_ region: GameClusterInfo) async -> GameClusterResult {
+        // Прогревочное соединение не учитывается: оно включает разрешение DNS-имени и маршрут,
+        // а замер должен показывать задержку сети, а не скорость DNS
+        _ = await Self.measureConnectLatency(host: region.targetHost, port: region.port)
 
-        for _ in 0..<attempts {
-            if let lat = await measureConnectLatency(to: cluster.targetHost, port: cluster.port) {
-                latencies.append(lat)
+        var latencies: [Double] = []
+        for _ in 0..<Self.samplesPerRegion {
+            if Task.isCancelled { break }
+            if let latency = await Self.measureConnectLatency(host: region.targetHost, port: region.port) {
+                latencies.append(latency)
             }
         }
 
-        if latencies.isEmpty {
+        guard !latencies.isEmpty else {
             return GameClusterResult(
-                cluster: cluster,
+                cluster: region,
                 latencyMs: nil,
                 jitterMs: nil,
                 packetLossPct: 100.0,
-                isReachable: false
+                isReachable: false,
+                isTested: true
             )
         }
 
-        let avg = latencies.reduce(0.0, +) / Double(latencies.count)
-        let lossPct = (Double(attempts - latencies.count) / Double(attempts)) * 100.0
-        let jitter: Double
-        if latencies.count > 1, let maxL = latencies.max(), let minL = latencies.min() {
-            jitter = abs(maxL - minL)
-        } else {
-            jitter = 0.0
+        let sorted = latencies.sorted()
+        let middle = sorted.count / 2
+        let median = sorted.count % 2 == 0 ? (sorted[middle - 1] + sorted[middle]) / 2.0 : sorted[middle]
+
+        // Джиттер — средняя абсолютная разница соседних замеров (раньше считалась разность максимума и минимума)
+        var jitter: Double?
+        if latencies.count > 1 {
+            var differences = 0.0
+            for index in 1..<latencies.count {
+                differences += abs(latencies[index] - latencies[index - 1])
+            }
+            jitter = differences / Double(latencies.count - 1)
         }
 
+        let lostCount = Self.samplesPerRegion - latencies.count
         return GameClusterResult(
-            cluster: cluster,
-            latencyMs: (avg * 10).rounded() / 10,
-            jitterMs: (jitter * 10).rounded() / 10,
-            packetLossPct: lossPct,
-            isReachable: true
+            cluster: region,
+            latencyMs: (median * 10).rounded() / 10,
+            jitterMs: jitter.map { ($0 * 10).rounded() / 10 },
+            packetLossPct: Double(lostCount) / Double(Self.samplesPerRegion) * 100.0,
+            isReachable: true,
+            isTested: true
         )
     }
 
-    private func measureConnectLatency(to host: String, port: UInt16) async -> Double? {
+    private static func measureConnectLatency(host: String, port: UInt16) async -> Double? {
         await withCheckedContinuation { continuation in
             let endpoint = NWEndpoint.hostPort(
                 host: NWEndpoint.Host(host),
@@ -89,24 +103,24 @@ public actor GamingRadarEngine {
             )
 
             let params = NWParameters.tcp
-            params.prohibitExpensivePaths = false
+            params.preferNoProxies = true
 
             let connection = NWConnection(to: endpoint, using: params)
-            let queue = DispatchQueue(label: "com.samjan.netpulse.gaming.\(host)", qos: .userInteractive)
-            let startTime = Date()
+            let queue = DispatchQueue(label: "com.samvel.netpulse.gaming.\(host)", qos: .userInteractive)
+            let start = ContinuousClock().now
 
             let box = SafeContinuationBox<Double?>(continuation)
 
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    let elapsed = Date().timeIntervalSince(startTime) * 1000.0
+                    let elapsed = ContinuousClock().now - start
+                    let milliseconds = Double(elapsed.components.seconds) * 1000.0
+                        + Double(elapsed.components.attoseconds) / 1_000_000_000_000_000.0
                     connection.cancel()
-                    box.resumeOnce((elapsed * 10).rounded() / 10)
+                    box.resumeOnce((milliseconds * 10).rounded() / 10)
                 case .failed, .cancelled:
                     box.resumeOnce(nil)
-                case .waiting:
-                    break
                 default:
                     break
                 }
@@ -114,7 +128,7 @@ public actor GamingRadarEngine {
 
             connection.start(queue: queue)
 
-            queue.asyncAfter(deadline: .now() + 1.5) {
+            queue.asyncAfter(deadline: .now() + timeoutSeconds) {
                 connection.cancel()
                 box.resumeOnce(nil)
             }

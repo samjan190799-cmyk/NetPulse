@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000C32C123456000000C3 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C32C123456000000C3 /* StoreManager.swift */; };
 		A10000C02C123456000000C0 /* YandexAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C02C123456000000C0 /* YandexAdManager.swift */; };
 		A10000C12C123456000000C1 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C12C123456000000C1 /* YandexBannerView.swift */; };
 		A10000C22C123456000000C2 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
@@ -108,6 +109,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B10000C32C123456000000C3 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/StoreManager.swift; sourceTree = "<group>"; };
 		B10000C02C123456000000C0 /* YandexAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/YandexAdManager.swift; sourceTree = "<group>"; };
 		B10000C12C123456000000C1 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
 		C10000002C12345600000000 /* NetPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -338,6 +340,7 @@
 				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 				B10000A02C123456000000A0 /* AdMobManager.swift */,
 				B10000C02C123456000000C0 /* YandexAdManager.swift */,
+				B10000C32C123456000000C3 /* StoreManager.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -518,6 +521,7 @@
 				A100009C2C1234560000009C /* NetworkGlossarySheetView.swift in Sources */,
 				A10000A02C123456000000A0 /* AdMobManager.swift in Sources */,
 				A10000C02C123456000000C0 /* YandexAdManager.swift in Sources */,
+				A10000C32C123456000000C3 /* StoreManager.swift in Sources */,
 				A10000C12C123456000000C1 /* YandexBannerView.swift in Sources */,
 				A10000A12C123456000000A1 /* AdMobBannerContainerView.swift in Sources */,
 				A10000A22C123456000000A2 /* AdMobNativeAdCardView.swift in Sources */,

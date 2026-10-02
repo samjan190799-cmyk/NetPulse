@@ -40,9 +40,7 @@ public struct AIDiagnosticsView: View {
                             quickActionsHub
 
                             // 3.1 Бонусный глубокий AI-аудит за просмотр рекламного видео
-                            if YandexAdManager.shared.canShowAds {
-                                rewardedAIAnalysisCard
-                            }
+                            rewardedAIAnalysisCard
 
                             // 4. Карточка здоровья сети (Health Score 0-100) с нейросферой
                             networkHealthCard
@@ -318,21 +316,25 @@ public struct AIDiagnosticsView: View {
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(NPTheme.textPrimary)
 
-                        HStack(spacing: 2) {
-                            Image(systemName: "infinity")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                            Text("Реклама")
-                                .font(.system(size: 8, weight: .heavy, design: .rounded))
-                                .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                        if YandexAdManager.shared.canShowAds {
+                            HStack(spacing: 2) {
+                                Image(systemName: "infinity")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                                Text("Реклама")
+                                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(Color(red: 0.0, green: 0.55, blue: 1.0).opacity(0.12))
+                            .clipShape(Capsule())
                         }
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1.5)
-                        .background(Color(red: 0.0, green: 0.55, blue: 1.0).opacity(0.12))
-                        .clipShape(Capsule())
                     }
 
-                    Text("Короткий спонсорский ролик для мгновенного AI-анализа параметров")
+                    Text(YandexAdManager.shared.canShowAds
+                         ? "Короткий рекламный ролик для мгновенного AI-анализа параметров"
+                         : "Мгновенный углублённый анализ параметров сети")
                         .font(.system(size: 11))
                         .foregroundStyle(NPTheme.textSecondary)
                 }

@@ -188,14 +188,12 @@ public final class AdMobManager {
         }
     }
 
-    // MARK: - Покупка NetPulse Pro (Удаление рекламы)
-    public func purchaseProVersion() {
-        isPremiumUser = true
-        HapticManager.shared.notificationSuccess()
-    }
-
-    public func restorePurchases() {
-        // Логика восстановления покупок StoreKit
-        HapticManager.shared.notificationSuccess()
+    // MARK: - Статус подписки NetPulse PRO (StoreKit 2, см. StoreManager)
+    /// Применяет результат проверки подписки. Режим владельца сохраняет PRO независимо от подписки.
+    public func applyStoreEntitlement(_ isActive: Bool) {
+        let newValue = isActive || isOwnerUnlocked
+        if isPremiumUser != newValue {
+            isPremiumUser = newValue
+        }
     }
 }

@@ -18,6 +18,9 @@ struct NetPulseApp: App {
         // Инициализация Yandex Mobile Ads SDK (только если заданы боевые ID рекламных блоков)
         YandexAdManager.shared.initialize()
 
+        // Подписка NetPulse PRO: тарифы и актуальный статус
+        StoreManager.shared.start()
+
     }
 
     var body: some Scene {

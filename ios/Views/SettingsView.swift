@@ -419,7 +419,7 @@ public struct SettingsView: View {
                     }
 
                     Button {
-                        AdMobManager.shared.restorePurchases()
+                        Task { await StoreManager.shared.restore() }
                     } label: {
                         HStack {
                             Text("Восстановить покупки")
@@ -433,7 +433,7 @@ public struct SettingsView: View {
                 } header: {
                     Label("Подписка NetPulse PRO", systemImage: "crown.fill")
                 } footer: {
-                    Text("Подписка полностью удаляет рекламные баннеры и нативные объявления Google AdMob, открывает приоритетный замер скорости и безлимитного AI-инженера.")
+                    Text("Подписка NetPulse PRO отключает рекламу, открывает глубокий AI-аудит без просмотра ролика и игровой оверлей (HUD). Автопродление можно отключить в настройках Apple ID.")
                 }
 
                 // 8. Обратная связь

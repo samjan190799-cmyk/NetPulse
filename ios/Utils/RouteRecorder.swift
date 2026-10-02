@@ -247,6 +247,11 @@ public final class RouteRecorder {
 
     // MARK: - История
 
+    /// Скрывает сообщение о том, что произошло с записью
+    public func dismissNotice() {
+        notice = nil
+    }
+
     public func reloadHistory() async {
         history = await storage.loadAll()
     }

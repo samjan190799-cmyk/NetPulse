@@ -8,15 +8,16 @@
 import XCTest
 @testable import NetPulse
 
-// MARK: - Непрерывный режим
+// MARK: - Запись маршрута: состояния и сборка
 
-final class ContinuousModeStateTests: XCTestCase {
-    private typealias State = ContinuousModeManager.State
+final class RouteRecorderStateTests: XCTestCase {
+    private typealias State = RouteRecorder.State
 
     func testEveryActiveStateHasUserFacingText() {
-        XCTAssertEqual(State.off.statusText, "")
-        for state in [State.waitingForPermission, .running, .denied, .restricted, .unavailable] {
-            XCTAssertFalse(state.statusText.isEmpty, "У состояния \(state) нет подписи для экрана настроек")
+        XCTAssertEqual(State.idle.statusText, "")
+        for state in [State.waitingForPermission, .recording, .denied, .restricted, .unavailable] {
+            XCTAssertFalse(state.statusText.isEmpty, "У состояния \(state) нет подписи для экрана «Карта сети»")
+            XCTAssertFalse(state.logLabel.isEmpty)
         }
     }
 
@@ -24,9 +25,16 @@ final class ContinuousModeStateTests: XCTestCase {
         XCTAssertTrue(State.denied.needsAttention)
         XCTAssertTrue(State.restricted.needsAttention)
         XCTAssertTrue(State.unavailable.needsAttention)
-        XCTAssertFalse(State.off.needsAttention)
+        XCTAssertFalse(State.idle.needsAttention)
         XCTAssertFalse(State.waitingForPermission.needsAttention)
-        XCTAssertFalse(State.running.needsAttention)
+        XCTAssertFalse(State.recording.needsAttention)
+    }
+
+    /// Состояния, при которых нужны действия пользователя, должны объяснять, что делать
+    func testPermissionStatesExplainWhatToDo() {
+        XCTAssertTrue(State.denied.statusText.contains("Настройках"))
+        XCTAssertTrue(State.waitingForPermission.statusText.contains("При использовании"))
+        XCTAssertTrue(State.waitingForPermission.statusText.contains("Однократно"), "Название кнопки должно совпадать с тем, что показывает iOS")
     }
 
     /// Фоновая геолокация без записи `location` в UIBackgroundModes роняет приложение исключением CoreLocation,

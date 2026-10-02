@@ -392,16 +392,16 @@ final class IslandDiagnosticsTests: XCTestCase {
             longestSendSeconds: 5.5,
             inFlightSeconds: nil
         )
-        let summary = journal.summaryText(health: health, continuousMode: "работает — Надёжный (GPS)")
+        let summary = journal.summaryText(health: health, recording: "идёт, точек: 12")
 
         XCTAssertTrue(summary.contains("Остров: активна"))
         XCTAssertTrue(summary.contains("Последнее обновление: 3 с назад"))
         XCTAssertTrue(summary.contains("Отправлено кадров: 120"))
         XCTAssertTrue(summary.contains("Зависших отправок: 2 (поздних ответов: 1)"))
-        XCTAssertTrue(summary.contains("Непрерывный режим: работает — Надёжный (GPS)"))
+        XCTAssertTrue(summary.contains("Запись маршрута: идёт, точек: 12"))
         XCTAssertTrue(summary.contains("Паузы приложения в фоне: 0"))
 
-        let never = journal.summaryText(health: IslandHealthSnapshot(), continuousMode: "выключен")
+        let never = journal.summaryText(health: IslandHealthSnapshot(), recording: "не идёт")
         XCTAssertTrue(never.contains("Последнее обновление: ещё не было"))
     }
 
@@ -428,24 +428,5 @@ final class IslandDiagnosticsTests: XCTestCase {
         XCTAssertEqual(IslandDiagnostics.formatAge(61), "1 мин")
         XCTAssertEqual(IslandDiagnostics.formatAge(3_700), "1 ч")
         XCTAssertEqual(IslandDiagnostics.formatAge(-3), "0 с")
-    }
-}
-
-// MARK: - Непрерывный режим: уровни
-
-final class ContinuousModeLevelTests: XCTestCase {
-    func testReliableLevelComesFirstAndEveryLevelIsDescribed() {
-        XCTAssertEqual(ContinuousModeManager.Level.allCases.first, .reliable)
-        for level in ContinuousModeManager.Level.allCases {
-            XCTAssertFalse(level.title.isEmpty)
-            XCTAssertFalse(level.explanation.isEmpty)
-        }
-        XCTAssertTrue(ContinuousModeManager.Level.reliable.title.contains("GPS"))
-    }
-
-    /// Состояния, при которых нужны действия пользователя, должны объяснять, что делать
-    func testProblemStatesExplainWhatToDo() {
-        XCTAssertTrue(ContinuousModeManager.State.denied.statusText.contains("Настройках"))
-        XCTAssertTrue(ContinuousModeManager.State.waitingForPermission.statusText.contains("При использовании"))
     }
 }

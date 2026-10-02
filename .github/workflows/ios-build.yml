@@ -1,6 +1,6 @@
 name: "iOS: сборка и тесты"
 
-# Собирает приложение и виджеты под симулятор, запускает юнит-тесты и UI-тест (Dynamic Island, «Непрерывный режим»)
+# Собирает приложение и виджеты под симулятор, запускает юнит-тесты и UI-тест (Dynamic Island, «Карта сети» и запись маршрута)
 # и сохраняет скриншоты как артефакты. Подпись и выгрузка не выполняются: это делает отдельный ручной workflow
 # «Выгрузка в TestFlight».
 #
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       ui_tests:
-        description: 'Только эти UI-тесты (имя метода, например testContinuousModeCanBeEnabled); пусто — все'
+        description: 'Только эти UI-тесты (имя метода, например testRecordingSavesRouteWithPoints); пусто — все'
         required: false
         default: ''
       skip_unit:
@@ -154,7 +154,26 @@ jobs:
           }
           traffic > build/traffic.log 2>&1 &
           TRAFFIC_PID=$!
-          trap 'kill "$TRAFFIC_PID" 2>/dev/null || true' EXIT
+
+          # Запись маршрута идёт по положению устройства: в симуляторе «телефон едет» по улице, положение меняется
+          # каждые 2 секунды (около 50 м за шаг), поэтому точки маршрута прибавляются.
+          route() {
+            local step=0
+            while true; do
+              lat=$(awk -v s="$step" 'BEGIN { printf "%.5f", 37.33000 + (s % 400) * 0.0004 }')
+              lon=$(awk -v s="$step" 'BEGIN { printf "%.5f", -122.03000 + (s % 400) * 0.0003 }')
+              if xcrun simctl location "$UDID" set "$lat,$lon" 2>>build/location.err; then
+                [ "$step" -eq 0 ] && echo "положение в симуляторе задано: $lat,$lon"
+              else
+                echo "не удалось задать положение ($lat,$lon)"
+              fi
+              step=$((step + 1))
+              sleep 2
+            done
+          }
+          route > build/location.log 2>&1 &
+          ROUTE_PID=$!
+          trap 'kill "$TRAFFIC_PID" "$ROUTE_PID" 2>/dev/null || true' EXIT
 
           xcodebuild test-without-building \
             -project NetPulse.xcodeproj \
@@ -172,6 +191,10 @@ jobs:
           grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
           echo "=== Генератор трафика на раннере (последние строки) ==="
           tail -n 12 build/traffic.log 2>/dev/null || echo "(журнала генератора нет)"
+          echo "=== Имитация положения в симуляторе (для записи маршрута) ==="
+          head -n 3 build/location.log 2>/dev/null || echo "(журнала имитации положения нет)"
+          grep -c "не удалось" build/location.log 2>/dev/null | sed 's/^/ошибок задания положения: /' || true
+          head -n 5 build/location.err 2>/dev/null || true
 
       - name: "Экспорт скриншотов и распознавание текста"
         if: always()

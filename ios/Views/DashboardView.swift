@@ -33,10 +33,11 @@ public struct DashboardView: View {
     }
 
     @State private var showGlossarySheet: Bool = false
+    @State private var showMapFromHint: Bool = false
 
-    /// Подсказка после возвращения в приложение: без непрерывного режима iOS усыпляет свёрнутое приложение
-    /// и остров стоит на последних цифрах
-    private var continuousModeHintCard: some View {
+    /// Подсказка после возвращения в приложение: свёрнутое приложение iOS усыпляет, и остров стоит на последних цифрах.
+    /// Пока идёт запись маршрута на «Карте сети», приложение остаётся активным, и остров обновляется и в фоне.
+    private var recordingHintCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "pause.circle.fill")
@@ -48,7 +49,7 @@ public struct DashboardView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
 
-                    Text("iOS усыпляет свёрнутое приложение, и остров стоит на последних цифрах. «Непрерывный режим» держит приложение активным: используется геолокация, в строке состояния появится её значок.")
+                    Text("iOS усыпляет свёрнутое приложение, и остров стоит на последних цифрах. Пока идёт запись маршрута на «Карте сети», приложение остаётся активным и остров обновляется и в фоне. Для записи используется геолокация, в строке состояния появится её значок.")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                         .lineSpacing(2)
@@ -58,24 +59,26 @@ public struct DashboardView: View {
 
             HStack(spacing: 10) {
                 Button {
-                    viewModel.enableContinuousModeFromHint()
+                    viewModel.dismissRecordingHint(forever: false)
+                    showMapFromHint = true
                 } label: {
-                    Text("Включить")
+                    Text("Открыть карту сети")
                         .font(.system(size: 12, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("continuousModeHintEnable")
+                .accessibilityIdentifier("recordingHintOpenMap")
 
                 Button {
-                    viewModel.dismissContinuousModeHint(forever: false)
+                    viewModel.dismissRecordingHint(forever: false)
                 } label: {
                     Text("Позже")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("recordingHintLater")
 
                 Button {
-                    viewModel.dismissContinuousModeHint(forever: true)
+                    viewModel.dismissRecordingHint(forever: true)
                 } label: {
                     Text("Не показывать")
                         .font(.system(size: 12))
@@ -88,6 +91,34 @@ public struct DashboardView: View {
         .npGlassCard(cornerRadius: 14)
     }
 
+    /// Плашка, пока идёт запись маршрута: пользователь всегда видит, что геолокация используется, и может открыть карту
+    private var recordingBanner: some View {
+        NavigationLink(destination: NetworkMapView()) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(NPTheme.semanticCritical)
+                    .frame(width: 10, height: 10)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Идёт запись маршрута")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.textPrimary)
+                    Text("Точек: \(RouteRecorder.shared.pointCount) · приложение активно и в фоне")
+                        .font(.system(size: 11))
+                        .foregroundStyle(NPTheme.textSecondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(NPTheme.textTertiary)
+            }
+            .padding(14)
+            .npGlassCard(cornerRadius: 14)
+        }
+        .buttonStyle(NPPressableButtonStyle())
+        .accessibilityIdentifier("recordingBanner")
+    }
+
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
@@ -97,9 +128,11 @@ public struct DashboardView: View {
 
                 ScrollView {
                     VStack(spacing: 18) {
-                        // 0. Остров замирал, пока приложение было свёрнуто, а непрерывный режим выключен
-                        if viewModel.showContinuousModeHint {
-                            continuousModeHintCard
+                        // 0. Идёт запись маршрута, либо остров замирал, пока приложение было свёрнуто, а запись не шла
+                        if RouteRecorder.shared.isActive {
+                            recordingBanner
+                        } else if viewModel.showRecordingHint {
+                            recordingHintCard
                         }
 
                         // 1. Интерактивный замер скорости (Speedtest 2026)
@@ -164,7 +197,7 @@ public struct DashboardView: View {
                         // 2. Рекламный баннер Meta Audience Network на самом видном месте
                         MetaBannerView(contextTag: "Сетевые утилиты")
 
-                        // 3. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN)
+                        // 3. Быстрые карточки Pro-инструментов (DNS, Gaming, Bufferbloat, LAN, Карта сети)
                         quickToolsSection
 
                         // 4. Блок оценки применимости скорости (Для чего подходит сеть)
@@ -217,6 +250,9 @@ public struct DashboardView: View {
             .sheet(isPresented: $showGlossarySheet) {
                 NetworkGlossarySheetView()
             }
+            .navigationDestination(isPresented: $showMapFromHint) {
+                NetworkMapView()
+            }
             .onAppear {
                 if !viewModel.isMonitoringActive {
                     viewModel.startMonitoring()
@@ -265,6 +301,16 @@ public struct DashboardView: View {
                     )
                 }
                 .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: NetworkMapView()) {
+                    quickDashboardChip(
+                        title: "Карта сети",
+                        icon: "map.fill",
+                        color: Color.orange
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+                .accessibilityIdentifier("networkMapChip")
             }
         }
     }

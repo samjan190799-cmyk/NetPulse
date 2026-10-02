@@ -279,7 +279,7 @@ public final class IslandDiagnostics {
     }
 
     /// Краткая сводка состояния острова для экрана диагностики
-    public func summaryText(health: IslandHealthSnapshot, continuousMode: String) -> String {
+    public func summaryText(health: IslandHealthSnapshot, recording: String) -> String {
         var lines: [String] = []
         lines.append("Остров: \(health.activityText)")
 
@@ -296,7 +296,7 @@ public final class IslandDiagnostics {
             lines.append(String(format: "Сейчас отправка идёт уже %.1f с", inFlight))
         }
 
-        lines.append("Непрерывный режим: \(continuousMode)")
+        lines.append("Запись маршрута: \(recording)")
 
         var pauses = "Паузы приложения в фоне: \(backgroundPauseCount)"
         if backgroundPauseCount > 0 {

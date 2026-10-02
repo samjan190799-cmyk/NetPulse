@@ -144,24 +144,10 @@ public final class NetworkMonitorViewModel {
             UserDefaults.standard.set(liveActivityEnabled, forKey: Self.kLiveActivityKey)
         }
     }
-    // Непрерывный режим: фоновая геолокация удерживает приложение активным, и остров обновляется в фоне
-    private static let kContinuousModeKey = "netpulse_continuous_mode_enabled"
-    public var continuousModeEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(continuousModeEnabled, forKey: Self.kContinuousModeKey)
-        }
-    }
-    /// Фактическое состояние режима: ждёт разрешения, работает, доступ запрещён и т. д.
-    public private(set) var continuousModeState: ContinuousModeManager.State = .off
-    /// Уровень удержания в фоне: «Надёжный» (GPS) или «Экономный»
-    public var continuousModeLevel: ContinuousModeManager.Level = ContinuousModeManager.shared.level {
-        didSet { ContinuousModeManager.shared.setLevel(continuousModeLevel) }
-    }
-    /// Сколько раз приложение приостанавливали в фоне, пока непрерывный режим работал
-    public private(set) var continuousModePauses: Int = 0
-    /// Подсказка на главном экране: остров замирал, а непрерывный режим выключен
-    public var showContinuousModeHint: Bool = false
-    private static let kContinuousHintDismissedKey = "netpulse_continuous_hint_dismissed"
+    // Подсказка на главном экране: остров замирал, пока приложение было свёрнуто, а запись маршрута не шла
+    // (пока она идёт, приложение остаётся активным в фоне, и остров обновляется)
+    public var showRecordingHint: Bool = false
+    private static let kRecordingHintDismissedKey = "netpulse_recording_hint_dismissed"
 
     public var floatingHUDEnabled: Bool {
         didSet {
@@ -232,8 +218,6 @@ public final class NetworkMonitorViewModel {
         let savedCollapsed = UserDefaults.standard.bool(forKey: Self.kFloatingHUDCollapsedKey)
 
         self.liveActivityEnabled = savedLive
-        // По умолчанию выключен: фоновая геолокация включается только самим пользователем
-        self.continuousModeEnabled = UserDefaults.standard.bool(forKey: Self.kContinuousModeKey)
         self.floatingHUDEnabled = savedHUD
         self.isFloatingHUDCollapsed = savedCollapsed
         self.backgroundMonitoringEnabled = savedBg
@@ -256,25 +240,10 @@ public final class NetworkMonitorViewModel {
             await self.refreshTrafficData(period: .today)
             self.syncWidgetData(reloadTimelines: true)
         }
-        ContinuousModeManager.shared.onStateChange = { [weak self] state in
-            self?.continuousModeState = state
-        }
         startMonitoring(silent: true)
-        refreshContinuousMode()
-    }
-
-    /// Согласует фоновую геолокацию с настройками: режим нужен, только пока включён сам остров
-    /// (и Live Activities разрешены в системе), иначе приложение зря удерживалось бы в фоне.
-    public func refreshContinuousMode() {
-        let needed = continuousModeEnabled && liveActivityEnabled && ActivityManager.shared.areActivitiesEnabled
-        ContinuousModeManager.shared.setActive(needed)
-    }
-
-    public func toggleContinuousMode(enabled: Bool) {
-        continuousModeEnabled = enabled
-        refreshContinuousMode()
-        if hapticsEnabled {
-            HapticManager.shared.impactLight()
+        // Запись, которую система оборвала посреди маршрута (приложение закрыли), сохраняется как прерванный маршрут
+        Task {
+            await RouteRecorder.shared.recoverInterruptedRoute()
         }
     }
 
@@ -295,18 +264,12 @@ public final class NetworkMonitorViewModel {
         )
     }
 
-    /// Скрывает подсказку про непрерывный режим; `forever` — больше не показывать
-    public func dismissContinuousModeHint(forever: Bool) {
-        showContinuousModeHint = false
+    /// Скрывает подсказку про запись маршрута; `forever` — больше не показывать
+    public func dismissRecordingHint(forever: Bool) {
+        showRecordingHint = false
         if forever {
-            UserDefaults.standard.set(true, forKey: Self.kContinuousHintDismissedKey)
+            UserDefaults.standard.set(true, forKey: Self.kRecordingHintDismissedKey)
         }
-    }
-
-    /// Кнопка «Включить» в подсказке
-    public func enableContinuousModeFromHint() {
-        showContinuousModeHint = false
-        toggleContinuousMode(enabled: true)
     }
 
     public func toggleLiveActivity(enabled: Bool) {
@@ -345,8 +308,6 @@ public final class NetworkMonitorViewModel {
                 HapticManager.shared.impactLight()
             }
         }
-        // Остров включён или выключен — удержание в фоне должно следовать за ним
-        refreshContinuousMode()
     }
 
     private func setupBackgroundObservation() {
@@ -410,7 +371,7 @@ public final class NetworkMonitorViewModel {
 
     private func handleDidEnterBackground() {
         backgroundedAt = Date()
-        IslandDiagnostics.shared.log("Приложение свёрнуто. \(ContinuousModeManager.shared.diagnosticContext())", .lifecycle)
+        IslandDiagnostics.shared.log("Приложение свёрнуто. \(RouteRecorder.shared.diagnosticContext())", .lifecycle)
 
         // 1. Принудительный сброс несохраненных данных трафика на диск
         Task {
@@ -464,17 +425,16 @@ public final class NetworkMonitorViewModel {
     }
 
     private func handleDidBecomeActive() {
-        // Запрос разрешения и запуск фоновой геолокации возможны только при открытом приложении; заодно
-        // подхватываются изменения, сделанные в Настройках iOS (разрешение, Live Activities)
-        refreshContinuousMode()
+        // Пока приложение было свёрнуто, система могла остановить геолокацию: идущая запись маршрута запускает её заново
+        RouteRecorder.shared.appDidBecomeActive()
 
-        // Сколько приложение пробыло свёрнутым. Без непрерывного режима iOS усыпляет его примерно через 30 секунд,
-        // и остров всё это время стоял на последних цифрах — предлагаем включить режим.
+        // Сколько приложение пробыло свёрнутым. Без записи маршрута iOS усыпляет его примерно через 30 секунд,
+        // и остров всё это время стоял на последних цифрах — предлагаем записать маршрут.
         let awaySeconds = backgroundedAt.map { Date().timeIntervalSince($0) }
         backgroundedAt = nil
-        if let away = awaySeconds, away > 40, liveActivityEnabled, !continuousModeEnabled,
-           !UserDefaults.standard.bool(forKey: Self.kContinuousHintDismissedKey) {
-            showContinuousModeHint = true
+        if let away = awaySeconds, away > 40, liveActivityEnabled, !RouteRecorder.shared.isActive,
+           !UserDefaults.standard.bool(forKey: Self.kRecordingHintDismissedKey) {
+            showRecordingHint = true
         }
 
         // Остров, который не обновился после возврата из фона, пересоздаётся сам. При холодном запуске и коротких
@@ -679,11 +639,10 @@ public final class NetworkMonitorViewModel {
             journal.recordPause(
                 seconds: seconds,
                 inBackground: true,
-                context: ContinuousModeManager.shared.diagnosticContext(),
+                context: RouteRecorder.shared.diagnosticContext(),
                 now: now
             )
-            ContinuousModeManager.shared.noteBackgroundPause(seconds: seconds, now: now)
-            continuousModePauses = ContinuousModeManager.shared.pausesWhileRunning
+            RouteRecorder.shared.noteBackgroundPause(seconds: seconds, now: now)
         case .stalledInForeground(let seconds):
             journal.recordPause(seconds: seconds, inBackground: false, context: "", now: now)
         }

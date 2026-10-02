@@ -285,107 +285,24 @@ public struct SettingsView: View {
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
 
-                        // Непрерывный режим: остров обновляется и когда приложение свернуто
-                        Toggle(isOn: Binding(
-                            get: { viewModel.continuousModeEnabled },
-                            set: { enabled in
-                                if enabled && ContinuousModeManager.requiresPro && !AdMobManager.shared.isPremiumUser {
-                                    // Доступно только в PRO
-                                    showProUpgradeSheet = true
-                                    HapticManager.shared.notificationWarning()
-                                    return
-                                }
-                                viewModel.toggleContinuousMode(enabled: enabled)
-                            }
-                        )) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text("Непрерывный режим")
-                                        .font(.system(size: 15, weight: .medium))
-                                    if ContinuousModeManager.requiresPro {
-                                        Text("PRO")
-                                            .font(.system(size: 9, weight: .black))
-                                            .foregroundStyle(Color.yellow)
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 1.5)
-                                            .background(Color.yellow.opacity(0.18))
-                                            .clipShape(Capsule())
-                                    }
-                                }
-                                Text("Остров показывает реальную скорость и в фоне, а не замирает через 30 секунд. Приложение остаётся активным за счёт геолокации: NetPulse не читает координаты, не сохраняет и не передаёт их, в строке состояния виден значок геолокации, батарея расходуется быстрее.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                        }
-                        .accessibilityIdentifier("continuousModeToggle")
-
-                        if viewModel.continuousModeEnabled && viewModel.continuousModeState != .off {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(alignment: .top, spacing: 6) {
-                                    Circle()
-                                        .fill(viewModel.continuousModeState == .running
-                                              ? Color.green
-                                              : (viewModel.continuousModeState.needsAttention ? NPTheme.semanticCritical : Color.orange))
-                                        .frame(width: 8, height: 8)
-                                        .padding(.top, 4)
-                                    Text(viewModel.continuousModeState.statusText)
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(NPTheme.textSecondary)
-                                        .accessibilityIdentifier("continuousModeStatus")
-                                }
-
-                                if viewModel.continuousModeState == .denied {
-                                    Button("Открыть Настройки iOS") {
-                                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                                            UIApplication.shared.open(url)
-                                        }
-                                    }
-                                    .font(.system(size: 12, weight: .bold))
+                        // Карта сети: запись маршрута. Пока она идёт, приложение активно в фоне и остров обновляется
+                        NavigationLink(destination: NetworkMapView()) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "map.fill")
+                                    .font(.system(size: 14, weight: .semibold))
                                     .foregroundStyle(NPTheme.accentPrimary)
-                                }
-
-                                Picker("Удержание в фоне", selection: $viewModel.continuousModeLevel) {
-                                    ForEach(ContinuousModeManager.Level.allCases) { level in
-                                        Text(level.title).tag(level)
-                                    }
-                                }
-                                .pickerStyle(.segmented)
-                                .accessibilityIdentifier("continuousModeLevelPicker")
-
-                                Text(viewModel.continuousModeLevel.explanation)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(NPTheme.textSecondary)
-
-                                if viewModel.continuousModeState == .running, viewModel.continuousModePauses > 0 {
-                                    if viewModel.continuousModeLevel == .economy {
-                                        Text("Приложение приостанавливали в фоне \(viewModel.continuousModePauses) раз(а): «Экономный» его не удержал. Выберите «Надёжный (GPS)».")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(Color.orange)
-                                    } else {
-                                        Text("Приложение приостанавливали в фоне \(viewModel.continuousModePauses) раз(а), несмотря на «Надёжный» режим. Подробности — в «Диагностике острова».")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(Color.orange)
-                                    }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Карта сети")
+                                        .font(.system(size: 15, weight: .medium))
+                                    Text(RouteRecorder.shared.isActive
+                                         ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
+                                         : "Запись маршрута показывает на карте, где сеть пропадала. Пока она идёт, остров обновляется и в фоне.")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(NPTheme.textSecondary)
                                 }
                             }
-                            .padding(.vertical, 2)
-                        } else if !viewModel.continuousModeEnabled {
-                            // Подсказка по правилам фонового режима iOS
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "lightbulb.fill")
-                                        .foregroundStyle(Color.yellow)
-                                        .font(.system(size: 11))
-                                    Text("Совет по фоновому мониторингу")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(Color.yellow)
-                                }
-                                Text("Без «Непрерывного режима» iOS приостанавливает свернутое приложение примерно через 30 секунд, и Dynamic Island с виджетами показывают последние полученные данные. Включите режим выше, чтобы остров обновлялся и в фоне.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(NPTheme.textSecondary)
-                            }
-                            .padding(.vertical, 2)
                         }
+                        .accessibilityIdentifier("networkMapLink")
 
                         // Журнал: что происходило с островом, пока приложение было свёрнуто
                         Button {

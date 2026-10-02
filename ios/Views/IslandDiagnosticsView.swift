@@ -44,7 +44,7 @@ struct IslandDiagnosticsView: View {
         let journal = IslandDiagnostics.shared
         let summary = journal.summaryText(
             health: ActivityManager.shared.health,
-            continuousMode: ContinuousModeManager.shared.summaryDescription
+            recording: RouteRecorder.shared.summaryDescription
         )
         let exported = journal.exportText(summary: summary)
         let lines = Array(journal.displayLines().prefix(200))

@@ -7,7 +7,7 @@
 
 import XCTest
 
-/// Проверка приложения в симуляторе: запуск, вкладки, экран настроек, Dynamic Island и «Непрерывный режим».
+/// Проверка приложения в симуляторе: запуск, вкладки, экран настроек, Dynamic Island и «Карта сети» (запись маршрута).
 ///
 /// Что симулятор доказать НЕ может: усыпление свёрнутого приложения на реальном iPhone он не воспроизводит,
 /// поэтому «остров не замирает в фоне» окончательно проверяется только на устройстве. Здесь проверяется всё
@@ -22,10 +22,8 @@ final class NetPulseUITests: XCTestCase {
     @MainActor private func launchApp() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        // Параметр запуска переопределяет сохранённое значение: каждый тест стартует с выключенным режимом
-        app.launchArguments += ["-netpulse_continuous_mode_enabled", "NO"]
         // Подсказка «остров замирал» может быть скрыта предыдущим запуском: сбрасываем её
-        app.launchArguments += ["-netpulse_continuous_hint_dismissed", "NO"]
+        app.launchArguments += ["-netpulse_recording_hint_dismissed", "NO"]
         app.launch()
         dismissSystemAlerts()
         return app
@@ -176,51 +174,87 @@ final class NetPulseUITests: XCTestCase {
     }
 
     /// Заголовок подсказки «остров замирал» на главном экране
-    @MainActor private func continuousModeHintTitle(_ app: XCUIApplication) -> XCUIElement {
+    @MainActor private func recordingHintTitle(_ app: XCUIApplication) -> XCUIElement {
         app.staticTexts["Остров замирал, пока приложение было свёрнуто"]
     }
 
-    /// Включает «Непрерывный режим» и дожидается статуса «Активен…». Возвращает последний прочитанный статус.
+    /// Открывает «Карту сети» из настроек
+    @MainActor private func openNetworkMap(_ app: XCUIApplication) {
+        let link = app.descendants(matching: .any)["networkMapLink"]
+        guard reveal(link, in: app) else {
+            attachScreenshot("network-map-link-not-found")
+            attachHierarchy(app, name: "network-map-link-not-found-hierarchy")
+            XCTFail("В настройках нет входа в «Карту сети»")
+            return
+        }
+        link.tap()
+        let opened = app.navigationBars["Карта сети"].waitForExistence(timeout: 10)
+        if !opened {
+            attachScreenshot("network-map-not-opened")
+            attachHierarchy(app, name: "network-map-not-opened-hierarchy")
+        }
+        XCTAssertTrue(opened, "Экран «Карта сети» не открылся")
+    }
+
+    /// Число записанных точек из строки состояния записи («Точек: 12 · 450 м · …»); `nil` — строки нет
+    @MainActor private func recordedPoints(_ app: XCUIApplication) -> Int? {
+        let status = app.staticTexts["networkMapStatus"]
+        guard status.exists else { return nil }
+        let label = status.label
+        guard label.hasPrefix("Точек:") else { return nil }
+        let digits = label.dropFirst("Точек:".count).prefix { $0 == " " || $0.isNumber }
+        return Int(digits.trimmingCharacters(in: .whitespaces))
+    }
+
+    /// Ждёт, пока в записи наберётся не меньше `minimum` точек; возвращает последнее прочитанное число
+    @MainActor private func waitForPoints(_ app: XCUIApplication, atLeast minimum: Int, timeout: TimeInterval) -> Int {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last = recordedPoints(app) ?? 0
+        while Date() < deadline, last < minimum {
+            Thread.sleep(forTimeInterval: 1)
+            last = recordedPoints(app) ?? last
+        }
+        return last
+    }
+
+    /// Начинает запись маршрута на открытом экране «Карта сети»: нажимает кнопку, отвечает на запрос геолокации
+    /// и дожидается строки состояния записи. Возвращает `false`, если запись не началась.
     @discardableResult
-    @MainActor private func enableContinuousMode(_ app: XCUIApplication) -> String {
-        let toggle = app.switches["continuousModeToggle"]
-        XCTAssertTrue(reveal(toggle, in: app), "Тумблер «Непрерывный режим» не найден на экране настроек")
+    @MainActor private func startRecording(_ app: XCUIApplication) -> Bool {
+        let start = app.buttons["networkMapStartButton"]
+        guard reveal(start, in: app) else {
+            attachScreenshot("recording-start-not-found")
+            attachHierarchy(app, name: "recording-start-not-found-hierarchy")
+            return false
+        }
+        start.tap()
+        dismissSystemAlerts(timeout: 8)       // запрос геолокации, если разрешение ещё не выдано
 
-        // Нажатие проверяется по значению переключателя и при необходимости повторяется
-        var turnedOn = isOn(toggle)
-        var attempt = 0
-        while !turnedOn && attempt < 4 {
-            attempt += 1
-            flip(toggle)
-            Thread.sleep(forTimeInterval: 1.5)
-            dismissSystemAlerts(timeout: 4)       // запрос геолокации, если разрешение ещё не выдано
-            _ = reveal(toggle, in: app)
-            turnedOn = isOn(toggle)
-            print("NETPULSE-CI: нажатие на тумблер непрерывного режима №\(attempt): включён = \(turnedOn)")
+        let status = app.staticTexts["networkMapStatus"]
+        guard status.waitForExistence(timeout: 20) else {
+            attachScreenshot("recording-status-not-found")
+            attachHierarchy(app, name: "recording-status-not-found-hierarchy")
+            return false
         }
-        guard turnedOn else {
-            attachScreenshot("continuous-toggle-not-on")
-            attachHierarchy(app, name: "continuous-toggle-not-on-hierarchy")
-            return "(тумблер не включился)"
-        }
-        dismissSystemAlerts()
+        print("NETPULSE-CI: запись маршрута началась: \(status.label)")
+        return true
+    }
 
-        // После системного окна список настроек может оказаться прокрученным в другое место, поэтому строку
-        // статуса ищем прокруткой, а не там, где она была.
-        let status = app.staticTexts["continuousModeStatus"]
-        guard reveal(status, in: app) else {
-            attachScreenshot("continuous-status-not-found")
-            attachHierarchy(app, name: "continuous-status-not-found-hierarchy")
-            print("NETPULSE-CI: строка статуса непрерывного режима не найдена")
-            return "(строка статуса не найдена)"
+    /// Останавливает запись на открытом экране «Карта сети»
+    @MainActor private func stopRecording(_ app: XCUIApplication) {
+        let stop = app.buttons["networkMapStopButton"]
+        guard reveal(stop, in: app) else {
+            attachScreenshot("recording-stop-not-found")
+            attachHierarchy(app, name: "recording-stop-not-found-hierarchy")
+            XCTFail("Кнопка «Остановить и сохранить» не найдена")
+            return
         }
-        let deadline = Date().addingTimeInterval(20)
-        while Date() < deadline, !(status.exists && status.label.hasPrefix("Активен")) {
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-        let finalStatus = status.exists ? status.label : "(строка статуса пропала с экрана)"
-        print("NETPULSE-CI: статус непрерывного режима: \(finalStatus)")
-        return finalStatus
+        stop.tap()
+    }
+
+    /// Возвращается с экрана «Карта сети» на предыдущий
+    @MainActor private func goBack(_ app: XCUIApplication) {
+        app.navigationBars.buttons.element(boundBy: 0).tap()
     }
 
     /// Уходит на главный экран и фиксирует состояние приложения и скриншот через заданные паузы.
@@ -256,15 +290,18 @@ final class NetPulseUITests: XCTestCase {
         }
     }
 
-    @MainActor func testSettingsContainIslandAndContinuousModeControls() throws {
+    @MainActor func testSettingsContainIslandAndNetworkMapEntry() throws {
         let app = launchApp()
         openSettings(app)
 
         XCTAssertTrue(reveal(app.switches["dynamicIslandToggle"], in: app), "Тумблер Dynamic Island не найден")
-        XCTAssertTrue(reveal(app.switches["continuousModeToggle"], in: app), "Тумблер «Непрерывный режим» не найден")
+        XCTAssertTrue(reveal(app.descendants(matching: .any)["networkMapLink"], in: app), "В настройках нет входа в «Карту сети»")
         attachScreenshot("settings-island-controls")
 
-        XCTAssertFalse(isOn(app.switches["continuousModeToggle"]), "Непрерывный режим не должен быть включён сам по себе")
+        XCTAssertFalse(
+            app.switches["continuousModeToggle"].exists,
+            "Отдельного тумблера, который держит приложение геолокацией без записи маршрута, быть не должно"
+        )
     }
 
     @MainActor func testLiveActivityStartsInSimulator() throws {
@@ -325,18 +362,53 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(after.contains("Зависших отправок: 0"), "После перезапуска отправки зависали:\n\(after)")
     }
 
-    @MainActor func testContinuousModeCanBeEnabled() throws {
+    /// Запись маршрута: старт, точки с положением и проверкой сети, остановка, маршрут в истории. Положение в симуляторе
+    /// меняет скрипт CI (`simctl location`), поэтому точки должны прибавляться.
+    @MainActor func testRecordingSavesRouteWithPoints() throws {
         let app = launchApp()
         openSettings(app)
+        openNetworkMap(app)
 
-        let status = enableContinuousMode(app)
-        attachScreenshot("continuous-mode-enabled")
-        XCTAssertTrue(status.hasPrefix("Активен"), "Непрерывный режим не запустился. Статус: «\(status)»")
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось после включения режима")
+        XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
+        let points = waitForPoints(app, atLeast: 3, timeout: 75)
+        print("NETPULSE-CI: запись маршрута: набрано точек \(points)")
+        attachScreenshot("route-recording")
+        XCTAssertGreaterThanOrEqual(points, 3, "Запись не набрала три точки за 75 секунд: не работает геолокация или проверка сети")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось во время записи")
+
+        stopRecording(app)
+
+        let row = app.descendants(matching: .any).matching(identifier: "networkMapHistoryRow").firstMatch
+        XCTAssertTrue(reveal(row, in: app), "После остановки маршрут не появился в истории")
+        let summary = app.staticTexts["networkMapSummary"]
+        XCTAssertTrue(reveal(summary, in: app), "Нет сводки по сохранённому маршруту")
+        print("NETPULSE-CI: сводка сохранённого маршрута: \(summary.label)")
+        attachScreenshot("route-saved")
+        XCTAssertTrue(summary.label.hasPrefix("Точек:"), "Странная сводка: «\(summary.label)»")
     }
 
-    /// Контрольный прогон: что происходит со свёрнутым приложением и островом без «Непрерывного режима».
-    @MainActor func testBackgroundWithoutContinuousMode() throws {
+    /// Пока записи нет, на экране «Карта сети» есть пример: так видно, что покажет функция, даже если ещё не двигались
+    @MainActor func testDemoRouteShowsMapAndSummary() throws {
+        let app = launchApp()
+        openSettings(app)
+        openNetworkMap(app)
+
+        let demo = app.buttons["networkMapDemoButton"]
+        XCTAssertTrue(reveal(demo, in: app), "Нет кнопки «Показать пример»")
+        demo.tap()
+
+        let badge = app.descendants(matching: .any)["networkMapDemoBadge"]
+        XCTAssertTrue(badge.waitForExistence(timeout: 10), "Пример не показан или не подписан как демо-данные")
+        let summary = app.staticTexts["networkMapSummary"]
+        XCTAssertTrue(reveal(summary, in: app), "Нет сводки по примеру")
+        print("NETPULSE-CI: сводка примера: \(summary.label)")
+        XCTAssertTrue(summary.label.hasPrefix("Точек: 72"), "Сводка примера: «\(summary.label)»")
+        attachScreenshot("map-demo")
+    }
+
+    /// Контрольный прогон: свёрнутое приложение без записи маршрута. После возврата на главном экране появляется
+    /// подсказка, и она ведёт на «Карту сети».
+    @MainActor func testBackgroundWithoutRecordingShowsHintThatOpensMap() throws {
         let app = launchApp()
         openSettings(app)
         attachScreenshot("control-0-before-home")
@@ -346,41 +418,67 @@ final class NetPulseUITests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Приложение не вернулось на передний план")
 
-        // Пока приложение было свёрнуто дольше 40 секунд, а режим выключен, на главном экране появляется подсказка
+        // Пока приложение было свёрнуто дольше 40 секунд, а запись не шла, на главном экране появляется подсказка
         app.tabBars.buttons["Скорость"].tap()
-        let hint = continuousModeHintTitle(app)
+        let hint = recordingHintTitle(app)
         let hintShown = hint.waitForExistence(timeout: 10)
-        print("NETPULSE-CI: подсказка про непрерывный режим после долгого фона без режима: \(hintShown ? "показана" : "НЕ показана")")
+        print("NETPULSE-CI: подсказка после долгого фона без записи маршрута: \(hintShown ? "показана" : "НЕ показана")")
         attachScreenshot("control-hint")
-        XCTAssertTrue(hintShown, "После долгого фона без непрерывного режима подсказка не появилась")
+        XCTAssertTrue(hintShown, "После долгого фона без записи маршрута подсказка не появилась")
+
+        let open = app.buttons["recordingHintOpenMap"]
+        XCTAssertTrue(open.waitForExistence(timeout: 3), "В подсказке нет кнопки «Открыть карту сети»")
+        open.tap()
+        XCTAssertTrue(
+            app.buttons["networkMapStartButton"].waitForExistence(timeout: 10),
+            "Кнопка из подсказки не открыла «Карту сети»"
+        )
+        attachScreenshot("control-hint-opened-map")
     }
 
-    /// Основной прогон: свёрнутое приложение с включённым режимом. Снимки острова сохраняются для просмотра.
-    @MainActor func testBackgroundWithContinuousMode() throws {
+    /// Основной прогон: запись маршрута идёт, пока приложение свёрнуто. Точки продолжают прибавляться, подсказки нет,
+    /// на главном экране видна плашка записи, а остров не зависал.
+    @MainActor func testRecordingContinuesInBackground() throws {
         let app = launchApp()
         openSettings(app)
+        openNetworkMap(app)
 
-        let status = enableContinuousMode(app)
-        XCTAssertTrue(status.hasPrefix("Активен"), "Непрерывный режим не запустился. Статус: «\(status)»")
-        attachScreenshot("continuous-bg-0-before-home")
+        XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
+        let before = waitForPoints(app, atLeast: 2, timeout: 60)
+        XCTAssertGreaterThanOrEqual(before, 2, "До сворачивания запись не набрала точки")
+        attachScreenshot("recording-bg-0-before-home")
 
-        sampleBackground(app, prefix: "continuous-bg", pauses: [6, 20, 20, 20])
+        sampleBackground(app, prefix: "recording-bg", pauses: [6, 20, 20, 20])
 
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "Приложение не вернулось на передний план: оно завершилось в фоне")
 
-        // С включённым режимом подсказки быть не должно
-        app.tabBars.buttons["Скорость"].tap()
-        let hintShown = continuousModeHintTitle(app).waitForExistence(timeout: 3)
-        print("NETPULSE-CI: подсказка про непрерывный режим при включённом режиме: \(hintShown ? "ПОКАЗАНА (ошибка)" : "не показана")")
-        XCTAssertFalse(hintShown, "При включённом непрерывном режиме подсказка показываться не должна")
+        // Запись не прервалась: за время в фоне точек стало больше
+        let after = waitForPoints(app, atLeast: before + 1, timeout: 30)
+        print("NETPULSE-CI: точек до сворачивания: \(before), после возврата: \(after)")
+        attachScreenshot("recording-bg-after")
+        XCTAssertGreaterThan(after, before, "Запись маршрута не продолжалась в фоне")
 
-        // Конвейер после фона: отправки не зависали, остров обновляется
+        // На главном экране: плашка записи есть, подсказки «остров замирал» нет
+        goBack(app)
+        app.tabBars.buttons["Скорость"].tap()
+        let banner = app.descendants(matching: .any)["recordingBanner"]
+        XCTAssertTrue(banner.waitForExistence(timeout: 10), "На главном экране нет плашки «Идёт запись маршрута»")
+        let hintShown = recordingHintTitle(app).waitForExistence(timeout: 3)
+        print("NETPULSE-CI: подсказка во время записи маршрута: \(hintShown ? "ПОКАЗАНА (ошибка)" : "не показана")")
+        XCTAssertFalse(hintShown, "Во время записи маршрута подсказка показываться не должна")
+        attachScreenshot("recording-dashboard-banner")
+
+        // Конвейер острова после фона: отправки не зависали, запись видна в диагностике
         app.tabBars.buttons["Настройки"].tap()
         let summary = readIslandDiagnostics(app)
-        logDiagnostics(summary, label: "после фона с режимом")
+        logDiagnostics(summary, label: "после фона с записью маршрута")
         XCTAssertTrue(summary.contains("Остров: активна"), "После фона остров не активен:\n\(summary)")
         XCTAssertTrue(summary.contains("Зависших отправок: 0"), "В фоне отправки зависали:\n\(summary)")
-        XCTAssertTrue(summary.contains("работает"), "Диагностика не видит работающего непрерывного режима:\n\(summary)")
+        XCTAssertTrue(summary.contains("Запись маршрута: идёт"), "Диагностика не видит идущей записи:\n\(summary)")
+
+        // Уборка: останавливаем запись, чтобы она не мешала следующим тестам
+        openNetworkMap(app)
+        stopRecording(app)
     }
 }

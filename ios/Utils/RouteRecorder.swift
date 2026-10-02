@@ -384,7 +384,8 @@ public final class RouteRecorder {
             progressLine = "Ждём сигнал GPS…"
             return
         case .skipPoorAccuracy:
-            progressLine = "Слабый сигнал GPS: точность низкая…"
+            // Причина бывает и в слабом сигнале, и в выключенном «Точном местоположении» (тогда точность — километры)
+            progressLine = "Низкая точность геопозиции. Выйдите на открытое место и проверьте, что включено «Точное местоположение» (Настройки iOS → NetPulse → Геопозиция)."
             return
         case .skipStationary:
             progressLine = "Телефон стоит на месте: новые точки не пишутся"

@@ -21,21 +21,18 @@
   "screenshots": {
     "iphone": [
       "02-route-demo",
-      "01-home",
       "03-recording",
+      "01-home",
+      "04-route-saved",
       "06-hosts",
-      "09-dns",
-      "08-ai",
-      "07-traffic"
+      "07-traffic",
+      "08-ai"
     ],
     "ipad": [
       "02-route-demo",
-      "01-home",
-      "03-recording",
       "06-hosts",
-      "09-dns",
-      "08-ai",
-      "07-traffic"
+      "07-traffic",
+      "08-ai"
     ]
   },
   "ageRating": {

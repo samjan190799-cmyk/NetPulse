@@ -113,6 +113,7 @@
 		A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E62C123456000000E6 /* YandexBannerView.swift */; };
 		A30000092C12345600000009 /* AdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000092C12345600000009 /* AdTests.swift */; };
 		A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
+		A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000022C12345600000002 /* AppStoreScreenshotTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -264,6 +265,7 @@
 		B10000E52C123456000000E5 /* YandexStickyBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexStickyBannerView.swift; sourceTree = "<group>"; };
 		B10000E62C123456000000E6 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
 		B30000092C12345600000009 /* AdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/AdTests.swift; sourceTree = "<group>"; };
+		B40000022C12345600000002 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -490,6 +492,7 @@
 			isa = PBXGroup;
 			children = (
 				B40000012C12345600000001 /* NetPulseUITests.swift */,
+				B40000022C12345600000002 /* AppStoreScreenshotTests.swift */,
 			);
 			name = NetPulseUITests;
 			sourceTree = "<group>";
@@ -783,6 +786,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A40000012C12345600000001 /* NetPulseUITests.swift in Sources */,
+				A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

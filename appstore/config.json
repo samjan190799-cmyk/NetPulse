@@ -3,7 +3,7 @@
   "switchPrimaryLocale": true,
   "name": "NetPulse скорость трафика",
   "versionString": "1.0",
-  "build": null,
+  "build": 127,
   "primaryCategory": "UTILITIES",
   "secondaryCategory": null,
   "releaseType": "MANUAL",

@@ -1,5 +1,6 @@
 # Запрос к App Store Connect. Любое изменение этого файла в ветке fix/audit-bugs запускает workflow
 # «App Store Connect: карточка приложения» (.github/workflows/appstore-connect.yml).
 # action: inspect (только чтение) | prepare (заполнить карточку) | submit (отправить на проверку, нужно confirm=ОТПРАВИТЬ)
+# Запуск 2: итоговые наборы скриншотов (iPhone 7, iPad 4); сборка 1.0 ещё загружается, привязка сборки — отдельным запуском.
 action=prepare
 confirm=

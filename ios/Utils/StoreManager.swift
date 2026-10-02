@@ -28,7 +28,7 @@ public final class StoreManager {
 
     private init() {
         updatesTask = Task { [weak self] in
-            for await result in Transaction.updates {
+            for await result in StoreKit.Transaction.updates {
                 guard let self else { return }
                 await self.handle(result)
             }
@@ -81,7 +81,7 @@ public final class StoreManager {
         }
     }
 
-    private func handle(_ result: VerificationResult<Transaction>) async {
+    private func handle(_ result: VerificationResult<StoreKit.Transaction>) async {
         guard case .verified(let transaction) = result else { return }
         await transaction.finish()
         await refreshEntitlements()
@@ -90,7 +90,7 @@ public final class StoreManager {
     /// Пересчитывает наличие активной подписки по текущим правам пользователя
     public func refreshEntitlements() async {
         var isActive = false
-        for await result in Transaction.currentEntitlements {
+        for await result in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let transaction) = result,
                   Self.productIDs.contains(transaction.productID),
                   transaction.revocationDate == nil else { continue }

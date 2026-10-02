@@ -211,6 +211,20 @@ jobs:
             plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST" || true
           fi
 
+          # Статические SDK (например, YandexMobileAds: ar-архив внутри .framework) уже слинкованы
+          # в основной бинарник. Xcode всё равно встраивает их в Frameworks/, и App Store Connect
+          # отклоняет такую загрузку («Invalid Signature»). Удаляем встроенные копии статических библиотек.
+          APP_DIR="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
+          for fw in "$APP_DIR"/Frameworks/*.framework; do
+            [ -d "$fw" ] || continue
+            bin="$fw/$(basename "$fw" .framework)"
+            if [ -f "$bin" ] && head -c 7 "$bin" | grep -q '!<arch>'; then
+              echo "✔ Удаляю встроенную статическую библиотеку: $fw"
+              rm -rf "$fw"
+            fi
+          done
+          rmdir "$APP_DIR/Frameworks" 2>/dev/null || true
+
       - name: "Экспорт и подпись IPA через App Store Connect API"
         working-directory: ./ios
         env:
@@ -244,10 +258,17 @@ jobs:
           fi
           echo "✔ Найден IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
 
+          set -o pipefail
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
             --type ios \
             --apiKey "$KEY_ID" \
-            --apiIssuer "$ISSUER_ID"
+            --apiIssuer "$ISSUER_ID" 2>&1 | tee upload.log
+
+          # altool может вернуть код 0 даже при отказе Apple — проверяем текст вывода
+          if grep -qE "UPLOAD FAILED|Failed to upload package|Validation failed" upload.log; then
+            echo "❌ Apple отклонила загрузку (см. лог выше)"
+            exit 1
+          fi
 
           echo "🚀 Сборка успешно отправлена в Apple TestFlight!"

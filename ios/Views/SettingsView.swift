@@ -401,7 +401,15 @@ public struct SettingsView: View {
                 // 8. Обратная связь
                 Section("Тактильная отдача и звуки") {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
-                    Toggle("Звуковые предупреждения", isOn: $viewModel.soundEnabled)
+                    Toggle(isOn: $viewModel.soundEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Звуковые предупреждения")
+                            Text("Один тихий щелчок при серьёзной проблеме с сетью, не чаще раза в 5 минут. Если звук на телефоне выключен боковой кнопкой, щелчка не будет.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("soundAlertsToggle")
                 }
 
                 // 8. Управление хранилищем трафика

@@ -9,7 +9,6 @@ import Foundation
 import SwiftUI
 import Observation
 import UIKit
-import AudioToolbox
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -1174,9 +1173,9 @@ public final class NetworkMonitorViewModel {
             await history.recordAlert(alert)
         }
 
-        // Тумблер «Звуковые предупреждения» раньше нигде не читался
+        // Звук тихий и не чаще раза в несколько минут (см. AlertSound); тумблер «Звуковые предупреждения» выключает его совсем
         if soundEnabled && condition.severity == .critical {
-            AudioServicesPlaySystemSound(1007)
+            AlertSound.shared.playIfDue()
         }
     }
 

@@ -371,6 +371,8 @@ public final class NetworkMonitorViewModel {
 
     private func handleDidEnterBackground() {
         backgroundedAt = Date()
+        // Если фоновая запись выключена в настройках, идущая запись встаёт на паузу до возвращения в приложение
+        RouteRecorder.shared.appDidEnterBackground()
         IslandDiagnostics.shared.log("Приложение свёрнуто. \(RouteRecorder.shared.diagnosticContext())", .lifecycle)
 
         // 1. Принудительный сброс несохраненных данных трафика на диск

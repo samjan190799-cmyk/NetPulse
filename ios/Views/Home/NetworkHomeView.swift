@@ -39,9 +39,10 @@ public struct NetworkHomeView: View {
     @State private var pendingDeleteID: UUID?
     @State private var showDeleteRouteDialog = false
     @State private var dismissedAISummary: String?
-    /// Полосы прежних маршрутов: считаются один раз при изменении списка, а не при каждой перерисовке экрана
+    /// Линии прежних маршрутов: считаются один раз при изменении списка, а не при каждой перерисовке экрана
     @State private var coverageRuns: [CoverageRun] = []
     @AppStorage("netpulse_map_satellite") private var satellite = false
+    /// Показывать ли на карте линии прежних маршрутов (ключ прежний, чтобы выбор пользователя сохранился)
     @AppStorage("netpulse_map_coverage") private var coverageOn = true
 
     private var recorder: RouteRecorder {
@@ -96,30 +97,14 @@ public struct NetworkHomeView: View {
         mode == .idle && detent == .expanded
     }
 
-    // MARK: - Покрытие сети
+    // MARK: - Прежние маршруты
 
-    /// Покрытие нарисовано. При записи и у готового маршрута оно показывается всегда (это и есть их содержание),
-    /// в обычном режиме его можно выключить кнопкой справа.
-    private var showsCoverage: Bool {
-        mode != .idle || coverageOn
-    }
-
-    /// Цветная зона вокруг точки «вы здесь»; у готового маршрута точки «вы здесь» нет
-    private var haloQuality: RouteQuality? {
-        guard showsCoverage, !isRouteMode else { return nil }
-        return HomeHalo.quality(
-            isRecording: recorder.isActive,
-            lastRecorded: recorder.lastQuality,
-            link: viewModel.homeLinkQuality
-        )
-    }
-
-    /// Легенда цветов нужна, пока на карте есть полосы прежних маршрутов или последний маршрут
+    /// Легенда цветов нужна, пока на карте есть линии прежних маршрутов или последний маршрут
     private var showsCoverageLegend: Bool {
         mode == .idle && coverageOn && !recorder.history.isEmpty
     }
 
-    /// Последний маршрут нарисован отдельно (линией и полосой), остальные — только полосами
+    /// Последний маршрут нарисован отдельно (толстой линией), остальные — тонкими
     private func refreshCoverage() {
         coverageRuns = CoverageBuilder.runs(from: Array(recorder.history.dropFirst()), metric: metric)
     }
@@ -136,9 +121,7 @@ public struct NetworkHomeView: View {
                         isLive: recorder.current != nil,
                         showsUserDot: !isRouteMode,
                         satellite: satellite,
-                        haloQuality: haloQuality,
-                        showsRibbon: showsCoverage,
-                        coverage: mode == .idle && coverageOn ? coverageRuns : [],
+                        previousRoutes: mode == .idle && coverageOn ? coverageRuns : [],
                         showsEndpoints: mode != .idle,
                         camera: $camera
                     )

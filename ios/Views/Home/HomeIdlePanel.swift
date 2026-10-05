@@ -471,6 +471,23 @@ struct HomeIdlePanel: View {
             }
             .accessibilityIdentifier("networkMapSpeedToggle")
 
+            Toggle(isOn: Binding(
+                get: { recorder.recordsInBackground },
+                set: { recorder.recordsInBackground = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Записывать маршрут в фоне")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(NPTheme.textPrimary)
+                    Text(recorder.recordsInBackground
+                         ? "Запись идёт, пока приложение свёрнуто. Значок геолокации в строке состояния, заряд тратится заметнее."
+                         : "Когда приложение свёрнуто, запись ждёт и продолжается при возвращении. Заряд в фоне не тратится.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(NPTheme.textSecondary)
+                }
+            }
+            .accessibilityIdentifier("networkMapBackgroundToggle")
+
             Button {
                 selectedID = nil
                 showsDemo = true
@@ -485,7 +502,7 @@ struct HomeIdlePanel: View {
             }
             .accessibilityIdentifier("networkMapDemoButton")
 
-            Text("Каждые несколько секунд приложение сохраняет, где вы находитесь, и проверяет сеть: за сколько устанавливается соединение с контрольным узлом 1.1.1.1. Не ответил узел — на карте «нет сети». Телефон стоит на месте — точки пишутся реже. Пока запись идёт, приложение работает и в фоне: в строке состояния iOS виден значок геолокации, а Dynamic Island продолжает показывать скорость.")
+            Text("Каждые несколько секунд приложение сохраняет, где вы находитесь, и проверяет сеть: за сколько устанавливается соединение с контрольным узлом 1.1.1.1. Не ответил узел — на карте «нет сети». Телефон стоит на месте — точки пишутся реже, а через 20 минут без движения запись останавливается сама. Если включено «Записывать маршрут в фоне», приложение работает и свёрнутым: в строке состояния iOS виден значок геолокации, а Dynamic Island продолжает показывать скорость.")
                 .font(.system(size: 12))
                 .foregroundStyle(NPTheme.textSecondary)
                 .lineSpacing(2)

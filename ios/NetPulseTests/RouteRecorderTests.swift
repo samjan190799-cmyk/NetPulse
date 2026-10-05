@@ -20,12 +20,15 @@ private final class FakeLocationSession: LocationSessionProviding {
     private(set) var permissionRequests = 0
     private(set) var startCount = 0
     private(set) var stopCount = 0
+    /// Все значения, с которыми запись просила разрешить или запретить фон
+    private(set) var backgroundAllowed: [Bool] = []
 
     init(authorization: LocationAuthorization) {
         self.authorization = authorization
     }
 
     func requestPermission() { permissionRequests += 1 }
+    func setBackgroundUpdates(allowed: Bool) { backgroundAllowed.append(allowed) }
     func start() { startCount += 1 }
     func stop() { stopCount += 1 }
 
@@ -61,6 +64,12 @@ private actor FakeProbe: NetworkProbing {
     }
 }
 
+/// Переключатель «включено энергосбережение» для теста
+@MainActor
+private final class LowPowerFlag {
+    var isOn = false
+}
+
 /// Всё, что нужно тесту записи маршрута, в одном месте
 @MainActor
 private struct Rig {
@@ -69,24 +78,40 @@ private struct Rig {
     let probe: FakeProbe
     let storage: RouteStorage
     let directory: URL
+    let defaults: UserDefaults
+    let lowPower: LowPowerFlag
 }
 
 @MainActor
 private func makeRig(
     authorization: LocationAuthorization,
     probe: FakeProbe = FakeProbe(),
-    directory: URL? = nil
+    directory: URL? = nil,
+    defaults existingDefaults: UserDefaults? = nil
 ) throws -> Rig {
     let dir = directory ?? FileManager.default.temporaryDirectory
         .appendingPathComponent("netpulse-recorder-\(UUID().uuidString)", isDirectory: true)
-    let suite = "netpulse.route-tests.\(UUID().uuidString)"
-    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-    defaults.removePersistentDomain(forName: suite)
+    let defaults: UserDefaults
+    if let existingDefaults {
+        defaults = existingDefaults
+    } else {
+        let suite = "netpulse.route-tests.\(UUID().uuidString)"
+        defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+    }
 
     let session = FakeLocationSession(authorization: authorization)
     let storage = RouteStorage(directory: dir)
-    let recorder = RouteRecorder(session: session, probe: probe, storage: storage, defaults: defaults, startsLoop: false)
-    return Rig(recorder: recorder, session: session, probe: probe, storage: storage, directory: dir)
+    let lowPower = LowPowerFlag()
+    let recorder = RouteRecorder(
+        session: session,
+        probe: probe,
+        storage: storage,
+        defaults: defaults,
+        startsLoop: false,
+        isLowPowerMode: { lowPower.isOn }
+    )
+    return Rig(recorder: recorder, session: session, probe: probe, storage: storage, directory: dir, defaults: defaults, lowPower: lowPower)
 }
 
 private func fix(_ latitude: Double, at time: Date, accuracy: Double = 5) -> LocationFix {
@@ -414,6 +439,219 @@ final class RouteRecorderTests: XCTestCase {
             try await Task.sleep(nanoseconds: 20_000_000)
         }
         XCTAssertEqual(remaining, 0)
+    }
+}
+
+// MARK: - Фон, экономия заряда, автоостановка
+
+final class RouteRecorderBatteryTests: XCTestCase {
+    /// Широта, на которую сдвигается телефон на ~20 м (между порогами обычного режима, 15 м, и экономного, 30 м)
+    private let twentyMeters = 0.00018
+
+    @MainActor
+    func testBackgroundRecordingIsOnByDefaultAndRemembered() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        XCTAssertTrue(rig.recorder.recordsInBackground, "Раньше запись всегда шла в фоне: по умолчанию так и остаётся")
+        XCTAssertTrue(rig.recorder.stopsWhenIdle)
+
+        rig.recorder.recordsInBackground = false
+        rig.recorder.stopsWhenIdle = false
+
+        let second = try makeRig(authorization: .authorized, defaults: rig.defaults)
+        defer { try? FileManager.default.removeItem(at: second.directory) }
+        XCTAssertFalse(second.recorder.recordsInBackground, "Выбор пользователя сохраняется между запусками")
+        XCTAssertFalse(second.recorder.stopsWhenIdle)
+    }
+
+    @MainActor
+    func testSessionIsToldWhetherBackgroundUpdatesAreAllowed() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.recordsInBackground = false
+
+        rig.recorder.start()
+        XCTAssertEqual(rig.session.backgroundAllowed.last, false, "Запись началась при выключенной фоновой записи")
+        XCTAssertEqual(rig.session.startCount, 1)
+
+        // Переключатель в настройках действует сразу, без перезапуска записи
+        rig.recorder.recordsInBackground = true
+        XCTAssertEqual(rig.session.backgroundAllowed.last, true)
+        rig.recorder.recordsInBackground = false
+        XCTAssertEqual(rig.session.backgroundAllowed.last, false)
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testRecordingWaitsInBackgroundWhenBackgroundRecordingIsOff() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.recordsInBackground = false
+
+        rig.recorder.start()
+        let t0 = Date()
+        rig.session.emit(fix(55.0, at: t0))
+        await rig.recorder.tick(now: t0)
+        XCTAssertEqual(rig.recorder.pointCount, 1)
+
+        rig.recorder.appDidEnterBackground()
+        let t1 = t0.addingTimeInterval(30)
+        rig.session.emit(fix(55.0 + twentyMeters * 10, at: t1))
+        await rig.recorder.tick(now: t1)
+        XCTAssertEqual(rig.recorder.pointCount, 1, "В фоне запись на паузе: новых точек нет")
+        let callsInBackground = await rig.probe.calls
+        XCTAssertEqual(callsInBackground, 1, "В фоне сеть не проверяется")
+
+        let startsBefore = rig.session.startCount
+        rig.recorder.appDidBecomeActive()
+        XCTAssertGreaterThan(rig.session.startCount, startsBefore, "При возвращении геолокация запускается заново")
+        let notice = try XCTUnwrap(rig.recorder.notice)
+        XCTAssertTrue(notice.contains("на паузе"), notice)
+        XCTAssertTrue(rig.recorder.isActive, "Запись не прервалась, а только ждала")
+
+        let t2 = t1.addingTimeInterval(10)
+        rig.session.emit(fix(55.0 + twentyMeters * 10, at: t2))
+        await rig.recorder.tick(now: t2)
+        XCTAssertEqual(rig.recorder.pointCount, 2, "После возвращения запись снова пишет точки")
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testRecordingContinuesInBackgroundWhenAllowed() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        rig.recorder.start()
+        let t0 = Date()
+        rig.session.emit(fix(55.0, at: t0))
+        await rig.recorder.tick(now: t0)
+
+        rig.recorder.appDidEnterBackground()
+        let t1 = t0.addingTimeInterval(20)
+        rig.session.emit(fix(55.0 + twentyMeters * 3, at: t1))   // около 60 м: больше порога экономного режима
+        await rig.recorder.tick(now: t1)
+
+        XCTAssertEqual(rig.recorder.pointCount, 2, "Фоновая запись включена: точки в фоне пишутся")
+        XCTAssertNil(rig.recorder.notice)
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testBackgroundAndLowPowerModeUseTheEconomyPolicy() async throws {
+        // Сдвиг на ~20 м за 5 секунд: в обычном режиме это движение, в экономном — ещё нет
+        func secondPoint(prepare: (Rig) -> Void) async throws -> Int {
+            let rig = try makeRig(authorization: .authorized)
+            defer { try? FileManager.default.removeItem(at: rig.directory) }
+            rig.recorder.start()
+            prepare(rig)
+            let t0 = Date()
+            rig.session.emit(fix(55.0, at: t0))
+            await rig.recorder.tick(now: t0)
+            let t1 = t0.addingTimeInterval(5)
+            rig.session.emit(fix(55.0 + twentyMeters, at: t1))
+            await rig.recorder.tick(now: t1)
+            let count = rig.recorder.pointCount
+            rig.recorder.stop()
+            return count
+        }
+
+        let standard = try await secondPoint { _ in }
+        let background = try await secondPoint { $0.recorder.appDidEnterBackground() }
+        let lowPower = try await secondPoint { $0.lowPower.isOn = true }
+
+        XCTAssertEqual(standard, 2, "Обычный режим: 20 м больше порога в 15 м")
+        XCTAssertEqual(background, 1, "В фоне порог выше (30 м): лишняя точка и проверка сети не нужны")
+        XCTAssertEqual(lowPower, 1, "При включённом энергосбережении точки тоже пишутся реже")
+    }
+
+    func testEconomyPolicyWakesTheAppLessOften() {
+        let standard = RouteSamplingPolicy.standard
+        let economy = RouteSamplingPolicy.economy
+        XCTAssertEqual(standard, RouteSamplingPolicy())
+        XCTAssertGreaterThanOrEqual(economy.tickInterval, standard.tickInterval * 2)
+        XCTAssertGreaterThanOrEqual(economy.stationaryInterval, standard.stationaryInterval * 2)
+        XCTAssertGreaterThan(economy.minMoveMeters, standard.minMoveMeters)
+        XCTAssertGreaterThan(economy.maxFixAge, economy.tickInterval, "Положение не должно устаревать быстрее, чем идёт цикл")
+    }
+
+    @MainActor
+    func testRecordingStopsItselfWhenThePhoneStandsStill() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        rig.recorder.start()
+        let t0 = Date()
+        rig.session.emit(fix(55.0, at: t0))
+        await rig.recorder.tick(now: t0)
+        let t1 = t0.addingTimeInterval(5)
+        rig.session.emit(fix(55.0 + twentyMeters, at: t1))
+        await rig.recorder.tick(now: t1)
+        XCTAssertEqual(rig.recorder.pointCount, 2)
+
+        // Прошло больше срока автоостановки, телефон всё это время на месте
+        let late = t1.addingTimeInterval(RouteRecorder.idleStopSeconds + 60)
+        rig.session.emit(fix(55.0 + twentyMeters, at: late))
+        await rig.recorder.tick(now: late)
+
+        XCTAssertFalse(rig.recorder.isActive, "Запись остановилась сама")
+        XCTAssertEqual(rig.recorder.state, .idle)
+        XCTAssertEqual(rig.recorder.history.count, 1, "Записанный маршрут сохранён, а не потерян")
+        let notice = try XCTUnwrap(rig.recorder.notice)
+        XCTAssertTrue(notice.contains("простоял"), notice)
+    }
+
+    @MainActor
+    func testIdleStopCanBeSwitchedOff() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.stopsWhenIdle = false
+
+        rig.recorder.start()
+        let t0 = Date()
+        rig.session.emit(fix(55.0, at: t0))
+        await rig.recorder.tick(now: t0)
+
+        let late = t0.addingTimeInterval(RouteRecorder.idleStopSeconds + 60)
+        rig.session.emit(fix(55.0, at: late))
+        await rig.recorder.tick(now: late)
+
+        XCTAssertTrue(rig.recorder.isActive, "Автоостановка выключена: запись продолжается")
+        XCTAssertEqual(rig.recorder.state, .recording)
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testMovementKeepsTheRecordingGoing() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        rig.recorder.start()
+        var now = Date()
+        var latitude = 55.0
+        // Час пути с остановками по минуте: движения хватает, запись не прерывается
+        for step in 0..<40 {
+            rig.session.emit(fix(latitude, at: now))
+            await rig.recorder.tick(now: now)
+            latitude += twentyMeters * 2
+            now = now.addingTimeInterval(step % 2 == 0 ? 90 : 60)
+        }
+        XCTAssertTrue(rig.recorder.isActive)
+        XCTAssertGreaterThan(rig.recorder.pointCount, 20)
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testDiagnosticContextMentionsTheBackgroundSetting() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        XCTAssertTrue(rig.recorder.diagnosticContext().contains("фоновая запись: вкл"))
+        rig.recorder.recordsInBackground = false
+        XCTAssertTrue(rig.recorder.diagnosticContext().contains("фоновая запись: выкл"))
     }
 }
 

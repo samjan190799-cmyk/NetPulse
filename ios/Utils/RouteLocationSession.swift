@@ -26,16 +26,21 @@ public protocol LocationSessionProviding: AnyObject {
     var onAuthorizationChange: (@MainActor () -> Void)? { get set }
 
     func requestPermission()
-    /// Начинает (или заново начинает) получение положения, в том числе в фоне
+    /// Можно ли получать положение, пока приложение свёрнуто. Если нет, в фоне запись стоит на паузе,
+    /// а значок геолокации в строке состояния не появляется.
+    func setBackgroundUpdates(allowed: Bool)
+    /// Начинает (или заново начинает) получение положения; в фоне — если это разрешено `setBackgroundUpdates`
     func start()
     func stop()
 }
 
 /// Настоящий источник положения на CoreLocation.
 ///
-/// Нужен полноточный GPS и фоновые обновления: запись маршрута продолжается, пока телефон лежит в кармане.
-/// Пока запись идёт, iOS показывает в строке состояния значок геолокации. Вариант «Однократно» в запросе
-/// разрешения система отзывает вскоре после сворачивания, поэтому нужно «При использовании приложения».
+/// Нужен GPS и (если пользователь не отключил в настройках) фоновые обновления: запись маршрута продолжается,
+/// пока телефон лежит в кармане. Точность «до десяти метров» достаточна для линии маршрута и заметно экономнее
+/// режима «Лучшая». Пока запись идёт в фоне, iOS показывает в строке состояния значок геолокации. Вариант
+/// «Однократно» в запросе разрешения система отзывает вскоре после сворачивания, поэтому нужно «При использовании
+/// приложения».
 @MainActor
 public final class CoreLocationSession: NSObject, LocationSessionProviding, @preconcurrency CLLocationManagerDelegate {
     public var onFix: (@MainActor (LocationFix) -> Void)?
@@ -43,6 +48,7 @@ public final class CoreLocationSession: NSObject, LocationSessionProviding, @pre
 
     private let manager = CLLocationManager()
     private var isRunning = false
+    private var allowsBackground = true
 
     public override init() {
         super.init()
@@ -68,14 +74,22 @@ public final class CoreLocationSession: NSObject, LocationSessionProviding, @pre
         manager.requestWhenInUseAuthorization()
     }
 
+    public func setBackgroundUpdates(allowed: Bool) {
+        allowsBackground = allowed
+        guard isRunning else { return }
+        manager.allowsBackgroundLocationUpdates = allowed
+        manager.showsBackgroundLocationIndicator = allowed
+    }
+
     public func start() {
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        // Для линии маршрута хватает десяти метров; режим «Лучшая» держит датчики на полной мощности зря
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         manager.distanceFilter = kCLDistanceFilterNone
         manager.activityType = .other
         // Иначе система приостанавливает обновления, когда телефон лежит неподвижно, и запись обрывается
         manager.pausesLocationUpdatesAutomatically = false
-        manager.allowsBackgroundLocationUpdates = true
-        manager.showsBackgroundLocationIndicator = true
+        manager.allowsBackgroundLocationUpdates = allowsBackground
+        manager.showsBackgroundLocationIndicator = allowsBackground
 
         if isRunning {
             // Система могла молча остановить сеанс: запускаем его заново

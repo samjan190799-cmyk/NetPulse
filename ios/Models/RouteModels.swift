@@ -519,6 +519,21 @@ public struct RouteSamplingPolicy: Sendable, Equatable {
 
     public init() {}
 
+    /// Обычный режим: приложение открыто, экран включён
+    public static let standard = RouteSamplingPolicy()
+
+    /// Экономный режим для фона и режима энергосбережения: пробуждений и проверок сети вдвое меньше.
+    /// Точки при этом остаются достаточно частыми, чтобы линия маршрута повторяла повороты и у пешехода,
+    /// и у автомобиля.
+    public static let economy: RouteSamplingPolicy = {
+        var policy = RouteSamplingPolicy()
+        policy.tickInterval = 10
+        policy.stationaryInterval = 60
+        policy.minMoveMeters = 30
+        policy.maxFixAge = 40
+        return policy
+    }()
+
     public func decide(lastPoint: RoutePoint?, fix: LocationFix?, now: Date) -> Decision {
         guard let fix, now.timeIntervalSince(fix.timestamp) <= maxFixAge else { return .skipNoFix }
         guard fix.horizontalAccuracy >= 0, fix.horizontalAccuracy <= maxAccuracyMeters else { return .skipPoorAccuracy }

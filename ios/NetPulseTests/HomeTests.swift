@@ -231,31 +231,6 @@ private func coverageRoute(
     return RouteRecord(id: id, startedAt: coverageBase, points: points)
 }
 
-final class HomeHaloTests: XCTestCase {
-    func testIdleShowsLinkQuality() {
-        XCTAssertEqual(HomeHalo.quality(isRecording: false, lastRecorded: .poor, link: .good), .good)
-        XCTAssertEqual(HomeHalo.quality(isRecording: false, lastRecorded: nil, link: .dead), .dead)
-    }
-
-    func testRecordingPrefersTheLastRecordedPoint() {
-        // Тот же цвет, что в карточке «Связь сейчас»: она тоже показывает оценку последней точки
-        XCTAssertEqual(HomeHalo.quality(isRecording: true, lastRecorded: .poor, link: .good), .poor)
-    }
-
-    func testRecordingWithoutAPointYetFallsBackToTheLink() {
-        XCTAssertEqual(HomeHalo.quality(isRecording: true, lastRecorded: nil, link: .fair), .fair)
-    }
-
-    func testNoVerdictMeansNoHalo() {
-        XCTAssertNil(HomeHalo.quality(isRecording: false, lastRecorded: nil, link: nil))
-        XCTAssertNil(HomeHalo.quality(isRecording: true, lastRecorded: nil, link: nil))
-    }
-
-    func testRecordedPointIsUsedEvenWithoutLinkVerdict() {
-        XCTAssertEqual(HomeHalo.quality(isRecording: true, lastRecorded: .good, link: nil), .good)
-    }
-}
-
 final class CoverageBuilderTests: XCTestCase {
     func testRunsFollowQualityChangesAlongTheRoute() {
         let route = coverageRoute(latencies: Array(repeating: 50, count: 5) + Array(repeating: 400, count: 5) + Array(repeating: 50, count: 5))

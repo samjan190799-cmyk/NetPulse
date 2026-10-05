@@ -7,9 +7,10 @@ USER CONTROL
 - While recording, the iOS location indicator is visible, the map screen shows a red "Recording" pill with a timer, and the user ends it with "Stop and save".
 - Location permission ("While Using the App") is requested only after that tap. The purpose string says the location is used to record a route and that the data stays on the device.
 - Routes are stored in the app's Application Support directory, excluded from backups, never uploaded; the user can delete one route or all routes. No account, no server.
+- Settings -> "Запись маршрута": the switch "Записывать маршрут в фоне" (default on). When it is off, the app does not use location while it is in the background and no background location indicator appears; recording simply waits and continues when the user returns. A second switch stops a recording automatically after 20 minutes without movement (default on) to save battery.
 - All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
 
-The map (Apple MapKit) is the home screen and is visible before any permission is requested. Route lines are drawn from points recorded by the app. The "Network coverage" layer draws translucent bands along recorded routes and a coloured zone around the user's dot; its colour comes from the app's own ping, not from location data, and no operator coverage data is used.
+The map (Apple MapKit) is the home screen and is visible before any permission is requested. Routes are drawn as coloured lines from points recorded by the app (green / yellow / orange / red dashed = good / fair / poor / no connection); earlier routes are shown as thinner lines, and a map button hides them. The colour comes from the app's own ping, not from location data, and no operator coverage data is used.
 
 HOW TO TEST
 1. The first screen is the map with the bottom panel (network speed and two buttons).

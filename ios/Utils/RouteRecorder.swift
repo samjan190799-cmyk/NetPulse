@@ -54,7 +54,7 @@ public final class RouteRecorder {
             case .waitingForPermission:
                 return "Ожидается ответ на запрос геолокации. Выберите «При использовании приложения»: вариант «Однократно» iOS отзывает вскоре после сворачивания."
             case .recording:
-                return "Идёт запись маршрута. Приложение остаётся активным и в фоне, в строке состояния виден значок геолокации."
+                return "Идёт запись маршрута. Если включена фоновая запись, она продолжается и при свёрнутом приложении, в строке состояния виден значок геолокации."
             case .denied:
                 return "Нет доступа к геолокации. Разрешите «При использовании приложения» в Настройках iOS."
             case .restricted:
@@ -119,6 +119,28 @@ public final class RouteRecorder {
         didSet { defaults.set(measuresSpeed, forKey: Self.measureSpeedKey) }
     }
 
+    private static let backgroundKey = "netpulse_route_background"
+    /// Продолжать ли запись, пока приложение свёрнуто или экран заблокирован. Включено по умолчанию: так карта
+    /// охватывает весь путь. Выключено — в фоне запись стоит на паузе (геолокация не работает, значка в строке
+    /// состояния нет, заряд не тратится), а при возвращении в приложение продолжается.
+    public var recordsInBackground: Bool {
+        didSet {
+            defaults.set(recordsInBackground, forKey: Self.backgroundKey)
+            guard recordsInBackground != oldValue else { return }
+            IslandDiagnostics.shared.log("Запись маршрута в фоне: \(recordsInBackground ? "включена" : "выключена")", .location)
+            if wantsRecording {
+                session.setBackgroundUpdates(allowed: recordsInBackground)
+            }
+        }
+    }
+
+    private static let stopsWhenIdleKey = "netpulse_route_stop_when_idle"
+    /// Останавливать ли запись, если телефон стоит на месте дольше `idleStopSeconds`. Включено по умолчанию:
+    /// забытая запись иначе работала бы всю ночь и садила батарею.
+    public var stopsWhenIdle: Bool {
+        didSet { defaults.set(stopsWhenIdle, forKey: Self.stopsWhenIdleKey) }
+    }
+
     // MARK: - Настройки записи
 
     /// Маршрут короче не сохраняется: из одной точки пути не получится
@@ -129,6 +151,8 @@ public final class RouteRecorder {
     public static let speedProbeInterval: TimeInterval = 30
     /// Как часто сохранять идущую запись на диск, секунд
     private static let persistInterval: TimeInterval = 20
+    /// Сколько секунд телефон может простоять на месте, прежде чем запись остановится сама (если это не отключено)
+    public static let idleStopSeconds: TimeInterval = 20 * 60
 
     // MARK: - Зависимости и внутреннее состояние
 
@@ -136,7 +160,8 @@ public final class RouteRecorder {
     private let probe: any NetworkProbing
     private let storage: RouteStorage
     private let defaults: UserDefaults
-    private let policy = RouteSamplingPolicy()
+    /// Включено ли в системе энергосбережение (в тестах подменяется)
+    @ObservationIgnored private let isLowPowerMode: @MainActor () -> Bool
     /// Крутить ли цикл записи сам; тесты выключают его и вызывают `tick(now:)` по одному шагу
     private let startsLoop: Bool
     /// Запись включена: от неё зависит интерфейс (`isActive`), поэтому свойство наблюдаемое
@@ -145,20 +170,30 @@ public final class RouteRecorder {
     @ObservationIgnored private var loopTask: Task<Void, Never>?
     @ObservationIgnored private var lastPersistAt = Date.distantPast
     @ObservationIgnored private var lastSpeedProbeAt = Date.distantPast
+    /// Приложение свёрнуто (сообщает `appDidEnterBackground`, снимает `appDidBecomeActive`)
+    @ObservationIgnored private var isInBackground = false
+    /// Запись была на паузе из-за свёрнутого приложения (при выключенной фоновой записи)
+    @ObservationIgnored private var pausedInBackground = false
+    /// Когда телефон в последний раз заметно сдвинулся с места (для автоостановки)
+    @ObservationIgnored private var lastMovementAt = Date.distantPast
 
     public init(
         session: any LocationSessionProviding,
         probe: any NetworkProbing,
         storage: RouteStorage,
         defaults: UserDefaults = .standard,
-        startsLoop: Bool = true
+        startsLoop: Bool = true,
+        isLowPowerMode: @escaping @MainActor () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled }
     ) {
         self.session = session
         self.probe = probe
         self.storage = storage
         self.defaults = defaults
         self.startsLoop = startsLoop
+        self.isLowPowerMode = isLowPowerMode
         self.measuresSpeed = defaults.bool(forKey: Self.measureSpeedKey)
+        self.recordsInBackground = (defaults.object(forKey: Self.backgroundKey) as? Bool) ?? true
+        self.stopsWhenIdle = (defaults.object(forKey: Self.stopsWhenIdleKey) as? Bool) ?? true
 
         session.onFix = { [weak self] fix in
             self?.receive(fix)
@@ -195,6 +230,8 @@ public final class RouteRecorder {
 
         let now = Date()
         wantsRecording = true
+        pausedInBackground = false
+        lastMovementAt = now
         current = RouteRecord(startedAt: now, measuredSpeed: measuresSpeed)
         recordingSince = now
         IslandDiagnostics.shared.log("Запись маршрута начата", .location)
@@ -219,11 +256,37 @@ public final class RouteRecorder {
         finalize(record, interrupted: false)
     }
 
+    /// Вызывать, когда приложение свёрнуто. Если фоновая запись выключена, запись встаёт на паузу: новых точек
+    /// и проверок сети нет, пока пользователь не вернётся.
+    public func appDidEnterBackground() {
+        isInBackground = true
+        guard wantsRecording, !recordsInBackground else { return }
+        pausedInBackground = true
+        // Геолокация выключается сразу, не дожидаясь, пока iOS усыпит приложение: так заряд не тратится ни секунды
+        session.stop()
+        IslandDiagnostics.shared.log("Запись маршрута на паузе: приложение свёрнуто, фоновая запись выключена", .location)
+    }
+
     /// Вызывать, когда приложение стало активным: система могла остановить сеанс геолокации, пока оно было свёрнуто
     public func appDidBecomeActive() {
-        if wantsRecording {
-            applyDesiredState()
+        isInBackground = false
+        guard wantsRecording else {
+            pausedInBackground = false
+            return
         }
+        // Пользователь вернулся в приложение — это не «простой на месте», отсчёт начинается заново
+        lastMovementAt = Date()
+        if pausedInBackground {
+            pausedInBackground = false
+            notice = "Запись стояла на паузе, пока приложение было свёрнуто: так задано в настройках («Записывать маршрут в фоне»). Теперь она продолжается."
+            IslandDiagnostics.shared.log("Запись маршрута продолжена после паузы в фоне", .location)
+        }
+        applyDesiredState()
+    }
+
+    /// Правила записи сейчас: в фоне и при энергосбережении — экономные
+    private var activePolicy: RouteSamplingPolicy {
+        (isInBackground || isLowPowerMode()) ? .economy : .standard
     }
 
     /// Учитывает паузу приложения в фоне, если она случилась во время записи
@@ -242,7 +305,7 @@ public final class RouteRecorder {
     /// Обстоятельства для записи о паузе в журнале
     public func diagnosticContext() -> String {
         let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled ? "вкл" : "выкл"
-        return "Запись маршрута: \(summaryDescription); энергосбережение: \(lowPower)."
+        return "Запись маршрута: \(summaryDescription); фоновая запись: \(recordsInBackground ? "вкл" : "выкл"); энергосбережение: \(lowPower)."
     }
 
     // MARK: - История
@@ -327,6 +390,7 @@ public final class RouteRecorder {
             state = .waitingForPermission
             session.requestPermission()
         case .authorized:
+            session.setBackgroundUpdates(allowed: recordsInBackground)
             session.start()
             state = .recording
             startLoopIfNeeded()
@@ -364,8 +428,9 @@ public final class RouteRecorder {
                 let started = Date()
                 await self.tick(now: started)
                 let spent = Date().timeIntervalSince(started)
-                let pause = max(0.5, self.policy.tickInterval - spent)
-                try? await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000))
+                let pause = max(0.5, self.activePolicy.tickInterval - spent)
+                // Допуск позволяет системе объединять пробуждения с другими и экономить заряд
+                try? await ContinuousClock().sleep(for: .seconds(pause), tolerance: .seconds(pause * 0.4))
             }
         }
     }
@@ -379,6 +444,18 @@ public final class RouteRecorder {
     func tick(now: Date) async {
         guard state == .recording, let recordID = current?.id else { return }
 
+        // Фоновая запись выключена, приложение свёрнуто: ни точек, ни проверок сети, ни пробуждений радио
+        if isInBackground, !recordsInBackground { return }
+
+        // Телефон давно стоит на месте — запись остановится сама, чтобы не разряжать батарею впустую
+        if stopsWhenIdle, now.timeIntervalSince(lastMovementAt) >= Self.idleStopSeconds {
+            notice = "Запись остановлена: телефон простоял на месте \(Int(Self.idleStopSeconds / 60)) минут. Так тратится меньше заряда; отключить это можно в настройках."
+            IslandDiagnostics.shared.log("Запись маршрута остановлена: телефон долго стоит на месте", .location)
+            stop()
+            return
+        }
+
+        let policy = activePolicy
         switch policy.decide(lastPoint: current?.points.last, fix: latestFix, now: now) {
         case .skipNoFix:
             progressLine = "Ждём сигнал GPS…"
@@ -415,6 +492,13 @@ public final class RouteRecorder {
             link: result.link,
             downloadMbps: result.downloadMbps
         )
+        if let previous = current?.points.last {
+            if previous.coordinate.distance(to: point.coordinate) >= policy.minMoveMeters {
+                lastMovementAt = now
+            }
+        } else {
+            lastMovementAt = now
+        }
         current?.points.append(point)
         lastQuality = point.quality
         lastLatencyMs = point.latencyMs

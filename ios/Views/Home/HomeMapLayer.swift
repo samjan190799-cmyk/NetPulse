@@ -18,12 +18,11 @@ enum HomeMapDefaults {
 }
 
 /// Карта Apple Maps (MapKit) на весь главный экран: положение пользователя и маршрут, раскрашенный по качеству сети.
-/// Тёмная подложка под цветной линией делает цвет читаемым и на светлых улицах, и на спутниковом снимке.
 ///
-/// Покрытие сети. Вдоль маршрута лежит широкая полупрозрачная полоса того же цвета, что и линия: хорошая сеть —
-/// зелёная, пропавшая — красная, так что проблемные места видны с первого взгляда, даже когда карта отдалена.
-/// Полосы рисуются вживую, пока идёт запись, а в обычном режиме показывают и прежние маршруты. Вокруг точки
-/// «вы здесь» лежит цветная зона с оценкой связи прямо сейчас.
+/// Маршрут — линия: зелёная там, где сеть хорошая, жёлтая — средняя, оранжевая — плохая, красная пунктирная — связи нет.
+/// Тёмная подложка под цветной линией делает цвет читаемым и на светлых улицах, и на спутниковом снимке. В обычном
+/// режиме на карте лежат и прежние маршруты: те же цветные линии, только тоньше, чтобы последний маршрут оставался
+/// главным. Никаких зон и полос: цвет есть только у тех мест, где вы действительно были и измеряли сеть.
 @MainActor
 struct HomeMapLayer: View {
     let route: RouteRecord?
@@ -31,18 +30,11 @@ struct HomeMapLayer: View {
     let isLive: Bool
     let showsUserDot: Bool
     let satellite: Bool
-    /// Оценка связи для цветной зоны вокруг точки «вы здесь» (`nil` — зоны нет)
-    let haloQuality: RouteQuality?
-    /// Широкая цветная полоса вдоль показанного маршрута
-    let showsRibbon: Bool
-    /// Полосы прежних маршрутов (в порядке рисования), только в обычном режиме
-    let coverage: [CoverageRun]
+    /// Линии прежних маршрутов (в порядке рисования), только в обычном режиме
+    let previousRoutes: [CoverageRun]
     /// Метки «Старт» и «Финиш»: в обычном режиме они только мешают (могут уехать под строку состояния)
     let showsEndpoints: Bool
     @Binding var camera: MapCameraPosition
-
-    /// Ширина полосы покрытия в пунктах экрана: полоса не тоньше и не толще на любом масштабе карты
-    private static let ribbonWidth: CGFloat = 22
 
     private var mapStyleValue: MapStyle {
         // Приглушённая схема без значков заведений: цветная линия маршрута читается лучше, чем на пёстрой карте
@@ -51,21 +43,21 @@ struct HomeMapLayer: View {
             : .standard(emphasis: .muted, pointsOfInterest: .excludingAll)
     }
 
-    /// Цвет полосы покрытия: на спутниковом снимке она плотнее, иначе теряется на фоне
-    private func ribbonColor(_ quality: RouteQuality) -> Color {
-        quality.displayColor.opacity(satellite ? 0.45 : 0.34)
-    }
-
-    private var ribbonStyle: StrokeStyle {
-        StrokeStyle(lineWidth: Self.ribbonWidth, lineCap: .round, lineJoin: .round)
-    }
-
     private func coordinates(of path: [GeoCoordinate]) -> [CLLocationCoordinate2D] {
         path.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
     }
 
     private func coordinate(of point: RoutePoint) -> CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)
+    }
+
+    private func underlayStyle(width: CGFloat) -> StrokeStyle {
+        StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
+    }
+
+    private func lineStyle(width: CGFloat, quality: RouteQuality) -> StrokeStyle {
+        // Участок без связи — пунктир: он заметен и без цвета
+        StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round, dash: quality == .dead ? [1, 8] : [])
     }
 
     var body: some View {
@@ -78,33 +70,28 @@ struct HomeMapLayer: View {
         Map(position: $camera) {
             if showsUserDot {
                 UserAnnotation {
-                    HomeUserMarker(quality: haloQuality)
+                    HomeUserMarker()
                 }
             }
 
-            // Покрытие: широкие полупрозрачные полосы лежат под линией маршрута, прежние маршруты — под показанным
-            ForEach(coverage) { run in
+            // Прежние маршруты: тонкие линии лежат под показанным маршрутом
+            ForEach(previousRoutes) { run in
                 MapPolyline(coordinates: coordinates(of: run.path))
-                    .stroke(ribbonColor(run.quality), style: ribbonStyle)
+                    .stroke(Color.black.opacity(0.45), style: underlayStyle(width: 6.5))
             }
-            if showsRibbon {
-                ForEach(segments) { segment in
-                    MapPolyline(coordinates: coordinates(of: segment.path))
-                        .stroke(ribbonColor(segment.quality), style: ribbonStyle)
-                }
+            ForEach(previousRoutes) { run in
+                MapPolyline(coordinates: coordinates(of: run.path))
+                    .stroke(run.quality.displayColor, style: lineStyle(width: 3.5, quality: run.quality))
             }
 
-            // Тёмная подложка под линией
+            // Показанный маршрут: тёмная подложка и цветная линия
             ForEach(segments) { segment in
                 MapPolyline(coordinates: coordinates(of: segment.path))
-                    .stroke(Color.black.opacity(0.55), style: StrokeStyle(lineWidth: 9.5, lineCap: .round, lineJoin: .round))
+                    .stroke(Color.black.opacity(0.55), style: underlayStyle(width: 9.5))
             }
             ForEach(segments) { segment in
                 MapPolyline(coordinates: coordinates(of: segment.path))
-                    .stroke(
-                        segment.quality.displayColor,
-                        style: StrokeStyle(lineWidth: 5.5, lineCap: .round, lineJoin: .round, dash: segment.quality == .dead ? [1, 8] : [])
-                    )
+                    .stroke(segment.quality.displayColor, style: lineStyle(width: 5.5, quality: segment.quality))
             }
 
             ForEach(zones) { zone in
@@ -127,7 +114,7 @@ struct HomeMapLayer: View {
         .mapControlVisibility(.hidden)
     }
 
-    /// Круглая метка зоны без сети: значок «нет Wi-Fi» читается и без цвета
+    /// Круглая метка места без сети: значок «нет Wi-Fi» читается и без цвета
     private var deadZoneMarker: some View {
         ZStack {
             Circle()

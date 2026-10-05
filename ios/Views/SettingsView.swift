@@ -29,6 +29,17 @@ public struct SettingsView: View {
         return "\(version) (\(build))"
     }
 
+    /// Подсказка под островом: он в фоне обновляется только пока приложение остаётся активным из-за записи маршрута
+    private var islandRecordingNote: String {
+        let recorder = RouteRecorder.shared
+        if !recorder.recordsInBackground {
+            return "Остров в фоне обновляется, только если включена фоновая запись маршрута («Записывать маршрут в фоне» в разделе «Запись маршрута»)."
+        }
+        return recorder.isActive
+            ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
+            : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»)."
+    }
+
     public var body: some View {
         NavigationStack {
             Form {
@@ -231,6 +242,48 @@ public struct SettingsView: View {
                     }
                 }
 
+                // 5.1 Запись маршрута: работа в фоне и расход заряда
+                Section(
+                    header: Label("Запись маршрута", systemImage: "map.fill"),
+                    footer: Text("Запись идёт только по кнопке «Записать маршрут» на главном экране, маршруты хранятся на этом устройстве. В фоне и при включённом энергосбережении iOS точки пишутся реже: так запись тратит меньше заряда.")
+                ) {
+                    Toggle(isOn: Binding(
+                        get: { RouteRecorder.shared.recordsInBackground },
+                        set: { enabled in
+                            RouteRecorder.shared.recordsInBackground = enabled
+                            HapticManager.shared.selectionChanged()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Записывать маршрут в фоне")
+                                .font(.system(size: 15, weight: .medium))
+                            Text(RouteRecorder.shared.recordsInBackground
+                                 ? "Запись идёт, пока приложение свёрнуто или экран заблокирован; в строке состояния виден значок геолокации. Заряд тратится заметнее."
+                                 : "Когда приложение свёрнуто, запись ждёт, а при возвращении продолжается. Заряд в фоне не тратится.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("routeBackgroundToggle")
+
+                    Toggle(isOn: Binding(
+                        get: { RouteRecorder.shared.stopsWhenIdle },
+                        set: { enabled in
+                            RouteRecorder.shared.stopsWhenIdle = enabled
+                            HapticManager.shared.selectionChanged()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Останавливать, если телефон стоит на месте")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Если 20 минут нет движения, маршрут сохраняется и запись останавливается сама: забытая запись не посадит батарею.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("routeAutoStopToggle")
+                }
+
                 // 6. Виджеты и Оверлеи
                 Section("Виджеты и мониторинг") {
                     Toggle(isOn: Binding(
@@ -294,9 +347,7 @@ public struct SettingsView: View {
                             Image(systemName: "map.fill")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(NPTheme.accentPrimary)
-                            Text(RouteRecorder.shared.isActive
-                                 ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
-                                 : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»).")
+                            Text(islandRecordingNote)
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }

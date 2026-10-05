@@ -378,6 +378,32 @@ final class NetPulseUITests: XCTestCase {
         attachScreenshot("settings-closed")
     }
 
+    /// В настройках есть раздел «Запись маршрута»: фоновая запись включена по умолчанию, её можно выключить и вернуть
+    @MainActor func testRouteRecordingSettingsAreInSettings() throws {
+        let app = launchApp()
+        openSettings(app)
+
+        let background = app.switches["routeBackgroundToggle"]
+        XCTAssertTrue(reveal(background, in: app), "В настройках нет тумблера «Записывать маршрут в фоне»")
+        XCTAssertEqual(background.value as? String, "1", "Фоновая запись по умолчанию включена")
+        XCTAssertTrue(app.switches["routeAutoStopToggle"].exists, "В настройках нет тумблера автоостановки записи")
+        attachScreenshot("settings-route-recording")
+
+        // Переключатель справа в строке; настройка хранится на устройстве, поэтому в конце возвращаем как было
+        let switchPoint = background.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))
+        switchPoint.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertEqual(background.value as? String, "0", "Тумблер фоновой записи не выключился")
+        attachScreenshot("settings-route-background-off")
+        switchPoint.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertEqual(background.value as? String, "1", "Тумблер фоновой записи не включился обратно")
+        print("NETPULSE-CI: настройки записи маршрута: тумблеры на месте, фоновая запись переключается")
+
+        scrollToTop(app)
+        closeSettings(app)
+    }
+
     @MainActor func testLiveActivityStartsInSimulator() throws {
         let app = launchApp()
         openSettings(app)
@@ -500,23 +526,24 @@ final class NetPulseUITests: XCTestCase {
         done.tap()
         XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После «Готово» не вернулся обычный вид")
 
-        // Покрытие сети: в обычном режиме над панелью легенда цветов, а кнопка справа прячет и возвращает покрытие
+        // Линии маршрутов: в обычном режиме над панелью легенда цветов, а кнопка справа прячет и возвращает
+        // линии прежних маршрутов (зон и полос на карте нет)
         let legend = app.descendants(matching: .any)["homeCoverageLegend"]
-        XCTAssertTrue(legend.waitForExistence(timeout: 10), "После записи маршрута нет легенды покрытия")
-        Thread.sleep(forTimeInterval: 2)       // карта дорисовывает полосы и цветную зону вокруг точки
-        attachScreenshot("coverage-idle")
+        XCTAssertTrue(legend.waitForExistence(timeout: 10), "После записи маршрута нет легенды цветов линий")
+        Thread.sleep(forTimeInterval: 2)       // карта дорисовывает линии
+        attachScreenshot("lines-idle")
         let coverage = app.buttons["homeCoverageButton"]
-        XCTAssertTrue(coverage.waitForExistence(timeout: 5), "На карте нет кнопки «Покрытие сети»")
-        XCTAssertEqual(coverage.value as? String, "Показано", "Покрытие по умолчанию должно быть включено")
+        XCTAssertTrue(coverage.waitForExistence(timeout: 5), "На карте нет кнопки «Прежние маршруты»")
+        XCTAssertEqual(coverage.value as? String, "Показаны", "Линии прежних маршрутов по умолчанию должны быть включены")
         coverage.tap()
-        XCTAssertTrue(waitUntilGone(legend, timeout: 5), "Легенда покрытия осталась после выключения")
-        XCTAssertEqual(coverage.value as? String, "Скрыто")
+        XCTAssertTrue(waitUntilGone(legend, timeout: 5), "Легенда осталась после выключения линий")
+        XCTAssertEqual(coverage.value as? String, "Скрыты")
         Thread.sleep(forTimeInterval: 2)
-        attachScreenshot("coverage-off")
+        attachScreenshot("lines-off")
         coverage.tap()
-        XCTAssertTrue(legend.waitForExistence(timeout: 5), "Легенда покрытия не вернулась после включения")
-        XCTAssertEqual(coverage.value as? String, "Показано")
-        print("NETPULSE-CI: покрытие сети: легенда и кнопка работают")
+        XCTAssertTrue(legend.waitForExistence(timeout: 5), "Легенда не вернулась после включения линий")
+        XCTAssertEqual(coverage.value as? String, "Показаны")
+        print("NETPULSE-CI: линии маршрутов: легенда и кнопка работают")
 
         expandPanel(app)
         let row = app.descendants(matching: .any).matching(identifier: "networkMapHistoryRow").firstMatch

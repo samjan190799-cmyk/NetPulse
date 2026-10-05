@@ -255,25 +255,14 @@ struct QualitySwatch: View {
     }
 }
 
-// MARK: - Покрытие сети на карте
+// MARK: - Точка «вы здесь» и легенда
 
-/// Точка «вы здесь» с цветной зоной вокруг: цвет показывает связь прямо сейчас — зелёный «хорошо», жёлтый «средне»,
-/// оранжевый «плохо», красный «нет сети». Зона не имеет размера на местности: это связь именно в вашей точке,
-/// а не карта покрытия оператора. Пока оценки нет, рисуется одна точка.
+/// Точка «вы здесь»: белая окантовка и синяя середина, как в системных картах. Цвет качества сети у неё нет:
+/// он есть только у линий маршрутов, то есть у мест, где сеть действительно измерялась.
 @MainActor
 struct HomeUserMarker: View {
-    let quality: RouteQuality?
-
-    private static let haloDiameter: CGFloat = 96
-
     var body: some View {
         ZStack {
-            if let quality {
-                Circle()
-                    .fill(quality.displayColor.opacity(0.22))
-                    .frame(width: Self.haloDiameter, height: Self.haloDiameter)
-                    .overlay(Circle().stroke(quality.displayColor.opacity(0.7), lineWidth: 1.5))
-            }
             Circle()
                 .fill(Color.white)
                 .frame(width: 22, height: 22)
@@ -282,13 +271,12 @@ struct HomeUserMarker: View {
                 .fill(Color(red: 0.04, green: 0.52, blue: 1.0))
                 .frame(width: 15, height: 15)
         }
-        .animation(.easeInOut(duration: 0.4), value: quality)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
 
-/// Что значат цвета полос покрытия на карте: те же цвета и слова, что в итоге маршрута
+/// Что значат цвета линий маршрутов на карте: те же цвета и слова, что в итоге маршрута
 @MainActor
 struct HomeCoverageLegend: View {
     var body: some View {
@@ -305,7 +293,7 @@ struct HomeCoverageLegend: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Цвета покрытия: хорошо, средне, плохо, нет сети")
+        .accessibilityLabel("Цвета линий маршрутов: хорошо, средне, плохо, нет сети")
         .accessibilityIdentifier("homeCoverageLegend")
     }
 

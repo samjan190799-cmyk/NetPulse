@@ -148,12 +148,12 @@ struct HomeTopBar: View {
         }
     }
 
-    /// Включает и выключает покрытие сети на карте; при записи и у готового маршрута оно показывается всегда
+    /// Включает и выключает на карте линии прежних маршрутов; идущая запись и готовый маршрут показываются всегда
     private var coverageButton: some View {
         GlassCircleButton(
             systemImage: coverageOn ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash",
-            label: "Покрытие сети",
-            value: coverageOn ? "Показано" : "Скрыто",
+            label: "Прежние маршруты",
+            value: coverageOn ? "Показаны" : "Скрыты",
             identifier: "homeCoverageButton"
         ) {
             coverageOn.toggle()

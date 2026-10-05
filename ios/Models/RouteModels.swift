@@ -597,7 +597,9 @@ public enum RouteDemo {
         let steps = 72
         for index in 0..<steps {
             let time = startedAt.addingTimeInterval(Double(index) * 5)
-            let latitude = 55.7500 + Double(index) * 0.00035
+            // С северо-запада на юго-восток: метка «Старт» не попадает в левый нижний угол карты,
+            // где Apple рисует свой значок и ссылку «Правовые документы», и подпись не налезает на них
+            let latitude = 55.7749 - Double(index) * 0.00035
             let longitude = 37.6000 + Double(index) * 0.00060
 
             let reachable: Bool

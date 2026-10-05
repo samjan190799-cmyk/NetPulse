@@ -103,7 +103,8 @@ public final class RouteRecorder {
     public private(set) var lastSaved: RouteRecord?
     /// Сообщение о том, что произошло с записью (слишком короткий маршрут, восстановление после обрыва и т. д.)
     public private(set) var notice: String?
-    /// Что делает запись сейчас: «Ждём сигнал GPS», «Телефон стоит на месте» и т. д.
+    /// Что мешает или что делает запись сейчас: «Ждём сигнал GPS», «Телефон стоит на месте» и т. д.
+    /// Пока всё идёт как надо, строка пустая: число точек и так видно на плитке «Точек».
     public private(set) var progressLine: String = ""
     public private(set) var lastQuality: RouteQuality?
     public private(set) var lastLatencyMs: Double?
@@ -503,7 +504,7 @@ public final class RouteRecorder {
         lastQuality = point.quality
         lastLatencyMs = point.latencyMs
         lastLink = point.link
-        progressLine = "Записано точек: \(pointCount)"
+        progressLine = ""
 
         persistIfNeeded(now: now)
 

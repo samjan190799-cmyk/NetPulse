@@ -17,13 +17,27 @@ public struct SettingsView: View {
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
     @State private var showResetTrafficAlert: Bool = false
+    @State private var showIslandDiagnostics: Bool = false
+    @State private var addHostError: String?
+    /// Настройки открываются поверх главного экрана (кнопка с ползунками): «Готово» закрывает их
+    @Environment(\.dismiss) private var dismiss
 
-    /// Версия и номер сборки из Info.plist
-    private var appVersionString: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
-        let build = info?["CFBundleVersion"] as? String ?? "—"
+    /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
+    private var appVersionText: String {
+        let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "—"
+        let build = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "—"
         return "\(version) (\(build))"
+    }
+
+    /// Подсказка под островом: он в фоне обновляется только пока приложение остаётся активным из-за записи маршрута
+    private var islandRecordingNote: String {
+        let recorder = RouteRecorder.shared
+        if !recorder.recordsInBackground {
+            return "Остров в фоне обновляется, только если включена фоновая запись маршрута («Записывать маршрут в фоне» в разделе «Запись маршрута»)."
+        }
+        return recorder.isActive
+            ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
+            : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»)."
     }
 
     public var body: some View {
@@ -59,6 +73,15 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
+                // 2. Рекламный блок Яндекса (показывается, только если реклама включена в этой сборке)
+                if YandexAdManager.shared.canShowAds {
+                    Section(header: Label("Реклама", systemImage: "megaphone")) {
+                        YandexBannerView(contextTag: "Настройки")
+                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                            .listRowBackground(Color.clear)
+                    }
+                }
+
                 // 3. Статус и параметры опроса
                 Section(header: Label("Мониторинг сети", systemImage: "waveform.path.ecg")) {
                     HStack {
@@ -74,11 +97,12 @@ public struct SettingsView: View {
                         }
                     }
 
-                    Picker("Интервал проверки", selection: $viewModel.pollingInterval) {
-                        Text("0.5 сек").tag(0.5)
-                        Text("1.0 сек (по умолч.)").tag(1.0)
-                        Text("2.0 сек").tag(2.0)
-                        Text("5.0 сек").tag(5.0)
+                    Picker("Пауза между проверками", selection: $viewModel.pollingInterval) {
+                        Text("1 сек").tag(1.0)
+                        Text("2 сек").tag(2.0)
+                        Text("4 сек (по умолч.)").tag(4.0)
+                        Text("10 сек").tag(10.0)
+                        Text("30 сек").tag(30.0)
                     }
                     .onChange(of: viewModel.pollingInterval) { _, _ in
                         HapticManager.shared.selectionChanged()
@@ -112,7 +136,8 @@ public struct SettingsView: View {
                         }
                     }
                     .onDelete { indexSet in
-                        viewModel.targets.remove(atOffsets: indexSet)
+                        // Вместе с узлом удаляются и его метрики (раньше они оставались и влияли на средние значения)
+                        viewModel.removeTargets(atOffsets: indexSet)
                         HapticManager.shared.notificationWarning()
                     }
 
@@ -130,19 +155,40 @@ public struct SettingsView: View {
                             .keyboardType(.numberPad)
 
                         Button("Добавить узел") {
-                            guard !newHostAddress.isEmpty else { return }
-                            let port = Int(newHostPort) ?? 443
-                            let name = newHostName.isEmpty ? newHostAddress : newHostName
-                            let newTarget = HostTarget(name: name, address: newHostAddress, tcpPort: port)
-                            viewModel.targets.append(newTarget)
-                            newHostName = ""
-                            newHostAddress = ""
-                            newHostPort = "443"
-                            HapticManager.shared.impactMedium()
+                            // Порт обязан быть 1–65535: значение вне диапазона раньше приводило к аварийному
+                            // завершению приложения при ближайшей проверке
+                            guard let port = Int(newHostPort.trimmingCharacters(in: .whitespaces)), (1...65_535).contains(port) else {
+                                addHostError = "Порт должен быть числом от 1 до 65535"
+                                HapticManager.shared.notificationWarning()
+                                return
+                            }
+                            switch viewModel.addTarget(name: newHostName, address: newHostAddress, port: port) {
+                            case .added:
+                                newHostName = ""
+                                newHostAddress = ""
+                                newHostPort = "443"
+                                addHostError = nil
+                                HapticManager.shared.impactMedium()
+                            case .invalidAddress:
+                                addHostError = "Введите корректный IP-адрес или доменное имя (без пробелов и спецсимволов)"
+                                HapticManager.shared.notificationWarning()
+                            case .invalidPort:
+                                addHostError = "Порт должен быть числом от 1 до 65535"
+                                HapticManager.shared.notificationWarning()
+                            case .duplicate:
+                                addHostError = "Такой узел уже есть в списке"
+                                HapticManager.shared.notificationWarning()
+                            }
                         }
                         .disabled(newHostAddress.isEmpty)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(NPTheme.accentPrimary)
+
+                        if let addHostError {
+                            Text(addHostError)
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.semanticCritical)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -178,9 +224,9 @@ public struct SettingsView: View {
                 Section("Фоновая работа и учет трафика") {
                     Toggle(isOn: $viewModel.backgroundMonitoringEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Фоновый учет 24/7 (Zero-Loss)")
+                            Text("Фоновый учет трафика")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("Непрерывный замер трафика при свернутом приложении и автоматическая сверка со счетчиками ядра iOS при закрытии.")
+                            Text("iOS приостанавливает свернутые приложения. Трафик за время «сна» NetPulse не теряет: при возвращении он сверяется со счетчиками сетевых интерфейсов ядра iOS и добавляется в статистику.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -194,6 +240,48 @@ public struct SettingsView: View {
                             .font(.system(size: 12, weight: .bold, design: .monospaced))
                             .foregroundStyle(NPTheme.accentPrimary)
                     }
+                }
+
+                // 5.1 Запись маршрута: работа в фоне и расход заряда
+                Section(
+                    header: Label("Запись маршрута", systemImage: "map.fill"),
+                    footer: Text("Запись идёт только по кнопке «Записать маршрут» на главном экране, маршруты хранятся на этом устройстве. В фоне и при включённом энергосбережении iOS точки пишутся реже: так запись тратит меньше заряда.")
+                ) {
+                    Toggle(isOn: Binding(
+                        get: { RouteRecorder.shared.recordsInBackground },
+                        set: { enabled in
+                            RouteRecorder.shared.recordsInBackground = enabled
+                            HapticManager.shared.selectionChanged()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Записывать маршрут в фоне")
+                                .font(.system(size: 15, weight: .medium))
+                            Text(RouteRecorder.shared.recordsInBackground
+                                 ? "Запись идёт, пока приложение свёрнуто или экран заблокирован; в строке состояния виден значок геолокации. Заряд тратится заметнее."
+                                 : "Когда приложение свёрнуто, запись ждёт, а при возвращении продолжается. Заряд в фоне не тратится.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("routeBackgroundToggle")
+
+                    Toggle(isOn: Binding(
+                        get: { RouteRecorder.shared.stopsWhenIdle },
+                        set: { enabled in
+                            RouteRecorder.shared.stopsWhenIdle = enabled
+                            HapticManager.shared.selectionChanged()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Останавливать, если телефон стоит на месте")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Если 20 минут нет движения, маршрут сохраняется и запись останавливается сама: забытая запись не посадит батарею.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("routeAutoStopToggle")
                 }
 
                 // 6. Виджеты и Оверлеи
@@ -210,6 +298,7 @@ public struct SettingsView: View {
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
+                    .accessibilityIdentifier("dynamicIslandToggle")
 
                     if !ActivityManager.shared.areActivitiesEnabled {
                         VStack(alignment: .leading, spacing: 6) {
@@ -241,44 +330,47 @@ public struct SettingsView: View {
                             Text("Статус: \(ActivityManager.shared.statusDescription)")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(NPTheme.textSecondary)
+                                .accessibilityIdentifier("islandStatus")
                             Spacer()
                             Button("Перезапустить") {
                                 HapticManager.shared.impactMedium()
-                                let ping = viewModel.currentAveragePing ?? 28.0
-                                ActivityManager.shared.restartActivity(
-                                    downloadSpeedText: viewModel.liveBandwidth.formattedDownloadSpeed,
-                                    uploadSpeedText: viewModel.liveBandwidth.formattedUploadSpeed,
-                                    compactDownloadText: viewModel.liveBandwidth.compactDownload,
-                                    compactUploadText: viewModel.liveBandwidth.compactUpload,
-                                    pingMs: ping,
-                                    jitterMs: viewModel.currentAverageJitter,
-                                    isTesting: viewModel.isSpeedtestRunning,
-                                    connectionType: viewModel.systemInfo.connectionType.rawValue,
-                                    ispName: viewModel.systemInfo.ispName ?? "Мобильный интернет"
-                                )
+                                viewModel.restartLiveActivity()
                             }
+                            .accessibilityIdentifier("islandRestartButton")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
                         }
 
-                        // Подсказка по правилам фонового режима iOS и выгоде HUD
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "lightbulb.fill")
-                                    .foregroundStyle(Color.yellow)
-                                    .font(.system(size: 11))
-                                Text("Совет по фоновому мониторингу")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(Color.yellow)
-                            }
-                            Text("По архитектуре iOS сторонние приложения усыпляются в фоне через 30 сек. Для непрерывного мониторинга 24/7 поверх YouTube и игр активируйте оверлей HUD (PiP).")
-                                .font(.system(size: 11))
+                        // Запись маршрута (кнопка «Записать маршрут» на главном экране): пока она идёт,
+                        // приложение активно в фоне и остров обновляется
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(NPTheme.accentPrimary)
+                            Text(islandRecordingNote)
+                                .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
-                        .padding(.vertical, 2)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("islandRecordingNote")
+
+                        // Журнал: что происходило с островом, пока приложение было свёрнуто
+                        Button {
+                            showIslandDiagnostics = true
+                        } label: {
+                            HStack {
+                                Label("Диагностика острова", systemImage: "waveform.path.ecg")
+                                    .font(.system(size: 13, weight: .medium))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(NPTheme.textSecondary)
+                            }
+                        }
+                        .accessibilityIdentifier("islandDiagnosticsButton")
                     }
 
-                    // Плавающий игровой оверлей (HUD)
+                    // Плавающий игровой оверлей (HUD): доступен всем
                     Toggle(isOn: Binding(
                         get: { viewModel.floatingHUDEnabled },
                         set: { enabled in
@@ -299,7 +391,7 @@ public struct SettingsView: View {
                                 Text("Плавающий игровой оверлей (HUD)")
                                     .font(.system(size: 15, weight: .medium))
                             }
-                            Text("Мини-виджет пинга поверх экрана и Picture-in-Picture для онлайн-игр")
+                            Text("Мини-виджет пинга и скорости поверх экрана; режим «картинка в картинке» доступен, если его поддерживает устройство")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -327,28 +419,131 @@ public struct SettingsView: View {
                         Text("Версия")
                             .foregroundStyle(NPTheme.textPrimary)
                         Spacer()
-                        Text(appVersionString)
+                        Text(appVersionText)
                             .foregroundStyle(NPTheme.textSecondary)
                     }
 
                     HStack {
-                        Text("Движок сети")
+                        Text("Метод проверки узлов")
                         Spacer()
-                        Text("ICMP v4/v6 • Darwin BSD")
+                        Text("TCP-соединение (Network.framework)")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.accentPrimary)
                     }
 
                     HStack {
-                        Text("Движок анализатора трафика")
+                        Text("Источник данных о трафике")
                         Spacer()
-                        Text("nstat + IOKitBSD")
+                        Text("Счётчики интерфейсов (getifaddrs)")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(NPTheme.accentPrimary)
                     }
+
+                    Link(destination: AppLinks.privacyPolicy) {
+                        HStack {
+                            Text("Политика конфиденциальности")
+                                .foregroundStyle(NPTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(NPTheme.textTertiary)
+                        }
+                    }
+                    .accessibilityIdentifier("settingsPrivacyPolicyLink")
+
+                    Link(destination: AppLinks.support) {
+                        HStack {
+                            Text("Поддержка")
+                                .foregroundStyle(NPTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(NPTheme.textTertiary)
+                        }
+                    }
+                    .accessibilityIdentifier("settingsSupportLink")
                 }
+
+                #if DEBUG
+                // 10. Диагностика рекламы Яндекса (только в отладочных сборках)
+                Section {
+                    HStack {
+                        Text("Статус SDK Яндекса")
+                        Spacer()
+                        Text(YandexAdManager.shared.isSDKInitialized ? "Запущен" : "Ожидание")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(YandexAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
+                    }
+
+                    HStack {
+                        Text("ATT Авторизация")
+                        Spacer()
+                        Text(YandexAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(YandexAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
+                    }
+
+                    HStack {
+                        Text("Межстраничная реклама")
+                        Spacer()
+                        Text(YandexAdManager.shared.isInterstitialLoaded ? "Готова к показу" : "Загружается")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+
+                    HStack {
+                        Text("Реклама за награду")
+                        Spacer()
+                        Text(YandexAdManager.shared.isRewardedLoaded ? "Готова к показу" : "Загружается")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+
+                    HStack {
+                        Text("Рекламные блоки")
+                        Spacer()
+                        Text(YandexAdConfig.usesDemoUnits ? "Демо (тестовая реклама)" : "Боевые")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(YandexAdConfig.usesDemoUnits ? Color.orange : Color.green)
+                    }
+
+                    Button("Тест показа межстраничной рекламы") {
+                        HapticManager.shared.impactMedium()
+                        YandexAdManager.shared.presentInterstitial()
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(NPTheme.accentPrimary)
+
+                    Button("Тест рекламы за награду") {
+                        HapticManager.shared.impactMedium()
+                        YandexAdManager.shared.showRewarded(
+                            onRewardConfirmed: {
+                                HapticManager.shared.notificationSuccess()
+                            },
+                            onUnavailable: {
+                                HapticManager.shared.notificationWarning()
+                            }
+                        )
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(NPTheme.accentPrimary)
+                } header: {
+                    Label("Отладка: реклама Яндекса", systemImage: "megaphone")
+                } footer: {
+                    Text("Инженерная панель рекламы. Видна только в отладочных сборках.")
+                }
+                #endif
             }
             .navigationTitle("Настройки")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Готово") {
+                        dismiss()
+                    }
+                    .font(.system(size: 16, weight: .semibold))
+                    .accessibilityIdentifier("settingsCloseButton")
+                }
+            }
             .confirmationDialog(
                 "Сбросить историю трафика?",
                 isPresented: $showResetTrafficAlert,
@@ -363,6 +558,9 @@ public struct SettingsView: View {
                 Button("Отмена", role: .cancel) {}
             } message: {
                 Text("Все сохраненные сессии и графики расхода трафика будут безвозвратно удалены.")
+            }
+            .sheet(isPresented: $showIslandDiagnostics) {
+                IslandDiagnosticsView()
             }
         }
     }

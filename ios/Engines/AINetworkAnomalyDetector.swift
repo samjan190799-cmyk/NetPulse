@@ -7,13 +7,25 @@
 
 import Foundation
 
-/// Системный движок предиктивной аналитики и выявления сетевых аномалий (AI Time-Series Intelligence)
+/// Выявление отклонений по текущим измерениям сети.
+///
+/// Анализируется только текущий снимок данных: истории по часам приложение не ведёт, поэтому детектор не
+/// «прогнозирует» и не называет причин, которых не измерял. Раньше он заявлял «задержка повышена на 35–60 % из-за
+/// перегрузки магистральных портов провайдера» (без базового значения для сравнения), считал нормой RTT до роутера
+/// не больше 6 мс и строил «прогноз исчерпания лимита» по календарному месяцу для 30-дневного окна.
 public final class AINetworkAnomalyDetector: Sendable {
     public static let shared = AINetworkAnomalyDetector()
 
+    /// Данные узла считаются свежими, если проверка была не позже этого срока, секунд
+    private static let freshnessSeconds: TimeInterval = 15.0
+
     public init() {}
 
-    /// Комплексный аудит сетевых временных рядов и обнаружение скрытых аномалий
+    /// Аудит текущих измерений.
+    ///
+    /// - Parameters:
+    ///   - trafficSummary: расход за период квоты (не за период, выбранный в интерфейсе).
+    ///   - budget: лимит трафика; учитывается, только если он включён.
     public func analyzeAnomalies(
         context: NetworkDiagnosticsContext,
         hostMetrics: [String: HostMetrics],
@@ -21,121 +33,125 @@ public final class AINetworkAnomalyDetector: Sendable {
         budget: TrafficBudget?
     ) -> NetworkAnomalyReport {
         var anomalies: [NetworkAnomalyItem] = []
-        let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: Date())
+        let now = Date()
 
-        // 1. Детекция вечерней перегрузки провайдера (Evening Peak Congestion 19:00 - 23:00)
-        let isEveningPeak = currentHour >= 19 && currentHour <= 23
-        if isEveningPeak, let ping = context.averagePingMs, ping > 45.0 {
-            anomalies.append(
-                NetworkAnomalyItem(
-                    type: .eveningCongestion,
-                    title: "Вечерний оверселлинг провайдера",
-                    description: "В вечерний прайм-тайм (19:00–23:00) задержка RTT повышена на 35–60% из-за перегрузки магистральных портов вашего интернет-провайдера (\(context.ispName ?? "ISP")).",
-                    severity: ping > 80.0 ? .critical : .warning,
-                    metricValue: String(format: "%.0f мс", ping),
-                    suggestedFix: "Используйте проводное подключение или резервный DNS/VPN для обхода перегруженных вечерних пирингов."
-                )
-            )
+        func isFresh(_ metric: HostMetrics) -> Bool {
+            guard let updated = metric.lastUpdated else { return false }
+            return now.timeIntervalSince(updated) < Self.freshnessSeconds
         }
 
-        // 2. Детекция зашумленности радиоэфира Wi-Fi (Wi-Fi Radio Degradation)
-        if context.connectionType.contains("Wi-Fi") {
-            // Ищем метрики локального шлюза
-            let gatewayMetric = hostMetrics.values.first(where: { $0.isGateway })
-            let gatewayPing = gatewayMetric?.lastLatencyMs ?? 0.0
-            let gatewayJitter = gatewayMetric?.jitterMs ?? 0.0
+        // 1. Нестабильная связь с роутером (только Wi-Fi и только по свежим данным шлюза)
+        if context.connectionType.contains("Wi-Fi"),
+           let gateway = hostMetrics.values.first(where: { $0.isGateway && isFresh($0) }),
+           gateway.sentCount >= 5 {
+            let latency = gateway.lastLatencyMs
+            let jitter = gateway.jitterMs
+            let loss = gateway.lossWindowPct
+            let isUnstable = loss >= 2.0 || jitter > 15.0 || (latency ?? 0) > 30.0
 
-            if gatewayPing > 6.0 || gatewayJitter > 5.0 {
+            if isUnstable {
+                let isSevere = loss >= 10.0 || (latency ?? 0) > 100.0
+                var details: [String] = []
+                if let latency { details.append(String(format: "задержка %.0f мс", latency)) }
+                details.append(String(format: "джиттер %.1f мс", jitter))
+                details.append(String(format: "потери %.0f %%", loss))
+
                 anomalies.append(
                     NetworkAnomalyItem(
                         type: .wifiInterference,
-                        title: "Интерференция радиоканала Wi-Fi",
-                        description: "Задержка до домашнего роутера (\(context.gatewayIP ?? "192.168.1.1")) нестабильна (\(String(format: "%.1f", gatewayPing)) мс, джиттер \(String(format: "%.1f", gatewayJitter)) мс). Обнаружены сильные радиопомехи соседних роутеров или затухание 2.4 GHz.",
-                        severity: gatewayPing > 15.0 ? .critical : .warning,
-                        metricValue: String(format: "%.1f мс шлюз", gatewayPing),
-                        suggestedFix: "Переключите роутер на диапазон 5 GHz (свободный канал 36–48) или сократите расстояние до точки доступа."
+                        title: "Нестабильная связь с роутером",
+                        description: "Соединение с роутером нестабильно: \(details.joined(separator: ", ")). Возможные причины — слабый сигнал, помехи от соседних сетей или перегруженный канал Wi-Fi; по этим данным точную причину определить нельзя.",
+                        severity: isSevere ? .critical : .warning,
+                        metricValue: latency.map { String(format: "%.0f мс до роутера", $0) } ?? String(format: "потери %.0f %%", loss),
+                        suggestedFix: "Подойдите ближе к роутеру или перейдите на диапазон 5 ГГц; для проверки подключитесь по кабелю или к другой сети."
                     )
                 )
             }
         }
 
-        // 3. Предиктивный прогноз исчерпания лимита трафика (Data Budget Depletion Forecast)
-        if let budget = budget, budget.limitBytes > 0, let summary = trafficSummary {
-            let usedBytes = summary.totalTraffic
-            let limitBytes = budget.limitBytes
-            let dayOfMonth = calendar.component(.day, from: Date())
-            let daysInMonth = calendar.range(of: .day, in: .month, for: Date())?.count ?? 30
+        // 2. Повышенная задержка в вечерние часы — наблюдение, а не вывод о причине
+        let hour = Calendar.current.component(.hour, from: now)
+        if (19...23).contains(hour), context.hasLiveData, let ping = context.averagePingMs, ping > 60.0 {
+            anomalies.append(
+                NetworkAnomalyItem(
+                    type: .eveningCongestion,
+                    title: "Повышенная задержка в вечерние часы",
+                    description: String(format: "Сейчас вечернее время, когда сети операторов обычно загружены сильнее, а средняя задержка — %.0f мс. Сравните с замером в другое время суток: если разница заметна, вероятная причина — загрузка сети провайдера.", ping),
+                    severity: .info,
+                    metricValue: String(format: "%.0f мс", ping),
+                    suggestedFix: "Повторите замер утром или днём; для задач, чувствительных к задержке, используйте проводное подключение."
+                )
+            )
+        }
 
-            let averageDailyUsage = Double(usedBytes) / Double(max(dayOfMonth, 1))
-            let projectedMonthlyUsage = averageDailyUsage * Double(daysInMonth)
+        // 3. Лимит трафика (только если квота включена; расход берётся за период квоты)
+        if let budget, budget.isEnabled, budget.limitBytes > 0, let summary = trafficSummary {
+            let used = summary.totalTraffic
+            let limit = budget.limitBytes
+            let periodName = budget.period.rawValue.lowercased()
 
-            if usedBytes >= limitBytes {
-                let overageMb = Double(usedBytes - limitBytes) / 1_048_576.0
+            if used >= limit {
+                let overageMB = Double(used - limit) / 1_048_576.0
                 anomalies.append(
                     NetworkAnomalyItem(
                         type: .budgetExhaustion,
-                        title: "Месячный лимит трафика исчерпан",
-                        description: "Установленный лимит пакета данных (\(String(format: "%.1f", Double(limitBytes) / 1_073_741_824.0)) ГБ) полностью израсходован. Перерасход: \(String(format: "%.1f", overageMb)) МБ.",
+                        title: "Лимит трафика исчерпан",
+                        description: "Заданный лимит (\(String(format: "%.1f", Double(limit) / 1_073_741_824.0)) ГБ за период «\(periodName)») израсходован. Превышение: \(String(format: "%.0f", overageMB)) МБ.",
                         severity: .critical,
-                        metricValue: "100% лимита",
+                        metricValue: "100 % лимита",
                         suggestedFix: "Подключите дополнительный пакет трафика у оператора или переключитесь на Wi-Fi."
                     )
                 )
-            } else if projectedMonthlyUsage > Double(limitBytes) {
-                let remainingBytes = limitBytes - usedBytes
-                let daysLeftUntilExhaustion = max(1, Int(Double(remainingBytes) / max(averageDailyUsage, 1.0)))
-                let exhaustedDate = calendar.date(byAdding: .day, value: daysLeftUntilExhaustion, to: Date()) ?? Date()
-
-                let df = DateFormatter()
-                df.locale = Locale(identifier: "ru_RU")
-                df.dateFormat = "d MMMM"
-                let dateFormatted = df.string(from: exhaustedDate)
-
+            } else if budget.isWarning(usedBytes: used) {
+                let percent = Int((Double(used) / Double(limit) * 100.0).rounded())
                 anomalies.append(
                     NetworkAnomalyItem(
                         type: .budgetExhaustion,
-                        title: "Прогноз перерасхода лимита трафика",
-                        description: "При текущей динамике расхода (\(String(format: "%.1f", averageDailyUsage / 1_048_576.0)) МБ/день) месячный лимит трафика будет полностью исчерпан примерно \(dateFormatted).",
-                        severity: Double(usedBytes) / Double(limitBytes) > 0.8 ? .critical : .warning,
-                        metricValue: "\(Int((projectedMonthlyUsage / Double(limitBytes)) * 100))% прогноза",
-                        suggestedFix: "Ограничьте фоновые загрузки в категории «Видео» или увеличьте лимит пакета у оператора."
+                        title: "Расход близок к лимиту",
+                        description: "Израсходовано \(percent) % заданного лимита за период «\(periodName)» (\(String(format: "%.1f", Double(used) / 1_073_741_824.0)) из \(String(format: "%.1f", Double(limit) / 1_073_741_824.0)) ГБ).",
+                        severity: percent >= 95 ? .critical : .warning,
+                        metricValue: "\(percent) % лимита",
+                        suggestedFix: "Ограничьте фоновые загрузки или увеличьте лимит пакета у оператора."
                     )
                 )
             }
         }
 
-        // 4. Детекция нестабильности DNS-резолвинга (DNS Degradation)
-        let dnsHosts = hostMetrics.values.filter { $0.name.contains("Cloudflare") || $0.name.contains("Google") || $0.name.contains("Quad9") }
-        let highDnsLatencies = dnsHosts.filter { ($0.lastLatencyMs ?? 0.0) > 75.0 || $0.lossWindowPct > 0.0 }
-        if !highDnsLatencies.isEmpty {
+        // 4. Медленный отклик или потери до публичных DNS-серверов.
+        // Это задержка TCP-соединения с серверами, а не скорость разрешения имён.
+        let publicDNSHosts = hostMetrics.values.filter { metric in
+            guard isFresh(metric), !metric.isGateway else { return false }
+            return metric.name.contains("DNS") || metric.name.contains("Cloudflare") || metric.name.contains("Google") || metric.name.contains("Quad9")
+        }
+        let problematicDNS = publicDNSHosts.filter { ($0.lastLatencyMs ?? 0.0) > 100.0 || $0.lossWindowPct >= 5.0 }
+        if !problematicDNS.isEmpty {
+            let names = problematicDNS.map { $0.name }.sorted().joined(separator: ", ")
             anomalies.append(
                 NetworkAnomalyItem(
                     type: .dnsDegradation,
-                    title: "Замедление DNS-резолвинга",
-                    description: "Глобальные DNS-серверы отвечают с задержкой выше нормы (>75 мс) или микропотерями. Это приводит к долгой загрузке сайтов при открытии новых ссылок.",
+                    title: "Медленный отклик публичных DNS-серверов",
+                    description: "Серверы отвечают медленно (дольше 100 мс) или теряют соединения: \(names). Это задержка сети до серверов, а не скорость разрешения имён; для точной проверки запустите «DNS Бенчмарк».",
                     severity: .warning,
-                    metricValue: "\(highDnsLatencies.count) медленных DNS",
-                    suggestedFix: "Переключитесь на самый быстрый DNS-сервер (Cloudflare 1.1.1.1 или локальный кэширующий DNS)."
+                    metricValue: "\(problematicDNS.count) из \(publicDNSHosts.count) узлов",
+                    suggestedFix: "Запустите «DNS Бенчмарк» и при необходимости выберите более быстрый сервер."
                 )
             )
         }
 
-        // 5. Всплеск потерь сетевых пакетов (Packet Loss Spike)
-        if context.packetLossPct > 0.5 {
+        // 5. Потери пакетов (только при наличии свежих данных)
+        if context.hasLiveData, context.packetLossPct > 0.5 {
             anomalies.append(
                 NetworkAnomalyItem(
                     type: .packetLossSpike,
-                    title: "Аномальная потеря сетевых пакетов",
-                    description: "Обнаружены систематические потери \(String(format: "%.1f", context.packetLossPct))% пакетов на маршруте, что вызывает фризы в играх и прерывания звука в звонках.",
+                    title: "Потери пакетов",
+                    description: String(format: "В окне последних проверок потеряно %.1f %% пакетов. Это может вызывать фризы в играх и прерывания звука в звонках; где именно теряются пакеты, покажет трассировка.", context.packetLossPct),
                     severity: context.packetLossPct > 2.0 ? .critical : .warning,
-                    metricValue: String(format: "%.1f%% потерь", context.packetLossPct),
-                    suggestedFix: "Запустите MTR-трассировку для локализации сбойного узла и сформируйте претензию оператору."
+                    metricValue: String(format: "%.1f %% потерь", context.packetLossPct),
+                    suggestedFix: "Запустите трассировку, чтобы увидеть, на каком участке маршрута пропадают ответы; при необходимости подготовьте обращение провайдеру."
                 )
             )
         }
 
-        // Определение общего уровня риска
         let hasCritical = anomalies.contains { $0.severity == .critical }
         let hasWarning = anomalies.contains { $0.severity == .warning }
         let overallRisk: IssueSeverity = hasCritical ? .critical : (hasWarning ? .warning : .info)
@@ -143,8 +159,8 @@ public final class AINetworkAnomalyDetector: Sendable {
         return NetworkAnomalyReport(
             anomalies: anomalies,
             overallRiskLevel: overallRisk,
-            analyzedHours: 24,
-            generatedAt: Date()
+            analyzedHours: 0,
+            generatedAt: now
         )
     }
 }

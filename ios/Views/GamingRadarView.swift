@@ -7,16 +7,24 @@
 
 import SwiftUI
 
-/// Экран киберспортивного радара игровых серверов (Gaming Radar)
+/// Экран «Gaming Радар»: задержка до региональных узлов AWS (ориентир для онлайн-игр) и её оценка по жанру выбранной игры
 public struct GamingRadarView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
     @State private var selectedGame: GameTitle = .cs2
     @State private var isScanning: Bool = false
-    @State private var clusterResults: [GameClusterResult] = []
+    // Заготовки строк сразу: раньше список был пуст, и обновления по ходу замера некуда было записывать
+    @State private var clusterResults: [GameClusterResult] = GameClusterInfo.referenceRegions.map {
+        GameClusterResult(cluster: $0)
+    }
+    @State private var scanTask: Task<Void, Never>?
+    @State private var errorMessage: String?
 
+    /// Регион с наименьшей задержкой среди ответивших
     private var bestCluster: GameClusterResult? {
-        clusterResults.first(where: { $0.isReachable })
+        clusterResults
+            .filter { $0.isTested && $0.isReachable && $0.latencyMs != nil }
+            .min(by: { ($0.latencyMs ?? .infinity) < ($1.latencyMs ?? .infinity) })
     }
 
     public var body: some View {
@@ -32,6 +40,10 @@ public struct GamingRadarView: View {
                     // 2. Карточка лучшего сервера для матча (Matchmaking Advisor)
                     bestServerHeroCard
 
+                    // 3. Рекламный баннер Яндекса на видном месте
+                    YandexBannerView(contextTag: "Гейминг")
+                        .padding(.horizontal)
+
                     // 4. Список дата-центров выбранной игры
                     clustersListSection
 
@@ -45,6 +57,9 @@ public struct GamingRadarView: View {
         .navigationTitle("Gaming Радар")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .onDisappear {
+            scanTask?.cancel()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -64,7 +79,9 @@ public struct GamingRadarView: View {
             }
         }
         .task {
-            scanClusters()
+            if !clusterResults.contains(where: { $0.isTested }) {
+                scanClusters()
+            }
         }
     }
 
@@ -77,7 +94,6 @@ public struct GamingRadarView: View {
                     Button {
                         selectedGame = game
                         HapticManager.shared.impactLight()
-                        scanClusters()
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: game.icon)
@@ -121,7 +137,7 @@ public struct GamingRadarView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
 
-                    Text(selectedGame.publisher)
+                    Text("\(selectedGame.publisher) • \(selectedGame.genreTitle)")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                 }
@@ -133,9 +149,9 @@ public struct GamingRadarView: View {
                         Text(best.formattedLatency)
                             .font(.system(size: 20, weight: .heavy, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(best.quality.badgeColor)
+                            .foregroundStyle(best.badgeColor(for: selectedGame))
 
-                        Text("Лучший пинг")
+                        Text("Ближайший регион")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(NPTheme.textTertiary)
                     }
@@ -150,15 +166,23 @@ public struct GamingRadarView: View {
                     HStack(spacing: 6) {
                         Text(best.cluster.flagEmoji)
                             .font(.system(size: 16))
-                        Text("\(best.cluster.regionName): \(best.quality.rawValue)")
+                        Text("\(best.cluster.regionName): \(best.quality(for: selectedGame).rawValue)")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(best.quality.badgeColor)
+                            .foregroundStyle(best.badgeColor(for: selectedGame))
                     }
                     Spacer()
-                    Text("Рекомендован для матча")
-                        .font(.system(size: 11))
-                        .foregroundStyle(NPTheme.textSecondary)
                 }
+            } else if isScanning {
+                Text("Замер задержки до регионов...")
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.textSecondary)
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.semanticWarn)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(16)
@@ -189,17 +213,19 @@ public struct GamingRadarView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
 
-                    Text(item.quality.rawValue)
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundStyle(item.quality.badgeColor)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(item.quality.badgeColor.opacity(0.12))
-                        .clipShape(Capsule())
+                    if item.isTested {
+                        Text(item.quality(for: selectedGame).rawValue)
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(item.badgeColor(for: selectedGame))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(item.badgeColor(for: selectedGame).opacity(0.12))
+                            .clipShape(Capsule())
+                    }
                 }
 
                 HStack(spacing: 6) {
-                    Text("Узел: \(item.cluster.cityName)")
+                    Text("\(item.cluster.cityName) • \(item.cluster.regionID)")
                         .font(.system(size: 11))
                         .foregroundStyle(NPTheme.textSecondary)
 
@@ -218,10 +244,10 @@ public struct GamingRadarView: View {
                 Text(item.formattedLatency)
                     .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(item.quality.badgeColor)
+                    .foregroundStyle(item.badgeColor(for: selectedGame))
 
-                if item.packetLossPct > 0 {
-                    Text("Loss: \(Int(item.packetLossPct))%")
+                if item.isTested && item.isReachable && item.packetLossPct > 0 {
+                    Text("потеряно: \(Int(item.packetLossPct))%")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(NPTheme.semanticCritical)
                 }
@@ -231,19 +257,24 @@ public struct GamingRadarView: View {
         .npGlassCard(cornerRadius: 16)
     }
 
-    // MARK: - 4. Пояснение киберспортивных стандартов
+    // MARK: - 4. Пояснение
 
     private var gamingAdviceCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let profile = selectedGame.latencyProfile
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "cross.vial.fill")
+                Image(systemName: "info.circle.fill")
                     .foregroundStyle(NPTheme.accentPrimary)
-                Text("Киберспортивные критерии связи")
+                Text("Как читать результаты")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(NPTheme.textPrimary)
             }
 
-            Text("Для соревновательных шутеров (CS2, Valorant) идеальный RTT составляет **до 35 мс** с джиттером **< 2 мс**. Для MOBA (Dota 2) комфортным является пинг **до 60 мс**. Потери пакетов даже в 1% вызывают рассинхронизацию хитбоксов.")
+            Text("Замер показывает задержку до публичных узлов облачных регионов AWS, в которых размещаются многие онлайн-игры и сервисы, а не до серверов конкретной игры: адреса игровых серверов не публикуются. Реальный пинг в игре может отличаться — точное значение показывает сама игра.")
+                .font(.system(size: 11))
+                .foregroundStyle(NPTheme.textSecondary)
+
+            Text("Ориентиры для жанра «\(selectedGame.genreTitle)»: отлично — до \(Int(profile.excellentMs)) мс, хорошо — до \(Int(profile.goodMs)) мс, приемлемо — до \(Int(profile.playableMs)) мс. Потеря даже 1–2 % пакетов заметна в динамичных играх.")
                 .font(.system(size: 11))
                 .foregroundStyle(NPTheme.textSecondary)
         }
@@ -256,11 +287,18 @@ public struct GamingRadarView: View {
 
     private func scanClusters() {
         guard !isScanning else { return }
+        if viewModel.systemInfo.connectionType == .unavailable {
+            errorMessage = "Нет подключения к сети — замер невозможен."
+            HapticManager.shared.notificationWarning()
+            return
+        }
         isScanning = true
+        errorMessage = nil
         HapticManager.shared.impactMedium()
+        clusterResults = GameClusterInfo.referenceRegions.map { GameClusterResult(cluster: $0) }
 
-        Task {
-            let results = await GamingRadarEngine.shared.scanGameClusters(for: selectedGame) { updated in
+        scanTask = Task {
+            let results = await GamingRadarEngine.shared.scanRegions { updated in
                 Task { @MainActor in
                     if let idx = clusterResults.firstIndex(where: { $0.id == updated.id }) {
                         clusterResults[idx] = updated
@@ -268,9 +306,17 @@ public struct GamingRadarView: View {
                 }
             }
 
-            self.clusterResults = results
+            if !Task.isCancelled {
+                self.clusterResults = results
+                if results.contains(where: { $0.isReachable }) {
+                    HapticManager.shared.notificationSuccess()
+                } else {
+                    self.errorMessage = "Ни один регион не ответил. Проверьте подключение к интернету."
+                    HapticManager.shared.notificationWarning()
+                }
+            }
             self.isScanning = false
-            HapticManager.shared.notificationSuccess()
+            self.scanTask = nil
         }
     }
 }

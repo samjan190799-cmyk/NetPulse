@@ -1,0 +1,54 @@
+name: "App Store: страницы политики и поддержки"
+
+# Копирует страницы из appstore/legal в ветку appstore-assets (каталог legal/). Ссылки на политику
+# конфиденциальности и поддержку в карточке App Store и в приложении ведут именно туда: эта ветка не удаляется
+# и не зависит от рабочей ветки fix/audit-bugs. Репозиторий публичный, страницы видны всем.
+on:
+  push:
+    branches: [fix/audit-bugs]
+    paths: ['appstore/legal/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: appstore-assets-branch
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: "Публикация страниц в ветку appstore-assets"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Копия страниц в ветку appstore-assets"
+        run: |
+          mkdir -p /tmp/legal
+          cp appstore/legal/*.md /tmp/legal/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth=1 origin appstore-assets || true
+          if git rev-parse --verify -q origin/appstore-assets > /dev/null; then
+            git checkout -q -B appstore-assets origin/appstore-assets
+          else
+            git checkout -q --orphan appstore-assets
+            git rm -rf -q . || true
+          fi
+          mkdir -p legal
+          cp /tmp/legal/*.md legal/
+          git add legal
+          if git diff --cached --quiet; then
+            echo "Изменений нет"
+          else
+            git commit -q -m "Страницы политики конфиденциальности и поддержки (${GITHUB_SHA::7})"
+            for attempt in 1 2 3; do
+              if git push origin appstore-assets; then break; fi
+              git fetch origin appstore-assets
+              git rebase origin/appstore-assets
+            done
+          fi
+          find legal -type f | sort

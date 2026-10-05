@@ -1,0 +1,222 @@
+name: "App Store: скриншоты"
+
+# Снимает экраны приложения для карточки в App Store Connect на симуляторах нужного размера (iPhone Pro Max 6,9″
+# и iPad Pro 13″), убирает альфа-канал, проверяет размер и кладёт готовые файлы в ветку appstore-assets
+# (каталог screenshots/). Запускается изменением файла appstore/screenshots-request.txt в ветке fix/audit-bugs
+# (ручной запуск GitHub находит только у workflow из основной ветки, а этот файл там не лежит) или вручную.
+# Основное приложение при этом не меняется; подпись и выгрузка не выполняются.
+on:
+  push:
+    branches: [fix/audit-bugs]
+    paths: ['appstore/screenshots-request.txt']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appstore-screenshots
+  cancel-in-progress: true
+
+jobs:
+  shoot:
+    name: "Съёмка: ${{ matrix.kind }}"
+    runs-on: macos-15
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [iphone, ipad]
+
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Выбор Xcode"
+        run: |
+          if [ -d "/Applications/Xcode_26.0.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.1.app
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          elif [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: "Разрешение зависимостей Swift Package Manager"
+        working-directory: ./ios
+        run: xcodebuild -resolvePackageDependencies -project NetPulse.xcodeproj -scheme NetPulse
+
+      - name: "Выбор и запуск симулятора, чистая строка состояния"
+        working-directory: ./ios
+        env:
+          KIND: ${{ matrix.kind }}
+        run: |
+          SIM="$(python3 ci/select_device.py "$KIND")"
+          echo "Выбран симулятор: $SIM"
+          UDID="$(echo "$SIM" | cut -f1)"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # Как на витрине App Store: 9:41, полная батарея, уверенная связь
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 \
+            --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --operatorName "" || true
+          # Москва: приложение русское, карта и маршрут должны быть узнаваемы
+          xcrun simctl location "$UDID" set 55.7558,37.6155 || true
+
+      - name: "Сборка приложения и тестов (симулятор, без подписи)"
+        working-directory: ./ios
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build-for-testing \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/build.log | tail -n 30
+
+      - name: "Съёмка экранов"
+        id: shoot
+        continue-on-error: true
+        timeout-minutes: 30
+        working-directory: ./ios
+        run: |
+          set -o pipefail
+          # Скорость в приложении считается по счётчикам интерфейсов хоста: без нагрузки показывала бы нули
+          traffic() {
+            while true; do
+              curl -fsS --max-time 20 -o /dev/null "http://speedtest.tele2.net/100MB.zip" \
+                || curl -fsS --max-time 20 -o /dev/null "https://proof.ovh.net/files/100Mb.dat" \
+                || sleep 2
+            done
+          }
+          traffic > build/traffic.log 2>&1 &
+          TRAFFIC_PID=$!
+
+          # «Телефон едет» по Тверской и Ленинградскому проспекту: положение меняется каждые 2 секунды (около 35 м)
+          route() {
+            local step=0
+            while true; do
+              lat=$(awk -v s="$step" 'BEGIN { m = s % 150; printf "%.5f", 55.7558 + m * 0.000230 }')
+              lon=$(awk -v s="$step" 'BEGIN { m = s % 150; printf "%.5f", 37.6155 - m * 0.000374 }')
+              xcrun simctl location "$UDID" set "$lat,$lon" 2>>build/location.err || echo "не удалось задать положение $lat,$lon"
+              step=$((step + 1))
+              sleep 2
+            done
+          }
+          route > build/location.log 2>&1 &
+          ROUTE_PID=$!
+          trap 'kill "$TRAFFIC_PID" "$ROUTE_PID" 2>/dev/null || true' EXIT
+
+          xcodebuild test-without-building \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:NetPulseUITests/AppStoreScreenshotTests \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 1200 \
+            -maximum-test-execution-time-allowance 1200 \
+            -resultBundlePath build/shots.xcresult \
+            2>&1 | tee build/ui.log | tail -n 60
+
+      - name: "Строки NETPULSE-CI из журнала съёмки"
+        if: always()
+        working-directory: ./ios
+        run: |
+          grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+          grep -E "Test Case .* (started|passed|failed)|error:|exceeded|timed out" build/ui.log 2>/dev/null | tail -n 20 || true
+
+      - name: "Готовые файлы: без альфа-канала, проверка размера"
+        id: files
+        if: always()
+        working-directory: ./ios
+        env:
+          KIND: ${{ matrix.kind }}
+        run: |
+          python3 -m pip install --break-system-packages --quiet Pillow
+          mkdir -p build/attachments "build/store/$KIND"
+          if [ -d build/shots.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/shots.xcresult --output-path build/attachments || true
+            python3 ci/xcresult_report.py attachments build/attachments || true
+          fi
+          python3 ci/store_shots.py "$KIND" build/attachments "build/store/$KIND"
+
+      - name: "Артефакт: скриншоты"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-${{ matrix.kind }}
+          path: ios/build/store/${{ matrix.kind }}/*.png
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: "Артефакт: журналы съёмки"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shootlog-${{ matrix.kind }}
+          path: |
+            ios/build/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    name: "Публикация файлов в ветку appstore-assets"
+    needs: shoot
+    if: ${{ always() && needs.shoot.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: appstore-assets-branch
+      cancel-in-progress: false
+
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Скачивание снимков"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: appstore-*
+          path: incoming
+
+      - name: "Коммит в ветку appstore-assets"
+        run: |
+          ls -R incoming | head -n 60
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth=1 origin appstore-assets || true
+          if git rev-parse --verify -q origin/appstore-assets > /dev/null; then
+            git checkout -q -B appstore-assets origin/appstore-assets
+          else
+            git checkout -q --orphan appstore-assets
+            git rm -rf -q . || true
+          fi
+          mkdir -p screenshots
+          for kind in iphone ipad; do
+            if compgen -G "incoming/appstore-$kind/*.png" > /dev/null; then
+              rm -rf "screenshots/$kind"
+              mkdir -p "screenshots/$kind"
+              cp incoming/appstore-$kind/*.png "screenshots/$kind/"
+            fi
+          done
+          git add screenshots
+          if git diff --cached --quiet; then
+            echo "Изменений нет"
+          else
+            git commit -q -m "Скриншоты для App Store Connect (запуск ${GITHUB_RUN_NUMBER}, ${GITHUB_SHA::7})"
+            for attempt in 1 2 3; do
+              if git push origin appstore-assets; then break; fi
+              git fetch origin appstore-assets
+              git rebase origin/appstore-assets
+            done
+          fi
+          find screenshots -type f | sort

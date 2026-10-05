@@ -9,7 +9,8 @@ import Foundation
 import BackgroundTasks
 import UIKit
 
-/// Менеджер системных фоновых задач iOS (BGTaskScheduler) для гарантированного сбора трафика (Zero-Loss 24/7)
+/// Менеджер системных фоновых задач iOS (BGTaskScheduler): сверка трафика и обновление виджетов в фоне.
+/// Запуск задач остаётся на усмотрение системы — гарантий по времени нет.
 public final class BackgroundTaskManager: @unchecked Sendable {
     public static let shared = BackgroundTaskManager()
 
@@ -68,123 +69,96 @@ public final class BackgroundTaskManager: @unchecked Sendable {
         }
     }
 
+    /// Отмена запланированных фоновых запусков
+    public func cancelScheduledTasks() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskId)
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.telemetryTaskId)
+    }
+
     // MARK: - Обработчики выполнения фоновых задач
 
     private func handleAppRefreshTask(_ task: BGAppRefreshTask) {
         // Планируем следующий запуск
         scheduleBackgroundFetch()
-
-        // nonisolated(unsafe): BGAppRefreshTask не Sendable, но мы гарантируем
-        // последовательный доступ (запись только из одного места)
-        nonisolated(unsafe) let bgTask = task
-
-        let queueTask = Task { @Sendable in
-            let diagnostics = NetworkDiagnostics()
-            let info = await diagnostics.collectSystemInfo()
-            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
-                currentConnectionType: info.connectionType.rawValue,
-                currentNetworkName: info.ispName ?? info.connectionType.rawValue
-            )
-            await TrafficStorage.shared.flush()
-
-            let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
-            let trafficSummary = await TrafficStorage.shared.getSummary(for: .today)
-
-            let widgetData = NetPulseWidgetData(
-                downloadSpeedMbps: snapshot.downloadMbps,
-                uploadSpeedMbps: snapshot.uploadMbps,
-                pingMs: nil,
-                jitterMs: nil,
-                lossPercent: 0.0,
-                ispName: info.ispName ?? "Интернет",
-                connectionType: info.connectionType.rawValue,
-                todayTrafficBytes: Int64(trafficSummary.totalTraffic),
-                budgetTotalBytes: 5_368_709_120,
-                healthScore: 100,
-                dnsHosts: [],
-                lastUpdated: Date()
-            )
-            WidgetDataManager.shared.saveSnapshot(widgetData)
-
-            // Автовосстановление сессии Dynamic Island при фоновом пробуждении
-            let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
-            if isLiveEnabled {
-                await MainActor.run {
-                    ActivityManager.shared.checkAndRestoreActivity(
-                        downloadSpeedText: snapshot.formattedDownloadSpeed,
-                        uploadSpeedText: snapshot.formattedUploadSpeed,
-                        compactDownloadText: snapshot.compactDownload,
-                        compactUploadText: snapshot.compactUpload,
-                        isTesting: false,
-                        connectionType: info.connectionType.rawValue,
-                        ispName: info.ispName ?? "Интернет"
-                    )
-                }
-            }
-
-            bgTask.setTaskCompleted(success: true)
-        }
-
-        task.expirationHandler = {
-            queueTask.cancel()
-            bgTask.setTaskCompleted(success: false)
-        }
+        runBackgroundSync(for: task)
     }
 
     private func handleTelemetryProcessingTask(_ task: BGProcessingTask) {
         scheduleBackgroundFetch()
+        runBackgroundSync(for: task)
+    }
 
-        nonisolated(unsafe) let bgTask = task
+    /// Общий запуск фоновой синхронизации (раньше один и тот же код был продублирован в двух обработчиках)
+    private func runBackgroundSync(for task: BGTask) {
+        let completion = BackgroundTaskCompletion(task)
 
-        let queueTask = Task { @Sendable in
-            let diagnostics = NetworkDiagnostics()
-            let info = await diagnostics.collectSystemInfo()
-            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
-                currentConnectionType: info.connectionType.rawValue,
-                currentNetworkName: info.ispName ?? info.connectionType.rawValue
-            )
-            await TrafficStorage.shared.flush()
-
-            let snapshot = BandwidthEngine.shared.sampleBandwidth(activeConnectionType: info.connectionType)
-            let trafficSummary = await TrafficStorage.shared.getSummary(for: .today)
-
-            let widgetData = NetPulseWidgetData(
-                downloadSpeedMbps: snapshot.downloadMbps,
-                uploadSpeedMbps: snapshot.uploadMbps,
-                pingMs: nil,
-                jitterMs: nil,
-                lossPercent: 0.0,
-                ispName: info.ispName ?? "Интернет",
-                connectionType: info.connectionType.rawValue,
-                todayTrafficBytes: Int64(trafficSummary.totalTraffic),
-                budgetTotalBytes: 5_368_709_120,
-                healthScore: 100,
-                dnsHosts: [],
-                lastUpdated: Date()
-            )
-            WidgetDataManager.shared.saveSnapshot(widgetData)
-
-            let isLiveEnabled = UserDefaults.standard.bool(forKey: "netpulse_live_activity_enabled")
-            if isLiveEnabled {
-                await MainActor.run {
-                    ActivityManager.shared.checkAndRestoreActivity(
-                        downloadSpeedText: snapshot.formattedDownloadSpeed,
-                        uploadSpeedText: snapshot.formattedUploadSpeed,
-                        compactDownloadText: snapshot.compactDownload,
-                        compactUploadText: snapshot.compactUpload,
-                        isTesting: false,
-                        connectionType: info.connectionType.rawValue,
-                        ispName: info.ispName ?? "Интернет"
-                    )
-                }
-            }
-
-            bgTask.setTaskCompleted(success: true)
+        let work = Task { @Sendable in
+            await BackgroundTaskManager.performBackgroundSync()
+            completion.complete(success: !Task.isCancelled)
         }
 
         task.expirationHandler = {
-            queueTask.cancel()
-            bgTask.setTaskCompleted(success: false)
+            work.cancel()
+            completion.complete(success: false)
         }
+    }
+
+    /// Фоновая сверка трафика и обновление снимка для виджетов.
+    ///
+    /// В фоне нет ни проверок узлов, ни замера скорости — поэтому пинг, джиттер, «здоровье» и список узлов в снимок
+    /// НЕ подставляются (виджет покажет «—»). Раньше сюда писались выдуманные «здоровье 100», «0 % потерь» и лимит 5 ГБ.
+    /// Живую активность (Dynamic Island) отсюда не трогаем: из фона её нельзя запустить, а обновление «нулями»
+    /// затирало реальные показания.
+    private static func performBackgroundSync() async {
+        let diagnostics = NetworkDiagnostics()
+        // Только локальные сведения: интернет-запросы в фоновом окне не нужны
+        let info = await diagnostics.collectLocalInfo()
+
+        await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+            currentConnectionType: info.connectionType.rawValue,
+            currentNetworkName: info.displayTitle
+        )
+        await TrafficStorage.shared.flush()
+
+        let todaySummary = await TrafficStorage.shared.getSummary(for: .today)
+        let budget = await TrafficStorage.shared.getBudget()
+        let budgetSummary = await TrafficStorage.shared.getSummary(for: budget.period)
+
+        let widgetData = NetPulseWidgetData(
+            downloadSpeedMbps: 0,
+            uploadSpeedMbps: 0,
+            pingMs: nil,
+            jitterMs: nil,
+            lossPercent: 0.0,
+            ispName: info.displayTitle,
+            connectionType: info.connectionType.rawValue,
+            todayTrafficBytes: Int64(todaySummary.totalTraffic),
+            budgetTotalBytes: (budget.isEnabled && budget.limitBytes > 0) ? Int64(budget.limitBytes) : 0,
+            budgetUsedBytes: Int64(budgetSummary.totalTraffic),
+            healthScore: nil,
+            dnsHosts: [],
+            lastUpdated: Date()
+        )
+        WidgetDataManager.shared.saveSnapshot(widgetData)
+    }
+}
+
+/// Гарантирует, что BGTask будет завершён ровно один раз: `expirationHandler` и сама задача могли вызвать
+/// `setTaskCompleted` дважды (повторное завершение — ошибка).
+private final class BackgroundTaskCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isCompleted = false
+    private let task: BGTask
+
+    init(_ task: BGTask) {
+        self.task = task
+    }
+
+    func complete(success: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isCompleted else { return }
+        isCompleted = true
+        task.setTaskCompleted(success: success)
     }
 }

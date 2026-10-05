@@ -11,18 +11,44 @@ requires-python = ">=3.11"
 authors = [
     { name = "NetPulse Engineering Team" }
 ]
+# Только то, что реально импортируется. Без fastapi/uvicorn веб-интерфейс работает на встроенном http.server.
 dependencies = [
     "rich>=13.7.0",
-    "aiohttp>=3.9.0",
     "fastapi>=0.110.0",
     "uvicorn>=0.28.0",
-    "pydantic>=2.6.0",
-    "psutil>=5.9.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.5.0",
 ]
 
 [project.scripts]
 netpulse = "main:main"
 
+# Плоская раскладка: main.py + несколько пакетов. Без явного перечня setuptools отказывается
+# собирать проект («Multiple top-level packages discovered in a flat-layout»).
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["config*", "engine*", "metrics*", "ui*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+ui = ["templates/*.html", "static/*.*", "static/vendor/*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+# Ошибки синтаксиса, pyflakes (неиспользуемые/неопределённые имена) и flake8-bugbear
+select = ["E9", "F", "B"]

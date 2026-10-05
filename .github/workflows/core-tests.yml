@@ -1,0 +1,56 @@
+name: "Python core: тесты и линтер"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'core/**'
+      - '.github/workflows/core-tests.yml'
+  pull_request:
+    paths:
+      - 'core/**'
+      - '.github/workflows/core-tests.yml'
+
+# Тестам не нужны права на запись в репозиторий
+permissions:
+  contents: read
+
+concurrency:
+  group: core-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: "Python ${{ matrix.python-version }} / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13']
+    defaults:
+      run:
+        working-directory: core
+
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Установка Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: core/requirements-dev.txt
+
+      - name: "Установка зависимостей"
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: "Линтер (ruff: ошибки синтаксиса, pyflakes, bugbear)"
+        run: python -m ruff check .
+
+      # Тесты герметичны: интернет не нужен, сеть — только loopback
+      - name: "Тесты (pytest)"
+        run: python -m pytest -q

@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Экран анализатора Bufferbloat (RFC 8290 SQM)
+/// Экран анализатора Bufferbloat (задержка под нагрузкой)
 public struct BufferbloatView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -15,6 +15,17 @@ public struct BufferbloatView: View {
     @State private var currentPhase: BufferbloatPhase = .idle
     @State private var currentLivePing: Double = 0.0
     @State private var report: BufferbloatReport?
+    @State private var errorMessage: String?
+    @State private var testTask: Task<Void, Never>?
+    @State private var showCellularConfirmation: Bool = false
+
+    private var isCellular: Bool {
+        viewModel.systemInfo.connectionType == .cellular
+    }
+
+    private var isOffline: Bool {
+        viewModel.systemInfo.connectionType == .unavailable
+    }
 
     public var body: some View {
         ZStack {
@@ -28,6 +39,10 @@ public struct BufferbloatView: View {
 
                     // 2. Фазы тестирования (Индикатор текущего этапа)
                     testingPhasesCard
+
+                    // Рекламный баннер Яндекса на видном месте
+                    YandexBannerView(contextTag: "Оборудование и роутеры")
+                        .padding(.horizontal)
 
                     // 3. Детальное сравнение ненагруженного и нагруженного пинга
                     if let r = report {
@@ -48,10 +63,26 @@ public struct BufferbloatView: View {
         .navigationTitle("Bufferbloat Тест")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar) // Скрываем таб-бар на детальном экране
+        .onDisappear {
+            // Тест создаёт сетевую нагрузку — при уходе с экрана он останавливается
+            testTask?.cancel()
+        }
+        .confirmationDialog(
+            "Тест на мобильной сети",
+            isPresented: $showCellularConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Запустить тест") {
+                startBufferbloatTest()
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Тест создаёт нагрузку на канал и может передать до 120 МБ мобильного трафика (до 60 МБ на скачивание и на отдачу). Запустить через мобильную сеть?")
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    startBufferbloatTest()
+                    requestStart()
                 } label: {
                     if isRunning {
                         ProgressView()
@@ -75,12 +106,12 @@ public struct BufferbloatView: View {
             if let r = report {
                 ZStack {
                     Circle()
-                        .fill(r.grade.badgeColor.opacity(0.15))
+                        .fill((r.grade?.badgeColor ?? NPTheme.textTertiary).opacity(0.15))
                         .frame(width: 90, height: 90)
 
-                    Text(r.grade.rawValue)
+                    Text(r.grade?.rawValue ?? "—")
                         .font(.system(size: 42, weight: .heavy, design: .rounded))
-                        .foregroundStyle(r.grade.badgeColor)
+                        .foregroundStyle(r.grade?.badgeColor ?? NPTheme.textTertiary)
                 }
 
                 VStack(spacing: 4) {
@@ -118,9 +149,31 @@ public struct BufferbloatView: View {
                 }
             }
 
+            if let errorMessage {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(NPTheme.semanticWarn)
+                    Text(errorMessage)
+                        .font(.system(size: 12))
+                        .foregroundStyle(NPTheme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(NPTheme.semanticWarn.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            if isRunning && currentLivePing > 0 {
+                Text(String(format: "Задержка сейчас: %.0f мс", currentLivePing))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(NPTheme.textSecondary)
+            }
+
             // Кнопка запуска
             Button {
-                startBufferbloatTest()
+                requestStart()
             } label: {
                 HStack(spacing: 8) {
                     if isRunning {
@@ -151,7 +204,7 @@ public struct BufferbloatView: View {
 
     private var testingPhasesCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("ЭТАПЫ ИЗМЕРЕНИЯ (RFC 8290):")
+            Text("ЭТАПЫ ИЗМЕРЕНИЯ:")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(NPTheme.textTertiary)
                 .tracking(0.5)
@@ -162,7 +215,7 @@ public struct BufferbloatView: View {
                     subtitle: "Базовая задержка до опорного узла",
                     icon: "speedometer",
                     isActive: currentPhase == .unloadedLatency,
-                    isDone: report != nil || currentPhase == .downloadSaturation || currentPhase == .uploadSaturation || currentPhase == .completed
+                    isDone: (report != nil && !isRunning) || currentPhase == .downloadSaturation || currentPhase == .uploadSaturation || currentPhase == .completed
                 )
 
                 phaseRow(
@@ -170,7 +223,7 @@ public struct BufferbloatView: View {
                     subtitle: "Замер роста RTT при максимальной загрузке",
                     icon: "arrow.down.circle.fill",
                     isActive: currentPhase == .downloadSaturation,
-                    isDone: report != nil || currentPhase == .uploadSaturation || currentPhase == .completed
+                    isDone: (report != nil && !isRunning) || currentPhase == .uploadSaturation || currentPhase == .completed
                 )
 
                 phaseRow(
@@ -178,7 +231,7 @@ public struct BufferbloatView: View {
                     subtitle: "Замер задержки при исходящем потоке",
                     icon: "arrow.up.circle.fill",
                     isActive: currentPhase == .uploadSaturation,
-                    isDone: report != nil || currentPhase == .completed
+                    isDone: (report != nil && !isRunning) || currentPhase == .completed
                 )
             }
         }
@@ -233,20 +286,82 @@ public struct BufferbloatView: View {
 
                 metricBox(
                     title: "При скачивании",
-                    value: String(format: "%.1f мс", report.loadedDownloadPingMs),
-                    delta: "+\(String(format: "%.1f", report.downloadDeltaMs)) мс",
-                    color: report.downloadDeltaMs < 15 ? NPTheme.accentPrimary : NPTheme.semanticWarn
+                    value: formatMs(report.loadedDownloadPingMs),
+                    delta: formatDelta(report.downloadDeltaMs),
+                    color: deltaColor(report.downloadDeltaMs, critical: NPTheme.semanticWarn)
                 )
 
                 metricBox(
                     title: "При отдаче",
-                    value: String(format: "%.1f мс", report.loadedUploadPingMs),
-                    delta: "+\(String(format: "%.1f", report.uploadDeltaMs)) мс",
-                    color: report.uploadDeltaMs < 15 ? NPTheme.accentPrimary : NPTheme.semanticCritical
+                    value: formatMs(report.loadedUploadPingMs),
+                    delta: formatDelta(report.uploadDeltaMs),
+                    color: deltaColor(report.uploadDeltaMs, critical: NPTheme.semanticCritical)
                 )
             }
+
+            HStack(spacing: 10) {
+                metricBox(
+                    title: "Скорость ↓ в тесте",
+                    value: formatSpeed(report.downloadSpeedMbps),
+                    delta: formatLoss(report.downloadLossPercent),
+                    color: lossColor(report.downloadLossPercent)
+                )
+
+                metricBox(
+                    title: "Скорость ↑ в тесте",
+                    value: formatSpeed(report.uploadSpeedMbps),
+                    delta: formatLoss(report.uploadLossPercent),
+                    color: lossColor(report.uploadLossPercent)
+                )
+            }
+
+            if !report.notes.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(report.notes.enumerated()), id: \.offset) { _, note in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 11))
+                                .foregroundStyle(NPTheme.semanticWarn)
+                            Text(note)
+                                .font(.system(size: 11))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+
+            Text("Задержка измеряется TCP-рукопожатием до \(BufferbloatConfiguration().probeHost):443 (медиана), нагрузка создаётся через speed.cloudflare.com. Результат ориентировочный.")
+                .font(.system(size: 10))
+                .foregroundStyle(NPTheme.textTertiary)
         }
         .padding(.horizontal)
+    }
+
+    private func formatMs(_ value: Double?) -> String {
+        value.map { String(format: "%.1f мс", $0) } ?? "—"
+    }
+
+    private func formatDelta(_ value: Double?) -> String {
+        value.map { "+\(String(format: "%.1f", $0)) мс" } ?? "нет данных"
+    }
+
+    private func formatSpeed(_ value: Double?) -> String {
+        value.map { String(format: "%.1f Мбит/с", $0) } ?? "—"
+    }
+
+    private func formatLoss(_ value: Double?) -> String {
+        value.map { String(format: "потери %.0f %%", $0) } ?? "потери: —"
+    }
+
+    private func deltaColor(_ delta: Double?, critical: Color) -> Color {
+        guard let delta else { return NPTheme.textTertiary }
+        return delta < 15 ? NPTheme.accentPrimary : critical
+    }
+
+    private func lossColor(_ loss: Double?) -> Color {
+        guard let loss else { return NPTheme.textTertiary }
+        return loss < BufferbloatReport.lossPenaltyThresholdPercent ? NPTheme.accentPrimary : NPTheme.semanticWarn
     }
 
     private func metricBox(title: String, value: String, delta: String, color: Color) -> some View {
@@ -322,23 +437,55 @@ public struct BufferbloatView: View {
 
     // MARK: - Запуск теста
 
+    /// Проверки перед запуском: без сети тест невозможен, на мобильной сети нужно подтверждение (расход трафика)
+    private func requestStart() {
+        guard !isRunning else { return }
+        if isOffline {
+            errorMessage = "Нет подключения к сети — тест невозможен."
+            HapticManager.shared.notificationWarning()
+            return
+        }
+        if isCellular {
+            showCellularConfirmation = true
+        } else {
+            startBufferbloatTest()
+        }
+    }
+
     private func startBufferbloatTest() {
         guard !isRunning else { return }
         isRunning = true
+        errorMessage = nil
+        currentPhase = .unloadedLatency
+        currentLivePing = 0.0
         HapticManager.shared.impactMedium()
 
-        Task {
-            let res = await BufferbloatEngine.shared.runBufferbloatTest { phase, livePing in
+        let cellular = isCellular
+        testTask = Task {
+            let result = await BufferbloatEngine.shared.runBufferbloatTest(
+                configuration: cellular ? BufferbloatConfiguration.cellular : BufferbloatConfiguration(),
+                isCellular: cellular
+            ) { phase, livePing in
                 Task { @MainActor in
                     self.currentPhase = phase
                     self.currentLivePing = livePing
                 }
             }
 
-            self.report = res
-            self.currentPhase = .completed
+            switch result {
+            case .success(let value):
+                self.report = value
+                self.currentPhase = .completed
+                HapticManager.shared.notificationSuccess()
+            case .failure(let error):
+                self.currentPhase = .idle
+                if error != .cancelled {
+                    self.errorMessage = error.localizedDescription
+                    HapticManager.shared.notificationError()
+                }
+            }
             self.isRunning = false
-            HapticManager.shared.notificationSuccess()
+            self.testTask = nil
         }
     }
 }

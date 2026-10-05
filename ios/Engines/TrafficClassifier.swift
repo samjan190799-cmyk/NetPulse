@@ -7,9 +7,10 @@
 
 import Foundation
 
-/// Интеллектуальный анализатор и классификатор сетевой активности (Traffic Classifier)
-/// Определяет назначение переданного трафика на основе скорости, соотношения Download/Upload,
-/// характера пульсаций (burst patterns), диагностических спидтестов и фоновых срезов ядра Darwin BSD.
+/// Классификатор сетевой активности (Traffic Classifier) — ОЦЕНКА, а не точное измерение.
+/// Назначение трафика определяется косвенно: по скорости, соотношению Download/Upload и объёму пакетов,
+/// диагностических спидтестов и фоновых срезов ядра Darwin BSD. Приложение не видит, какие программы и серверы
+/// создали трафик, поэтому категории — приблизительная картина профиля нагрузки.
 public final class TrafficClassifier: @unchecked Sendable {
     public static let shared = TrafficClassifier()
 
@@ -160,20 +161,9 @@ public final class TrafficClassifier: @unchecked Sendable {
             }
         }
 
-        // Если у сессий еще нет категорий (например, старые данные из хранилища), генерируем реалистичную эвристическую раскладку
-        if map.isEmpty && totalTraffic > 0 {
-            let videoBytes = (totalTraffic * 42) / 100
-            let msgBytes = (totalTraffic * 24) / 100
-            let webBytes = (totalTraffic * 18) / 100
-            let gameBytes = (totalTraffic * 8) / 100
-            let sysBytes = totalTraffic >= (videoBytes + msgBytes + webBytes + gameBytes) ? totalTraffic - (videoBytes + msgBytes + webBytes + gameBytes) : 0
-
-            map[.videoStreaming] = (videoBytes, 0)
-            map[.messagingSocial] = ((msgBytes * 80) / 100, (msgBytes * 20) / 100)
-            map[.webBrowsing] = ((webBytes * 85) / 100, (webBytes * 15) / 100)
-            map[.gamingVoip] = ((gameBytes * 60) / 100, (gameBytes * 40) / 100)
-            map[.systemBackground] = (sysBytes, 0)
-        }
+        // У старых сессий категорий нет — раскладку не выдумываем: раньше для них подставлялось «42 % видео,
+        // 24 % мессенджеры, 18 % веб, 8 % игры» и показывалось пользователю как результат анализа.
+        // Без данных разбивка остаётся пустой (интерфейс показывает заглушку).
 
         let totalAll = max(totalTraffic, map.values.reduce(UInt64(0)) { $0 + $1.down + $1.up })
 

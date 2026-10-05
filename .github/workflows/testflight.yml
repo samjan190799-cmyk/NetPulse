@@ -1,5 +1,7 @@
 name: "Выгрузка в TestFlight (Apple App Store Connect)"
 
+# Выгрузка в TestFlight запускается ТОЛЬКО вручную. Раньше любой push в ios/** на main автоматически отправлял
+# сборку тестировщикам, а новый запуск отменял предыдущий (в том числе во время загрузки).
 on:
   workflow_dispatch:
     inputs:
@@ -7,20 +9,13 @@ on:
         description: 'Маркетинговая версия (например: 1.0.0)'
         required: true
         default: '1.0.0'
-      release_notes:
-        description: 'Описание изменений для тестировщиков'
-        required: false
-        default: 'Релиз NetPulse: мониторинг сети, джиттер RFC 3550, Swift Charts и замер скорости Speedtest.'
-  push:
-    branches:
-      - main
-    paths:
-      - 'ios/**'
-      - '.github/workflows/testflight.yml'
+
+permissions:
+  contents: read
 
 concurrency:
   group: testflight-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-upload:
@@ -64,8 +59,16 @@ jobs:
       - name: "Генерация иконок приложения"
         working-directory: ./ios
         run: |
-          python3 -m pip install --upgrade --break-system-packages Pillow --quiet || true
           ICONSET="Assets.xcassets/AppIcon.appiconset"
+
+          # Каталог иконок лежит в репозитории: перезаписывать его нечем и незачем.
+          # Генерация ниже — запасной путь на случай, если иконок в репозитории нет.
+          if [ -f "$ICONSET/AppIcon-1024.png" ] && [ -f "$ICONSET/Contents.json" ]; then
+            echo "✔ Иконки приложения уже в репозитории — генерация не требуется"
+            exit 0
+          fi
+
+          python3 -m pip install --upgrade --break-system-packages Pillow --quiet
           mkdir -p "$ICONSET"
           
           # Если мастер-логотип существует в assets/, генерируем все размеры напрямую из него
@@ -141,17 +144,17 @@ jobs:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
         run: |
+          umask 077
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+          printf '%s\n' "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
 
       - name: "Импорт сертификата Apple Distribution (при наличии)"
         if: env.APPLE_CERTIFICATE_BASE64 != ''
         env:
           CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: "netpulse_build_keychain_2026"
         run: |
+          KEYCHAIN_PASSWORD="$(uuidgen)"
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
@@ -163,18 +166,28 @@ jobs:
 
       - name: "Сборка архива NetPulse.xcarchive"
         working-directory: ./ios
+        env:
+          # Значения из inputs передаются через окружение, а не подставляются в текст скрипта (защита от инъекции команд)
+          VERSION_NAME: ${{ github.event.inputs.version_name }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
-          BUILD_NUM=${{ github.run_number }}
-          VERSION="${{ github.event.inputs.version_name || '1.0.0' }}"
-          xcrun agvtool new-version -all $BUILD_NUM || true
-          xcrun agvtool new-marketing-version $VERSION || true
+          set -euo pipefail
+          if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "❌ Некорректная версия: '$VERSION_NAME' (ожидается вид 1.0.0)"
+            exit 1
+          fi
 
+          # Версия и номер сборки задаются настройками сборки для обоих таргетов (приложение и виджеты);
+          # Info.plist читают их через $(MARKETING_VERSION) и $(CURRENT_PROJECT_VERSION).
+          # Раньше agvtool с `|| true` молча не срабатывал, а в plist были зашиты 1.0.0 и 1.
           xcodebuild archive \
             -project NetPulse.xcodeproj \
             -scheme NetPulse \
             -configuration Release \
             -sdk iphoneos \
             -archivePath build/NetPulse.xcarchive \
+            MARKETING_VERSION="$VERSION_NAME" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
@@ -183,33 +196,41 @@ jobs:
           ARCHIVE_PLIST="build/NetPulse.xcarchive/Products/Applications/NetPulse.app/Info.plist"
           if [ -f "$ARCHIVE_PLIST" ]; then
             echo "✔ Внедрение CFBundleIconName в $ARCHIVE_PLIST"
-            plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST" || true
+            plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST"
           fi
 
-          # Статические SDK (например, YandexMobileAds: ar-архив внутри .framework) уже слинкованы
-          # в основной бинарник. Xcode всё равно встраивает их в Frameworks/, и App Store Connect
-          # отклоняет такую загрузку («Invalid Signature»). Удаляем встроенные копии статических библиотек.
-          APP_DIR="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
-          ls -la "$APP_DIR/Frameworks" 2>/dev/null || echo "ℹ Каталога Frameworks в приложении нет"
-          for fw in "$APP_DIR"/Frameworks/*.framework; do
-            [ -d "$fw" ] || continue
-            bin="$fw/$(basename "$fw" .framework)"
-            kind="$(file -b "$bin" 2>/dev/null || true)"
-            echo "ℹ $(basename "$fw"): $kind"
-            case "$kind" in
-              *"ar archive"*)
-                echo "✔ Удаляю встроенную статическую библиотеку: $fw"
-                rm -rf "$fw"
-                ;;
-              *"Mach-O"*)
-                # После копирования Xcode прежняя подпись вендора становится недействительной
-                # (lipo меняет бинарник) — снимаем её, чтобы экспорт подписал фреймворк заново.
-                echo "✔ Снимаю устаревшую подпись: $fw"
-                codesign --remove-signature "$fw" 2>&1 || true
-                ;;
-            esac
+      - name: "Фреймворки в архиве: снять подпись линкера (ad hoc)"
+        working-directory: ./ios
+        run: |
+          # Статическую библиотеку (например, рекламу Яндекса) Xcode 26 кладёт в приложение «бескодовым» фреймворком
+          # и вставляет в него пустую заглушку, подписанную линкером (ad hoc). Архив собирается без подписи, и экспорт
+          # такую готовую подпись оставляет как есть: Apple отклоняет сборку («Invalid Signature … not properly signed»).
+          # Снимаем подпись линкера, чтобы экспорт подписал заглушку сертификатом распространения.
+          # Если же Xcode положил в Frameworks/ саму статическую библиотеку (ar-архив), её копия не нужна: код уже
+          # слинкован в основной бинарник, а подписать архив нельзя. Такую копию удаляем целиком.
+          APP="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
+          shopt -s nullglob
+          for fw in "$APP"/Frameworks/*.framework; do
+            name="$(basename "$fw" .framework)"
+            exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$fw/Info.plist" 2>/dev/null || echo "$name")"
+            bin="$fw/$exe"
+            if [ ! -f "$bin" ]; then
+              echo "• $name: бинарного файла нет"
+              continue
+            fi
+            if file -b "$bin" 2>/dev/null | grep -q "ar archive"; then
+              echo "• $name: статическая библиотека, встроенную копию удаляю"
+              rm -rf "$fw"
+              continue
+            fi
+            sig="$(codesign -dv --verbose=2 "$bin" 2>&1 | grep -E '^Signature=|^CodeDirectory' | tr '\n' ' ' || true)"
+            echo "• $name: ${sig:-не подписан}"
+            if echo "$sig" | grep -qi "adhoc"; then
+              codesign --remove-signature "$bin"
+              echo "    подпись линкера снята: подписать заглушку должен экспорт"
+            fi
           done
-          rmdir "$APP_DIR/Frameworks" 2>/dev/null || true
+          rmdir "$APP/Frameworks" 2>/dev/null || true
 
       - name: "Экспорт и подпись IPA через App Store Connect API"
         working-directory: ./ios
@@ -230,23 +251,36 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID" \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
 
-      - name: "Диагностика подписи IPA"
+      - name: "Проверка подписи в готовом IPA (до выгрузки)"
         working-directory: ./ios
-        continue-on-error: true
         run: |
+          # Apple отклоняет сборку, если любой встроенный код подписан не сертификатом распространения.
+          # Проверяем это здесь, чтобы не тратить время на заведомо неудачную выгрузку.
+          set -e
+          rm -rf build/ipa_check && mkdir -p build/ipa_check
           IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
-          rm -rf build/ipa_x && mkdir -p build/ipa_x && unzip -q -o "$IPA_PATH" -d build/ipa_x
-          APP="build/ipa_x/Payload/NetPulse.app"
-          echo "== Frameworks в IPA =="; ls -la "$APP/Frameworks" 2>&1 || true
-          for fw in "$APP"/Frameworks/*.framework; do
-            [ -d "$fw" ] || continue
-            echo "== $(basename "$fw") =="
-            ls -la "$fw" || true
-            file "$fw/$(basename "$fw" .framework)" || true
-            codesign -dvv "$fw" 2>&1 | head -20 || true
-            codesign --verify --strict -vvv "$fw" 2>&1 | head -10 || true
+          unzip -q "$IPA_PATH" -d build/ipa_check
+          APP="$(echo build/ipa_check/Payload/*.app)"
+          shopt -s nullglob
+          bad=0
+          check() {
+            info="$(codesign -dvv "$1" 2>&1 || true)"
+            auth="$(echo "$info" | grep -E '^Authority=' | head -n 1 || true)"
+            team="$(echo "$info" | grep -E '^TeamIdentifier=' | head -n 1 || true)"
+            echo "• $2: ${auth:-без Authority} ${team:+| $team}"
+            if echo "$info" | grep -qE 'Signature=adhoc|not signed at all' || [ -z "$auth" ]; then
+              bad=1
+            fi
+          }
+          check "$APP" "приложение"
+          for item in "$APP"/Frameworks/*.framework "$APP"/PlugIns/*.appex; do
+            check "$item" "$(basename "$item")"
           done
-          echo "== Приложение =="; codesign -dvv "$APP" 2>&1 | head -12 || true
+          if [ "$bad" -ne 0 ]; then
+            echo "❌ Часть кода в IPA подписана не сертификатом распространения (ad hoc или без подписи): Apple отклонит сборку"
+            exit 1
+          fi
+          echo "✔ Весь код в IPA подписан сертификатом распространения"
 
       - name: "Выгрузка в TestFlight"
         working-directory: ./ios
@@ -254,7 +288,7 @@ jobs:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
-          set -e
+          set -eo pipefail
           IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
           if [ -z "$IPA_PATH" ]; then
             echo "❌ IPA файл не найден!"
@@ -262,16 +296,15 @@ jobs:
           fi
           echo "✔ Найден IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
 
-          set -o pipefail
+          # altool при отказе Apple печатает «UPLOAD FAILED», но завершается с кодом 0 — проверяем вывод сами
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
             --type ios \
             --apiKey "$KEY_ID" \
-            --apiIssuer "$ISSUER_ID" 2>&1 | tee upload.log
+            --apiIssuer "$ISSUER_ID" 2>&1 | tee build/altool.log
 
-          # altool может вернуть код 0 даже при отказе Apple — проверяем текст вывода
-          if grep -qE "UPLOAD FAILED|Failed to upload package|Validation failed" upload.log; then
-            echo "❌ Apple отклонила загрузку (см. лог выше)"
+          if grep -qE "UPLOAD FAILED|Failed to upload package" build/altool.log; then
+            echo "❌ Apple отклонила загрузку (причина выше). Сборка НЕ отправлена."
             exit 1
           fi
 

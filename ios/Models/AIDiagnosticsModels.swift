@@ -7,26 +7,44 @@
 
 import Foundation
 import SwiftUI
+import Security
 
 // MARK: - 1. Провайдеры и конфигурация AI
 
 /// Провайдер искусственного интеллекта для сетевого анализа
 public enum AIProviderType: String, CaseIterable, Identifiable, Codable, Sendable {
     case offlineSmart = "Встроенный AI (Offline Smart)"
-    case gemini = "Google Gemini 2.0 Flash"
-    case openai = "OpenAI GPT-4o"
-    case claude = "Anthropic Claude 3.7 Sonnet"
-    case deepseek = "DeepSeek V3 / R1"
+    case gemini = "Google Gemini"
+    case openai = "OpenAI"
+    case claude = "Anthropic Claude"
+    case deepseek = "DeepSeek"
 
     public var id: String { rawValue }
 
+    /// Модель по умолчанию. Название можно изменить в настройках AI.
     public var defaultModelName: String {
         switch self {
         case .offlineSmart: return "Локальная эвристическая модель"
         case .gemini: return "gemini-2.0-flash"
         case .openai: return "gpt-4o"
-        case .claude: return "claude-3-7-sonnet-20250219"
+        case .claude: return "claude-opus-5-5"
         case .deepseek: return "deepseek-chat"
+        }
+    }
+
+    /// Облачный провайдер: ему отправляются вопрос пользователя и сводные метрики сети
+    public var isCloud: Bool {
+        self != .offlineSmart
+    }
+
+    /// Ключ записи в Keychain и в настройках
+    public var storageKey: String {
+        switch self {
+        case .offlineSmart: return "offline"
+        case .gemini: return "gemini"
+        case .openai: return "openai"
+        case .claude: return "claude"
+        case .deepseek: return "deepseek"
         }
     }
 }
@@ -34,17 +52,101 @@ public enum AIProviderType: String, CaseIterable, Identifiable, Codable, Sendabl
 /// Конфигурация подключения к AI-провайдеру
 public struct AIProviderConfig: Codable, Sendable {
     public var selectedProvider: AIProviderType
-    public var apiKey: String
+    /// Ключ API выбранного провайдера. В настройках приложения (UserDefaults) не хранится — только в Keychain
+    /// (см. `AIConfigStore`). Раньше ключ вообще не сохранялся, а подпись в интерфейсе утверждала обратное.
+    public var apiKey: String = ""
     public var customModel: String
+
+    private enum CodingKeys: String, CodingKey {
+        case selectedProvider
+        case customModel
+    }
 
     public init(
         selectedProvider: AIProviderType = .offlineSmart,
         apiKey: String = "",
-        customModel: String = "gemini-2.0-flash"
+        customModel: String = ""
     ) {
         self.selectedProvider = selectedProvider
         self.apiKey = apiKey
-        self.customModel = customModel.isEmpty ? selectedProvider.defaultModelName : customModel
+        // Раньше значение по умолчанию было «gemini-2.0-flash» для любого провайдера
+        let trimmed = customModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.customModel = trimmed.isEmpty ? selectedProvider.defaultModelName : trimmed
+    }
+}
+
+/// Хранилище настроек AI: провайдер и модель — в UserDefaults, ключи API — в Keychain (отдельный ключ на провайдера).
+public enum AIConfigStore {
+    private static let providerDefaultsKey = "netpulse_ai_provider"
+    private static let modelDefaultsKeyPrefix = "netpulse_ai_model_"
+    private static let keychainService = "com.samvel.netpulse.ai-keys"
+
+    /// Загрузка сохранённой конфигурации (по умолчанию — встроенный AI)
+    public static func load() -> AIProviderConfig {
+        let defaults = UserDefaults.standard
+        let provider = defaults.string(forKey: providerDefaultsKey).flatMap(AIProviderType.init(rawValue:)) ?? .offlineSmart
+        return AIProviderConfig(
+            selectedProvider: provider,
+            apiKey: apiKey(for: provider),
+            customModel: storedModel(for: provider)
+        )
+    }
+
+    public static func save(_ config: AIProviderConfig) {
+        let defaults = UserDefaults.standard
+        defaults.set(config.selectedProvider.rawValue, forKey: providerDefaultsKey)
+        defaults.set(config.customModel, forKey: modelDefaultsKeyPrefix + config.selectedProvider.storageKey)
+        setAPIKey(config.apiKey, for: config.selectedProvider)
+    }
+
+    /// Ранее сохранённое название модели провайдера (или модель по умолчанию)
+    public static func storedModel(for provider: AIProviderType) -> String {
+        let stored = UserDefaults.standard.string(forKey: modelDefaultsKeyPrefix + provider.storageKey) ?? ""
+        return stored.isEmpty ? provider.defaultModelName : stored
+    }
+
+    // MARK: Keychain
+
+    private static func baseQuery(for provider: AIProviderType) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: provider.storageKey
+        ]
+    }
+
+    public static func apiKey(for provider: AIProviderType) -> String {
+        var query = baseQuery(for: provider)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data,
+              let key = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+        return key
+    }
+
+    private static func setAPIKey(_ key: String, for provider: AIProviderType) {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = baseQuery(for: provider)
+
+        guard !trimmed.isEmpty else {
+            SecItemDelete(query as CFDictionary)
+            return
+        }
+
+        let data = Data(trimmed.utf8)
+        let updateStatus = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if updateStatus == errSecItemNotFound {
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            // Ключ доступен только на этом устройстве и только при разблокированном экране; в резервные копии не попадает
+            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            SecItemAdd(addQuery as CFDictionary, nil)
+        }
     }
 }
 
@@ -192,23 +294,30 @@ public struct NetworkRecommendation: Identifiable, Codable, Sendable {
     }
 }
 
-/// Полный отчет здоровья сети от AI
+/// Полный отчет здоровья сети от AI.
+///
+/// Оценка считается только по реальным измерениям. Если данных для сценария нет, значение равно `nil`
+/// (интерфейс показывает «—»): раньше при отсутствии измерений подставлялись пинг 25 мс, джиттер 2 мс и потери 0 %,
+/// и отчёт сообщал «Идеальное качество сети».
 public struct NetworkHealthReport: Identifiable, Codable, Sendable {
     public let id: UUID
-    public let overallScore: Int // 0 - 100
-    public let gamingScore: Int // 0 - 100
-    public let streamingScore: Int // 0 - 100
-    public let videoCallScore: Int // 0 - 100
-    public let webBrowsingScore: Int // 0 - 100
+    public let overallScore: Int? // 0 - 100, nil — данных недостаточно
+    public let gamingScore: Int? // 0 - 100
+    public let streamingScore: Int? // 0 - 100 (нужен замер скорости)
+    public let videoCallScore: Int? // 0 - 100
+    public let webBrowsingScore: Int? // 0 - 100
     public let statusTitle: String
     public let summaryText: String
     public let identifiedIssues: [NetworkIssue]
     public let recommendations: [NetworkRecommendation]
     public let timestamp: Date
 
-    public var healthScore: Int { overallScore }
+    public var healthScore: Int? { overallScore }
+
+    public var hasEnoughData: Bool { overallScore != nil }
 
     public var statusBadgeColor: Color {
+        guard let overallScore else { return .gray }
         if overallScore >= 85 {
             return .green
         } else if overallScore >= 65 {
@@ -222,11 +331,11 @@ public struct NetworkHealthReport: Identifiable, Codable, Sendable {
 
     public init(
         id: UUID = UUID(),
-        overallScore: Int,
-        gamingScore: Int,
-        streamingScore: Int,
-        videoCallScore: Int,
-        webBrowsingScore: Int,
+        overallScore: Int?,
+        gamingScore: Int?,
+        streamingScore: Int?,
+        videoCallScore: Int?,
+        webBrowsingScore: Int?,
         statusTitle: String,
         summaryText: String,
         identifiedIssues: [NetworkIssue],
@@ -319,6 +428,8 @@ public enum TroubleshootingStepStatus: String, Codable, Sendable {
     case success = "В норме"
     case warning = "Замечание"
     case critical = "Критично"
+    /// Измерить нельзя (нет данных или iOS не даёт приложению такой информации) — вердикт не выносится
+    case skipped = "Нет данных"
 }
 
 /// Шаг в мастере устранения сетевых неполадок
@@ -432,11 +543,12 @@ public struct NetworkAnomalyItem: Identifiable, Codable, Sendable {
     }
 }
 
-/// Полный отчет по сетевым аномалиям
+/// Полный отчет по сетевым аномалиям (анализируются текущие измерения, истории по часам приложение не ведёт)
 public struct NetworkAnomalyReport: Identifiable, Codable, Sendable {
     public let id: UUID
     public let anomalies: [NetworkAnomalyItem]
     public let overallRiskLevel: IssueSeverity
+    /// 0 — анализировался только текущий снимок измерений
     public let analyzedHours: Int
     public let generatedAt: Date
 
@@ -444,7 +556,7 @@ public struct NetworkAnomalyReport: Identifiable, Codable, Sendable {
         id: UUID = UUID(),
         anomalies: [NetworkAnomalyItem],
         overallRiskLevel: IssueSeverity = .info,
-        analyzedHours: Int = 24,
+        analyzedHours: Int = 0,
         generatedAt: Date = Date()
     ) {
         self.id = id
@@ -457,11 +569,11 @@ public struct NetworkAnomalyReport: Identifiable, Codable, Sendable {
 
 // MARK: - 7. Шаблоны официальных претензий провайдеру (ISP Dispute Letter)
 
-/// Шаблон официальной претензии в техподдержку интернет-провайдера
+/// Шаблон обращения в техподдержку интернет-провайдера
 public enum ISPDisputeTemplate: String, CaseIterable, Identifiable, Codable, Sendable {
-    case packetLossAndLatency = "Потеря пакетов и высокая задержка RTT"
-    case speedMismatch = "Несоответствие заявленной тарифной скорости"
-    case routingAndMTR = "Сбои магистральной маршрутизации (MTR)"
+    case packetLossAndLatency = "Потери и задержка"
+    case speedMismatch = "Скорость ниже тарифа"
+    case routingAndMTR = "Проблемы на маршруте"
 
     public var id: String { rawValue }
 
@@ -487,9 +599,13 @@ public struct NetworkDiagnosticsContext: Sendable {
     public let averagePingMs: Double?
     public let jitterMs: Double?
     public let packetLossPct: Double
+    /// Есть ли свежие результаты проверок. Если нет, «0 % потерь» означает отсутствие данных, а не отличное качество
+    public let hasLiveData: Bool
+    /// Текущая скорость трафика на устройстве (не пропускная способность канала)
     public let liveDownloadMbps: Double
     public let liveUploadMbps: Double
     public let speedtestDownloadMbps: Double?
+    /// Отдача из замера скорости; 0 или nil — не измерена
     public let speedtestUploadMbps: Double?
     public let recentAlertsCount: Int
     public let tracerouteHopsCount: Int
@@ -504,6 +620,7 @@ public struct NetworkDiagnosticsContext: Sendable {
         averagePingMs: Double?,
         jitterMs: Double?,
         packetLossPct: Double,
+        hasLiveData: Bool,
         liveDownloadMbps: Double,
         liveUploadMbps: Double,
         speedtestDownloadMbps: Double?,
@@ -520,6 +637,7 @@ public struct NetworkDiagnosticsContext: Sendable {
         self.averagePingMs = averagePingMs
         self.jitterMs = jitterMs
         self.packetLossPct = packetLossPct
+        self.hasLiveData = hasLiveData
         self.liveDownloadMbps = liveDownloadMbps
         self.liveUploadMbps = liveUploadMbps
         self.speedtestDownloadMbps = speedtestDownloadMbps
@@ -528,65 +646,120 @@ public struct NetworkDiagnosticsContext: Sendable {
         self.tracerouteHopsCount = tracerouteHopsCount
     }
 
-    /// Формирование структурированного текстового отчета для отправки в техподдержку интернет-провайдера
+    /// Результат замера отдачи (0 означает «не измерено»)
+    public var measuredUploadMbps: Double? {
+        guard let upload = speedtestUploadMbps, upload > 0 else { return nil }
+        return upload
+    }
+
+    /// Сводка метрик для облачного AI. Без IP-адресов и названия провайдера: для диагностики они не нужны,
+    /// а в сторонний сервис уходить не должны.
+    public var summaryForCloudAI: String {
+        var lines: [String] = ["Тип подключения: \(connectionType)"]
+
+        if hasLiveData {
+            lines.append("Средний пинг до проверяемых узлов: " + (averagePingMs.map { String(format: "%.1f мс", $0) } ?? "узлы не отвечают"))
+            lines.append("Джиттер: " + (jitterMs.map { String(format: "%.1f мс", $0) } ?? "не измерен"))
+            lines.append("Потери пакетов в окне последних проверок: " + String(format: "%.1f %%", packetLossPct))
+        } else {
+            lines.append("Живой мониторинг: свежих данных нет (мониторинг остановлен или приложение было в фоне)")
+        }
+
+        if let download = speedtestDownloadMbps, download > 0 {
+            let upload = measuredUploadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? "не измерена"
+            lines.append(String(format: "Последний замер скорости: загрузка %.1f Мбит/с, отдача ", download) + upload)
+        } else {
+            lines.append("Замер скорости не выполнялся")
+        }
+        lines.append(String(format: "Текущая скорость трафика на устройстве: ↓ %.1f / ↑ %.1f Мбит/с (это не пропускная способность канала)", liveDownloadMbps, liveUploadMbps))
+        lines.append("Оповещений за сеанс: \(recentAlertsCount)")
+        return lines.joined(separator: "\n")
+    }
+
+    /// Текст обращения в техподдержку провайдера. Содержит только измеренные значения; того, чего не измеряли,
+    /// в нём нет (раньше шаблон утверждал «систематические потери» при потерях 0 %, подставлял шлюз 192.168.1.1
+    /// и приписывал нарушение нормативов).
     public func generateISPSupportReport(template: ISPDisputeTemplate = .packetLossAndLatency) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         let dateStr = formatter.string(from: Date())
 
-        let pingStr = averagePingMs.map { String(format: "%.1f мс", $0) } ?? "N/A"
-        let jitterStr = jitterMs.map { String(format: "%.2f мс (RFC 3550)", $0) } ?? "N/A"
-        let speedStr = speedtestDownloadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? String(format: "%.1f Мбит/с (live)", liveDownloadMbps)
-        let uploadStr = speedtestUploadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? String(format: "%.1f Мбит/с (live)", liveUploadMbps)
+        let pingStr: String
+        let jitterStr: String
+        let lossStr: String
+        if hasLiveData {
+            pingStr = averagePingMs.map { String(format: "%.1f мс", $0) } ?? "проверяемые узлы не отвечают"
+            jitterStr = jitterMs.map { String(format: "%.2f мс (RFC 3550)", $0) } ?? "не измерен"
+            lossStr = String(format: "%.2f %%", packetLossPct)
+        } else {
+            pingStr = "не измерялась (мониторинг не работал)"
+            jitterStr = "не измерялся"
+            lossStr = "не измерялись"
+        }
+        let downloadStr = speedtestDownloadMbps.flatMap { $0 > 0 ? String(format: "%.1f Мбит/с", $0) : nil } ?? "не измерялась"
+        let uploadStr = measuredUploadMbps.map { String(format: "%.1f Мбит/с", $0) } ?? "не измерялась"
 
         let reasonTitle: String
-        let legalReference: String
+        let reference: String
+        let request: String
 
         switch template {
         case .packetLossAndLatency:
-            reasonTitle = "ПРЕТЕНЗИЯ: Систематическая потеря сетевых пакетов и недопустимый джиттер"
-            legalReference = "Нарушение требований качества передачи данных по протоколам TCP/UDP (ITU-T Rec. Y.1541, класс QoS 1)."
+            reasonTitle = "ОБРАЩЕНИЕ: нестабильное соединение (потери пакетов, высокая задержка)"
+            reference = "Справочно: ориентиры параметров IP-сетей (задержка, джиттер, потери) — ITU-T Y.1541."
+            request = "Прошу проверить качество линии и параметры доступа на моём подключении и сообщить результат проверки."
         case .speedMismatch:
-            reasonTitle = "ПРЕТЕНЗИЯ: Несоответствие фактической скорости тарифному плану"
-            legalReference = "Несоблюдение гарантированной полосы пропускания интернет-канала по договору оказания услуг связи."
+            reasonTitle = "ОБРАЩЕНИЕ: скорость подключения ниже указанной в тарифе"
+            reference = "Справочно: условия моего тарифного плана и договора об оказании услуг связи."
+            request = "Прошу проверить соответствие фактической скорости подключения моему тарифу и сообщить результат проверки."
         case .routingAndMTR:
-            reasonTitle = "ПРЕТЕНЗИЯ: Деградация магистральной маршрутизации и потери на узлах оператора"
-            legalReference = "Сбой транзитных пиринговых стыков и переполнение очередей на промежуточных L3-маршрутизаторах."
+            reasonTitle = "ОБРАЩЕНИЕ: проблемы на маршруте до внешних узлов"
+            reference = "Справочно: трассировка (раздел 3); проблемный узел маршрута может принадлежать не моему оператору."
+            request = "Прошу проверить маршрут от моего подключения до внешних узлов и сообщить результат проверки."
         }
+
+        var connectionLines: [String] = [
+            "• Оператор связи (ISP): \(ispName ?? "не определён")",
+            "• Тип подключения: \(connectionType)",
+            "• Публичный IP-адрес: \(publicIP ?? "не определён")"
+        ]
+        if !dnsServers.isEmpty {
+            connectionLines.append("• DNS-серверы: \(dnsServers.joined(separator: ", "))")
+        }
+
+        let tracerouteLine = tracerouteHopsCount > 0
+            ? "• Трассировка выполнена: узлов в маршруте — \(tracerouteHopsCount)"
+            : "• Трассировка не выполнялась"
 
         return """
         ================================================================
-        NETPULSE AI — ОФИЦИАЛЬНАЯ ПРЕТЕНЗИЯ В ТЕХНИЧЕСКУЮ СЛУЖБУ ISP
+        NETPULSE — ОБРАЩЕНИЕ В ТЕХНИЧЕСКУЮ ПОДДЕРЖКУ ПРОВАЙДЕРА
         Тема: \(reasonTitle)
         Дата фиксации: \(dateStr)
-        Нормативная база: \(legalReference)
+        \(reference)
         ================================================================
 
-        1. СВЕДЕНИЯ ОБ АБОНЕНТЕ И ПОДКЛЮЧЕНИИ:
-        • Оператор связи (ISP): \(ispName ?? "Не определен")
-        • Тип сетевого интерфейса: \(connectionType)
-        • Публичный IP-адрес: \(publicIP ?? "N/A")
-        • Локальный IP абонента: \(localIP)
-        • Основной шлюз доступа (Default Gateway): \(gatewayIP ?? "192.168.1.1")
-        • Активные DNS-серверы: \(dnsServers.isEmpty ? "Системный (DHCP)" : dnsServers.joined(separator: ", "))
+        1. СВЕДЕНИЯ О ПОДКЛЮЧЕНИИ:
+        \(connectionLines.joined(separator: "\n"))
 
-        2. РЕЗУЛЬТАТЫ ИЗМЕРЕНИЙ И ДИАГНОСТИКИ:
-        • Задержка приема-передачи (RTT / Ping): \(pingStr)
-        • Межпакетный джиттер (Jitter RFC 3550): \(jitterStr)
-        • Коэффициент потери пакетов (Packet Loss): \(String(format: "%.2f", packetLossPct))%
-        • Скорость входящего трафика (Download): \(speedStr)
-        • Скорость исходящего трафика (Upload): \(uploadStr)
+        2. РЕЗУЛЬТАТЫ ИЗМЕРЕНИЙ:
+        • Задержка (среднее время установления TCP-соединения): \(pingStr)
+        • Джиттер: \(jitterStr)
+        • Потери пакетов (окно последних проверок): \(lossStr)
+        • Скорость загрузки (замер): \(downloadStr)
+        • Скорость отдачи (замер): \(uploadStr)
 
-        3. ТЕХНИЧЕСКИЕ ДЕТАЛИ И СТАБИЛЬНОСТЬ:
-        • Зафиксировано сетевых аномалий / алертов: \(recentAlertsCount)
-        • Число пройденных узлов маршрутизации (MTR): \(tracerouteHopsCount)
-        • Аппаратный источник телеметрии: Darwin Kernel BSD Socket Subsystem
+        3. ДОПОЛНИТЕЛЬНЫЕ СВЕДЕНИЯ:
+        • Зафиксировано оповещений за сеанс: \(recentAlertsCount)
+        \(tracerouteLine)
+        • Метод измерений: время установления TCP-соединения с публичными узлами (Cloudflare, Google и др.), не ICMP.
+          Измерения выполнены с мобильного устройства и сами по себе не показывают, где возникает проблема
+          (Wi-Fi, оборудование абонента, оператор или удалённый узел).
 
-        4. ТРЕБОВАНИЕ АБОНЕНТА:
-        Прошу провести проверку кабельной линии связи, порта коммутатора доступа и магистральных стыков.
-        Принять меры по стабилизации параметров RTT, устранению потерь пакетов и восстановлению заявленной скорости.
+        4. ПРОСЬБА:
+        \(request)
 
-        Документ сформирован автоматически диагностическим модулем NetPulse AI (iOS 2026).
+        Документ сформирован приложением NetPulse по результатам измерений на устройстве абонента.
         ================================================================
         """
     }

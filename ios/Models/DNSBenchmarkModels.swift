@@ -82,7 +82,7 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             dohURL: "https://cloudflare-dns.com/dns-query",
             dotHostname: "one.one.one.one",
             category: .standard,
-            descriptionText: "Самый быстрый Anycast DNS в мире с упором на скорость отклика и приватность (No Logs).",
+            descriptionText: "Публичный Anycast DNS Cloudflare: упор на скорость отклика и приватность.",
             supportsDNSSEC: true,
             logoSystemIcon: "bolt.shield.fill"
         ),
@@ -94,7 +94,7 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             dohURL: "https://dns.google/dns-query",
             dotHostname: "dns.google",
             category: .standard,
-            descriptionText: "Глобальная инфраструктура Google с максимальной отказоустойчивостью и поддержкой геораспределения.",
+            descriptionText: "Публичный DNS Google на глобальной Anycast-инфраструктуре.",
             supportsDNSSEC: true,
             logoSystemIcon: "globe.americas.fill"
         ),
@@ -115,8 +115,8 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             provider: "AdGuard Software",
             primaryIPv4: "94.140.14.14",
             secondaryIPv4: "94.140.15.15",
-            dohURL: "https://dns.adguard.com/dns-query",
-            dotHostname: "dns.adguard.com",
+            dohURL: "https://dns.adguard-dns.com/dns-query",
+            dotHostname: "dns.adguard-dns.com",
             category: .adBlock,
             descriptionText: "Блокирует рекламные баннеры, трекеры отслеживания аналитики и счетчики на уровне всей системы iOS.",
             supportsDNSSEC: true,
@@ -130,8 +130,8 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             dohURL: "https://doh.opendns.com/dns-query",
             dotHostname: "dns.opendns.com",
             category: .standard,
-            descriptionText: "Корпоративное решение от Cisco с защитой от спуфинга и фишинговых сайтов.",
-            supportsDNSSEC: true,
+            descriptionText: "Публичный DNS от Cisco с защитой от фишинговых сайтов.",
+            supportsDNSSEC: false,
             logoSystemIcon: "network.badge.shield.half.filled"
         ),
         DNSProviderInfo(
@@ -151,8 +151,8 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             provider: "AdGuard Software",
             primaryIPv4: "94.140.14.15",
             secondaryIPv4: "94.140.15.16",
-            dohURL: "https://dns.adguard.com/dns-query",
-            dotHostname: "dns.adguard.com",
+            dohURL: "https://family.adguard-dns.com/dns-query",
+            dotHostname: "family.adguard-dns.com",
             category: .family,
             descriptionText: "Блокировка взрослого контента, безопасный поиск SafeSearch и фильтрация рекламы.",
             supportsDNSSEC: true,
@@ -166,8 +166,8 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             dohURL: "https://common.dot.dns.yandex.net/dns-query",
             dotHostname: "common.dot.dns.yandex.net",
             category: .standard,
-            descriptionText: "Высокая скорость в РФ и СНГ с прямыми стыками к магистральным российским операторам.",
-            supportsDNSSEC: true,
+            descriptionText: "Публичный DNS Яндекса, серверы расположены в России и странах СНГ.",
+            supportsDNSSEC: false,
             logoSystemIcon: "y.circle.fill"
         ),
         DNSProviderInfo(
@@ -179,7 +179,7 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             dotHostname: "safe.dot.dns.yandex.net",
             category: .privacy,
             descriptionText: "Защита от зараженных сайтов и мошеннических ресурсов по вирусной базе Яндекса.",
-            supportsDNSSEC: true,
+            supportsDNSSEC: false,
             logoSystemIcon: "checkmark.shield.fill"
         ),
         DNSProviderInfo(
@@ -190,12 +190,12 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             dohURL: "https://dns.comss.one/dns-query",
             dotHostname: "dns.comss.one",
             category: .privacy,
-            descriptionText: "Оптимизирован для стабильного доступа к ресурсам и обхода ограничений маршрутизации.",
-            supportsDNSSEC: true,
+            descriptionText: "Публичный DNS-сервис Comss.one с фильтрацией вредоносных доменов.",
+            supportsDNSSEC: false,
             logoSystemIcon: "arrow.triangle.2.circlepath.circle.fill"
         ),
         DNSProviderInfo(
-            name: "Control D (Free Malware)",
+            name: "Control D (реклама и вредоносные)",
             provider: "Control D",
             primaryIPv4: "76.76.2.2",
             secondaryIPv4: "76.76.10.2",
@@ -205,42 +205,65 @@ public struct DNSProviderInfo: Identifiable, Codable, Sendable, Hashable {
             descriptionText: "Высокоскоростной DNS нового поколения с блокировкой трекеров и фишинга.",
             supportsDNSSEC: true,
             logoSystemIcon: "cpu.fill"
-        ),
+        )
+    ]
+
+    /// Шлюз сети как возможный DNS-сервер. Адрес определяется системой (`NWPath.gateways`), а не угадывается:
+    /// раньше в каталоге стоял «192.168.1.1», которого в большинстве сетей нет.
+    public static func gateway(address: String) -> DNSProviderInfo {
         DNSProviderInfo(
-            name: "Локальный шлюз (Router)",
-            provider: "Домашний роутер",
-            primaryIPv4: "192.168.1.1",
-            secondaryIPv4: "192.168.0.1",
+            name: "Роутер (шлюз сети)",
+            provider: "Локальная сеть",
+            primaryIPv4: address,
+            secondaryIPv4: "",
             dohURL: nil,
             dotHostname: nil,
             category: .standard,
-            descriptionText: "Встроенный DNS-кэш вашего Wi-Fi роутера или провайдера связи.",
+            descriptionText: "DNS-кэш вашего роутера. Если роутер не отвечает на DNS-запросы, он не используется как резолвер.",
             supportsDNSSEC: false,
+            supportsEDNS: false,
             logoSystemIcon: "wifi.router.fill"
         )
-    ]
+    }
 }
 
-/// Результат замера конкретного DNS-сервера
+/// Результат замера конкретного DNS-сервера (по реальным DNS-запросам, а не по TCP-подключению к порту 53)
 public struct DNSBenchmarkResult: Identifiable, Codable, Sendable {
+    /// Доля успешных ответов, ниже которой сервер считается нестабильным и в рейтинг не попадает
+    public static let minimumReliableSuccessPct: Double = 60.0
+
     public var id: String { provider.id }
     public let provider: DNSProviderInfo
+    /// Медиана времени ответа. `nil` — ни одного успешного ответа или замер ещё не выполнялся
     public var latencyMs: Double?
     public var isReachable: Bool
+    /// Замер уже выполнялся (до этого строка — заготовка со статусом «ожидание»)
+    public var isTested: Bool
     public var successRatePct: Double
     public var rank: Int?
-    public var testedDomainsCount: Int
+    /// Сколько запросов получили корректный ответ
+    public var queriesSucceeded: Int
+    /// Сколько запросов отправлено
+    public var queriesTotal: Int
     public var jitterMs: Double?
 
+    /// Отвечает, но теряет слишком много запросов
+    public var isUnstable: Bool {
+        isTested && isReachable && successRatePct < Self.minimumReliableSuccessPct
+    }
+
     public var formattedLatency: String {
+        guard isTested else { return "—" }
         guard let latencyMs = latencyMs, isReachable else {
-            return "Таймаут"
+            return "Нет ответа"
         }
         return String(format: "%.1f мс", latencyMs)
     }
 
     public var statusBadgeColor: Color {
+        guard isTested else { return .gray }
         guard let lat = latencyMs, isReachable else { return .red }
+        if isUnstable { return .orange }
         if lat < 25.0 { return .green }
         if lat < 60.0 { return .blue }
         if lat < 120.0 { return .yellow }
@@ -251,17 +274,21 @@ public struct DNSBenchmarkResult: Identifiable, Codable, Sendable {
         provider: DNSProviderInfo,
         latencyMs: Double? = nil,
         isReachable: Bool = false,
+        isTested: Bool = false,
         successRatePct: Double = 0.0,
         rank: Int? = nil,
-        testedDomainsCount: Int = 0,
+        queriesSucceeded: Int = 0,
+        queriesTotal: Int = 0,
         jitterMs: Double? = nil
     ) {
         self.provider = provider
         self.latencyMs = latencyMs
         self.isReachable = isReachable
+        self.isTested = isTested
         self.successRatePct = successRatePct
         self.rank = rank
-        self.testedDomainsCount = testedDomainsCount
+        self.queriesSucceeded = queriesSucceeded
+        self.queriesTotal = queriesTotal
         self.jitterMs = jitterMs
     }
 }

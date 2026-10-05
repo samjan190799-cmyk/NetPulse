@@ -1,0 +1,86 @@
+name: "App Store Connect: карточка приложения"
+
+# Работа с карточкой приложения в App Store Connect через официальный API (ключ из секретов репозитория,
+# тот же, что у выгрузки в TestFlight). Запускается вручную или изменением файла appstore/request.txt в ветке
+# fix/audit-bugs (ручной запуск GitHub находит только у workflow из основной ветки, а этот файл там не лежит).
+#   inspect — только чтение: что уже заполнено и чего не хватает;
+#   prepare — заполнение карточки (тексты, категории, возрастной рейтинг, скриншоты, сведения для рецензента);
+#   submit  — отправка версии на проверку в Apple (нужно ввести слово ОТПРАВИТЬ в поле confirm).
+# Репозиторий публичный: журнал виден всем, поэтому скрипт не печатает контактные данные и токены.
+on:
+  push:
+    branches: [fix/audit-bugs]
+    paths: ['appstore/request.txt']
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Что сделать'
+        type: choice
+        required: true
+        default: inspect
+        options:
+          - inspect
+          - prepare
+          - submit
+      confirm:
+        description: 'Для submit: введите слово ОТПРАВИТЬ'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appstore-connect
+  cancel-in-progress: false
+
+jobs:
+  asc:
+    name: "App Store Connect"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Зависимости Python"
+        run: python3 -m pip install --quiet pyjwt cryptography
+
+      - name: "Скриншоты из ветки appstore-assets"
+        run: |
+          git fetch --depth=1 origin appstore-assets \
+            && git checkout FETCH_HEAD -- screenshots \
+            && find screenshots -type f | sort \
+            || echo "Ветки appstore-assets или скриншотов ещё нет"
+
+      - name: "Что запрошено"
+        id: request
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_ACTION: ${{ inputs.action }}
+          INPUT_CONFIRM: ${{ inputs.confirm }}
+        run: |
+          # Значения проходят через окружение и проверяются (защита от инъекции команд)
+          if [ "$EVENT" = "push" ]; then
+            ACTION="$(grep -E '^action=' appstore/request.txt | head -n 1 | cut -d= -f2- | tr -d '[:space:]')"
+            CONFIRM="$(grep -E '^confirm=' appstore/request.txt | head -n 1 | cut -d= -f2- | tr -d '[:space:]')"
+          else
+            ACTION="$INPUT_ACTION"
+            CONFIRM="$INPUT_CONFIRM"
+          fi
+          case "$ACTION" in
+            inspect|prepare|submit) ;;
+            *) echo "Неизвестное действие: '$ACTION'"; exit 1 ;;
+          esac
+          echo "Действие: $ACTION"
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "confirm=$CONFIRM" >> "$GITHUB_OUTPUT"
+
+      - name: "Работа с App Store Connect"
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          ASC_ACTION: ${{ steps.request.outputs.action }}
+          ASC_CONFIRM: ${{ steps.request.outputs.confirm }}
+        run: python3 ios/ci/asc.py "$ASC_ACTION"

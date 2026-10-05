@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000C02C123456000000C0 /* YandexAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C02C123456000000C0 /* YandexAdManager.swift */; };
-		A10000C12C123456000000C1 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000C12C123456000000C1 /* YandexBannerView.swift */; };
-		A10000C22C123456000000C2 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
 		A10000012C12345600000001 /* NetPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000012C12345600000001 /* NetPulseApp.swift */; };
 		A10000022C12345600000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000022C12345600000002 /* ContentView.swift */; };
 		A10000032C12345600000003 /* HostTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000032C12345600000003 /* HostTarget.swift */; };
@@ -26,7 +23,6 @@
 		A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000E2C1234560000000E /* TracerouteEngine.swift */; };
 		A10000292C12345600000033 /* BandwidthEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000292C12345600000033 /* BandwidthEngine.swift */; };
 		A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */; };
-		A10000102C12345600000010 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000102C12345600000010 /* DashboardView.swift */; };
 		A10000112C12345600000011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000112C12345600000011 /* SettingsView.swift */; };
 		A10000122C12345600000012 /* NetworkInfoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000122C12345600000012 /* NetworkInfoCardView.swift */; };
 		A10000132C12345600000013 /* HostMetricCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000132C12345600000013 /* HostMetricCardView.swift */; };
@@ -36,7 +32,6 @@
 		A10000172C12345600000017 /* AlertsBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000172C12345600000017 /* AlertsBannerView.swift */; };
 		A10000182C12345600000018 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000182C12345600000018 /* HapticManager.swift */; };
 		A10000192C12345600000019 /* HistoryStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000192C12345600000019 /* HistoryStorage.swift */; };
-		A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000212C1234560000002B /* SpeedtestHeroView.swift */; };
 		A10000222C1234560000002C /* NetworkCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000222C1234560000002C /* NetworkCapability.swift */; };
 		A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000232C1234560000002D /* NetworkCapabilityCardView.swift */; };
 		A10000242C1234560000002E /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000242C1234560000002E /* DiagnosticsView.swift */; };
@@ -78,6 +73,41 @@
 		A20000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
 		A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */; };
 		A20000042C12345600000004 /* NetPulseWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000012C12345600000001 /* NetPulseWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A30000012C12345600000001 /* BandwidthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000012C12345600000001 /* BandwidthTests.swift */; };
+		A30000022C12345600000002 /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000022C12345600000002 /* WidgetDataTests.swift */; };
+		A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000032C12345600000003 /* ToolsLogicTests.swift */; };
+		A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000042C12345600000004 /* ModesAndPrivacyTests.swift */; };
+		A40000012C12345600000001 /* NetPulseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000012C12345600000001 /* NetPulseUITests.swift */; };
+		A10000D02C123456000000D0 /* IslandUpdatePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */; };
+		A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D12C123456000000D1 /* IslandDiagnostics.swift */; };
+		A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */; };
+		A30000052C12345600000005 /* IslandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000052C12345600000005 /* IslandTests.swift */; };
+		A10000D32C123456000000D3 /* RouteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D32C123456000000D3 /* RouteModels.swift */; };
+		A10000D42C123456000000D4 /* RouteStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D42C123456000000D4 /* RouteStorage.swift */; };
+		A10000D52C123456000000D5 /* RouteLocationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D52C123456000000D5 /* RouteLocationSession.swift */; };
+		A10000D62C123456000000D6 /* RouteRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D62C123456000000D6 /* RouteRecorder.swift */; };
+		A10000D72C123456000000D7 /* NetworkProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D72C123456000000D7 /* NetworkProbe.swift */; };
+		A30000062C12345600000006 /* RouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000062C12345600000006 /* RouteTests.swift */; };
+		A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000072C12345600000007 /* RouteRecorderTests.swift */; };
+		A10000D92C123456000000D9 /* NetworkHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D92C123456000000D9 /* NetworkHomeView.swift */; };
+		A10000DA2C123456000000DA /* HomeMapLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DA2C123456000000DA /* HomeMapLayer.swift */; };
+		A10000DB2C123456000000DB /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DB2C123456000000DB /* HomeComponents.swift */; };
+		A10000DC2C123456000000DC /* HomeTopBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DC2C123456000000DC /* HomeTopBar.swift */; };
+		A10000DD2C123456000000DD /* HomeIdlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DD2C123456000000DD /* HomeIdlePanel.swift */; };
+		A10000DE2C123456000000DE /* HomeRecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DE2C123456000000DE /* HomeRecordingPanel.swift */; };
+		A10000DF2C123456000000DF /* HomeRoutePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000DF2C123456000000DF /* HomeRoutePanel.swift */; };
+		A10000E02C123456000000E0 /* HomeFloatingCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E02C123456000000E0 /* HomeFloatingCards.swift */; };
+		A10000E12C123456000000E1 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E12C123456000000E1 /* HomeModels.swift */; };
+		A30000082C12345600000008 /* HomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000082C12345600000008 /* HomeTests.swift */; };
+		A10000E22C123456000000E2 /* AdModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E22C123456000000E2 /* AdModels.swift */; };
+		A10000E32C123456000000E3 /* YandexAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E32C123456000000E3 /* YandexAdManager.swift */; };
+		A10000E42C123456000000E4 /* YandexBannerSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E42C123456000000E4 /* YandexBannerSlot.swift */; };
+		A10000E52C123456000000E5 /* YandexStickyBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E52C123456000000E5 /* YandexStickyBannerView.swift */; };
+		A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E62C123456000000E6 /* YandexBannerView.swift */; };
+		A30000092C12345600000009 /* AdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000092C12345600000009 /* AdTests.swift */; };
+		A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
+		A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000022C12345600000002 /* AppStoreScreenshotTests.swift */; };
+		A10000E82C123456000000E8 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E82C123456000000E8 /* AppLinks.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +117,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = F20000012C12345600000001;
 			remoteInfo = NetPulseWidgets;
+		};
+		P30000012C12345600000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000002C12345600000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10000012C12345600000001;
+			remoteInfo = NetPulse;
+		};
+		P40000012C12345600000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000002C12345600000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10000012C12345600000001;
+			remoteInfo = NetPulse;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -105,8 +149,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		B10000C02C123456000000C0 /* YandexAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/YandexAdManager.swift; sourceTree = "<group>"; };
-		B10000C12C123456000000C1 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
 		C10000002C12345600000000 /* NetPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000002C12345600000000 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000012C12345600000001 /* NetPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseApp.swift; sourceTree = "<group>"; };
@@ -127,7 +169,6 @@
 		B100000E2C1234560000000E /* TracerouteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/TracerouteEngine.swift; sourceTree = "<group>"; };
 		B10000292C12345600000033 /* BandwidthEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/BandwidthEngine.swift; sourceTree = "<group>"; };
 		B100000F2C1234560000000F /* NetworkMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/NetworkMonitorViewModel.swift; sourceTree = "<group>"; };
-		B10000102C12345600000010 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DashboardView.swift; sourceTree = "<group>"; };
 		B10000242C1234560000002E /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DiagnosticsView.swift; sourceTree = "<group>"; };
 		B10000112C12345600000011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
 		B10000122C12345600000012 /* NetworkInfoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkInfoCardView.swift; sourceTree = "<group>"; };
@@ -136,7 +177,6 @@
 		B10000152C12345600000015 /* SpeedtestGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/SpeedtestGaugeView.swift; sourceTree = "<group>"; };
 		B10000162C12345600000016 /* TracerouteSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/TracerouteSheetView.swift; sourceTree = "<group>"; };
 		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AlertsBannerView.swift; sourceTree = "<group>"; };
-		B10000212C1234560000002B /* SpeedtestHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/SpeedtestHeroView.swift; sourceTree = "<group>"; };
 		B10000232C1234560000002D /* NetworkCapabilityCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkCapabilityCardView.swift; sourceTree = "<group>"; };
 		B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
 		B10000282C12345600000032 /* FloatingGameOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/FloatingGameOverlayView.swift; sourceTree = "<group>"; };
@@ -179,6 +219,42 @@
 		B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseHomeScreenWidget.swift; sourceTree = "<group>"; };
 		B10000E12C12345600000E01 /* NetPulse.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetPulse.entitlements; sourceTree = "<group>"; };
 		B20000E22C12345600000E02 /* NetPulseWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetPulseWidgets/NetPulseWidgets.entitlements; sourceTree = "<group>"; };
+		C30000012C12345600000001 /* NetPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C40000012C12345600000001 /* NetPulseUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetPulseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B30000012C12345600000001 /* BandwidthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/BandwidthTests.swift; sourceTree = "<group>"; };
+		B30000022C12345600000002 /* WidgetDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/WidgetDataTests.swift; sourceTree = "<group>"; };
+		B30000032C12345600000003 /* ToolsLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ToolsLogicTests.swift; sourceTree = "<group>"; };
+		B30000042C12345600000004 /* ModesAndPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ModesAndPrivacyTests.swift; sourceTree = "<group>"; };
+		B40000012C12345600000001 /* NetPulseUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/NetPulseUITests.swift; sourceTree = "<group>"; };
+		B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandUpdatePipeline.swift; sourceTree = "<group>"; };
+		B10000D12C123456000000D1 /* IslandDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandDiagnostics.swift; sourceTree = "<group>"; };
+		B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/IslandDiagnosticsView.swift; sourceTree = "<group>"; };
+		B30000052C12345600000005 /* IslandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandTests.swift; sourceTree = "<group>"; };
+		B10000D32C123456000000D3 /* RouteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/RouteModels.swift; sourceTree = "<group>"; };
+		B10000D42C123456000000D4 /* RouteStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteStorage.swift; sourceTree = "<group>"; };
+		B10000D52C123456000000D5 /* RouteLocationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteLocationSession.swift; sourceTree = "<group>"; };
+		B10000D62C123456000000D6 /* RouteRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteRecorder.swift; sourceTree = "<group>"; };
+		B10000D72C123456000000D7 /* NetworkProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/NetworkProbe.swift; sourceTree = "<group>"; };
+		B30000062C12345600000006 /* RouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteTests.swift; sourceTree = "<group>"; };
+		B30000072C12345600000007 /* RouteRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteRecorderTests.swift; sourceTree = "<group>"; };
+		B10000D92C123456000000D9 /* NetworkHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/NetworkHomeView.swift; sourceTree = "<group>"; };
+		B10000DA2C123456000000DA /* HomeMapLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeMapLayer.swift; sourceTree = "<group>"; };
+		B10000DB2C123456000000DB /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeComponents.swift; sourceTree = "<group>"; };
+		B10000DC2C123456000000DC /* HomeTopBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeTopBar.swift; sourceTree = "<group>"; };
+		B10000DD2C123456000000DD /* HomeIdlePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeIdlePanel.swift; sourceTree = "<group>"; };
+		B10000DE2C123456000000DE /* HomeRecordingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeRecordingPanel.swift; sourceTree = "<group>"; };
+		B10000DF2C123456000000DF /* HomeRoutePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeRoutePanel.swift; sourceTree = "<group>"; };
+		B10000E02C123456000000E0 /* HomeFloatingCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeFloatingCards.swift; sourceTree = "<group>"; };
+		B10000E12C123456000000E1 /* HomeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HomeModels.swift; sourceTree = "<group>"; };
+		B30000082C12345600000008 /* HomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/HomeTests.swift; sourceTree = "<group>"; };
+		B10000E22C123456000000E2 /* AdModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AdModels.swift; sourceTree = "<group>"; };
+		B10000E32C123456000000E3 /* YandexAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/YandexAdManager.swift; sourceTree = "<group>"; };
+		B10000E42C123456000000E4 /* YandexBannerSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerSlot.swift; sourceTree = "<group>"; };
+		B10000E52C123456000000E5 /* YandexStickyBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexStickyBannerView.swift; sourceTree = "<group>"; };
+		B10000E62C123456000000E6 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
+		B30000092C12345600000009 /* AdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/AdTests.swift; sourceTree = "<group>"; };
+		B40000022C12345600000002 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
+		B10000E82C123456000000E8 /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AppLinks.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -186,11 +262,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000C22C123456000000C2 /* YandexMobileAds in Frameworks */,
+				A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D20000012C12345600000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D30000012C12345600000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D40000012C12345600000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -213,6 +303,8 @@
 				E10000072C12345600000007 /* Utils */,
 				B1000020AC1234560000002A /* Assets.xcassets */,
 				E20000022C12345600000002 /* NetPulseWidgets */,
+				E50000012C12345600000001 /* NetPulseTests */,
+				E60000012C12345600000001 /* NetPulseUITests */,
 				E10000082C12345600000008 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -248,6 +340,9 @@
 				B10000912C12345600000091 /* GamingRadarModels.swift */,
 				B10000922C12345600000092 /* BufferbloatModels.swift */,
 				B10000932C12345600000093 /* LANDeviceModels.swift */,
+				B10000D32C123456000000D3 /* RouteModels.swift */,
+				B10000E12C123456000000E1 /* HomeModels.swift */,
+				B10000E22C123456000000E2 /* AdModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -268,6 +363,7 @@
 				B10000952C12345600000095 /* GamingRadarEngine.swift */,
 				B10000962C12345600000096 /* BufferbloatEngine.swift */,
 				B10000972C12345600000097 /* LANScannerEngine.swift */,
+				B10000D72C123456000000D7 /* NetworkProbe.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -283,7 +379,6 @@
 		E10000052C12345600000005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B10000102C12345600000010 /* DashboardView.swift */,
 				B10000422C12345600000042 /* TrafficView.swift */,
 				B10000522C12345600000052 /* AIDiagnosticsView.swift */,
 				B10000242C1234560000002E /* DiagnosticsView.swift */,
@@ -293,6 +388,15 @@
 				B100009A2C1234560000009A /* BufferbloatView.swift */,
 				B100009B2C1234560000009B /* LANScannerView.swift */,
 				E10000062C12345600000006 /* Components */,
+				B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */,
+				B10000D92C123456000000D9 /* NetworkHomeView.swift */,
+				B10000DA2C123456000000DA /* HomeMapLayer.swift */,
+				B10000DB2C123456000000DB /* HomeComponents.swift */,
+				B10000DC2C123456000000DC /* HomeTopBar.swift */,
+				B10000DD2C123456000000DD /* HomeIdlePanel.swift */,
+				B10000DE2C123456000000DE /* HomeRecordingPanel.swift */,
+				B10000DF2C123456000000DF /* HomeRoutePanel.swift */,
+				B10000E02C123456000000E0 /* HomeFloatingCards.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -306,12 +410,13 @@
 				B10000152C12345600000015 /* SpeedtestGaugeView.swift */,
 				B10000162C12345600000016 /* TracerouteSheetView.swift */,
 				B10000172C12345600000017 /* AlertsBannerView.swift */,
-				B10000212C1234560000002B /* SpeedtestHeroView.swift */,
 				B10000232C1234560000002D /* NetworkCapabilityCardView.swift */,
 				B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */,
 				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
 				B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */,
-				B10000C12C123456000000C1 /* YandexBannerView.swift */,
+				B10000E42C123456000000E4 /* YandexBannerSlot.swift */,
+				B10000E52C123456000000E5 /* YandexStickyBannerView.swift */,
+				B10000E62C123456000000E6 /* YandexBannerView.swift */,
 			);
 			name = Components;
 			sourceTree = "<group>";
@@ -328,7 +433,13 @@
 				B10000322C12345600000036 /* BackgroundTaskManager.swift */,
 				B10000602C12345600000060 /* NetPulseTheme.swift */,
 				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
-				B10000C02C123456000000C0 /* YandexAdManager.swift */,
+				B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */,
+				B10000D12C123456000000D1 /* IslandDiagnostics.swift */,
+				B10000D42C123456000000D4 /* RouteStorage.swift */,
+				B10000D52C123456000000D5 /* RouteLocationSession.swift */,
+				B10000D62C123456000000D6 /* RouteRecorder.swift */,
+				B10000E32C123456000000E3 /* YandexAdManager.swift */,
+				B10000E82C123456000000E8 /* AppLinks.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -338,8 +449,35 @@
 			children = (
 				C10000002C12345600000000 /* NetPulse.app */,
 				B20000012C12345600000001 /* NetPulseWidgets.appex */,
+				C30000012C12345600000001 /* NetPulseTests.xctest */,
+				C40000012C12345600000001 /* NetPulseUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E50000012C12345600000001 /* NetPulseTests */ = {
+			isa = PBXGroup;
+			children = (
+				B30000012C12345600000001 /* BandwidthTests.swift */,
+				B30000022C12345600000002 /* WidgetDataTests.swift */,
+				B30000032C12345600000003 /* ToolsLogicTests.swift */,
+				B30000042C12345600000004 /* ModesAndPrivacyTests.swift */,
+				B30000052C12345600000005 /* IslandTests.swift */,
+				B30000062C12345600000006 /* RouteTests.swift */,
+				B30000072C12345600000007 /* RouteRecorderTests.swift */,
+				B30000082C12345600000008 /* HomeTests.swift */,
+				B30000092C12345600000009 /* AdTests.swift */,
+			);
+			name = NetPulseTests;
+			sourceTree = "<group>";
+		};
+		E60000012C12345600000001 /* NetPulseUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B40000012C12345600000001 /* NetPulseUITests.swift */,
+				B40000022C12345600000002 /* AppStoreScreenshotTests.swift */,
+			);
+			name = NetPulseUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -359,10 +497,10 @@
 			dependencies = (
 				T20000012C12345600000001 /* PBXTargetDependency */,
 			);
-			name = NetPulse;
 			packageProductDependencies = (
 				E40000022C12345600000002 /* YandexMobileAds */,
 			);
+			name = NetPulse;
 			productName = NetPulse;
 			productReference = C10000002C12345600000000 /* NetPulse.app */;
 			productType = "com.apple.product-type.application";
@@ -384,6 +522,42 @@
 			productReference = B20000012C12345600000001 /* NetPulseWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		F30000012C12345600000001 /* NetPulseTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseTests" */;
+			buildPhases = (
+				D30000002C12345600000000 /* Sources */,
+				D30000012C12345600000001 /* Frameworks */,
+				D30000032C12345600000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				T30000012C12345600000001 /* PBXTargetDependency */,
+			);
+			name = NetPulseTests;
+			productName = NetPulseTests;
+			productReference = C30000012C12345600000001 /* NetPulseTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F40000012C12345600000001 /* NetPulseUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseUITests" */;
+			buildPhases = (
+				D40000002C12345600000000 /* Sources */,
+				D40000012C12345600000001 /* Frameworks */,
+				D40000032C12345600000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				T40000012C12345600000001 /* PBXTargetDependency */,
+			);
+			name = NetPulseUITests;
+			productName = NetPulseUITests;
+			productReference = C40000012C12345600000001 /* NetPulseUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -398,6 +572,14 @@
 					};
 					F20000012C12345600000001 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					F30000012C12345600000001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = F10000012C12345600000001;
+					};
+					F40000012C12345600000001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = F10000012C12345600000001;
 					};
 				};
 			};
@@ -419,6 +601,8 @@
 			targets = (
 				F10000012C12345600000001 /* NetPulse */,
 				F20000012C12345600000001 /* NetPulseWidgets */,
+				F30000012C12345600000001 /* NetPulseTests */,
+				F40000012C12345600000001 /* NetPulseUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -433,6 +617,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D20000032C12345600000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D30000032C12345600000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D40000032C12345600000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -462,7 +660,6 @@
 				A100000E2C1234560000000E /* TracerouteEngine.swift in Sources */,
 				A10000292C12345600000033 /* BandwidthEngine.swift in Sources */,
 				A100000F2C1234560000000F /* NetworkMonitorViewModel.swift in Sources */,
-				A10000102C12345600000010 /* DashboardView.swift in Sources */,
 				A10000112C12345600000011 /* SettingsView.swift in Sources */,
 				A10000122C12345600000012 /* NetworkInfoCardView.swift in Sources */,
 				A10000132C12345600000013 /* HostMetricCardView.swift in Sources */,
@@ -472,7 +669,6 @@
 				A10000172C12345600000017 /* AlertsBannerView.swift in Sources */,
 				A10000182C12345600000018 /* HapticManager.swift in Sources */,
 				A10000192C12345600000019 /* HistoryStorage.swift in Sources */,
-				A10000212C1234560000002B /* SpeedtestHeroView.swift in Sources */,
 				A10000222C1234560000002C /* NetworkCapability.swift in Sources */,
 				A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */,
 				A10000242C1234560000002E /* DiagnosticsView.swift in Sources */,
@@ -507,8 +703,29 @@
 				A100009A2C1234560000009A /* BufferbloatView.swift in Sources */,
 				A100009B2C1234560000009B /* LANScannerView.swift in Sources */,
 				A100009C2C1234560000009C /* NetworkGlossarySheetView.swift in Sources */,
-				A10000C02C123456000000C0 /* YandexAdManager.swift in Sources */,
-				A10000C12C123456000000C1 /* YandexBannerView.swift in Sources */,
+				A10000D02C123456000000D0 /* IslandUpdatePipeline.swift in Sources */,
+				A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */,
+				A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */,
+				A10000D32C123456000000D3 /* RouteModels.swift in Sources */,
+				A10000D42C123456000000D4 /* RouteStorage.swift in Sources */,
+				A10000D52C123456000000D5 /* RouteLocationSession.swift in Sources */,
+				A10000D62C123456000000D6 /* RouteRecorder.swift in Sources */,
+				A10000D72C123456000000D7 /* NetworkProbe.swift in Sources */,
+				A10000D92C123456000000D9 /* NetworkHomeView.swift in Sources */,
+				A10000DA2C123456000000DA /* HomeMapLayer.swift in Sources */,
+				A10000DB2C123456000000DB /* HomeComponents.swift in Sources */,
+				A10000DC2C123456000000DC /* HomeTopBar.swift in Sources */,
+				A10000DD2C123456000000DD /* HomeIdlePanel.swift in Sources */,
+				A10000DE2C123456000000DE /* HomeRecordingPanel.swift in Sources */,
+				A10000DF2C123456000000DF /* HomeRoutePanel.swift in Sources */,
+				A10000E02C123456000000E0 /* HomeFloatingCards.swift in Sources */,
+				A10000E12C123456000000E1 /* HomeModels.swift in Sources */,
+				A10000E22C123456000000E2 /* AdModels.swift in Sources */,
+				A10000E32C123456000000E3 /* YandexAdManager.swift in Sources */,
+				A10000E42C123456000000E4 /* YandexBannerSlot.swift in Sources */,
+				A10000E52C123456000000E5 /* YandexStickyBannerView.swift in Sources */,
+				A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */,
+				A10000E82C123456000000E8 /* AppLinks.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -524,6 +741,31 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D30000002C12345600000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A30000012C12345600000001 /* BandwidthTests.swift in Sources */,
+				A30000022C12345600000002 /* WidgetDataTests.swift in Sources */,
+				A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */,
+				A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */,
+				A30000052C12345600000005 /* IslandTests.swift in Sources */,
+				A30000062C12345600000006 /* RouteTests.swift in Sources */,
+				A30000072C12345600000007 /* RouteRecorderTests.swift in Sources */,
+				A30000082C12345600000008 /* HomeTests.swift in Sources */,
+				A30000092C12345600000009 /* AdTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D40000002C12345600000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A40000012C12345600000001 /* NetPulseUITests.swift in Sources */,
+				A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -531,6 +773,16 @@
 			isa = PBXTargetDependency;
 			target = F20000012C12345600000001 /* NetPulseWidgets */;
 			targetProxy = P20000012C12345600000001 /* PBXContainerItemProxy */;
+		};
+		T30000012C12345600000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F10000012C12345600000001 /* NetPulse */;
+			targetProxy = P30000012C12345600000001 /* PBXContainerItemProxy */;
+		};
+		T40000012C12345600000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F10000012C12345600000001 /* NetPulse */;
+			targetProxy = P40000012C12345600000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -601,15 +853,12 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -628,15 +877,12 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -694,6 +940,80 @@
 			};
 			name = Release;
 		};
+		H30000022C12345600000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetPulse.app/NetPulse";
+			};
+			name = Debug;
+		};
+		H30000032C12345600000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetPulse.app/NetPulse";
+			};
+			name = Release;
+		};
+		H40000022C12345600000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NetPulse;
+			};
+			name = Debug;
+		};
+		H40000032C12345600000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samvel.netpulse.NetPulseUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NetPulse;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -724,16 +1044,33 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H30000022C12345600000002 /* Debug */,
+				H30000032C12345600000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H40000022C12345600000002 /* Debug */,
+				H40000032C12345600000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
-
 
 /* Begin XCRemoteSwiftPackageReference section */
 		E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/yandexmobile/yandex-ads-sdk-ios";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 8.6.0;
+				kind = exactVersion;
+				version = 8.6.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -745,6 +1082,7 @@
 			productName = YandexMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
+
 	};
 	rootObject = 010000002C12345600000000 /* Project object */;
 }

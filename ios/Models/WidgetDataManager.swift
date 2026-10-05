@@ -36,8 +36,12 @@ public struct NetPulseWidgetData: Codable, Sendable {
     public let ispName: String
     public let connectionType: String
     public let todayTrafficBytes: Int64
+    /// Лимит трафика в байтах; 0 — лимит не задан
     public let budgetTotalBytes: Int64
-    public let healthScore: Int
+    /// Расход за период квоты (nil — как «трафик сегодня», для снимков старого формата)
+    public let budgetUsedBytes: Int64?
+    /// Индекс здоровья сети 0...100; nil — свежих данных нет
+    public let healthScore: Int?
     public let dnsHosts: [WidgetDNSHost]
     public let lastUpdated: Date
 
@@ -50,8 +54,9 @@ public struct NetPulseWidgetData: Codable, Sendable {
         ispName: String = "Wi-Fi Сеть",
         connectionType: String = "Wi-Fi",
         todayTrafficBytes: Int64 = 0,
-        budgetTotalBytes: Int64 = 5_368_709_120, // 5 ГБ по умолчанию
-        healthScore: Int = 100,
+        budgetTotalBytes: Int64 = 0,
+        budgetUsedBytes: Int64? = nil,
+        healthScore: Int? = nil,
         dnsHosts: [WidgetDNSHost] = [],
         lastUpdated: Date = Date()
     ) {
@@ -64,12 +69,22 @@ public struct NetPulseWidgetData: Codable, Sendable {
         self.connectionType = connectionType
         self.todayTrafficBytes = todayTrafficBytes
         self.budgetTotalBytes = budgetTotalBytes
+        self.budgetUsedBytes = budgetUsedBytes
         self.healthScore = healthScore
         self.dnsHosts = dnsHosts
         self.lastUpdated = lastUpdated
     }
 
-    /// Демонстрационный снимок данных по умолчанию
+    /// Пустой снимок: приложение ещё ни разу не сохраняло данные (никаких демонстрационных значений)
+    public static var empty: NetPulseWidgetData {
+        NetPulseWidgetData(
+            ispName: "Откройте NetPulse",
+            connectionType: "Нет данных",
+            lastUpdated: Date.distantPast
+        )
+    }
+
+    /// Демонстрационный снимок — только для предпросмотра в галерее виджетов, но не для показа как реальных данных
     public static var placeholder: NetPulseWidgetData {
         NetPulseWidgetData(
             downloadSpeedMbps: 285.4,
@@ -92,26 +107,49 @@ public struct NetPulseWidgetData: Codable, Sendable {
         )
     }
 
-    /// Процент использования дневного лимита трафика (0.0 ... 1.0)
+    /// Доля использования лимита трафика за его период (0.0 ... 1.0)
     public var budgetProgress: Double {
         guard budgetTotalBytes > 0 else { return 0.0 }
-        return min(max(Double(todayTrafficBytes) / Double(budgetTotalBytes), 0.0), 1.0)
+        let used = budgetUsedBytes ?? todayTrafficBytes
+        return min(max(Double(used) / Double(budgetTotalBytes), 0.0), 1.0)
+    }
+
+    /// Данные устарели: в фоне приложение опрос не ведёт, и «замороженный» пинг нельзя выдавать за текущий
+    public var isStale: Bool {
+        Date().timeIntervalSince(lastUpdated) > 600
+    }
+
+    /// Задержка: только число (или «—»)
+    public var pingValueText: String {
+        if !isStale, let ping = pingMs {
+            return String(format: "%.0f", ping)
+        }
+        return "—"
+    }
+
+    /// Джиттер: только число (или «—»)
+    public var jitterValueText: String {
+        if !isStale, let jitter = jitterMs {
+            return String(format: "%.1f", jitter)
+        }
+        return "—"
     }
 
     /// Форматированная задержка
     public var formattedPing: String {
-        if let ping = pingMs {
-            return String(format: "%.0f мс", ping)
-        }
-        return "—"
+        let value = pingValueText
+        return value == "—" ? value : value + " мс"
     }
 
     /// Форматированный джиттер
     public var formattedJitter: String {
-        if let jitter = jitterMs {
-            return String(format: "%.1f мс", jitter)
-        }
-        return "—"
+        let value = jitterValueText
+        return value == "—" ? value : value + " мс"
+    }
+
+    /// Скорость в Мбит/с; 0 означает «замера не было»
+    public static func speedText(_ mbps: Double, decimals: Int = 1) -> String {
+        mbps > 0 ? String(format: "%.\(decimals)f", mbps) : "—"
     }
 }
 
@@ -119,28 +157,23 @@ public struct NetPulseWidgetData: Codable, Sendable {
 public final class WidgetDataManager: @unchecked Sendable {
     public static let shared = WidgetDataManager()
 
-    private let primaryAppGroupSuite = "group.com.samvel.netpulse"
-    private let legacyAppGroupSuite = "group.com.samjan.netpulse"
+    /// Единственная группа приложения — по идентификатору пакета (com.samvel.netpulse). Вторая группа
+    /// (group.com.samjan.netpulse) была остатком прежнего названия и требовала регистрации в аккаунте разработчика.
+    private let appGroupSuite = "group.com.samvel.netpulse"
     private let dataKey = "netpulse_widget_shared_snapshot_v1"
     private let lock = NSLock()
 
     private var sharedContainerFileURLs: [URL] {
-        var urls: [URL] = []
-        for suite in [primaryAppGroupSuite, legacyAppGroupSuite] {
-            if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suite) {
-                urls.append(container.appendingPathComponent("netpulse_widget_snapshot.json"))
-            }
+        guard let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupSuite) else {
+            return []
         }
-        return urls
+        return [container.appendingPathComponent("netpulse_widget_snapshot.json")]
     }
 
     private var defaultsList: [UserDefaults] {
         var list: [UserDefaults] = []
-        if let primary = UserDefaults(suiteName: primaryAppGroupSuite) {
-            list.append(primary)
-        }
-        if let legacy = UserDefaults(suiteName: legacyAppGroupSuite) {
-            list.append(legacy)
+        if let shared = UserDefaults(suiteName: appGroupSuite) {
+            list.append(shared)
         }
         list.append(UserDefaults.standard)
         return list
@@ -148,8 +181,10 @@ public final class WidgetDataManager: @unchecked Sendable {
 
     private init() {}
 
-    /// Сохранение снимка состояния для виджетов во все доступные хранилища (файловый контейнер + UserDefaults)
-    public func saveSnapshot(_ data: NetPulseWidgetData) {
+    /// Сохранение снимка состояния для виджетов (файл группы приложения + UserDefaults).
+    /// `reloadTimelines: false` — только обновить данные, не заставляя систему перерисовывать виджеты
+    /// (раньше перезагрузка шла при каждой записи, то есть каждые несколько секунд).
+    public func saveSnapshot(_ data: NetPulseWidgetData, reloadTimelines: Bool = true) {
         guard let encoded = try? JSONEncoder().encode(data) else { return }
         lock.lock()
         defer { lock.unlock() }
@@ -159,18 +194,19 @@ public final class WidgetDataManager: @unchecked Sendable {
             try? encoded.write(to: fileURL, options: .atomic)
         }
 
-        // 2. Запись во все ветки UserDefaults (primary, legacy, standard)
+        // 2. Запись в UserDefaults (общая группа и стандартные)
         for defaults in defaultsList {
             defaults.set(encoded, forKey: dataKey)
-            defaults.synchronize()
         }
 
         #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
+        if reloadTimelines {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         #endif
     }
 
-    /// Загрузка последнего сохраненного снимка данных с каскадным поиском (файл контейнера -> UserDefaults -> placeholder)
+    /// Загрузка последнего сохраненного снимка данных с каскадным поиском (файл контейнера -> UserDefaults -> пустой снимок)
     public func loadLatestSnapshot() -> NetPulseWidgetData {
         lock.lock()
         defer { lock.unlock() }
@@ -183,14 +219,15 @@ public final class WidgetDataManager: @unchecked Sendable {
             }
         }
 
-        // 2. Чтение из UserDefaults (primary -> legacy -> standard)
+        // 2. Чтение из UserDefaults (общая группа -> стандартные)
         for defaults in defaultsList {
             if let raw = defaults.data(forKey: dataKey),
                let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: raw) {
                 return decoded
             }
         }
-        return .placeholder
+        // Данных ещё нет — пустой снимок, а не демонстрационные «285 Мбит/с, здоровье 98»
+        return .empty
     }
 }
 

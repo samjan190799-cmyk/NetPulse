@@ -8,7 +8,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Главный экран DNS-бенчмарка с параллельной гонкой 12+ мировых Anycast-серверов
+/// Главный экран DNS-бенчмарка: параллельная проверка публичных DNS-серверов (и шлюза сети) реальными DNS-запросами
 public struct DNSBenchmarkView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
@@ -18,6 +18,19 @@ public struct DNSBenchmarkView: View {
     @State private var selectedProviderForConfig: DNSProviderInfo?
     @State private var showConfigSheet: Bool = false
     @State private var showCopiedToast: Bool = false
+    @State private var benchmarkTask: Task<Void, Never>?
+    @State private var errorMessage: String?
+
+    /// Каталог серверов + шлюз сети, если система сообщила его адрес (адрес не угадывается)
+    private var providersToTest: [DNSProviderInfo] {
+        var providers = DNSProviderInfo.defaultCatalog
+        if let gateway = viewModel.systemInfo.gatewayIP,
+           NetworkMonitorViewModel.isValidHostAddress(gateway),
+           !providers.contains(where: { $0.primaryIPv4 == gateway }) {
+            providers.append(DNSProviderInfo.gateway(address: gateway))
+        }
+        return providers
+    }
 
     private var filteredResults: [DNSBenchmarkResult] {
         if selectedCategory == .all {
@@ -26,8 +39,9 @@ public struct DNSBenchmarkView: View {
         return benchmarkResults.filter { $0.provider.category == selectedCategory }
     }
 
+    /// Лидер рейтинга (место получают только серверы со стабильными ответами)
     private var fastestProvider: DNSBenchmarkResult? {
-        benchmarkResults.first(where: { $0.isReachable })
+        benchmarkResults.first(where: { $0.rank == 1 })
     }
 
     public var body: some View {
@@ -45,6 +59,10 @@ public struct DNSBenchmarkView: View {
 
                     // 3. Список серверов в реальном времени с медалями
                     serversListSection
+
+                    // Рекламный баннер Яндекса на видном месте
+                    YandexBannerView(contextTag: "DNS и безопасность")
+                        .padding(.horizontal)
 
                     // 4. Пояснительная карточка DoH/DoT и безопасности
                     securityExplanationCard
@@ -79,6 +97,9 @@ public struct DNSBenchmarkView: View {
         .navigationTitle("DNS Бенчмарк")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .onDisappear {
+            benchmarkTask?.cancel()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -102,8 +123,8 @@ public struct DNSBenchmarkView: View {
         }
         .task {
             if benchmarkResults.isEmpty {
-                // Инициализация дефолтного каталога
-                benchmarkResults = DNSProviderInfo.defaultCatalog.map {
+                // Заготовки строк до получения первых результатов
+                benchmarkResults = providersToTest.map {
                     DNSBenchmarkResult(provider: $0)
                 }
                 startBenchmark()
@@ -127,7 +148,7 @@ public struct DNSBenchmarkView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Глобальная гонка DNS")
+                    Text("Скорость DNS-серверов")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(NPTheme.textPrimary)
 
@@ -145,7 +166,7 @@ public struct DNSBenchmarkView: View {
                                 .foregroundStyle(NPTheme.accentPrimary)
                         }
                     } else {
-                        Text("Параллельное тестирование 12+ Anycast-узлов")
+                        Text("Реальные DNS-запросы к \(providersToTest.count) серверам")
                             .font(.system(size: 12))
                             .foregroundStyle(NPTheme.textSecondary)
                     }
@@ -154,7 +175,15 @@ public struct DNSBenchmarkView: View {
                 Spacer()
             }
 
-            // Кнопка запуска полной гонки
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.semanticWarn)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // Кнопка запуска замера
             Button {
                 startBenchmark()
             } label: {
@@ -296,6 +325,12 @@ public struct DNSBenchmarkView: View {
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(NPTheme.textTertiary)
                     }
+
+                    if item.isTested {
+                        Text("ответов: \(item.queriesSucceeded) из \(item.queriesTotal)")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(item.isUnstable ? NPTheme.semanticWarn : NPTheme.textTertiary)
+                    }
                 }
             }
 
@@ -360,7 +395,7 @@ public struct DNSBenchmarkView: View {
                     .foregroundStyle(NPTheme.textPrimary)
             }
 
-            Text("Стандартный DNS провайдера часто ведет логи посещаемых сайтов и может задерживать открытие страниц. Использование шифрованного DoH (DNS-over-HTTPS) защищает от перехвата трафика и ускоряет загрузку сайтов на 30–50%.")
+            Text("Обычный DNS передаёт запросы открытым текстом: провайдер и другие участники сети видят, какие домены вы открываете. DoH (DNS-over-HTTPS) шифрует эти запросы. На скорость загрузки страниц DNS влияет слабо: быстрый сервер экономит десятки миллисекунд при первом обращении к домену. Замер показывает время ответа на популярные домены, которые обычно уже в кэше сервера.")
                 .font(.system(size: 11))
                 .foregroundStyle(NPTheme.textSecondary)
         }
@@ -373,11 +408,21 @@ public struct DNSBenchmarkView: View {
 
     private func startBenchmark() {
         guard !isRunning else { return }
+        if viewModel.systemInfo.connectionType == .unavailable {
+            errorMessage = "Нет подключения к сети — замер невозможен."
+            HapticManager.shared.notificationWarning()
+            return
+        }
         isRunning = true
+        errorMessage = nil
         HapticManager.shared.impactMedium()
 
-        Task {
-            let results = await DNSBenchmarkEngine.shared.runBenchmark { updatedResult in
+        let providers = providersToTest
+        // Заготовки строк с актуальным списком (в том числе шлюз сети) на время замера
+        benchmarkResults = providers.map { DNSBenchmarkResult(provider: $0) }
+
+        benchmarkTask = Task {
+            let results = await DNSBenchmarkEngine.shared.runBenchmark(providers: providers) { updatedResult in
                 Task { @MainActor in
                     if let idx = benchmarkResults.firstIndex(where: { $0.id == updatedResult.id }) {
                         benchmarkResults[idx] = updatedResult
@@ -385,9 +430,17 @@ public struct DNSBenchmarkView: View {
                 }
             }
 
-            self.benchmarkResults = results
+            if !Task.isCancelled {
+                self.benchmarkResults = results
+                if results.contains(where: { $0.isReachable }) {
+                    HapticManager.shared.notificationSuccess()
+                } else {
+                    self.errorMessage = "Ни один DNS-сервер не ответил. Проверьте подключение к интернету или то, не блокирует ли сеть DNS-запросы (UDP, порт 53)."
+                    HapticManager.shared.notificationWarning()
+                }
+            }
             self.isRunning = false
-            HapticManager.shared.notificationSuccess()
+            self.benchmarkTask = nil
         }
     }
 
@@ -418,6 +471,7 @@ private struct DNSConfigExportSheet: View {
     let provider: DNSProviderInfo
 
     @State private var configText: String = ""
+    @State private var configFileURL: URL?
     @State private var showCopiedToast: Bool = false
 
     var body: some View {
@@ -458,7 +512,7 @@ private struct DNSConfigExportSheet: View {
                                 Text("1. Сохраните файл профиля через кнопку «Поделиться».")
                                 Text("2. Откройте **Настройки** -> **Профиль загружен**.")
                                 Text("3. Нажмите **Установить** и подтвердите паролем устройства.")
-                                Text("4. Теперь все приложения используют зашифрованный \(provider.name)!")
+                                Text("4. После установки DNS-запросы устройства идут на \(provider.name) по зашифрованному каналу. Удалить профиль можно там же: Настройки → Основные → VPN и управление устройством.")
                             }
                             .font(.system(size: 12))
                             .foregroundStyle(NPTheme.textSecondary)
@@ -486,7 +540,7 @@ private struct DNSConfigExportSheet: View {
                         .padding(.horizontal)
 
                         // Кнопка экспорта
-                        if let fileURL = createTempConfigFile() {
+                        if let fileURL = configFileURL {
                             ShareLink(item: fileURL) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "square.and.arrow.up.fill")
@@ -517,14 +571,15 @@ private struct DNSConfigExportSheet: View {
             }
             .onAppear {
                 Task {
-                    self.configText = await DNSBenchmarkEngine.shared.generateMobileConfig(for: provider)
+                    let text = await DNSBenchmarkEngine.shared.generateMobileConfig(for: provider)
+                    self.configText = text ?? "Для этого сервера профиль DoH недоступен."
+                    self.configFileURL = text.flatMap { createTempConfigFile(text: $0) }
                 }
             }
         }
     }
 
-    private func createTempConfigFile() -> URL? {
-        let text = configText.isEmpty ? "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" : configText
+    private func createTempConfigFile(text: String) -> URL? {
         let sanitizedName = provider.id.replacingOccurrences(of: ".", with: "_")
         let fileName = "NetPulse_\(sanitizedName).mobileconfig"
         let tempDir = FileManager.default.temporaryDirectory

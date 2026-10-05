@@ -8,7 +8,25 @@
 import SwiftUI
 import Foundation
 
-/// Названия и платформы популярных онлайн-игр
+/// Ориентиры задержки для жанра игры, мс. Это рекомендации, а не жёсткие требования конкретной игры.
+public struct GameLatencyProfile: Sendable, Equatable {
+    public let excellentMs: Double
+    public let goodMs: Double
+    public let playableMs: Double
+    public let highMs: Double
+
+    /// Динамичные шутеры (CS2, Valorant, Apex, Overwatch, Warzone)
+    public static let fastShooter = GameLatencyProfile(excellentMs: 30, goodMs: 55, playableMs: 90, highMs: 140)
+    /// MOBA (Dota 2)
+    public static let moba = GameLatencyProfile(excellentMs: 40, goodMs: 70, playableMs: 110, highMs: 160)
+    /// Королевские битвы (Fortnite, PUBG)
+    public static let battleRoyale = GameLatencyProfile(excellentMs: 40, goodMs: 70, playableMs: 110, highMs: 160)
+    /// Спортивные симуляторы (EA SPORTS FC)
+    public static let sports = GameLatencyProfile(excellentMs: 40, goodMs: 80, playableMs: 120, highMs: 170)
+}
+
+/// Названия и платформы популярных онлайн-игр. Игра определяет только пороги оценки задержки
+/// (жанровый профиль); замер одинаков для всех игр.
 public enum GameTitle: String, CaseIterable, Identifiable, Codable, Sendable {
     case cs2 = "Counter-Strike 2"
     case dota2 = "Dota 2"
@@ -46,31 +64,53 @@ public enum GameTitle: String, CaseIterable, Identifiable, Codable, Sendable {
         case .pubg: return "Krafton"
         }
     }
+
+    public var latencyProfile: GameLatencyProfile {
+        switch self {
+        case .cs2, .valorant, .apexLegends, .overwatch2, .codWarzone: return .fastShooter
+        case .dota2: return .moba
+        case .fortnite, .pubg: return .battleRoyale
+        case .eaFC: return .sports
+        }
+    }
+
+    /// Жанр, по которому подобраны ориентиры
+    public var genreTitle: String {
+        switch self {
+        case .cs2, .valorant, .apexLegends, .overwatch2, .codWarzone: return "динамичный шутер"
+        case .dota2: return "MOBA"
+        case .fortnite, .pubg: return "королевская битва"
+        case .eaFC: return "спортивный симулятор"
+        }
+    }
 }
 
-/// Игровой регион и дата-центр
+/// Региональный узел для замера задержки.
+///
+/// Это публичные эндпоинты облачных регионов AWS (`dynamodb.<регион>.amazonaws.com`, порт 443), а не серверы
+/// конкретных игр: адреса игровых серверов не публикуются. Раньше здесь стояли «первые адреса сетей» (`x.x.x.1`)
+/// с выдуманными подписями; они не соответствовали реальным серверам.
 public struct GameClusterInfo: Identifiable, Codable, Sendable, Hashable {
-    public var id: String { "\(game.rawValue)_\(regionName)" }
-    public let game: GameTitle
+    public var id: String { regionID }
+    public let regionID: String
     public let regionName: String
-    public let countryCode: String // Флаг: "DE", "SE", "PL", "FI", "AE", "KZ", "US", "SG"
+    public let countryCode: String
     public let cityName: String
     public let targetHost: String
     public let port: UInt16
 
     public init(
-        game: GameTitle,
+        regionID: String,
         regionName: String,
         countryCode: String,
         cityName: String,
-        targetHost: String,
-        port: UInt16 = 80
+        port: UInt16 = 443
     ) {
-        self.game = game
+        self.regionID = regionID
         self.regionName = regionName
         self.countryCode = countryCode
         self.cityName = cityName
-        self.targetHost = targetHost
+        self.targetHost = "dynamodb.\(regionID).amazonaws.com"
         self.port = port
     }
 
@@ -85,57 +125,37 @@ public struct GameClusterInfo: Identifiable, Codable, Sendable, Hashable {
         return s
     }
 
-    /// Предустановленная база официальных игровых серверов
-    public static let defaultClusters: [GameClusterInfo] = [
-        // Counter-Strike 2
-        GameClusterInfo(game: .cs2, regionName: "Европа (Франкфурт)", countryCode: "DE", cityName: "Франкфурт", targetHost: "155.133.243.1"),
-        GameClusterInfo(game: .cs2, regionName: "Скандинавия (Стокгольм)", countryCode: "SE", cityName: "Стокгольм", targetHost: "155.133.252.1"),
-        GameClusterInfo(game: .cs2, regionName: "Восточная Европа (Варшава)", countryCode: "PL", cityName: "Варшава", targetHost: "155.133.238.1"),
-        GameClusterInfo(game: .cs2, regionName: "Финляндия (Хельсинки)", countryCode: "FI", cityName: "Хельсинки", targetHost: "155.133.250.1"),
-        GameClusterInfo(game: .cs2, regionName: "Ближний Восток (Дубай)", countryCode: "AE", cityName: "Дубай", targetHost: "155.133.245.1"),
-        GameClusterInfo(game: .cs2, regionName: "Казахстан (Алматы)", countryCode: "KZ", cityName: "Алматы", targetHost: "155.133.234.1"),
-
-        // Dota 2
-        GameClusterInfo(game: .dota2, regionName: "Западная Европа (Люксембург)", countryCode: "LU", cityName: "Люксембург", targetHost: "146.66.152.1"),
-        GameClusterInfo(game: .dota2, regionName: "Восточная Европа (Вена)", countryCode: "AT", cityName: "Вена", targetHost: "146.66.155.1"),
-        GameClusterInfo(game: .dota2, regionName: "Стокгольм (Россия)", countryCode: "SE", cityName: "Стокгольм", targetHost: "155.133.252.1"),
-        GameClusterInfo(game: .dota2, regionName: "Дубай", countryCode: "AE", cityName: "Дубай", targetHost: "155.133.245.1"),
-
-        // Valorant (Riot Direct)
-        GameClusterInfo(game: .valorant, regionName: "Франкфурт 1", countryCode: "DE", cityName: "Франкфурт", targetHost: "162.249.72.1"),
-        GameClusterInfo(game: .valorant, regionName: "Варшава", countryCode: "PL", cityName: "Варшава", targetHost: "162.249.77.1"),
-        GameClusterInfo(game: .valorant, regionName: "Стокгольм", countryCode: "SE", cityName: "Стокгольм", targetHost: "162.249.78.1"),
-        GameClusterInfo(game: .valorant, regionName: "Бахрейн", countryCode: "BH", cityName: "Манама", targetHost: "157.175.0.1"),
-
-        // Apex Legends
-        GameClusterInfo(game: .apexLegends, regionName: "Франкфурт 1 & 2", countryCode: "DE", cityName: "Франкфурт", targetHost: "52.59.0.1"),
-        GameClusterInfo(game: .apexLegends, regionName: "Лондон", countryCode: "GB", cityName: "Лондон", targetHost: "35.176.0.1"),
-        GameClusterInfo(game: .apexLegends, regionName: "Амстердам", countryCode: "NL", cityName: "Амстердам", targetHost: "18.156.0.1"),
-        GameClusterInfo(game: .apexLegends, regionName: "Бахрейн", countryCode: "BH", cityName: "Бахрейн", targetHost: "157.175.0.1"),
-
-        // Fortnite
-        GameClusterInfo(game: .fortnite, regionName: "Европа (AWS Франкфурт)", countryCode: "DE", cityName: "Франкфурт", targetHost: "52.58.0.1"),
-        GameClusterInfo(game: .fortnite, regionName: "Европа (AWS Лондон)", countryCode: "GB", cityName: "Лондон", targetHost: "3.8.0.1"),
-        GameClusterInfo(game: .fortnite, regionName: "Ближний Восток (AWS Бахрейн)", countryCode: "BH", cityName: "Бахрейн", targetHost: "157.175.0.1"),
-
-        // Call of Duty: Warzone
-        GameClusterInfo(game: .codWarzone, regionName: "Европа (Амстердам)", countryCode: "NL", cityName: "Амстердам", targetHost: "185.34.106.1"),
-        GameClusterInfo(game: .codWarzone, regionName: "Франкфурт", countryCode: "DE", cityName: "Франкфурт", targetHost: "185.34.107.1"),
-
-        // EA SPORTS FC (FIFA)
-        GameClusterInfo(game: .eaFC, regionName: "Европа (Франкфурт)", countryCode: "DE", cityName: "Франкфурт", targetHost: "159.153.64.1"),
-        GameClusterInfo(game: .eaFC, regionName: "Варшава", countryCode: "PL", cityName: "Варшава", targetHost: "159.153.72.1"),
-        GameClusterInfo(game: .eaFC, regionName: "Дубай", countryCode: "AE", cityName: "Дубай", targetHost: "159.153.76.1")
+    /// Регионы AWS, в которых размещаются серверы многих онлайн-игр и сервисов
+    public static let referenceRegions: [GameClusterInfo] = [
+        // Европа
+        GameClusterInfo(regionID: "eu-central-1", regionName: "Европа: Франкфурт", countryCode: "DE", cityName: "Франкфурт"),
+        GameClusterInfo(regionID: "eu-west-2", regionName: "Европа: Лондон", countryCode: "GB", cityName: "Лондон"),
+        GameClusterInfo(regionID: "eu-west-1", regionName: "Европа: Ирландия", countryCode: "IE", cityName: "Дублин"),
+        GameClusterInfo(regionID: "eu-west-3", regionName: "Европа: Париж", countryCode: "FR", cityName: "Париж"),
+        GameClusterInfo(regionID: "eu-north-1", regionName: "Европа: Стокгольм", countryCode: "SE", cityName: "Стокгольм"),
+        GameClusterInfo(regionID: "eu-south-1", regionName: "Европа: Милан", countryCode: "IT", cityName: "Милан"),
+        GameClusterInfo(regionID: "eu-south-2", regionName: "Европа: Испания", countryCode: "ES", cityName: "Сарагоса"),
+        GameClusterInfo(regionID: "eu-central-2", regionName: "Европа: Цюрих", countryCode: "CH", cityName: "Цюрих"),
+        // Ближний Восток и Азия
+        GameClusterInfo(regionID: "me-south-1", regionName: "Ближний Восток: Бахрейн", countryCode: "BH", cityName: "Манама"),
+        GameClusterInfo(regionID: "me-central-1", regionName: "Ближний Восток: ОАЭ", countryCode: "AE", cityName: "Дубай"),
+        GameClusterInfo(regionID: "ap-south-1", regionName: "Азия: Мумбаи", countryCode: "IN", cityName: "Мумбаи"),
+        GameClusterInfo(regionID: "ap-southeast-1", regionName: "Азия: Сингапур", countryCode: "SG", cityName: "Сингапур"),
+        GameClusterInfo(regionID: "ap-northeast-1", regionName: "Азия: Токио", countryCode: "JP", cityName: "Токио"),
+        // Америка
+        GameClusterInfo(regionID: "us-east-1", regionName: "США: Вирджиния", countryCode: "US", cityName: "Ашберн"),
+        GameClusterInfo(regionID: "us-west-2", regionName: "США: Орегон", countryCode: "US", cityName: "Портленд"),
+        GameClusterInfo(regionID: "sa-east-1", regionName: "Южная Америка: Сан-Паулу", countryCode: "BR", cityName: "Сан-Паулу")
     ]
 }
 
-/// Статус качества пинга для соревновательных игр
+/// Оценка задержки для игры
 public enum GamePingQuality: String, Codable, Sendable {
-    case esportsReady = "Киберспорт (A+)"
-    case rankedReady = "Отлично для Ranked (A)"
-    case playable = "Играбельно (B)"
-    case highLatency = "Высокая задержка (C)"
-    case critical = "Непригодно для игры (D/F)"
+    case esportsReady = "Отлично"
+    case rankedReady = "Хорошо"
+    case playable = "Приемлемо"
+    case highLatency = "Высокая задержка"
+    case critical = "Плохо или нет ответа"
 
     public var badgeColor: Color {
         switch self {
@@ -148,26 +168,37 @@ public enum GamePingQuality: String, Codable, Sendable {
     }
 }
 
-/// Результат замера конкретного игрового дата-центра
+/// Результат замера регионального узла
 public struct GameClusterResult: Identifiable, Codable, Sendable {
     public var id: String { cluster.id }
     public let cluster: GameClusterInfo
+    /// Медиана времени установления TCP-соединения. `nil` — ни одного ответа или замер ещё не выполнялся
     public var latencyMs: Double?
     public var jitterMs: Double?
     public var packetLossPct: Double
     public var isReachable: Bool
+    /// Замер выполнялся (до этого строка — заготовка со статусом «ожидание»)
+    public var isTested: Bool
 
-    public var quality: GamePingQuality {
+    /// Оценка по ориентирам жанра выбранной игры
+    public func quality(for game: GameTitle) -> GamePingQuality {
+        guard isTested else { return .critical }
         guard let lat = latencyMs, isReachable else { return .critical }
-        if lat < 25.0 && packetLossPct == 0 { return .esportsReady }
-        if lat < 50.0 && packetLossPct < 1.0 { return .rankedReady }
-        if lat < 90.0 && packetLossPct < 3.0 { return .playable }
-        if lat < 140.0 { return .highLatency }
+        let profile = game.latencyProfile
+        if lat < profile.excellentMs && packetLossPct == 0 { return .esportsReady }
+        if lat < profile.goodMs && packetLossPct <= 20 { return .rankedReady }
+        if lat < profile.playableMs && packetLossPct < 40 { return .playable }
+        if lat < profile.highMs { return .highLatency }
         return .critical
     }
 
+    public func badgeColor(for game: GameTitle) -> Color {
+        isTested ? quality(for: game).badgeColor : .gray
+    }
+
     public var formattedLatency: String {
-        guard let lat = latencyMs, isReachable else { return "Таймаут" }
+        guard isTested else { return "—" }
+        guard let lat = latencyMs, isReachable else { return "Нет ответа" }
         return String(format: "%.1f мс", lat)
     }
 
@@ -176,12 +207,14 @@ public struct GameClusterResult: Identifiable, Codable, Sendable {
         latencyMs: Double? = nil,
         jitterMs: Double? = nil,
         packetLossPct: Double = 0.0,
-        isReachable: Bool = false
+        isReachable: Bool = false,
+        isTested: Bool = false
     ) {
         self.cluster = cluster
         self.latencyMs = latencyMs
         self.jitterMs = jitterMs
         self.packetLossPct = packetLossPct
         self.isReachable = isReachable
+        self.isTested = isTested
     }
 }

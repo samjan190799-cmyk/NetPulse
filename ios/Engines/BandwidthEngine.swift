@@ -37,53 +37,46 @@ public struct BandwidthSnapshot: Sendable {
     
     public let timestamp: Date
 
+    /// Скорость в Мбит/с — единая единица для мониторинга, замера скорости, острова и HUD.
+    /// Раньше живой мониторинг показывал МБ/с (байты), а замер скорости — Мбит/с: числа различались в 8 раз,
+    /// а суффикс «M» в компактном виде мог означать и то и другое.
     public var formattedDownloadSpeed: String {
-        formatBytesPerSec(downloadBytesPerSec)
+        Self.formatSpeed(mbps: downloadMbps)
     }
 
     public var formattedUploadSpeed: String {
-        formatBytesPerSec(uploadBytesPerSec)
+        Self.formatSpeed(mbps: uploadMbps)
     }
 
-    private func formatBytesPerSec(_ bytes: Double) -> String {
-        if bytes >= 1_048_576 {
-            return String(format: "%.1f МБ/с", bytes / 1_048_576)
-        } else if bytes >= 1_024 {
-            return String(format: "%.0f КБ/с", bytes / 1_024)
-        } else if bytes > 0 {
-            let kb = bytes / 1_024.0
-            return kb >= 0.1 ? String(format: "%.1f КБ/с", kb) : "0 КБ/с"
-        } else {
-            return "0 КБ/с"
-        }
-    }
-
+    /// Компактный вид для Dynamic Island: только число в Мбит/с (единица указана в развёрнутом виде)
     public var compactDownload: String {
-        if downloadBytesPerSec >= 1_048_576 {
-            let val = downloadBytesPerSec / 1_048_576
-            return val >= 10 ? String(format: "%.0fM", val) : String(format: "%.1fM", val)
-        } else if downloadBytesPerSec >= 1024 {
-            return String(format: "%.0fK", downloadBytesPerSec / 1024)
-        } else if downloadBytesPerSec > 0 {
-            let kb = downloadBytesPerSec / 1024.0
-            return kb >= 0.1 ? String(format: "%.1fK", kb) : "0K"
-        } else {
-            return "0K"
-        }
+        Self.compactSpeed(mbps: downloadMbps)
     }
 
     public var compactUpload: String {
-        if uploadBytesPerSec >= 1_048_576 {
-            let val = uploadBytesPerSec / 1_048_576
-            return val >= 10 ? String(format: "%.0fM", val) : String(format: "%.1fM", val)
-        } else if uploadBytesPerSec >= 1024 {
-            return String(format: "%.0fK", uploadBytesPerSec / 1024)
-        } else if uploadBytesPerSec > 0 {
-            let kb = uploadBytesPerSec / 1024.0
-            return kb >= 0.1 ? String(format: "%.1fK", kb) : "0K"
-        } else {
-            return "0K"
+        Self.compactSpeed(mbps: uploadMbps)
+    }
+
+    public static func formatSpeed(mbps: Double) -> String {
+        if mbps >= 100 {
+            return String(format: "%.0f Мбит/с", mbps)
+        } else if mbps >= 10 {
+            return String(format: "%.1f Мбит/с", mbps)
+        } else if mbps >= 1 {
+            return String(format: "%.2f Мбит/с", mbps)
+        } else if mbps >= 0.001 {
+            return String(format: "%.0f Кбит/с", mbps * 1000.0)
         }
+        return "0 Мбит/с"
+    }
+
+    public static func compactSpeed(mbps: Double) -> String {
+        if mbps >= 10 {
+            return String(format: "%.0f", mbps)
+        } else if mbps >= 0.05 {
+            return String(format: "%.1f", mbps)
+        }
+        return "0"
     }
 }
 
@@ -165,32 +158,31 @@ public final class BandwidthEngine: @unchecked Sendable {
         var cellOutDelta: UInt64 = 0
         var vpnInDelta: UInt64 = 0
         var vpnOutDelta: UInt64 = 0
-        var otherInDelta: UInt64 = 0
-        var otherOutDelta: UInt64 = 0
+
+        // Предел правдоподобной дельты за интервал (≈ 1,6 Гбит/с): если счётчик «уменьшился» и после поправки на
+        // 32-битное переполнение получилось больше, это сброс счётчика (интерфейс перезапущен), а не трафик.
+        let maxPlausible = UInt64(max(timeDelta, 1.0) * 200_000_000.0)
 
         // Вычисляем дельты ПО КАЖДОМУ ИНТЕРФЕЙСУ ОТДЕЛЬНО для защиты от 32-битного переполнения
         for (ifName, current) in currentMap {
             let prevIn = prevInterfaceMap[ifName]?.inBytes ?? current.inBytes
             let prevOut = prevInterfaceMap[ifName]?.outBytes ?? current.outBytes
 
-            let singleInDelta = Self.computeSingleInterfaceDelta(prev: prevIn, current: current.inBytes)
-            let singleOutDelta = Self.computeSingleInterfaceDelta(prev: prevOut, current: current.outBytes)
+            let singleInDelta = Self.computeSingleInterfaceDelta(prev: prevIn, current: current.inBytes, maxPlausibleDelta: maxPlausible)
+            let singleOutDelta = Self.computeSingleInterfaceDelta(prev: prevOut, current: current.outBytes, maxPlausibleDelta: maxPlausible)
 
-            if ifName.hasPrefix("en") {
-                // Физические адаптеры Wi-Fi / Ethernet (en0, en1, en2...)
+            switch Self.interfaceKind(for: ifName) {
+            case .wifi:
                 wifiInDelta += singleInDelta
                 wifiOutDelta += singleOutDelta
-            } else if ifName.hasPrefix("pdp_ip") || ifName.hasPrefix("bridge") || ifName.hasPrefix("ap") || ifName.hasPrefix("anpi") {
-                // Сотовая связь 5G/LTE и Режим модема (Hotspot Tethering bridge)
+            case .cellular:
                 cellInDelta += singleInDelta
                 cellOutDelta += singleOutDelta
-            } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") || ifName.hasPrefix("ppp") || ifName.hasPrefix("tun") {
-                // VPN туннели и прокси
+            case .vpn:
                 vpnInDelta += singleInDelta
                 vpnOutDelta += singleOutDelta
-            } else {
-                otherInDelta += singleInDelta
-                otherOutDelta += singleOutDelta
+            case .ignored:
+                break
             }
         }
 
@@ -199,8 +191,8 @@ public final class BandwidthEngine: @unchecked Sendable {
         self.prevTimestamp = now
 
         // Суммарный физический трафик сетевых чипов
-        let physicalInDelta = wifiInDelta + cellInDelta + otherInDelta
-        let physicalOutDelta = wifiOutDelta + cellOutDelta + otherOutDelta
+        let physicalInDelta = wifiInDelta + cellInDelta
+        let physicalOutDelta = wifiOutDelta + cellOutDelta
 
         // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: берем максимум между физическим оборудованием и туннелем!
         // В iOS туннели utun (iCloud Private Relay / APNs / VPN) шлют keepalive-пакеты по 2-3 КБ каждые пару секунд.
@@ -273,26 +265,65 @@ public final class BandwidthEngine: @unchecked Sendable {
         )
     }
 
-    /// Вычисление дельты одного физического/виртуального интерфейса с поддержкой 32-битного rollover Darwin
-    public static func computeSingleInterfaceDelta(prev: UInt64, current: UInt64) -> UInt64 {
+    /// Вычисление дельты одного физического/виртуального интерфейса с поддержкой 32-битного rollover Darwin.
+    ///
+    /// `maxPlausibleDelta` — наибольшая правдоподобная дельта за интервал между замерами. Если счётчик уменьшился
+    /// (`current < prev`), это либо настоящее 32-битное переполнение, либо СБРОС счётчика (перезапуск интерфейса,
+    /// перезагрузка). Результат с поправкой на переполнение принимается, только если он правдоподобен; иначе дельта 0.
+    /// Раньше порог был 2 ГБ при любом интервале, и сброс счётчика с накопленными > 2,3 ГБ превращался в фантомные
+    /// сотни мегабайт трафика.
+    public static func computeSingleInterfaceDelta(
+        prev: UInt64,
+        current: UInt64,
+        maxPlausibleDelta: UInt64 = 2_000_000_000
+    ) -> UInt64 {
         guard prev > 0 else {
             return 0
         }
         if current >= prev {
             let delta = current - prev
-            // Защита от аномальных всплесков ядра (до 2 ГБ за секунду / 16 Гбит/с)
-            return delta < 2_000_000_000 ? delta : 0
+            // Защита от аномальных всплесков ядра
+            return delta < maxPlausibleDelta ? delta : 0
         } else {
             // 32-битный rollover Darwin (4,294,967,296 байт)
             let max32: UInt64 = 4_294_967_296
             let delta = (current + max32) - prev
-            return delta < 2_000_000_000 ? delta : 0
+            return delta < maxPlausibleDelta ? delta : 0
         }
     }
 
     /// Обратная совместимость для внешних вызовов (TrafficStorage)
-    public static func computeDelta(prev: UInt64, current: UInt64) -> UInt64 {
-        computeSingleInterfaceDelta(prev: prev, current: current)
+    public static func computeDelta(
+        prev: UInt64,
+        current: UInt64,
+        maxPlausibleDelta: UInt64 = 2_000_000_000
+    ) -> UInt64 {
+        computeSingleInterfaceDelta(prev: prev, current: current, maxPlausibleDelta: maxPlausibleDelta)
+    }
+
+    /// Тип сетевого интерфейса для учёта трафика
+    public enum InterfaceKind: Sendable {
+        case wifi        // Wi-Fi / Ethernet (en0, en1, …)
+        case cellular    // сотовая связь (pdp_ip*)
+        case vpn         // VPN-туннели
+        case ignored     // не относится к расходу интернета или дублирует другой интерфейс
+    }
+
+    /// Классификация интерфейса по имени.
+    /// `bridge*`, `ap*` (раздача интернета) и `anpi*` не считаются: трафик раздачи уже учтён на физическом
+    /// интерфейсе (pdp_ip для сотовой сети), и раньше он считался дважды. `awdl*` / `llw*` (AirDrop, прямые
+    /// каналы между устройствами) к интернет-трафику не относятся.
+    public static func interfaceKind(for name: String) -> InterfaceKind {
+        if name.hasPrefix("en") {
+            return .wifi
+        }
+        if name.hasPrefix("pdp_ip") {
+            return .cellular
+        }
+        if name.hasPrefix("utun") || name.hasPrefix("ipsec") || name.hasPrefix("ppp") || name.hasPrefix("tun") {
+            return .vpn
+        }
+        return .ignored
     }
 
     /// Считывание карты счетчиков байт ВСЕХ физических и виртуальных интерфейсов BSD через getifaddrs
@@ -330,27 +361,25 @@ public final class BandwidthEngine: @unchecked Sendable {
     /// Агрегация счетчиков байт по типам адаптеров
     public static func aggregateInterfaceCounters(from map: [String: (inBytes: UInt64, outBytes: UInt64)]) -> InterfaceByteCounters {
         var result = InterfaceByteCounters()
-        var otherIn: UInt64 = 0
-        var otherOut: UInt64 = 0
 
         for (ifName, counters) in map {
-            if ifName.hasPrefix("en") {
+            switch interfaceKind(for: ifName) {
+            case .wifi:
                 result.wifiIn += counters.inBytes
                 result.wifiOut += counters.outBytes
-            } else if ifName.hasPrefix("pdp_ip") || ifName.hasPrefix("bridge") || ifName.hasPrefix("ap") || ifName.hasPrefix("anpi") {
+            case .cellular:
                 result.cellularIn += counters.inBytes
                 result.cellularOut += counters.outBytes
-            } else if ifName.hasPrefix("utun") || ifName.hasPrefix("ipsec") || ifName.hasPrefix("ppp") || ifName.hasPrefix("tun") {
+            case .vpn:
                 result.vpnIn += counters.inBytes
                 result.vpnOut += counters.outBytes
-            } else {
-                otherIn += counters.inBytes
-                otherOut += counters.outBytes
+            case .ignored:
+                break
             }
         }
 
-        result.totalIn = result.wifiIn + result.cellularIn + result.vpnIn + otherIn
-        result.totalOut = result.wifiOut + result.cellularOut + result.vpnOut + otherOut
+        result.totalIn = result.wifiIn + result.cellularIn + result.vpnIn
+        result.totalOut = result.wifiOut + result.cellularOut + result.vpnOut
         return result
     }
 

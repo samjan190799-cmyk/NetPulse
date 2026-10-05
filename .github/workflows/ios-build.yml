@@ -1,0 +1,406 @@
+name: "iOS: сборка и тесты"
+
+# Собирает приложение и виджеты под симулятор, запускает юнит-тесты и UI-тест (Dynamic Island, «Карта сети» и запись маршрута)
+# и сохраняет скриншоты как артефакты. Подпись и выгрузка не выполняются: это делает отдельный ручной workflow
+# «Выгрузка в TestFlight».
+#
+# Симулятор не воспроизводит усыпление свёрнутого приложения на реальном iPhone, поэтому поведение острова
+# в фоне окончательно проверяется только на устройстве. Здесь проверяется всё остальное: сборка, логика,
+# запуск без падений, интерфейс, старт Live Activity и включение режима.
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+    inputs:
+      ui_tests:
+        description: 'Только эти UI-тесты (имена методов через запятую, например testRecordingSavesRouteWithPoints); пусто — все'
+        required: false
+        default: ''
+      skip_unit:
+        description: 'Пропустить юнит-тесты'
+        type: boolean
+        required: false
+        default: false
+      skip_ui:
+        description: 'Пропустить UI-тест (быстрая проверка: сборка и юнит-тесты, около 8 минут)'
+        type: boolean
+        required: false
+        default: false
+      swift_probe:
+        description: 'Только проверка фрагментов Swift настоящим компилятором (файлы из ios/ci/probes, без сборки приложения, около 2 минут)'
+        type: boolean
+        required: false
+        default: false
+      probe_files:
+        description: 'Для проверки фрагментов: имена файлов из ios/ci/probes через пробел (пусто — все)'
+        required: false
+        default: ''
+      yandex_probe:
+        description: 'Вместо фрагментов — справка по SDK рекламы Яндекса: интерфейс пакета и SKAdNetwork-идентификаторы (около 3 минут)'
+        type: boolean
+        required: false
+        default: false
+      yandex_pattern:
+        description: 'Для справки по SDK Яндекса: что искать в интерфейсе (регулярное выражение); пусто — основные типы рекламы'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift-probe:
+    name: "Проверка фрагментов Swift компилятором Xcode"
+    if: ${{ inputs.swift_probe }}
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Выбор Xcode"
+        run: |
+          if [ -d "/Applications/Xcode_26.0.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.1.app
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          elif [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: "Справка по SDK рекламы Яндекса"
+        if: ${{ inputs.yandex_probe }}
+        timeout-minutes: 12
+        env:
+          YANDEX_PATTERN: ${{ inputs.yandex_pattern }}
+        run: bash ios/ci/yandex_sdk_probe.sh
+
+      - name: "Проверка фрагментов"
+        if: ${{ !inputs.yandex_probe }}
+        env:
+          # Значение проходит через окружение, имена файлов проверяются в скрипте (защита от инъекции команд)
+          PROBE_FILES: ${{ inputs.probe_files }}
+        run: |
+          set -f
+          # shellcheck disable=SC2086
+          bash ios/ci/swift_probe.sh $PROBE_FILES
+
+  test:
+    name: "Сборка, юнит-тесты и UI-тест в симуляторе"
+    if: ${{ !inputs.swift_probe }}
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: "Проверка репозитория"
+        uses: actions/checkout@v4
+
+      - name: "Выбор Xcode"
+        run: |
+          echo "=== Установленные Xcode ==="
+          ls -d /Applications/Xcode*.app || true
+          if [ -d "/Applications/Xcode_26.0.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.1.app
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app
+          elif [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: "Разрешение зависимостей Swift Package Manager"
+        working-directory: ./ios
+        run: xcodebuild -resolvePackageDependencies -project NetPulse.xcodeproj -scheme NetPulse
+
+      - name: "Выбор и запуск симулятора"
+        working-directory: ./ios
+        run: |
+          SIM="$(bash ci/select_simulator.sh)"
+          echo "Выбран симулятор: $SIM"
+          UDID="$(echo "$SIM" | cut -f1)"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # Фиксированное местоположение: фоновая геолокация «Непрерывного режима» получает правдоподобные данные
+          xcrun simctl location "$UDID" set 55.7558,37.6173 || true
+
+      - name: "Сборка приложения и тестов (симулятор, без подписи)"
+        id: build
+        working-directory: ./ios
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build-for-testing \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/build.log | tail -n 40
+
+      - name: "Ошибки и предупреждения сборки"
+        if: always()
+        working-directory: ./ios
+        run: |
+          echo "=== Ошибки компиляции и сборки ==="
+          grep -E "error:" build/build.log 2>/dev/null | sort -u | head -n 60 || true
+          echo "=== Предупреждения про рекламу, изоляцию акторов и Sendable (Swift 6) ==="
+          grep -E "warning:" build/build.log 2>/dev/null | grep -Ei "yandex|banner|interstitial|rewarded|AdManager|AdModels|isolat|sendable" | sort -u | head -n 60 || true
+
+      - name: "Юнит-тесты"
+        id: unit
+        if: ${{ !inputs.skip_unit }}
+        continue-on-error: true
+        working-directory: ./ios
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:NetPulseTests \
+            -resultBundlePath build/unit.xcresult \
+            2>&1 | tee build/unit.log | tail -n 60
+
+      - name: "Скорость скачивания на раннере (для сравнения с островом)"
+        if: ${{ !inputs.skip_ui }}
+        continue-on-error: true
+        run: |
+          # 15-секундный замер: средняя скорость по данным curl — эталон для чисел в острове
+          curl -sS --max-time 15 -o /dev/null \
+            -w "tele2: http=%{http_code} скачано=%{size_download} байт, скорость=%{speed_download} байт/с\n" \
+            "http://speedtest.tele2.net/100MB.zip" 2>&1 | tee build_speed.txt || true
+          awk -F'скорость=' 'NF>1 {split($2,a," "); printf "≈ %.1f Мбит/с\n", a[1]*8/1000000}' build_speed.txt || true
+
+      - name: "UI-тест в симуляторе (на раннере идёт сетевой трафик)"
+        id: ui
+        if: ${{ !inputs.skip_ui }}
+        continue-on-error: true
+        timeout-minutes: 40
+        working-directory: ./ios
+        env:
+          # Параметр ручного запуска передаётся через окружение и проверяется (защита от инъекции команд)
+          ONLY_UI_TESTS: ${{ inputs.ui_tests }}
+        run: |
+          set -o pipefail
+          ONLY_ARGS=(-only-testing:NetPulseUITests)
+          if [ -n "$ONLY_UI_TESTS" ]; then
+            ONLY_ARGS=()
+            set -f
+            for name in ${ONLY_UI_TESTS//,/ }; do
+              if ! [[ "$name" =~ ^[A-Za-z0-9_]+$ ]]; then
+                echo "❌ Некорректное имя теста: '$name'"
+                exit 1
+              fi
+              ONLY_ARGS+=("-only-testing:NetPulseUITests/NetPulseUITests/$name")
+            done
+            set +f
+          fi
+          # Скорость в приложении считается по счётчикам сетевых интерфейсов хоста: без нагрузки на раннере
+          # остров показывал бы одни нули, и проверять было бы нечего.
+          traffic() {
+            while true; do
+              curl -fsS --max-time 20 -o /dev/null -w "tele2: http=%{http_code} скачано=%{size_download} скорость=%{speed_download} байт/с\n" \
+                "http://speedtest.tele2.net/100MB.zip" \
+                || curl -fsS --max-time 20 -o /dev/null -w "ovh: http=%{http_code} скачано=%{size_download} скорость=%{speed_download} байт/с\n" \
+                  "https://proof.ovh.net/files/100Mb.dat" \
+                || sleep 2
+            done
+          }
+          traffic > build/traffic.log 2>&1 &
+          TRAFFIC_PID=$!
+
+          # Запись маршрута идёт по положению устройства: в симуляторе «телефон едет» по улице, положение меняется
+          # каждые 2 секунды (около 50 м за шаг), поэтому точки маршрута прибавляются.
+          route() {
+            local step=0
+            while true; do
+              lat=$(awk -v s="$step" 'BEGIN { printf "%.5f", 37.33000 + (s % 400) * 0.0004 }')
+              lon=$(awk -v s="$step" 'BEGIN { printf "%.5f", -122.03000 + (s % 400) * 0.0003 }')
+              if xcrun simctl location "$UDID" set "$lat,$lon" 2>>build/location.err; then
+                [ "$step" -eq 0 ] && echo "положение в симуляторе задано: $lat,$lon"
+              else
+                echo "не удалось задать положение ($lat,$lon)"
+              fi
+              step=$((step + 1))
+              sleep 2
+            done
+          }
+          route > build/location.log 2>&1 &
+          ROUTE_PID=$!
+          trap 'kill "$TRAFFIC_PID" "$ROUTE_PID" 2>/dev/null || true' EXIT
+
+          xcodebuild test-without-building \
+            -project NetPulse.xcodeproj \
+            -scheme NetPulse \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/DerivedData \
+            "${ONLY_ARGS[@]}" \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 360 \
+            -maximum-test-execution-time-allowance 360 \
+            -resultBundlePath build/ui.xcresult \
+            2>&1 | tee build/ui.log | tail -n 80
+
+      - name: "Строки NETPULSE-CI из журнала UI-теста"
+        if: always()
+        working-directory: ./ios
+        run: |
+          grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+          echo "=== Ход UI-тестов (начало, итог и ошибки по журналу xcodebuild) ==="
+          grep -E "Test Case .* (started|passed|failed)|Test Suite .* (started|passed|failed)|exceeded|timed out|Restarting after|crash|error:" build/ui.log 2>/dev/null | tail -n 60 || true
+          echo "=== Хвост журнала xcodebuild ==="
+          tail -n 40 build/ui.log 2>/dev/null || echo "(журнала нет)"
+          echo "=== Генератор трафика на раннере (последние строки) ==="
+          tail -n 12 build/traffic.log 2>/dev/null || echo "(журнала генератора нет)"
+          echo "=== Имитация положения в симуляторе (для записи маршрута) ==="
+          head -n 3 build/location.log 2>/dev/null || echo "(журнала имитации положения нет)"
+          grep -c "не удалось" build/location.log 2>/dev/null | sed 's/^/ошибок задания положения: /' || true
+          head -n 5 build/location.err 2>/dev/null || true
+
+      - name: "Экспорт скриншотов и распознавание текста"
+        if: always()
+        working-directory: ./ios
+        run: |
+          mkdir -p build/attachments
+          if [ -d build/ui.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/ui.xcresult --output-path build/attachments || true
+            python3 ci/xcresult_report.py attachments build/attachments || true
+            echo "=== Экспортированные вложения ==="
+            ls -1 build/attachments | head -n 100
+            echo "=== Текстовые вложения (иерархия экрана при сбоях) ==="
+            for note in build/attachments/*hierarchy*.txt; do
+              if [ -f "$note" ]; then
+                echo "--- $note"
+                head -n 160 "$note"
+              fi
+            done
+            echo "=== Текст на скриншотах (Vision) ==="
+            shopt -s nullglob
+            swift ci/ocr_screenshots.swift build/attachments/*.png > build/ocr.txt 2>&1 || true
+            head -n 400 build/ocr.txt
+          else
+            echo "build/ui.xcresult нет: UI-тест не запускался"
+          fi
+
+      - name: "Карта экрана по скриншотам (раскладка символами)"
+        if: always()
+        working-directory: ./ios
+        run: |
+          # Картинки в журнал не попадают, поэтому раскладку главного экрана (панель, плашки, кнопки, цветные линии
+          # маршрута) печатаем грубой сеткой символов: по ней видно наложения и обрезанные элементы.
+          python3 -m pip install --break-system-packages --quiet Pillow || true
+          python3 ci/screen_map.py build/attachments \
+            "home-medium" "home-expanded.png" "route-recording" "route-saved" "map-demo.png" "control-hint.png" \
+            "lines-idle" "lines-off" "ads-home" "ads-tab-hosts" || true
+
+      - name: "Цвет линий на скриншотах (маршруты на карте)"
+        if: always()
+        working-directory: ./ios
+        run: |
+          # Тонкую линию сетка символов не показывает, а доля цветных пикселей показывает:
+          # «прежние маршруты показаны» (lines-idle) должно давать больше цветных пикселей на карте, чем «скрыты» (lines-off).
+          python3 -m pip install --break-system-packages --quiet Pillow || true
+          python3 ci/screen_tint.py build/attachments \
+            "home-medium" "lines-idle" "lines-off" "route-recording" "route-saved" "map-demo.png" || true
+
+      - name: "Проверка Dynamic Island по скриншотам"
+        if: always()
+        working-directory: ./ios
+        run: |
+          {
+            echo "### Dynamic Island: числа на скриншотах (симулятор не усыпляет приложение, поэтому замирание на устройстве здесь не проверяется)"
+            echo '```'
+            python3 ci/island_check.py build/ocr.txt
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: "Журнал приложения и отчёты о падениях"
+        if: always()
+        working-directory: ./ios
+        run: |
+          mkdir -p build/diagnostics
+          xcrun simctl spawn "$UDID" log show --last 30m --style compact \
+            --predicate 'process == "NetPulse"' 2>/dev/null | tail -n 400 > build/diagnostics/app-log.txt || true
+          cp ~/Library/Logs/DiagnosticReports/NetPulse* build/diagnostics/ 2>/dev/null || true
+          echo "=== Файлы диагностики ==="
+          ls -la build/diagnostics | head -n 20
+          echo "=== Отчёты о падениях в системном каталоге ==="
+          ls -la ~/Library/Logs/DiagnosticReports 2>/dev/null | head -n 20 || echo "(каталога нет)"
+          echo "=== Хвост журнала приложения ==="
+          tail -n 60 build/diagnostics/app-log.txt 2>/dev/null || true
+          for report in build/diagnostics/NetPulse*.ips; do
+            if [ -f "$report" ]; then
+              echo "--- Отчёт о падении: $report"
+              head -n 60 "$report"
+            fi
+          done
+
+      - name: "Журнал рекламы Яндекса (из приложения в симуляторе)"
+        if: always()
+        run: |
+          # Строки категории ads пишет YandexAdManager и баннеры: запуск SDK, ответ на запрос разрешения, загрузка и ошибки рекламы
+          xcrun simctl spawn "$UDID" log show --last 90m --style compact \
+            --predicate 'process == "NetPulse" AND category == "ads"' 2>/dev/null | tail -n 150 || true
+
+      - name: "Сводка результатов"
+        if: always()
+        working-directory: ./ios
+        run: |
+          {
+            python3 ci/xcresult_report.py summary build/unit.xcresult "Юнит-тесты"
+            python3 ci/xcresult_report.py summary build/ui.xcresult "UI-тест в симуляторе"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: "Артефакт: скриншоты"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: |
+            ios/build/attachments/*.png
+            ios/build/attachments/*.txt
+            ios/build/ocr.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: "Артефакт: журналы и результаты тестов"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: |
+            ios/build/diagnostics
+            ios/build/*.log
+            ios/build/unit.xcresult
+            ios/build/ui.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: "Итог"
+        if: always()
+        run: |
+          echo "Сборка: ${{ steps.build.outcome }}; юнит-тесты: ${{ steps.unit.outcome }}; UI-тест: ${{ steps.ui.outcome }}"
+          if [ "${{ steps.build.outcome }}" != "success" ] \
+             || [ "${{ steps.unit.outcome }}" = "failure" ] \
+             || [ "${{ steps.ui.outcome }}" = "failure" ]; then
+            exit 1
+          fi

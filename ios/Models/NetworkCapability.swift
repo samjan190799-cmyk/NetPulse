@@ -90,7 +90,7 @@ public struct NetworkCapabilityEvaluator: Sendable {
                 icon: "play.tv.fill",
                 level: .excellent,
                 description: "Идеально для нескольких 4K потоков без буферизации",
-                detail: "Поддержка HDR, Dolby Vision и 8K видео на всех устройствах в сети"
+                detail: "Скорости достаточно для нескольких потоков 4K одновременно"
             )
         } else if downloadMbps >= 25 {
             return CapabilityItem(
@@ -124,26 +124,37 @@ public struct NetworkCapabilityEvaluator: Sendable {
 
     // 2. Онлайн-игры и Cloud Gaming (CS, Dota, Warzone, GeForce NOW)
     private func evaluateGaming() -> CapabilityItem {
-        let ping = pingMs ?? 50.0
-        let jitter = jitterMs ?? 5.0
+        // Без измеренного пинга оценки нет: раньше подставлялись пинг 50 мс и джиттер 5 мс
+        guard let ping = pingMs else {
+            return CapabilityItem(
+                title: "Онлайн-игры и Cloud Gaming",
+                category: "Гейминг",
+                icon: "gamecontroller",
+                level: .unknown,
+                description: "Нужен измеренный пинг",
+                detail: "Запустите мониторинг сети: оценка строится по пингу и джиттеру"
+            )
+        }
+        // Джиттер учитывается, только если он измерен
+        let jitterIsLow: (Double) -> Bool = { limit in (self.jitterMs ?? 0) < limit }
 
-        if ping < 25 && jitter < 5 {
+        if ping < 25 && jitterIsLow(5) {
             return CapabilityItem(
                 title: "Онлайн-игры и Cloud Gaming",
                 category: "Гейминг",
                 icon: "gamecontroller.fill",
                 level: .excellent,
-                description: "Идеальный мгновенный отклик для киберспорта",
-                detail: "Минимальный пинг (\(Int(ping)) мс). Облачный гейминг (GeForce NOW, PS Plus) без задержки"
+                description: "Низкая задержка, подходит для динамичных игр",
+                detail: "Пинг \(Int(ping)) мс — небольшая задержка и для облачного гейминга"
             )
-        } else if ping < 55 && jitter < 15 {
+        } else if ping < 55 && jitterIsLow(15) {
             return CapabilityItem(
                 title: "Онлайн-игры (Шутеры / MMO)",
                 category: "Гейминг",
                 icon: "gamecontroller.fill",
                 level: .good,
-                description: "Плавный геймплей без ощутимых лагов",
-                detail: "Комфортный пинг (\(Int(ping)) мс) для большинства сетевых игр"
+                description: "Комфортно для большинства сетевых игр",
+                detail: "Пинг \(Int(ping)) мс — лаги в большинстве игр не ощущаются"
             )
         } else if ping < 110 {
             return CapabilityItem(
@@ -160,34 +171,46 @@ public struct NetworkCapabilityEvaluator: Sendable {
                 category: "Гейминг",
                 icon: "gamecontroller",
                 level: .poor,
-                description: "Высокая задержка и рассинхронизация",
-                detail: "Высокий пинг (\(Int(ping)) мс) затрудняет онлайн-матчи"
+                description: "Высокая задержка",
+                detail: "Пинг \(Int(ping)) мс затрудняет динамичные онлайн-матчи"
             )
         }
     }
 
     // 3. Видеозвонки и Конференции (Zoom, FaceTime HD, Teams, Telegram)
     private func evaluateVideoConferencing() -> CapabilityItem {
-        let upload = uploadMbps > 0 ? uploadMbps : downloadMbps * 0.3
-        let jitter = jitterMs ?? 5.0
+        // Отдача определяет качество исходящего видео. Если её не удалось измерить, оценки нет:
+        // раньше подставлялось 30 % от скорости загрузки.
+        guard uploadMbps > 0 else {
+            return CapabilityItem(
+                title: "Конференции (Zoom, FaceTime)",
+                category: "Связь",
+                icon: "video",
+                level: .unknown,
+                description: "Скорость отдачи не измерена",
+                detail: "Повторите замер скорости: качество видеозвонков зависит от исходящего канала"
+            )
+        }
+        let upload = uploadMbps
+        let jitterIsLow: (Double) -> Bool = { limit in (self.jitterMs ?? 0) < limit }
 
-        if upload >= 15 && jitter < 10 {
+        if upload >= 15 && jitterIsLow(10) {
             return CapabilityItem(
                 title: "Конференции (Zoom, FaceTime HD)",
                 category: "Связь",
                 icon: "video.fill",
                 level: .excellent,
-                description: "Кристально четкое HD видео и объемный звук",
-                detail: "Идеальная стабильность для групповых звонков и демонстрации экрана 4K"
+                description: "Скорости отдачи достаточно для HD-видео",
+                detail: "Хватает для групповых звонков и демонстрации экрана"
             )
-        } else if upload >= 5 && jitter < 25 {
+        } else if upload >= 5 && jitterIsLow(25) {
             return CapabilityItem(
                 title: "Видеосвязь 1080p",
                 category: "Связь",
                 icon: "video.fill",
                 level: .good,
-                description: "Стабильные звонки высокой четкости",
-                detail: "Без заиканий звука и выпадения кадров"
+                description: "Стабильные звонки высокой чёткости",
+                detail: "Скорость отдачи \(String(format: "%.1f", upload)) Мбит/с достаточна для видео 1080p"
             )
         } else if upload >= 2 {
             return CapabilityItem(
@@ -196,7 +219,7 @@ public struct NetworkCapabilityEvaluator: Sendable {
                 icon: "video",
                 level: .moderate,
                 description: "Базовые видеозвонки",
-                detail: "Возможно временное снижение качества картинки при слабом канале"
+                detail: "Возможно снижение качества картинки при слабом канале или заметном джиттере"
             )
         } else {
             return CapabilityItem(

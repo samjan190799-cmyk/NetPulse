@@ -50,8 +50,8 @@ public struct NetworkHomeView: View {
     }
 
     /// Сколько карта отступает от нижнего края строки состояния, чтобы кнопки сверху не закрывали маршрут:
-    /// отступ 8 + кнопка 44 + промежуток 8 + кнопка 44 + небольшой запас
-    private static let topControlsClearance: CGFloat = 106
+    /// отступ 8 + кнопка 44 + промежуток 8 + кнопка 44, ещё около 30 на булавку «Финиш» над точкой и небольшой запас
+    private static let topControlsClearance: CGFloat = 144
 
     // MARK: - Режим экрана
 

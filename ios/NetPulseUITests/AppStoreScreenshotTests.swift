@@ -199,14 +199,24 @@ final class AppStoreScreenshotTests: XCTestCase {
             shoot("05-panel-expanded")
             let demo = app.buttons["networkMapDemoButton"]
             if reveal(demo, in: app) {
-                demo.tap()
-                if app.descendants(matching: .any)["networkMapDemoBadge"].waitForExistence(timeout: 10) {
+                let badge = app.descendants(matching: .any)["networkMapDemoBadge"]
+                var shown = false
+                // Первое нажатие бывает «пустым» (панель ещё доезжает после прокрутки): второй попытки хватает
+                for attempt in 1...2 where !shown {
+                    if attempt > 1, !(demo.waitForExistence(timeout: 3) && demo.isHittable) { break }
+                    demo.tap()
+                    shown = badge.waitForExistence(timeout: 10)
+                    if !shown {
+                        let hideShown = app.buttons["networkMapDemoHideButton"].exists
+                        let summaryShown = app.descendants(matching: .any)["networkMapSummary"].exists
+                        note("пример маршрута не показан (попытка \(attempt)): «Скрыть пример» \(hideShown), итог маршрута \(summaryShown)")
+                    }
+                }
+                if shown {
                     Thread.sleep(forTimeInterval: 3)
                     shoot("02-route-demo")
                     let hide = app.buttons["networkMapDemoHideButton"]
                     if hide.waitForExistence(timeout: 5) { hide.tap() }
-                } else {
-                    note("пример маршрута не показан")
                 }
             } else {
                 note("нет кнопки «Показать пример маршрута»")

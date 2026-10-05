@@ -49,6 +49,10 @@ public struct NetworkHomeView: View {
         RouteRecorder.shared
     }
 
+    /// Сколько карта отступает от нижнего края строки состояния, чтобы кнопки сверху не закрывали маршрут:
+    /// отступ 8 + кнопка 44 + промежуток 8 + кнопка 44 + небольшой запас
+    private static let topControlsClearance: CGFloat = 106
+
     // MARK: - Режим экрана
 
     private var mode: HomeMode {
@@ -115,18 +119,24 @@ public struct NetworkHomeView: View {
         NavigationStack {
             GeometryReader { proxy in
                 ZStack(alignment: .top) {
-                    HomeMapLayer(
-                        route: mapRoute,
-                        metric: metric,
-                        isLive: recorder.current != nil,
-                        showsUserDot: !isRouteMode,
-                        satellite: satellite,
-                        previousRoutes: mode == .idle && coverageOn ? coverageRuns : [],
-                        showsEndpoints: mode != .idle,
-                        camera: $camera
-                    )
-                    .accessibilityLabel("Карта маршрута")
-                    .accessibilityIdentifier("networkMapMap")
+                    // Карта идёт под строку состояния. Камера ставит маршрут и вас в свободную часть экрана: ниже
+                    // кнопок сверху и выше панели снизу, поэтому флажки «Старт» и «Финиш» не прячутся под кнопками.
+                    // Высоту строки состояния показывает только GeometryReader, который сам выходит за безопасную область.
+                    GeometryReader { mapProxy in
+                        HomeMapLayer(
+                            route: mapRoute,
+                            metric: metric,
+                            isLive: recorder.current != nil,
+                            showsUserDot: !isRouteMode,
+                            satellite: satellite,
+                            previousRoutes: mode == .idle && coverageOn ? coverageRuns : [],
+                            showsEndpoints: mode != .idle,
+                            camera: $camera
+                        )
+                        .accessibilityLabel("Карта маршрута")
+                        .accessibilityIdentifier("networkMapMap")
+                        .safeAreaPadding(.top, mapProxy.safeAreaInsets.top + Self.topControlsClearance)
+                    }
                     .ignoresSafeArea(.container, edges: .top)
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         bottomStack(containerHeight: proxy.size.height)

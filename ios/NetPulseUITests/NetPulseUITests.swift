@@ -386,7 +386,6 @@ final class NetPulseUITests: XCTestCase {
         let background = app.switches["routeBackgroundToggle"]
         XCTAssertTrue(reveal(background, in: app), "В настройках нет тумблера «Записывать маршрут в фоне»")
         XCTAssertEqual(background.value as? String, "1", "Фоновая запись по умолчанию включена")
-        XCTAssertTrue(app.switches["routeAutoStopToggle"].exists, "В настройках нет тумблера автоостановки записи")
         attachScreenshot("settings-route-recording")
 
         // Переключатель справа в строке; настройка хранится на устройстве, поэтому в конце возвращаем как было
@@ -399,6 +398,11 @@ final class NetPulseUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.6)
         XCTAssertEqual(background.value as? String, "1", "Тумблер фоновой записи не включился обратно")
         print("NETPULSE-CI: настройки записи маршрута: тумблеры на месте, фоновая запись переключается")
+
+        // Остальные тумблеры раздела лежат ниже. Строки списка, которых не видно на экране, создаются лениво, поэтому
+        // соседняя строка не находится, пока до неё не прокрутили: к каждому тумблеру прокручиваем отдельно.
+        let autoStop = app.switches["routeAutoStopToggle"]
+        XCTAssertTrue(reveal(autoStop, in: app), "В настройках нет тумблера автоостановки записи")
 
         // Продолжение записи после закрытия просит у iOS доступ «Всегда»: здесь только проверяем, что тумблер есть и выключен
         let afterClose = app.switches["routeContinueAfterCloseToggle"]

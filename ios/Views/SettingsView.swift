@@ -19,6 +19,8 @@ public struct SettingsView: View {
     @State private var showResetTrafficAlert: Bool = false
     @State private var showIslandDiagnostics: Bool = false
     @State private var addHostError: String?
+    /// Зоны покрытия на карте (тот же ключ, что у главного экрана)
+    @AppStorage("netpulse_map_zones") private var zonesOn = true
     /// Настройки открываются поверх главного экрана (кнопка с ползунками): «Готово» закрывает их
     @Environment(\.dismiss) private var dismiss
 
@@ -38,6 +40,17 @@ public struct SettingsView: View {
         return recorder.isActive
             ? "Идёт запись маршрута: приложение активно и в фоне, остров обновляется"
             : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»)."
+    }
+
+    /// Подпись под разделом зон: сколько маршрутов уже есть и когда зоны появятся
+    private var zonesFooter: String {
+        let saved = ZoneBuilder.usableRouteCount(in: RouteRecorder.shared.history)
+        let word = RussianPlural.form(saved, one: "маршрут", few: "маршрута", many: "маршрутов")
+        let rules = "Зоны строятся по сохранённым маршрутам (хранится до \(RouteStorage.maxRoutes) последних) и пропадают вместе с ними. Вокруг замеров ничего не дорисовывается."
+        if saved < ZoneBuilder.minRoutes {
+            return "Сохранено: \(saved) \(word) из \(ZoneBuilder.minRoutes) нужных, зоны появятся на карте, когда маршрутов хватит. \(rules)"
+        }
+        return "Сохранено: \(saved) \(word). Зона рисуется там, где было не меньше \(ZoneBuilder.minRoutesPerCell) разных маршрутов и \(ZoneBuilder.minSamplesPerCell) замеров. \(rules)"
     }
 
     public var body: some View {
@@ -282,6 +295,23 @@ public struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("routeAutoStopToggle")
+                }
+
+                // 5.2 Зоны покрытия: появляются на карте, когда накопится достаточно маршрутов
+                Section(
+                    header: Label("Зоны на карте", systemImage: "square.grid.3x3.fill"),
+                    footer: Text(zonesFooter)
+                ) {
+                    Toggle(isOn: $zonesOn) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Показывать зоны покрытия")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Цветные квадраты 100 × 100 м там, где вы бывали не меньше двух раз. Цвет — по большинству замеров.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("zonesToggle")
                 }
 
                 // 6. Виджеты и Оверлеи

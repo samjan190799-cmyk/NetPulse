@@ -10,7 +10,7 @@ USER CONTROL
 - Settings -> "Запись маршрута": the switch "Записывать маршрут в фоне" (default on). When it is off, the app does not use location while it is in the background and no background location indicator appears; recording simply waits and continues when the user returns. A second switch stops a recording automatically after 20 minutes without movement (default on) to save battery.
 - All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
 
-The map (Apple MapKit) is the home screen and is visible before any permission is requested. Routes are drawn as coloured lines from points recorded by the app (green / yellow / orange / red dashed = good / fair / poor / no connection); earlier routes are shown as thinner lines, and a map button hides them. The colour comes from the app's own ping, not from location data, and no operator coverage data is used.
+The map (Apple MapKit) is the home screen and is visible before any permission is requested. Routes are drawn as coloured lines from points recorded by the app (green / yellow / orange / red dashed = good / fair / poor / no connection); earlier routes are shown as thinner lines, and a map button hides them. Optional coverage zones (Settings, "Зоны на карте") add coloured 100 x 100 m squares under the lines, only where the user has been at least twice and only after three routes are saved. The colour comes from the app's own ping, not from location data, and no operator coverage data is used.
 
 HOW TO TEST
 1. The first screen is the map with the bottom panel (network speed and two buttons).

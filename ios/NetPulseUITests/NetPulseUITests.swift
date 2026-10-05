@@ -404,6 +404,29 @@ final class NetPulseUITests: XCTestCase {
         closeSettings(app)
     }
 
+    /// В настройках есть пункт «Показывать зоны покрытия»: по умолчанию включён, переключается и возвращается
+    @MainActor func testZonesToggleIsInSettings() throws {
+        let app = launchApp()
+        openSettings(app)
+
+        let zones = app.switches["zonesToggle"]
+        XCTAssertTrue(reveal(zones, in: app), "В настройках нет тумблера «Показывать зоны покрытия»")
+        XCTAssertEqual(zones.value as? String, "1", "Зоны по умолчанию включены (рисуются, когда маршрутов хватает)")
+        attachScreenshot("settings-zones")
+
+        let switchPoint = zones.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))
+        switchPoint.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertEqual(zones.value as? String, "0", "Тумблер зон не выключился")
+        switchPoint.tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertEqual(zones.value as? String, "1", "Тумблер зон не включился обратно")
+        print("NETPULSE-CI: настройки зон: тумблер на месте, переключается")
+
+        scrollToTop(app)
+        closeSettings(app)
+    }
+
     @MainActor func testLiveActivityStartsInSimulator() throws {
         let app = launchApp()
         openSettings(app)

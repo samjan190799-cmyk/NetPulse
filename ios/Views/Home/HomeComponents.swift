@@ -293,7 +293,7 @@ struct HomeCoverageLegend: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Цвета линий маршрутов: хорошо, средне, плохо, нет сети")
+        .accessibilityLabel("Цвета линий маршрутов и зон: хорошо, средне, плохо, нет сети")
         .accessibilityIdentifier("homeCoverageLegend")
     }
 

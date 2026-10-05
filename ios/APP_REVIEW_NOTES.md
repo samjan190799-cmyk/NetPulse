@@ -41,12 +41,16 @@ The map is the home screen of the app (Apple's MapKit, Apple Maps). It is visibl
 requested (without location access it shows an overview of European Russia). The user's position is shown by MapKit's user-location annotation only while the screen is open and location is
 authorized (the app supplies only its look, a blue dot); the route lines are drawn from the points recorded by the app.
 
-Coverage layer: along each recorded route the map draws a wide translucent band in the colour of the line
-(green good, yellow fair, orange poor, red no connection). It is drawn live while recording and, on the home
-screen, for earlier routes too (the "Покрытие сети" / Network coverage button hides it). Around the user's dot
-there is a coloured zone with the quality of the connection right now; its colour comes from the app's own
-network check (ping), not from location data. All of it is computed on the device from the app's own
-measurements; no data about operators' coverage is used or sent.
+Route lines: the route is drawn as a line in the colour of the connection quality (green good, yellow fair, orange
+poor, red dashed no connection). It is drawn live while recording and, on the home screen, earlier routes are drawn
+too as thinner lines (the "Прежние маршруты" / Earlier routes button hides them). There are no wide bands: colour
+exists only where the user actually was.
+
+Optional coverage zones (Settings → "Зоны на карте" / Zones on the map, on by default): once at least three routes are
+saved, the home screen also shows coloured squares of about 100 x 100 m under the lines, only where the user has been
+at least twice and the app has at least four measurements; the colour is the typical (middle) measurement. Nothing is
+drawn around the measured places. The zones are computed on the device from the saved routes and disappear together
+with them. All of it comes from the app's own measurements; no data about operators' coverage is used or sent.
 
 HOW TO TEST
 1. The first screen ("Сеть" tab) is the map with the bottom panel (network speed and two buttons).

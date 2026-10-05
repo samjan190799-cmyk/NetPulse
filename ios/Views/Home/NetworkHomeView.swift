@@ -44,6 +44,9 @@ public struct NetworkHomeView: View {
     @AppStorage("netpulse_map_satellite") private var satellite = false
     /// Показывать ли на карте линии прежних маршрутов (ключ прежний, чтобы выбор пользователя сохранился)
     @AppStorage("netpulse_map_coverage") private var coverageOn = true
+    /// Зоны покрытия по накопленным маршрутам: включаются в Настройках, рисуются, когда данных достаточно
+    @AppStorage("netpulse_map_zones") private var zonesOn = true
+    @State private var zoneLayer = CoverageZoneLayer()
 
     private var recorder: RouteRecorder {
         RouteRecorder.shared
@@ -103,14 +106,15 @@ public struct NetworkHomeView: View {
 
     // MARK: - Прежние маршруты
 
-    /// Легенда цветов нужна, пока на карте есть линии прежних маршрутов или последний маршрут
+    /// Легенда цветов нужна, пока на карте есть линии прежних маршрутов, последний маршрут или зоны покрытия
     private var showsCoverageLegend: Bool {
-        mode == .idle && coverageOn && !recorder.history.isEmpty
+        mode == .idle && !recorder.history.isEmpty && (coverageOn || !zoneLayer.zones.isEmpty)
     }
 
-    /// Последний маршрут нарисован отдельно (толстой линией), остальные — тонкими
+    /// Последний маршрут нарисован отдельно (толстой линией), остальные — тонкими; зоны считаются по всем маршрутам
     private func refreshCoverage() {
         coverageRuns = CoverageBuilder.runs(from: Array(recorder.history.dropFirst()), metric: metric)
+        zoneLayer.refresh(routes: recorder.history, metric: metric, enabled: zonesOn)
     }
 
     // MARK: - Экран
@@ -129,6 +133,7 @@ public struct NetworkHomeView: View {
                             isLive: recorder.current != nil,
                             showsUserDot: !isRouteMode,
                             satellite: satellite,
+                            zones: mode == .idle ? zoneLayer.zones : [],
                             previousRoutes: mode == .idle && coverageOn ? coverageRuns : [],
                             showsEndpoints: mode != .idle,
                             camera: $camera
@@ -184,6 +189,9 @@ public struct NetworkHomeView: View {
                 refreshCoverage()
             }
             .onChange(of: metric) { _, _ in
+                refreshCoverage()
+            }
+            .onChange(of: zonesOn) { _, _ in
                 refreshCoverage()
             }
             .onChange(of: recorder.isActive) { _, active in

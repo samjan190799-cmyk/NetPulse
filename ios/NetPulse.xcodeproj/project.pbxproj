@@ -110,6 +110,9 @@
 		A10000E82C123456000000E8 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E82C123456000000E8 /* AppLinks.swift */; };
 		A10000E92C123456000000E9 /* AlertSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E92C123456000000E9 /* AlertSound.swift */; };
 		A300000A2C1234560000000A /* AlertSoundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000A2C1234560000000A /* AlertSoundTests.swift */; };
+		A10000EA2C123456000000EA /* ZoneModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000EA2C123456000000EA /* ZoneModels.swift */; };
+		A10000EB2C123456000000EB /* CoverageZoneLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000EB2C123456000000EB /* CoverageZoneLayer.swift */; };
+		A300000B2C1234560000000B /* ZoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000B2C1234560000000B /* ZoneTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -259,6 +262,9 @@
 		B10000E82C123456000000E8 /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AppLinks.swift; sourceTree = "<group>"; };
 		B10000E92C123456000000E9 /* AlertSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AlertSound.swift; sourceTree = "<group>"; };
 		B300000A2C1234560000000A /* AlertSoundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/AlertSoundTests.swift; sourceTree = "<group>"; };
+		B10000EA2C123456000000EA /* ZoneModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ZoneModels.swift; sourceTree = "<group>"; };
+		B10000EB2C123456000000EB /* CoverageZoneLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/CoverageZoneLayer.swift; sourceTree = "<group>"; };
+		B300000B2C1234560000000B /* ZoneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ZoneTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -347,6 +353,7 @@
 				B10000D32C123456000000D3 /* RouteModels.swift */,
 				B10000E12C123456000000E1 /* HomeModels.swift */,
 				B10000E22C123456000000E2 /* AdModels.swift */,
+				B10000EA2C123456000000EA /* ZoneModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -445,6 +452,7 @@
 				B10000E32C123456000000E3 /* YandexAdManager.swift */,
 				B10000E82C123456000000E8 /* AppLinks.swift */,
 				B10000E92C123456000000E9 /* AlertSound.swift */,
+				B10000EB2C123456000000EB /* CoverageZoneLayer.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -473,6 +481,7 @@
 				B30000082C12345600000008 /* HomeTests.swift */,
 				B30000092C12345600000009 /* AdTests.swift */,
 				B300000A2C1234560000000A /* AlertSoundTests.swift */,
+				B300000B2C1234560000000B /* ZoneTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -733,6 +742,8 @@
 				A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */,
 				A10000E82C123456000000E8 /* AppLinks.swift in Sources */,
 				A10000E92C123456000000E9 /* AlertSound.swift in Sources */,
+				A10000EA2C123456000000EA /* ZoneModels.swift in Sources */,
+				A10000EB2C123456000000EB /* CoverageZoneLayer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -762,6 +773,7 @@
 				A30000082C12345600000008 /* HomeTests.swift in Sources */,
 				A30000092C12345600000009 /* AdTests.swift in Sources */,
 				A300000A2C1234560000000A /* AlertSoundTests.swift in Sources */,
+				A300000B2C1234560000000B /* ZoneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

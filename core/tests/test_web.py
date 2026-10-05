@@ -211,6 +211,30 @@ def test_unknown_routes(server):
     assert http("POST", server.base + "/api/stats")[0] in (404, 405)
 
 
+def test_standalone_server_starts_without_reverse_dns(monkeypatch, tmp_path):
+    """На macOS socket.getfqdn висит секундами, а сервер всё это время не слушает порт: имя ему не нужно."""
+    def no_dns(*args, **kwargs):
+        raise AssertionError("запуск сервера не должен спрашивать у DNS имя хоста")
+
+    monkeypatch.setattr(socket, "getfqdn", no_dns)
+    state = State(tmp_path)
+    port = state.config.web.port
+    loop = asyncio.new_event_loop()
+    loop_thread = threading.Thread(target=loop.run_forever, daemon=True)
+    loop_thread.start()
+    srv = StandaloneWebServer(state.config, state.collector, state.storage, state.speedtest, loop=loop)
+    thread = threading.Thread(target=srv.start_sync, daemon=True)
+    thread.start()
+    try:
+        wait_port(port)
+        assert http("GET", f"http://127.0.0.1:{port}/")[0] == 200
+        assert srv.start_error is None
+    finally:
+        srv.shutdown()
+        loop.call_soon_threadsafe(loop.stop)
+        loop_thread.join(5)
+
+
 # ---- защита ---------------------------------------------------------------------------------------
 
 def test_foreign_host_header_is_rejected(server):

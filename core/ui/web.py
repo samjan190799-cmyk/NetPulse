@@ -10,6 +10,7 @@ import asyncio
 import json
 import mimetypes
 import shutil
+import socketserver
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -235,6 +236,21 @@ def create_web_app(
 
 # ---- резервный сервер без FastAPI ---------------------------------------------------------------
 
+class _QuickBindHTTPServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer, который при запуске не спрашивает у DNS имя своего адреса.
+
+    Обычный HTTPServer.server_bind после занятия порта вызывает socket.getfqdn(host). На macOS это обратный
+    DNS-запрос, и он может висеть секундами: порт уже занят, но ещё не слушает, и сервер отклоняет подключения.
+    Полное имя серверу не нужно (оно годится только для CGI), поэтому берём сам адрес.
+    """
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
+
+
 class StandaloneWebServer:
     """Встроенный легковесный многопоточный веб-сервер на базе http.server."""
 
@@ -375,7 +391,7 @@ class StandaloneWebServer:
     def start_sync(self):
         """Блокирующий запуск сервера (вызывается в отдельном потоке)."""
         try:
-            self.httpd = ThreadingHTTPServer((self.config.web.host, self.config.web.port), self._build_handler())
+            self.httpd = _QuickBindHTTPServer((self.config.web.host, self.config.web.port), self._build_handler())
         except OSError as e:
             self.start_error = str(e)
             raise

@@ -96,15 +96,7 @@
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>NSUserTrackingUsageDescription</key>
-    <string>NetPulse использует идентификатор для персонализации рекламных предложений и предотвращения повторных показов.</string>
-    <!-- ЗАГЛУШКИ: подставьте App ID и Client Token из Meta Business Suite (те же значения, что в MetaAdConfig).
-         Пока здесь тестовые значения, реклама Meta не загружается. -->
-    <key>FacebookAppID</key>
-    <string>987654321098765</string>
-    <key>FacebookClientToken</key>
-    <string>netpulse_meta_audience_network_token</string>
-    <key>FacebookDisplayName</key>
-    <string>NetPulse</string>
+    <string>Идентификатор рекламы используется, чтобы показывать более подходящую рекламу и не повторять одни и те же объявления. Вы можете отказаться — приложение будет работать так же.</string>
     <key>SKAdNetworkItems</key>
     <array>
         <!-- Идентификаторы SKAdNetwork рекламной сети Яндекса: официальный список yastatic.net/pcode-static/skadnetwork/skadids.xml

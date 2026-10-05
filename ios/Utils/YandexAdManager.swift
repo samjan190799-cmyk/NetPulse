@@ -72,10 +72,10 @@ final class YandexAdManager: NSObject {
     private(set) var isInterstitialLoaded = false
     private(set) var isRewardedLoaded = false
 
-    /// Реклама показывается, пока не куплен PRO и если сборка её допускает (в выпускной сборке — только с боевыми
-    /// блоками, см. `YandexAdConfig.isAllowed`)
+    /// Реклама показывается, если сборка её допускает (в выпускной сборке — только с боевыми блоками,
+    /// см. `YandexAdConfig.isAllowed`)
     var canShowAds: Bool {
-        !Self.isDisabledForTesting && YandexAdConfig.isAllowedInThisBuild && !AdMobManager.shared.isPremiumUser
+        !Self.isDisabledForTesting && YandexAdConfig.isAllowedInThisBuild
     }
 
     /// Баннеры можно запрашивать, когда SDK инициализирован

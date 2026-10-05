@@ -24,6 +24,8 @@ struct HomeIdlePanel: View {
     @Binding var showGlossary: Bool
 
     @GestureState private var dragTranslation: CGFloat = 0
+    /// Режим экономии заряда: замер скорости на маршруте в нём не выполняется
+    @AppStorage(PowerSaver.defaultsKey) private var powerSaver = false
 
     /// Высота прокручиваемой области в обычном положении: ровно столько занимают скорость, плитки, кнопки и ряд маршрутов
     private static let mediumScrollHeight: CGFloat = 254
@@ -464,7 +466,9 @@ struct HomeIdlePanel: View {
                     Text("Замерять скорость на маршруте")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(NPTheme.textPrimary)
-                    Text("Раз в 30 секунд скачивается до 1,5 МБ. На мобильном интернете это расходует трафик, поэтому по умолчанию выключено.")
+                    Text(powerSaver
+                         ? "Сейчас включён режим экономии заряда: скорость на маршруте не замеряется."
+                         : "Раз в 30 секунд скачивается до 1,5 МБ. На мобильном интернете это расходует трафик, поэтому по умолчанию выключено.")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                 }

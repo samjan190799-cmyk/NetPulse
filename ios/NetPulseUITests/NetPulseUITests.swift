@@ -400,6 +400,35 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertEqual(background.value as? String, "1", "Тумблер фоновой записи не включился обратно")
         print("NETPULSE-CI: настройки записи маршрута: тумблеры на месте, фоновая запись переключается")
 
+        // Продолжение записи после закрытия просит у iOS доступ «Всегда»: здесь только проверяем, что тумблер есть и выключен
+        let afterClose = app.switches["routeContinueAfterCloseToggle"]
+        XCTAssertTrue(reveal(afterClose, in: app), "В настройках нет тумблера «Продолжать запись после закрытия приложения»")
+        XCTAssertFalse(isOn(afterClose), "Продолжение записи после закрытия по умолчанию выключено: оно просит доступ «Всегда»")
+        attachScreenshot("settings-route-after-close")
+
+        scrollToTop(app)
+        closeSettings(app)
+    }
+
+    /// Первый раздел настроек — «Экономия заряда»: по умолчанию выключена, переключается и возвращается
+    @MainActor func testPowerSaverToggleIsInSettings() throws {
+        let app = launchApp()
+        openSettings(app)
+
+        let saver = app.switches["powerSaverToggle"]
+        XCTAssertTrue(reveal(saver, in: app), "В настройках нет тумблера «Режим экономии заряда»")
+        XCTAssertFalse(isOn(saver), "Режим экономии заряда по умолчанию выключен: всё работает как обычно")
+        attachScreenshot("settings-power-saver")
+
+        flip(saver)
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertTrue(isOn(saver), "Тумблер экономии заряда не включился")
+        attachScreenshot("settings-power-saver-on")
+        flip(saver)
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertFalse(isOn(saver), "Тумблер экономии заряда не выключился обратно")
+        print("NETPULSE-CI: режим экономии заряда: тумблер на месте, переключается")
+
         scrollToTop(app)
         closeSettings(app)
     }

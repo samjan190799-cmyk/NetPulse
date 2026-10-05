@@ -27,8 +27,14 @@ public enum LoopTiming {
         case stalledInForeground(seconds: TimeInterval)
     }
 
-    public static func classify(gap: TimeInterval, previousTickWasBackground: Bool) -> Verdict {
-        guard gap > pauseThreshold else { return .normal }
+    /// Порог для цикла, который ждёт между шагами `expectedPause` секунд: нормальный шаг укладывается в паузу,
+    /// остановкой считается то, что вдвое длиннее ожидаемого (и не короче обычного порога).
+    public static func threshold(expectedPause: TimeInterval) -> TimeInterval {
+        max(pauseThreshold, expectedPause * 2 + 1)
+    }
+
+    public static func classify(gap: TimeInterval, previousTickWasBackground: Bool, expectedPause: TimeInterval = 1) -> Verdict {
+        guard gap > threshold(expectedPause: expectedPause) else { return .normal }
         return previousTickWasBackground ? .suspendedInBackground(seconds: gap) : .stalledInForeground(seconds: gap)
     }
 }

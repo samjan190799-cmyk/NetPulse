@@ -21,6 +21,8 @@ public struct SettingsView: View {
     @State private var addHostError: String?
     /// Зоны покрытия на карте (тот же ключ, что у главного экрана)
     @AppStorage("netpulse_map_zones") private var zonesOn = true
+    /// Режим экономии заряда (читают циклы приложения: PowerProfile)
+    @AppStorage(PowerSaver.defaultsKey) private var powerSaver = false
     /// Настройки открываются поверх главного экрана (кнопка с ползунками): «Готово» закрывает их
     @Environment(\.dismiss) private var dismiss
 
@@ -42,8 +44,31 @@ public struct SettingsView: View {
             : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»)."
     }
 
+    /// Пояснение под тумблером «Продолжать запись после закрытия»: что произойдёт и чего не хватает
+    private var continueAfterCloseCaption: String {
+        let recorder = RouteRecorder.shared
+        guard recorder.recordsInBackground else {
+            return "Закрытое приложение работает только в фоне: сначала включите «Записывать маршрут в фоне»."
+        }
+        guard recorder.continuesAfterClose else {
+            return "Если смахнуть приложение во время записи, запись оборвётся. Включите, и iOS запустит приложение снова, когда вы переместитесь примерно на полкилометра."
+        }
+        if recorder.hasAlwaysAuthorization {
+            return "Работает. Если приложение закроют во время записи, iOS запустит его при перемещении примерно на полкилометра, и запись продолжится; на маршруте будет пропуск. Запуск остаётся на усмотрение iOS."
+        }
+        return "Нужен доступ к геолокации «Всегда»: iOS предложит его сама или включите в Настройки iOS → NetPulse → Геопозиция."
+    }
+
+    /// Через сколько минут без движения запись останавливается сама (в режиме экономии заряда раньше)
+    private var idleStopMinutes: TimeInterval {
+        (powerSaver ? PowerProfile.saver : PowerProfile.normal).routeIdleStopSeconds / 60
+    }
+
     /// Подпись под разделом зон: сколько маршрутов уже есть и когда зоны появятся
     private var zonesFooter: String {
+        if powerSaver {
+            return "Сейчас включён режим экономии заряда: зоны на карте не рисуются. Выключите его, и зоны появятся, когда маршрутов хватит."
+        }
         let saved = ZoneBuilder.usableRouteCount(in: RouteRecorder.shared.history)
         let word = RussianPlural.form(saved, one: "маршрут", few: "маршрута", many: "маршрутов")
         let rules = "Зоны строятся по сохранённым маршрутам (хранится до \(RouteStorage.maxRoutes) последних) и пропадают вместе с ними. Вокруг замеров ничего не дорисовывается."
@@ -56,6 +81,30 @@ public struct SettingsView: View {
     public var body: some View {
         NavigationStack {
             Form {
+                // 0. Режим экономии заряда: один выключатель вместо десятка настроек
+                Section(
+                    header: Label("Экономия заряда", systemImage: "leaf.fill"),
+                    footer: Text("Включён: маршрут пишется реже и грубее (около 100 м), скорость на маршруте не замеряется, запись останавливается после 10 минут простоя; скорость и остров обновляются раз в 3–5 секунд; узлы проверяются втрое реже; виджеты и фоновые задачи iOS обновляются реже; на карте нет зон покрытия, а линий прежних маршрутов не больше 80. Выключен: всё работает как обычно.")
+                ) {
+                    Toggle(isOn: $powerSaver) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Режим экономии заряда")
+                                .font(.system(size: 15, weight: .medium))
+                            Text(powerSaver
+                                 ? "Включён: приложение работает реже и грубее, зато батарея держится дольше."
+                                 : "Выключен: всё работает в обычном режиме.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("powerSaverToggle")
+                    .onChange(of: powerSaver) { _, _ in
+                        HapticManager.shared.selectionChanged()
+                        RouteRecorder.shared.powerSaverChanged()
+                        BackgroundTelemetryKeeper.shared.rescheduleIfActive()
+                    }
+                }
+
                 // 1. Внешний вид и темы оформления
                 Section(
                     header: Label("Внешний вид и стиль", systemImage: "paintpalette.fill"),
@@ -289,12 +338,30 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Останавливать, если телефон стоит на месте")
                                 .font(.system(size: 15, weight: .medium))
-                            Text("Если 20 минут нет движения, маршрут сохраняется и запись останавливается сама: забытая запись не посадит батарею.")
+                            Text("Если \(Int(idleStopMinutes)) минут нет движения, маршрут сохраняется и запись останавливается сама: забытая запись не посадит батарею.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
                     .accessibilityIdentifier("routeAutoStopToggle")
+
+                    Toggle(isOn: Binding(
+                        get: { RouteRecorder.shared.continuesAfterClose },
+                        set: { enabled in
+                            RouteRecorder.shared.continuesAfterClose = enabled
+                            HapticManager.shared.selectionChanged()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Продолжать запись после закрытия приложения")
+                                .font(.system(size: 15, weight: .medium))
+                            Text(continueAfterCloseCaption)
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .disabled(!RouteRecorder.shared.recordsInBackground)
+                    .accessibilityIdentifier("routeContinueAfterCloseToggle")
                 }
 
                 // 5.2 Зоны покрытия: появляются на карте, когда накопится достаточно маршрутов

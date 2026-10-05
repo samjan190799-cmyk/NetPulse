@@ -25,13 +25,31 @@ public protocol LocationSessionProviding: AnyObject {
     /// Изменилось разрешение на геолокацию
     var onAuthorizationChange: (@MainActor () -> Void)? { get set }
 
+    /// Дано ли разрешение «Всегда»: только с ним iOS может сама запустить закрытое приложение
+    var hasAlwaysAuthorization: Bool { get }
+
     func requestPermission()
+    /// Просит у iOS разрешение «Всегда» (после «При использовании приложения»); нужно для продолжения записи после закрытия
+    func requestAlwaysPermission()
     /// Можно ли получать положение, пока приложение свёрнуто. Если нет, в фоне запись стоит на паузе,
     /// а значок геолокации в строке состояния не появляется.
     func setBackgroundUpdates(allowed: Bool)
+    /// Режим экономии заряда: положение грубее (около 100 м) и реже, GPS работает меньше. Действует со следующего `start()`.
+    func setPowerSaving(_ enabled: Bool)
+    /// Следить ли за значительными перемещениями (примерно от 500 м): если приложение закроют, iOS запустит его
+    /// заново, когда телефон переместится, и запись продолжится.
+    func setRelaunchOnMove(enabled: Bool)
     /// Начинает (или заново начинает) получение положения; в фоне — если это разрешено `setBackgroundUpdates`
     func start()
     func stop()
+}
+
+extension LocationSessionProviding {
+    // Источникам, которым эти возможности не нужны (в тестах), достаточно значений по умолчанию
+    public var hasAlwaysAuthorization: Bool { false }
+    public func requestAlwaysPermission() {}
+    public func setPowerSaving(_ enabled: Bool) {}
+    public func setRelaunchOnMove(enabled: Bool) {}
 }
 
 /// Настоящий источник положения на CoreLocation.
@@ -49,6 +67,7 @@ public final class CoreLocationSession: NSObject, LocationSessionProviding, @pre
     private let manager = CLLocationManager()
     private var isRunning = false
     private var allowsBackground = true
+    private var powerSaving = false
 
     public override init() {
         super.init()
@@ -70,8 +89,29 @@ public final class CoreLocationSession: NSObject, LocationSessionProviding, @pre
         }
     }
 
+    public var hasAlwaysAuthorization: Bool {
+        manager.authorizationStatus == .authorizedAlways
+    }
+
     public func requestPermission() {
         manager.requestWhenInUseAuthorization()
+    }
+
+    public func requestAlwaysPermission() {
+        manager.requestAlwaysAuthorization()
+    }
+
+    public func setPowerSaving(_ enabled: Bool) {
+        powerSaving = enabled
+    }
+
+    public func setRelaunchOnMove(enabled: Bool) {
+        guard CLLocationManager.significantLocationChangeMonitoringAvailable() else { return }
+        if enabled {
+            manager.startMonitoringSignificantLocationChanges()
+        } else {
+            manager.stopMonitoringSignificantLocationChanges()
+        }
     }
 
     public func setBackgroundUpdates(allowed: Bool) {
@@ -82,8 +122,9 @@ public final class CoreLocationSession: NSObject, LocationSessionProviding, @pre
     }
 
     public func start() {
-        // Для линии маршрута хватает десяти метров; режим «Лучшая» держит датчики на полной мощности зря
-        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        // Для линии маршрута хватает десяти метров; режим «Лучшая» держит датчики на полной мощности зря.
+        // В режиме экономии заряда требуется только около 100 м: iOS может обойтись Wi-Fi и вышками, не включая GPS.
+        manager.desiredAccuracy = powerSaving ? kCLLocationAccuracyHundredMeters : kCLLocationAccuracyNearestTenMeters
         manager.distanceFilter = kCLDistanceFilterNone
         manager.activityType = .other
         // Иначе система приостанавливает обновления, когда телефон лежит неподвижно, и запись обрывается
@@ -100,6 +141,8 @@ public final class CoreLocationSession: NSObject, LocationSessionProviding, @pre
     }
 
     public func stop() {
+        // Запись закончена или стоит на паузе: запускать приложение по перемещению больше не нужно
+        manager.stopMonitoringSignificantLocationChanges()
         guard isRunning else { return }
         manager.stopUpdatingLocation()
         manager.allowsBackgroundLocationUpdates = false

@@ -22,7 +22,10 @@ import Observation
 /// - маршруты хранятся только на этом устройстве (`RouteStorage`), никуда не отправляются и удаляются из приложения;
 /// - если запись нужно продолжить в фоне, в запросе разрешения нужно выбрать «При использовании приложения»:
 ///   вариант «Однократно» iOS отзывает вскоре после сворачивания;
-/// - закрытое смахиванием приложение не запускается само: прерванная запись восстанавливается при следующем открытии.
+/// - закрытое смахиванием приложение само не продолжит запись, пока не включено «Продолжать запись после закрытия»:
+///   с разрешением «Всегда» iOS запускает закрытое приложение, когда телефон переместился примерно на полкилометра,
+///   и запись дописывается в тот же маршрут (на нём остаётся пропуск). Без этого прерванная запись восстанавливается
+///   при следующем открытии.
 @MainActor
 @Observable
 public final class RouteRecorder {
@@ -131,9 +134,38 @@ public final class RouteRecorder {
             IslandDiagnostics.shared.log("Запись маршрута в фоне: \(recordsInBackground ? "включена" : "выключена")", .location)
             if wantsRecording {
                 session.setBackgroundUpdates(allowed: recordsInBackground)
+                session.setRelaunchOnMove(enabled: relaunchOnMoveWanted)
             }
         }
     }
+
+    private static let continueAfterCloseKey = "netpulse_route_continue_after_close"
+    /// Продолжать ли запись, если приложение закроют (смахнут). Выключено по умолчанию: нужно разрешение «Всегда»
+    /// и включённая фоновая запись (закрытое приложение работает только в фоне).
+    /// Пока идёт запись, система следит за значительными перемещениями (от ~500 м); если приложение закрыто,
+    /// при перемещении она запускает его заново, и запись дописывается в тот же маршрут (на нём будет пропуск).
+    /// Гарантий по времени нет: запуск остаётся на усмотрение iOS.
+    public var continuesAfterClose: Bool {
+        didSet {
+            defaults.set(continuesAfterClose, forKey: Self.continueAfterCloseKey)
+            guard continuesAfterClose != oldValue else { return }
+            IslandDiagnostics.shared.log("Запись маршрута после закрытия: \(continuesAfterClose ? "включена" : "выключена")", .location)
+            if continuesAfterClose, !session.hasAlwaysAuthorization {
+                session.requestAlwaysPermission()
+            }
+            if wantsRecording {
+                session.setRelaunchOnMove(enabled: relaunchOnMoveWanted)
+            }
+        }
+    }
+
+    /// Нужно ли просить iOS запустить закрытое приложение при перемещении
+    private var relaunchOnMoveWanted: Bool {
+        continuesAfterClose && recordsInBackground && session.hasAlwaysAuthorization
+    }
+
+    /// Дано ли разрешение «Всегда» (обновляется при смене разрешений)
+    public private(set) var hasAlwaysAuthorization = false
 
     private static let stopsWhenIdleKey = "netpulse_route_stop_when_idle"
     /// Останавливать ли запись, если телефон стоит на месте дольше `idleStopSeconds`. Включено по умолчанию:
@@ -163,6 +195,8 @@ public final class RouteRecorder {
     private let defaults: UserDefaults
     /// Включено ли в системе энергосбережение (в тестах подменяется)
     @ObservationIgnored private let isLowPowerMode: @MainActor () -> Bool
+    /// Включён ли режим экономии заряда в настройках приложения (в тестах подменяется)
+    @ObservationIgnored private let isPowerSaver: @MainActor () -> Bool
     /// Крутить ли цикл записи сам; тесты выключают его и вызывают `tick(now:)` по одному шагу
     private let startsLoop: Bool
     /// Запись включена: от неё зависит интерфейс (`isActive`), поэтому свойство наблюдаемое
@@ -184,7 +218,8 @@ public final class RouteRecorder {
         storage: RouteStorage,
         defaults: UserDefaults = .standard,
         startsLoop: Bool = true,
-        isLowPowerMode: @escaping @MainActor () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled }
+        isLowPowerMode: @escaping @MainActor () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled },
+        isPowerSaver: @escaping @MainActor () -> Bool = { PowerSaver.isEnabled }
     ) {
         self.session = session
         self.probe = probe
@@ -192,7 +227,10 @@ public final class RouteRecorder {
         self.defaults = defaults
         self.startsLoop = startsLoop
         self.isLowPowerMode = isLowPowerMode
+        self.isPowerSaver = isPowerSaver
         self.measuresSpeed = defaults.bool(forKey: Self.measureSpeedKey)
+        self.continuesAfterClose = defaults.bool(forKey: Self.continueAfterCloseKey)
+        self.hasAlwaysAuthorization = session.hasAlwaysAuthorization
         self.recordsInBackground = (defaults.object(forKey: Self.backgroundKey) as? Bool) ?? true
         self.stopsWhenIdle = (defaults.object(forKey: Self.stopsWhenIdleKey) as? Bool) ?? true
 
@@ -233,7 +271,7 @@ public final class RouteRecorder {
         wantsRecording = true
         pausedInBackground = false
         lastMovementAt = now
-        current = RouteRecord(startedAt: now, measuredSpeed: measuresSpeed)
+        current = RouteRecord(startedAt: now, measuredSpeed: measuresSpeed && powerProfile.measuresSpeedOnRoute)
         recordingSince = now
         IslandDiagnostics.shared.log("Запись маршрута начата", .location)
         applyDesiredState()
@@ -285,9 +323,23 @@ public final class RouteRecorder {
         applyDesiredState()
     }
 
-    /// Правила записи сейчас: в фоне и при энергосбережении — экономные
+    /// Что в режиме экономии заряда ослаблено: таблица значений лежит в `PowerProfile`
+    private var powerProfile: PowerProfile {
+        isPowerSaver() ? .saver : .normal
+    }
+
+    /// Правила записи сейчас: в режиме экономии заряда — самые редкие, в фоне и при энергосбережении iOS — экономные
     private var activePolicy: RouteSamplingPolicy {
-        (isInBackground || isLowPowerMode()) ? .economy : .standard
+        if isPowerSaver() { return .saver }
+        return (isInBackground || isLowPowerMode()) ? .economy : .standard
+    }
+
+    /// Выключатель режима экономии в настройках сменился: запись, если она идёт, перезапускает геолокацию с новой
+    /// точностью. Правила записи и замер скорости читают выключатель сами при каждом шаге.
+    public func powerSaverChanged() {
+        IslandDiagnostics.shared.log("Режим экономии заряда: \(isPowerSaver() ? "включён" : "выключен")", .location)
+        guard wantsRecording else { return }
+        applyDesiredState()
     }
 
     /// Учитывает паузу приложения в фоне, если она случилась во время записи
@@ -306,7 +358,8 @@ public final class RouteRecorder {
     /// Обстоятельства для записи о паузе в журнале
     public func diagnosticContext() -> String {
         let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled ? "вкл" : "выкл"
-        return "Запись маршрута: \(summaryDescription); фоновая запись: \(recordsInBackground ? "вкл" : "выкл"); энергосбережение: \(lowPower)."
+        let saver = isPowerSaver() ? "вкл" : "выкл"
+        return "Запись маршрута: \(summaryDescription); фоновая запись: \(recordsInBackground ? "вкл" : "выкл"); после закрытия: \(continuesAfterClose ? "вкл" : "выкл"); энергосбережение iOS: \(lowPower); экономия заряда: \(saver)."
     }
 
     // MARK: - История
@@ -339,7 +392,10 @@ public final class RouteRecorder {
     /// Подбирает запись, которую оборвала система (например, приложение закрыли посреди маршрута):
     /// она сохраняется как прерванный маршрут, а не пропадает.
     public func recoverInterruptedRoute() async {
-        guard !wantsRecording, var record = await storage.loadActive() else { return }
+        guard !wantsRecording else { return }
+        // Приложение открыли сами, записи нет: подписка iOS на перемещения от прежней записи больше не нужна
+        session.setRelaunchOnMove(enabled: false)
+        guard var record = await storage.loadActive() else { return }
         // Пока читался файл, пользователь мог начать новую запись: её не трогаем
         guard !wantsRecording else { return }
 
@@ -354,6 +410,41 @@ public final class RouteRecorder {
         history = await storage.loadAll()
     }
 
+    /// Приложение запущено системой из-за перемещения, то есть после закрытия. Если запись шла и пользователь
+    /// разрешил продолжать, она дописывается в тот же маршрут: между закрытием и запуском на нём остаётся пропуск
+    /// (линия через него не проводится). Возвращает, продолжилась ли запись.
+    @discardableResult
+    public func resumeAfterRelaunch() async -> Bool {
+        guard !wantsRecording else { return false }
+        let allowed = continuesAfterClose && recordsInBackground
+            && session.hasAlwaysAuthorization && session.authorization == .authorized
+        // Пока читается файл, пользователь мог открыть приложение и начать новую запись: её не трогаем
+        guard allowed, let record = await storage.loadActive(), !wantsRecording else {
+            // Продолжать нечего или нельзя: пусть iOS больше не запускает приложение по перемещению
+            if !wantsRecording {
+                session.setRelaunchOnMove(enabled: false)
+            }
+            return false
+        }
+
+        var resumed = record
+        resumed.interrupted = false
+        let now = Date()
+        current = resumed
+        recordingSince = resumed.startedAt
+        wantsRecording = true
+        pausedInBackground = false
+        isInBackground = true
+        latestFix = nil
+        lastSpeedProbeAt = .distantPast
+        lastPersistAt = .distantPast
+        lastMovementAt = now
+        notice = "Запись продолжена после закрытия приложения: на маршруте есть пропуск."
+        IslandDiagnostics.shared.log("Запись маршрута продолжена после закрытия приложения (\(record.points.count) точек до перерыва)", .location)
+        applyDesiredState()
+        return true
+    }
+
     // MARK: - Источник положения и разрешения
 
     func receive(_ fix: LocationFix) {
@@ -362,6 +453,7 @@ public final class RouteRecorder {
     }
 
     private func authorizationChanged() {
+        hasAlwaysAuthorization = session.hasAlwaysAuthorization
         if wantsRecording {
             applyDesiredState()
         }
@@ -392,7 +484,10 @@ public final class RouteRecorder {
             session.requestPermission()
         case .authorized:
             session.setBackgroundUpdates(allowed: recordsInBackground)
+            session.setPowerSaving(isPowerSaver())
             session.start()
+            // «Всегда» и значительные перемещения нужны только для продолжения записи после закрытия приложения
+            session.setRelaunchOnMove(enabled: relaunchOnMoveWanted)
             state = .recording
             startLoopIfNeeded()
         case .restricted:
@@ -449,8 +544,9 @@ public final class RouteRecorder {
         if isInBackground, !recordsInBackground { return }
 
         // Телефон давно стоит на месте — запись остановится сама, чтобы не разряжать батарею впустую
-        if stopsWhenIdle, now.timeIntervalSince(lastMovementAt) >= Self.idleStopSeconds {
-            notice = "Запись остановлена: телефон простоял на месте \(Int(Self.idleStopSeconds / 60)) минут. Так тратится меньше заряда; отключить это можно в настройках."
+        let idleLimit = powerProfile.routeIdleStopSeconds
+        if stopsWhenIdle, now.timeIntervalSince(lastMovementAt) >= idleLimit {
+            notice = "Запись остановлена: телефон простоял на месте \(Int(idleLimit / 60)) минут. Так тратится меньше заряда; отключить это можно в настройках."
             IslandDiagnostics.shared.log("Запись маршрута остановлена: телефон долго стоит на месте", .location)
             stop()
             return
@@ -459,7 +555,10 @@ public final class RouteRecorder {
         let policy = activePolicy
         switch policy.decide(lastPoint: current?.points.last, fix: latestFix, now: now) {
         case .skipNoFix:
-            progressLine = "Ждём сигнал GPS…"
+            // В режиме экономии заряда положение грубое и приходит редко: у стоящего телефона новых данных может не быть
+            progressLine = (isPowerSaver() && latestFix != nil)
+                ? "Новых данных о положении нет. В режиме экономии заряда это нормально, если телефон стоит на месте."
+                : "Ждём сигнал GPS…"
             return
         case .skipPoorAccuracy:
             // Причина бывает и в слабом сигнале, и в выключенном «Точном местоположении» (тогда точность — километры)
@@ -473,7 +572,9 @@ public final class RouteRecorder {
         }
         guard let fix = latestFix else { return }
 
-        let wantsSpeed = measuresSpeed && now.timeIntervalSince(lastSpeedProbeAt) >= Self.speedProbeInterval
+        // В режиме экономии заряда скорость на маршруте не замеряется: это скачивание до 1,5 МБ каждые 30 секунд
+        let wantsSpeed = measuresSpeed && powerProfile.measuresSpeedOnRoute
+            && now.timeIntervalSince(lastSpeedProbeAt) >= Self.speedProbeInterval
         if wantsSpeed {
             lastSpeedProbeAt = now
         }

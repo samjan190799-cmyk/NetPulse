@@ -455,7 +455,8 @@ public final class NetworkMonitorViewModel {
         if liveActivityEnabled || backgroundMonitoringEnabled || floatingHUDEnabled {
             let isStale: Bool
             if let lastUpdate = lastLiveActivityUpdateDate {
-                isStale = Date().timeIntervalSince(lastUpdate) > 5.0
+                // Порог растёт вместе с паузой цикла: в режиме экономии заряда цикл ждёт дольше
+                isStale = Date().timeIntervalSince(lastUpdate) > PowerProfile.current.islandLoopStaleSeconds
             } else {
                 isStale = true
             }
@@ -628,12 +629,18 @@ public final class NetworkMonitorViewModel {
 
     /// Следит за ровностью цикла обновления: пауза между тиками означает, что код не выполнялся.
     /// В фоне это значит, что iOS приостановила приложение, и именно поэтому остров замирает.
-    private func observeLoopTick(now: Date, previousTickAt: Date, previousWasBackground: Bool, isBackground: Bool) {
+    private func observeLoopTick(
+        now: Date,
+        previousTickAt: Date,
+        previousWasBackground: Bool,
+        isBackground: Bool,
+        expectedPause: TimeInterval = 1
+    ) {
         let journal = IslandDiagnostics.shared
         journal.heartbeat(isBackground: isBackground, now: now)
 
         let gap = now.timeIntervalSince(previousTickAt)
-        switch LoopTiming.classify(gap: gap, previousTickWasBackground: previousWasBackground) {
+        switch LoopTiming.classify(gap: gap, previousTickWasBackground: previousWasBackground, expectedPause: expectedPause) {
         case .normal:
             break
         case .suspendedInBackground(let seconds):
@@ -663,6 +670,8 @@ public final class NetworkMonitorViewModel {
             var loopCount = 0
             var lastTickAt = Date()
             var lastTickWasBackground = UIApplication.shared.applicationState == .background
+            // Какой паузы после прошлого шага ждём: в режиме экономии заряда она длиннее, и это не «остановка»
+            var expectedPause: TimeInterval = 1
             defer {
                 // Гарантированная очистка ссылки при любом завершении цикла — позволяет перезапуск
                 Task { @MainActor [weak self] in
@@ -686,7 +695,8 @@ public final class NetworkMonitorViewModel {
                     now: tickStartedAt,
                     previousTickAt: lastTickAt,
                     previousWasBackground: lastTickWasBackground,
-                    isBackground: isAppInBackground
+                    isBackground: isAppInBackground,
+                    expectedPause: expectedPause
                 )
                 lastTickAt = tickStartedAt
                 lastTickWasBackground = isAppInBackground
@@ -765,8 +775,10 @@ public final class NetworkMonitorViewModel {
                     }
                 }
 
-                // Строгий такт 1.0 секунда: непрерывное обновление Dynamic Island без замирания
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // Такт 1 секунда: непрерывное обновление Dynamic Island без замирания. В режиме экономии заряда такт
+                // 3 секунды при открытом приложении и 5 секунд в фоне (скорость считается по реальному времени между шагами).
+                expectedPause = PowerProfile.current.speedLoopPause(isBackground: isAppInBackground)
+                try? await Task.sleep(nanoseconds: UInt64(expectedPause * 1_000_000_000))
             }
         }
     }
@@ -781,7 +793,7 @@ public final class NetworkMonitorViewModel {
                 if UIApplication.shared.applicationState == .active {
                     await self.pollAllHosts()
                     // Пауза берётся из настроек (раньше значение в «Интервал проверки» нигде не использовалось)
-                    let pause = max(1.0, self.pollingInterval)
+                    let pause = max(1.0, self.pollingInterval) * PowerProfile.current.hostCheckSlowdown
                     try? await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000))
                 } else {
                     // В фоновом режиме сетевой пинг полностью приостанавливается для защиты от нагрева и разряда батареи
@@ -798,7 +810,8 @@ public final class NetworkMonitorViewModel {
                 guard let self = self, self.isMonitoringActive else { break }
                 let info = await self.diagnostics.collectSystemInfo()
                 self.systemInfo = info
-                try? await Task.sleep(nanoseconds: 20_000_000_000) // каждые 20 секунд
+                // Каждые 20 секунд, в режиме экономии заряда — раз в минуту
+                try? await Task.sleep(nanoseconds: UInt64(PowerProfile.current.networkInfoIntervalSeconds * 1_000_000_000))
             }
         }
     }
@@ -1387,6 +1400,9 @@ public final class NetworkMonitorViewModel {
         return max(score, 10)
     }
 
+    /// Когда виджеты просили перерисоваться в последний раз (для ограничения частоты в режиме экономии заряда)
+    @ObservationIgnored private var lastWidgetReloadAt = Date.distantPast
+
     /// Синхронизация снимка сетевых показателей с домашними виджетами и экраном блокировки
     public func syncWidgetData(reloadTimelines: Bool = false) {
         // В виджет попадают только узлы, которые реально проверялись; «нет данных» не рисуется как «онлайн»
@@ -1417,7 +1433,11 @@ public final class NetworkMonitorViewModel {
             lastUpdated: Date()
         )
 
-        WidgetDataManager.shared.saveSnapshot(widgetData, reloadTimelines: reloadTimelines)
+        // Данные для виджетов сохраняются всегда, а перерисовка (она тратит заряд) — не чаще, чем разрешает профиль
+        let now = Date()
+        let reload = reloadTimelines && PowerProfile.current.allowsWidgetReload(elapsed: now.timeIntervalSince(lastWidgetReloadAt))
+        if reload { lastWidgetReloadAt = now }
+        WidgetDataManager.shared.saveSnapshot(widgetData, reloadTimelines: reload)
     }
 
     // MARK: - Traceroute (MTR)

@@ -32,7 +32,7 @@ struct HomeMapLayer: View {
     let showsUserDot: Bool
     let satellite: Bool
     /// Зоны покрытия по накопленным маршрутам (лежат под всеми линиями), только в обычном режиме
-    let zones: [CoverageZone]
+    let coverageZones: [CoverageZone]
     /// Линии прежних маршрутов (в порядке рисования), только в обычном режиме
     let previousRoutes: [CoverageRun]
     /// Метки «Старт» и «Финиш»: в обычном режиме они только мешают (могут уехать под строку состояния)
@@ -66,7 +66,7 @@ struct HomeMapLayer: View {
     var body: some View {
         let points = route?.points ?? []
         let segments = RouteAnalyzer.segments(for: points, metric: metric)
-        let zones = RouteAnalyzer.deadZones(in: points)
+        let deadZones = RouteAnalyzer.deadZones(in: points)
         let first = points.first
         let last = points.last
 
@@ -78,7 +78,7 @@ struct HomeMapLayer: View {
             }
 
             // Зоны покрытия: цветные клетки там, где вы бывали не раз; лежат под линиями и не закрывают названия улиц
-            ForEach(zones) { zone in
+            ForEach(coverageZones) { zone in
                 MapPolygon(coordinates: coordinates(of: zone.corners))
                     .foregroundStyle(zone.quality.displayColor.opacity(0.28))
                     .stroke(zone.quality.displayColor.opacity(0.5), lineWidth: 1)
@@ -104,7 +104,7 @@ struct HomeMapLayer: View {
                     .stroke(segment.quality.displayColor, style: lineStyle(width: 5.5, quality: segment.quality))
             }
 
-            ForEach(zones) { zone in
+            ForEach(deadZones) { zone in
                 Annotation("Нет сети", coordinate: CLLocationCoordinate2D(latitude: zone.center.latitude, longitude: zone.center.longitude)) {
                     deadZoneMarker
                 }

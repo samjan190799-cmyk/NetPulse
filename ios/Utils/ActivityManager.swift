@@ -486,6 +486,11 @@ public final class ActivityManager {
             }
         }
 
+        // Режим экономии заряда: кадры острова не чаще, чем разрешает профиль (скорость в нём всё равно меняется
+        // каждую секунду, а каждая отправка будит систему). Кадры «по запросу» (force) проходят всегда.
+        let sinceLastFrame = lastRenderedAt.map { Date().timeIntervalSince($0) }
+        guard PowerProfile.current.allowsIslandFrame(elapsed: sinceLastFrame, force: force) else { return }
+
         pipeline.submit(state, send: makeSender(for: activity))
     }
 

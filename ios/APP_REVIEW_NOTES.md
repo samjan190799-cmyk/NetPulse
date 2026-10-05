@@ -31,6 +31,19 @@ User control and transparency:
   data stays on the device.
 - Data stays on the device: routes are stored in the app's Application Support directory, excluded from
   backups, never uploaded; the user can delete one route or all routes in the app. No account, no server.
+- Settings → "Запись маршрута" (Route recording): "Записывать маршрут в фоне" (record in the background; on by
+  default; when off, the app uses no location in the background and recording simply waits until the user returns),
+  an automatic stop after 20 minutes without movement (on by default), and "Продолжать запись после закрытия
+  приложения" (continue recording after the app is closed), OFF by default.
+- Only if the user turns that last switch on, the app also asks for "Always" location access (the purpose string
+  says: to keep recording the route if the app is closed; the data stays on the device). Then, WHILE a route is being
+  recorded and never otherwise, the app uses significant-location-change monitoring: if the user swipes the app away,
+  iOS may relaunch it in the background after the phone has moved about 500 m, and the recording continues in the
+  same route (the gap is not drawn as a line). Nothing else is done on that launch; the monitoring stops when the
+  recording stops or the user opens the app. Without the switch the app never asks for "Always".
+- Settings → "Экономия заряда" (Battery saver; off by default): one switch that makes the app work less often (coarser
+  location of about 100 m, fewer route points, no speed sampling on routes, slower Dynamic Island and widget updates,
+  no coverage zones). It does not add any data collection.
 - All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
   Nothing is gated behind location.
 
@@ -88,5 +101,7 @@ The app's interface is in Russian.
 6. **Проверка на устройстве перед отправкой:** значок геолокации в строке состояния во время записи; запись продолжается при заблокированном экране и в другом приложении; «Остановить и сохранить» сохраняет маршрут; в запросе разрешения видны все кнопки (в том числе «При использовании приложения»); «Удалить все» стирает маршруты.
 7. **Скриншоты для App Store:** карта с маршрутом (в развёрнутой панели кнопка «Показать пример маршрута» рисует демо-маршрут с пометкой «Пример · демо-данные» — в скриншоте для магазина лучше использовать настоящую запись).
 8. **Фоновая запись.** Фоновая геолокация включается только записью, которую начал сам пользователь. В «Настройки → Запись маршрута» есть тумблер «Записывать маршрут в фоне» (по умолчанию включён; выключенный — свёрнутое приложение не получает геолокацию и значок в строке состояния не появляется) и тумблер автоостановки: через 20 минут без движения маршрут сохраняется, запись останавливается.
+   **Запись после закрытия приложения** — отдельный тумблер «Продолжать запись после закрытия приложения» (по умолчанию выключен). Включённый, он просит доступ «Всегда» (текст запроса в `NSLocationAlwaysAndWhenInUseUsageDescription`) и, пока идёт запись, включает слежение за значительными перемещениями: iOS может запустить закрытое приложение, и запись продолжится в том же маршруте. Это единственное место, где нужен «Всегда»; без тумблера приложение его не просит. Рецензент может спросить, зачем «Всегда»: ответ уже есть в тексте Notes (только пока идёт запись, только по желанию пользователя, ничего другого при запуске не делается). Если Apple откажет именно из-за «Всегда», уберите тумблер и ключ `NSLocationAlwaysAndWhenInUseUsageDescription`, остальное можно оставить.
+   **Режим экономии заряда** («Настройки», первый раздел, по умолчанию выключен) не добавляет сбора данных: он только ослабляет работу приложения. В описание для ревью его вносить не обязательно, но он упомянут в Notes.
 9. **Манифест приватности.** В проекте нет `PrivacyInfo.xcprivacy`, хотя приложение использует API, требующие объявления причины (например, `UserDefaults`, отметки времени файлов). При загрузке в App Store Connect могут прийти замечания `ITMS-91053`. Это отдельная задача: нужно добавить манифест приложения и убедиться, что SDK приносят свои.
 10. **Если ревью отклонит запись маршрута** — убрать `location` из `UIBackgroundModes` и экран записи в магазинной сборке (функции в сборке просто не будет), а не прятать её. Остров продолжит обновляться, пока приложение открыто, и покажет «паузу» в фоне.

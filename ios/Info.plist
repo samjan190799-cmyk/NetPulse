@@ -62,6 +62,8 @@
     <string>NetPulse использует доступ к локальной сети, чтобы найти устройства в вашей Wi-Fi сети и проверить их открытые порты.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Чтобы записывать маршрут и показывать на карте, где сеть была быстрой, медленной или пропадала. Данные остаются на устройстве.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Чтобы запись маршрута продолжалась, если вы закроете приложение. Данные остаются на устройстве.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>

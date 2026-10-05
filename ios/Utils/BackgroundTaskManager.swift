@@ -44,9 +44,11 @@ public final class BackgroundTaskManager: @unchecked Sendable {
 
     /// Планирование следующего цикла фонового пробуждения системы
     public func scheduleBackgroundFetch() {
+        // В режиме экономии заряда систему просят будить приложение реже (по умолчанию: 15 и 30 минут)
+        let profile = PowerProfile.current
         // Планирование App Refresh (минимум через 15 минут)
         let refreshRequest = BGAppRefreshTaskRequest(identifier: Self.refreshTaskId)
-        refreshRequest.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        refreshRequest.earliestBeginDate = Date(timeIntervalSinceNow: profile.backgroundRefreshMinutes * 60)
 
         do {
             try BGTaskScheduler.shared.submit(refreshRequest)
@@ -57,7 +59,7 @@ public final class BackgroundTaskManager: @unchecked Sendable {
 
         // Планирование Processing Task (минимум через 30 минут)
         let processingRequest = BGProcessingTaskRequest(identifier: Self.telemetryTaskId)
-        processingRequest.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
+        processingRequest.earliestBeginDate = Date(timeIntervalSinceNow: profile.backgroundProcessingMinutes * 60)
         processingRequest.requiresNetworkConnectivity = false
         processingRequest.requiresExternalPower = false
 

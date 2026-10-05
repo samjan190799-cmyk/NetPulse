@@ -6,9 +6,28 @@
 //
 
 import SwiftUI
+import UIKit
+
+/// Делегат нужен ради одного: узнать, что iOS запустила закрытое приложение из-за перемещения телефона
+/// (ключ `location` в параметрах запуска), и дописать идущий маршрут. Окон при таком запуске нет: приложение
+/// работает в фоне, пока идёт запись.
+final class NetPulseAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        if launchOptions?[.location] != nil {
+            Task { @MainActor in
+                await RouteRecorder.shared.resumeAfterRelaunch()
+            }
+        }
+        return true
+    }
+}
 
 @main
 struct NetPulseApp: App {
+    @UIApplicationDelegateAdaptor(NetPulseAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
     init() {

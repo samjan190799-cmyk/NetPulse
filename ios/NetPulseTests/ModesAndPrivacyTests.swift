@@ -55,6 +55,15 @@ final class RouteRecorderStateTests: XCTestCase {
         XCTAssertLessThanOrEqual(purpose.count, 140, "Текст запроса геолокации слишком длинный (\(purpose.count) символов): кнопки не поместятся в окне")
     }
 
+    /// «Всегда» нужно только для продолжения записи после закрытия приложения. Без текста запроса iOS не покажет окно,
+    /// а App Review не примет сборку: текст должен объяснять, зачем доступ, и тоже умещаться в окно.
+    func testInfoPlistExplainsAlwaysLocationAccess() {
+        let purpose = Bundle.main.object(forInfoDictionaryKey: "NSLocationAlwaysAndWhenInUseUsageDescription") as? String ?? ""
+        XCTAssertFalse(purpose.isEmpty, "В Info.plist нет NSLocationAlwaysAndWhenInUseUsageDescription: запрос «Всегда» не откроется")
+        XCTAssertLessThanOrEqual(purpose.count, 140, "Текст запроса «Всегда» слишком длинный (\(purpose.count) символов)")
+        XCTAssertTrue(purpose.contains("закро"), "Текст должен говорить, зачем нужен доступ: запись после закрытия приложения")
+    }
+
     /// Аудио-режим убран из-за правила App Store 2.5.4 и не должен вернуться незаметно.
     func testInfoPlistHasNoAudioBackgroundMode() {
         let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []

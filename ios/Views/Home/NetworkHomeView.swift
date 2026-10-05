@@ -47,6 +47,8 @@ public struct NetworkHomeView: View {
     /// Зоны покрытия по накопленным маршрутам: включаются в Настройках, рисуются, когда данных достаточно
     @AppStorage("netpulse_map_zones") private var zonesOn = true
     @State private var zoneLayer = CoverageZoneLayer()
+    /// Режим экономии заряда: без зон покрытия и с меньшим числом линий прежних маршрутов
+    @AppStorage(PowerSaver.defaultsKey) private var powerSaver = false
 
     private var recorder: RouteRecorder {
         RouteRecorder.shared
@@ -113,8 +115,13 @@ public struct NetworkHomeView: View {
 
     /// Последний маршрут нарисован отдельно (толстой линией), остальные — тонкими; зоны считаются по всем маршрутам
     private func refreshCoverage() {
-        coverageRuns = CoverageBuilder.runs(from: Array(recorder.history.dropFirst()), metric: metric)
-        zoneLayer.refresh(routes: recorder.history, metric: metric, enabled: zonesOn)
+        let profile = PowerProfile.current
+        coverageRuns = CoverageBuilder.runs(
+            from: Array(recorder.history.dropFirst()),
+            metric: metric,
+            maxRuns: profile.previousLineLimit
+        )
+        zoneLayer.refresh(routes: recorder.history, metric: metric, enabled: zonesOn && profile.showsZones)
     }
 
     // MARK: - Экран
@@ -133,7 +140,7 @@ public struct NetworkHomeView: View {
                             isLive: recorder.current != nil,
                             showsUserDot: !isRouteMode,
                             satellite: satellite,
-                            zones: mode == .idle ? zoneLayer.zones : [],
+                            coverageZones: mode == .idle ? zoneLayer.zones : [],
                             previousRoutes: mode == .idle && coverageOn ? coverageRuns : [],
                             showsEndpoints: mode != .idle,
                             camera: $camera
@@ -192,6 +199,9 @@ public struct NetworkHomeView: View {
                 refreshCoverage()
             }
             .onChange(of: zonesOn) { _, _ in
+                refreshCoverage()
+            }
+            .onChange(of: powerSaver) { _, _ in
                 refreshCoverage()
             }
             .onChange(of: recorder.isActive) { _, active in

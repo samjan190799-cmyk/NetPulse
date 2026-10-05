@@ -534,6 +534,26 @@ public struct RouteSamplingPolicy: Sendable, Equatable {
         return policy
     }()
 
+    /// Режим экономии заряда (выключатель в настройках): точки ещё реже, а требования к точности мягче, потому что
+    /// и сама геолокация в этом режиме грубее (около 100 м). Маршрут получается приблизительным, зато GPS работает меньше.
+    /// Пауза «на месте» остаётся 60 секунд: с шагом проверки 15 секунд между двумя точками проходит не больше ~81 секунды,
+    /// то есть меньше `RouteAnalyzer.maxGapSeconds`, и линия маршрута не рвётся там, где телефон просто стоял.
+    public static let saver: RouteSamplingPolicy = {
+        var policy = RouteSamplingPolicy()
+        policy.tickInterval = 15
+        policy.stationaryInterval = 60
+        policy.minMoveMeters = 50
+        policy.maxAccuracyMeters = 150
+        policy.maxFixAge = 90
+        return policy
+    }()
+
+    /// Самое долгое время между двумя записанными точками, пока телефон стоит на месте: пауза «на месте» плюс один шаг
+    /// проверки с допуском 40 % (так цикл записи усыпляет себя между шагами).
+    public var worstCaseStationaryGap: TimeInterval {
+        stationaryInterval + tickInterval * 1.4
+    }
+
     public func decide(lastPoint: RoutePoint?, fix: LocationFix?, now: Date) -> Decision {
         guard let fix, now.timeIntervalSince(fix.timestamp) <= maxFixAge else { return .skipNoFix }
         guard fix.horizontalAccuracy >= 0, fix.horizontalAccuracy <= maxAccuracyMeters else { return .skipPoorAccuracy }

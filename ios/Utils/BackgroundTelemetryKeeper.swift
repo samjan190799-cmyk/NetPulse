@@ -34,6 +34,17 @@ public final class BackgroundTelemetryKeeper: NSObject, @unchecked Sendable {
         BackgroundTaskManager.shared.scheduleBackgroundFetch()
     }
 
+    /// Режим экономии заряда включили или выключили: уже запрошенные запуски пересчитываются под новые сроки
+    /// (новая заявка с тем же идентификатором заменяет прежнюю)
+    public func rescheduleIfActive() {
+        lock.lock()
+        let active = isScheduled
+        lock.unlock()
+
+        guard active else { return }
+        BackgroundTaskManager.shared.scheduleBackgroundFetch()
+    }
+
     /// Отмена запланированных фоновых запусков
     public func stopKeepAlive() {
         lock.lock()

@@ -17,20 +17,34 @@ private final class FakeLocationSession: LocationSessionProviding {
     var onFix: (@MainActor (LocationFix) -> Void)?
     var onAuthorizationChange: (@MainActor () -> Void)?
 
+    /// Дано ли разрешение «Всегда»: тест выставляет сам
+    var hasAlwaysAuthorization = false
+
     private(set) var permissionRequests = 0
+    private(set) var alwaysRequests = 0
     private(set) var startCount = 0
     private(set) var stopCount = 0
     /// Все значения, с которыми запись просила разрешить или запретить фон
     private(set) var backgroundAllowed: [Bool] = []
+    /// Все значения режима экономии заряда, которые запись передала источнику
+    private(set) var powerSavingValues: [Bool] = []
+    /// Следит ли источник за значительными перемещениями (как настоящий: остановка источника это выключает)
+    private(set) var watchingMoves = false
 
     init(authorization: LocationAuthorization) {
         self.authorization = authorization
     }
 
     func requestPermission() { permissionRequests += 1 }
+    func requestAlwaysPermission() { alwaysRequests += 1 }
     func setBackgroundUpdates(allowed: Bool) { backgroundAllowed.append(allowed) }
+    func setPowerSaving(_ enabled: Bool) { powerSavingValues.append(enabled) }
+    func setRelaunchOnMove(enabled: Bool) { watchingMoves = enabled }
     func start() { startCount += 1 }
-    func stop() { stopCount += 1 }
+    func stop() {
+        stopCount += 1
+        watchingMoves = false
+    }
 
     func changeAuthorization(to value: LocationAuthorization) {
         authorization = value
@@ -70,6 +84,12 @@ private final class LowPowerFlag {
     var isOn = false
 }
 
+/// Переключатель «включён режим экономии заряда» для теста
+@MainActor
+private final class PowerSaverFlag {
+    var isOn = false
+}
+
 /// Всё, что нужно тесту записи маршрута, в одном месте
 @MainActor
 private struct Rig {
@@ -80,11 +100,13 @@ private struct Rig {
     let directory: URL
     let defaults: UserDefaults
     let lowPower: LowPowerFlag
+    let powerSaver: PowerSaverFlag
 }
 
 @MainActor
 private func makeRig(
     authorization: LocationAuthorization,
+    alwaysGranted: Bool = false,
     probe: FakeProbe = FakeProbe(),
     directory: URL? = nil,
     defaults existingDefaults: UserDefaults? = nil
@@ -101,17 +123,20 @@ private func makeRig(
     }
 
     let session = FakeLocationSession(authorization: authorization)
+    session.hasAlwaysAuthorization = alwaysGranted
     let storage = RouteStorage(directory: dir)
     let lowPower = LowPowerFlag()
+    let powerSaver = PowerSaverFlag()
     let recorder = RouteRecorder(
         session: session,
         probe: probe,
         storage: storage,
         defaults: defaults,
         startsLoop: false,
-        isLowPowerMode: { lowPower.isOn }
+        isLowPowerMode: { lowPower.isOn },
+        isPowerSaver: { powerSaver.isOn }
     )
-    return Rig(recorder: recorder, session: session, probe: probe, storage: storage, directory: dir, defaults: defaults, lowPower: lowPower)
+    return Rig(recorder: recorder, session: session, probe: probe, storage: storage, directory: dir, defaults: defaults, lowPower: lowPower, powerSaver: powerSaver)
 }
 
 private func fix(_ latitude: Double, at time: Date, accuracy: Double = 5) -> LocationFix {
@@ -652,6 +677,511 @@ final class RouteRecorderBatteryTests: XCTestCase {
         XCTAssertTrue(rig.recorder.diagnosticContext().contains("фоновая запись: вкл"))
         rig.recorder.recordsInBackground = false
         XCTAssertTrue(rig.recorder.diagnosticContext().contains("фоновая запись: выкл"))
+    }
+}
+
+// MARK: - Режим экономии заряда
+
+final class RouteRecorderPowerSaverTests: XCTestCase {
+    /// Широта, на которую сдвигается телефон на ~20 м
+    private let twentyMeters = 0.00018
+
+    @MainActor
+    func testSessionIsToldWhetherPowerSavingIsOn() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        rig.recorder.start()
+        XCTAssertEqual(rig.session.powerSavingValues.last, false, "Без режима экономии геолокация работает как раньше")
+
+        rig.powerSaver.isOn = true
+        let startsBefore = rig.session.startCount
+        rig.recorder.powerSaverChanged()
+        XCTAssertEqual(rig.session.powerSavingValues.last, true)
+        XCTAssertGreaterThan(rig.session.startCount, startsBefore, "Геолокация перезапускается с новой точностью")
+
+        rig.powerSaver.isOn = false
+        rig.recorder.powerSaverChanged()
+        XCTAssertEqual(rig.session.powerSavingValues.last, false)
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testSwitchingPowerSaverWithoutRecordingTouchesNothing() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        rig.powerSaver.isOn = true
+        rig.recorder.powerSaverChanged()
+
+        XCTAssertEqual(rig.session.startCount, 0, "Записи нет: геолокацию запускать незачем")
+        XCTAssertTrue(rig.session.powerSavingValues.isEmpty)
+        XCTAssertFalse(rig.recorder.isActive)
+    }
+
+    @MainActor
+    func testSaverWritesPointsLessOftenThanTheStandardMode() async throws {
+        // 20 м за 5 секунд: обычный режим пишет точку, режим экономии (порог 50 м) ещё нет
+        func pointsAfterShortMove(saver: Bool) async throws -> Int {
+            let rig = try makeRig(authorization: .authorized)
+            defer { try? FileManager.default.removeItem(at: rig.directory) }
+            rig.powerSaver.isOn = saver
+            rig.recorder.start()
+            let t0 = Date()
+            rig.session.emit(fix(55.0, at: t0))
+            await rig.recorder.tick(now: t0)
+            let t1 = t0.addingTimeInterval(5)
+            rig.session.emit(fix(55.0 + twentyMeters, at: t1))
+            await rig.recorder.tick(now: t1)
+            let count = rig.recorder.pointCount
+            rig.recorder.stop()
+            return count
+        }
+
+        let standard = try await pointsAfterShortMove(saver: false)
+        let saver = try await pointsAfterShortMove(saver: true)
+
+        XCTAssertEqual(standard, 2)
+        XCTAssertEqual(saver, 1, "В режиме экономии 20 м ещё не движение")
+    }
+
+    @MainActor
+    func testSaverStillFollowsRealMovement() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.powerSaver.isOn = true
+
+        rig.recorder.start()
+        var now = Date()
+        var latitude = 55.0
+        // Около 80 м за шаг проверки (15 секунд): телефон едет, значит, каждая проверка добавляет точку
+        for _ in 0..<5 {
+            rig.session.emit(fix(latitude, at: now))
+            await rig.recorder.tick(now: now)
+            latitude += twentyMeters * 4
+            now = now.addingTimeInterval(15)
+        }
+
+        XCTAssertEqual(rig.recorder.pointCount, 5, "Пока телефон движется, режим экономии маршрут не теряет")
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testStandingPhoneGetsOnePointPerMinuteInSaverMode() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.powerSaver.isOn = true
+
+        rig.recorder.start()
+        let t0 = Date()
+        rig.session.emit(fix(55.0, at: t0))
+        await rig.recorder.tick(now: t0)
+
+        // Шаг проверки 15 секунд: на 15, 30 и 45-й секундах точка не нужна, на 60-й нужна, на 75 и 90-й снова нет
+        for step in 1...6 {
+            let time = t0.addingTimeInterval(Double(step) * 15)
+            rig.session.emit(fix(55.0, at: time))
+            await rig.recorder.tick(now: time)
+        }
+
+        XCTAssertEqual(rig.recorder.pointCount, 2)
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testSaverDoesNotMeasureSpeedOnTheRoute() async throws {
+        func speedRequests(saver: Bool) async throws -> Int {
+            let rig = try makeRig(authorization: .authorized)
+            defer { try? FileManager.default.removeItem(at: rig.directory) }
+            rig.recorder.measuresSpeed = true
+            rig.powerSaver.isOn = saver
+            rig.recorder.start()
+            let now = Date()
+            rig.session.emit(fix(55.0, at: now))
+            await rig.recorder.tick(now: now)
+            let requests = await rig.probe.speedRequests
+            rig.recorder.stop()
+            return requests
+        }
+
+        let normal = try await speedRequests(saver: false)
+        let saver = try await speedRequests(saver: true)
+
+        XCTAssertEqual(normal, 1, "Замер скорости включён: на первой точке скорость измеряется")
+        XCTAssertEqual(saver, 0, "В режиме экономии скорость не качается, хотя замер включён: это до 1,5 МБ каждые 30 секунд")
+    }
+
+    @MainActor
+    func testRouteStartedInSaverModeIsNotMarkedAsSpeedMeasured() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.measuresSpeed = true
+        rig.powerSaver.isOn = true
+
+        rig.recorder.start()
+        XCTAssertEqual(rig.recorder.current?.measuredSpeed, false)
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testSaverStopsTheRecordingAfterTenIdleMinutes() async throws {
+        func isStillRecording(afterIdleMinutes minutes: Double, saver: Bool) async throws -> Bool {
+            let rig = try makeRig(authorization: .authorized)
+            defer { try? FileManager.default.removeItem(at: rig.directory) }
+            rig.powerSaver.isOn = saver
+            rig.recorder.start()
+            let t0 = Date()
+            rig.session.emit(fix(55.0, at: t0))
+            await rig.recorder.tick(now: t0)
+            let later = t0.addingTimeInterval(minutes * 60)
+            rig.session.emit(fix(55.0, at: later))
+            await rig.recorder.tick(now: later)
+            let active = rig.recorder.isActive
+            rig.recorder.stop()
+            return active
+        }
+
+        let normalAfterEleven = try await isStillRecording(afterIdleMinutes: 11, saver: false)
+        let saverAfterEleven = try await isStillRecording(afterIdleMinutes: 11, saver: true)
+        let saverAfterNine = try await isStillRecording(afterIdleMinutes: 9, saver: true)
+
+        XCTAssertTrue(normalAfterEleven, "Обычный режим ждёт 20 минут")
+        XCTAssertFalse(saverAfterEleven, "Режим экономии останавливает забытую запись после 10 минут простоя")
+        XCTAssertTrue(saverAfterNine)
+    }
+
+    @MainActor
+    func testSaverExplainsWhyNoNewPositionArrives() async throws {
+        func lineAfterSilence(saver: Bool) async throws -> String {
+            let rig = try makeRig(authorization: .authorized)
+            defer { try? FileManager.default.removeItem(at: rig.directory) }
+            rig.powerSaver.isOn = saver
+            rig.recorder.start()
+            let t0 = Date()
+            rig.session.emit(fix(55.0, at: t0))
+            await rig.recorder.tick(now: t0)
+            // Положение больше не приходит: у стоящего телефона в режиме экономии это обычное дело
+            await rig.recorder.tick(now: t0.addingTimeInterval(200))
+            let line = rig.recorder.progressLine
+            rig.recorder.stop()
+            return line
+        }
+
+        let standard = try await lineAfterSilence(saver: false)
+        let saver = try await lineAfterSilence(saver: true)
+
+        XCTAssertEqual(standard, "Ждём сигнал GPS…")
+        XCTAssertTrue(saver.contains("Новых данных о положении нет"), saver)
+    }
+
+    @MainActor
+    func testWaitingForTheFirstPositionStaysAGpsHintInSaverMode() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.powerSaver.isOn = true
+
+        rig.recorder.start()
+        await rig.recorder.tick(now: Date())
+
+        XCTAssertEqual(rig.recorder.progressLine, "Ждём сигнал GPS…", "Положения ещё не было ни разу: это ожидание GPS")
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testDiagnosticContextMentionsSaverAndAfterCloseSettings() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        var context = rig.recorder.diagnosticContext()
+        XCTAssertTrue(context.contains("экономия заряда: выкл"), context)
+        XCTAssertTrue(context.contains("после закрытия: выкл"), context)
+
+        rig.powerSaver.isOn = true
+        rig.recorder.continuesAfterClose = true
+        context = rig.recorder.diagnosticContext()
+        XCTAssertTrue(context.contains("экономия заряда: вкл"), context)
+        XCTAssertTrue(context.contains("после закрытия: вкл"), context)
+    }
+}
+
+// MARK: - Правила записи: инварианты
+
+final class SamplingPolicyInvariantTests: XCTestCase {
+    func testSaverPolicyIsSparserThanEconomy() {
+        let economy = RouteSamplingPolicy.economy
+        let saver = RouteSamplingPolicy.saver
+        XCTAssertGreaterThan(saver.tickInterval, economy.tickInterval)
+        XCTAssertGreaterThanOrEqual(saver.stationaryInterval, economy.stationaryInterval)
+        XCTAssertGreaterThan(saver.minMoveMeters, economy.minMoveMeters)
+        XCTAssertGreaterThan(saver.maxAccuracyMeters, economy.maxAccuracyMeters, "Положение в режиме экономии грубее (около 100 м)")
+        XCTAssertGreaterThan(saver.maxFixAge, saver.tickInterval, "Положение не должно устаревать быстрее, чем идёт цикл")
+    }
+
+    /// Пока телефон стоит, точки идут с паузой; если пауза длиннее порога разрыва, линия маршрута рвётся там,
+    /// где никто никуда не ехал, и расстояние считается неверно.
+    func testStandingStillNeverBreaksTheRouteLine() {
+        let policies: [(String, RouteSamplingPolicy)] = [
+            ("обычный", .standard),
+            ("экономный", .economy),
+            ("экономия заряда", .saver)
+        ]
+        for (name, policy) in policies {
+            XCTAssertLessThan(
+                policy.worstCaseStationaryGap,
+                RouteAnalyzer.maxGapSeconds,
+                "Режим «\(name)»: между точками стоящего телефона может пройти \(policy.worstCaseStationaryGap) с, а линия рвётся после \(RouteAnalyzer.maxGapSeconds) с"
+            )
+        }
+    }
+}
+
+// MARK: - Запись после закрытия приложения
+
+final class RouteRecorderAfterCloseTests: XCTestCase {
+
+    /// Недописанный маршрут на диске, как его оставляет закрытое приложение
+    private func unfinishedRoute() -> RouteRecord {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        return RouteRecord(
+            startedAt: start,
+            points: [
+                RoutePoint(time: start, latitude: 55.0, longitude: 37.0, latencyMs: 40),
+                RoutePoint(time: start.addingTimeInterval(15), latitude: 55.0005, longitude: 37.0, latencyMs: 45),
+                RoutePoint(time: start.addingTimeInterval(30), latitude: 55.001, longitude: 37.0, latencyMs: 50)
+            ]
+        )
+    }
+
+    @MainActor
+    func testItIsOffByDefaultAndRemembered() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        XCTAssertFalse(rig.recorder.continuesAfterClose, "Продолжение после закрытия просит доступ «Всегда»: по умолчанию выключено")
+
+        rig.recorder.continuesAfterClose = true
+
+        let second = try makeRig(authorization: .authorized, defaults: rig.defaults)
+        defer { try? FileManager.default.removeItem(at: second.directory) }
+        XCTAssertTrue(second.recorder.continuesAfterClose, "Выбор пользователя сохраняется между запусками")
+    }
+
+    @MainActor
+    func testTurningItOnAsksForAlwaysAccessOnlyWhenItIsMissing() throws {
+        let without = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: without.directory) }
+        without.recorder.continuesAfterClose = true
+        XCTAssertEqual(without.session.alwaysRequests, 1)
+        without.recorder.continuesAfterClose = true
+        XCTAssertEqual(without.session.alwaysRequests, 1, "Тот же выбор повторно окно не открывает")
+
+        let granted = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: granted.directory) }
+        granted.recorder.continuesAfterClose = true
+        XCTAssertEqual(granted.session.alwaysRequests, 0, "«Всегда» уже есть: просить нечего")
+        XCTAssertFalse(granted.session.watchingMoves, "Записи нет: следить за перемещениями незачем")
+    }
+
+    @MainActor
+    func testRecordingWatchesBigMovesOnlyWhenEverythingIsAllowed() throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        rig.recorder.start()
+        XCTAssertFalse(rig.session.watchingMoves, "Продолжение после закрытия выключено")
+
+        rig.recorder.continuesAfterClose = true
+        XCTAssertTrue(rig.session.watchingMoves, "Включили во время записи: слежение началось сразу")
+
+        rig.recorder.continuesAfterClose = false
+        XCTAssertFalse(rig.session.watchingMoves)
+
+        rig.recorder.continuesAfterClose = true
+        rig.recorder.recordsInBackground = false
+        XCTAssertFalse(rig.session.watchingMoves, "Закрытое приложение работает только в фоне: без фоновой записи следить не нужно")
+        rig.recorder.recordsInBackground = true
+        XCTAssertTrue(rig.session.watchingMoves)
+
+        rig.recorder.stop()
+        XCTAssertFalse(rig.session.watchingMoves, "Запись закончена: iOS больше не нужно запускать приложение")
+    }
+
+    @MainActor
+    func testWithoutAlwaysAccessNothingIsWatchedUntilItIsGranted() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+
+        rig.recorder.start()
+        XCTAssertFalse(rig.session.watchingMoves, "Без «Всегда» iOS всё равно не запустит закрытое приложение")
+        XCTAssertFalse(rig.recorder.hasAlwaysAuthorization)
+
+        // Пользователь согласился на «Всегда», пока шла запись
+        rig.session.hasAlwaysAuthorization = true
+        rig.session.changeAuthorization(to: .authorized)
+        XCTAssertTrue(rig.recorder.hasAlwaysAuthorization)
+        XCTAssertTrue(rig.session.watchingMoves)
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testRelaunchContinuesTheSameRoute() async throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+        let unfinished = unfinishedRoute()
+        try await rig.storage.saveActive(unfinished)
+
+        let resumed = await rig.recorder.resumeAfterRelaunch()
+
+        XCTAssertTrue(resumed)
+        XCTAssertTrue(rig.recorder.isActive)
+        XCTAssertEqual(rig.recorder.state, .recording)
+        XCTAssertEqual(rig.recorder.current?.id, unfinished.id, "Запись дописывается в тот же маршрут, а не начинает новый")
+        XCTAssertEqual(rig.recorder.pointCount, 3)
+        XCTAssertEqual(rig.recorder.recordingSince, unfinished.startedAt)
+        XCTAssertEqual(rig.session.startCount, 1)
+        XCTAssertTrue(rig.session.watchingMoves, "Слежение за перемещениями продолжается")
+        XCTAssertTrue(rig.recorder.history.isEmpty, "Маршрут не сохраняется как прерванный: он продолжается")
+        let notice = try XCTUnwrap(rig.recorder.notice)
+        XCTAssertTrue(notice.contains("продолжена"), notice)
+
+        // Новая точка ложится после пропуска, а линия через пропуск не проводится
+        let now = Date()
+        rig.session.emit(fix(55.2, at: now))
+        await rig.recorder.tick(now: now)
+        let points = try XCTUnwrap(rig.recorder.current).points
+        XCTAssertEqual(points.count, 4)
+        XCTAssertEqual(
+            RouteAnalyzer.distanceMeters(of: points),
+            RouteAnalyzer.distanceMeters(of: Array(points.prefix(3))),
+            accuracy: 0.001,
+            "Между закрытием и запуском пропуск: 22 км по прямой в длину пути не входят"
+        )
+
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testRelaunchDoesNotResumeWhenSomethingIsNotAllowed() async throws {
+        func attempt(
+            _ name: String,
+            authorization: LocationAuthorization = .authorized,
+            always: Bool = true,
+            continues: Bool = true,
+            background: Bool = true,
+            file: StaticString = #filePath,
+            line: UInt = #line
+        ) async throws {
+            let rig = try makeRig(authorization: authorization, alwaysGranted: always)
+            defer { try? FileManager.default.removeItem(at: rig.directory) }
+            rig.recorder.continuesAfterClose = continues
+            rig.recorder.recordsInBackground = background
+            rig.session.setRelaunchOnMove(enabled: true)   // iOS ещё помнит подписку на перемещения
+            try await rig.storage.saveActive(unfinishedRoute())
+
+            let resumed = await rig.recorder.resumeAfterRelaunch()
+
+            XCTAssertFalse(resumed, name, file: file, line: line)
+            XCTAssertFalse(rig.recorder.isActive, name, file: file, line: line)
+            XCTAssertEqual(rig.session.startCount, 0, name, file: file, line: line)
+            XCTAssertFalse(rig.session.watchingMoves, "\(name): подписку на перемещения нужно снять", file: file, line: line)
+            let stillThere = await rig.storage.loadActive()
+            XCTAssertNotNil(stillThere, "\(name): недописанный маршрут остаётся на диске до открытия приложения", file: file, line: line)
+        }
+
+        try await attempt("продолжение после закрытия выключено", continues: false)
+        try await attempt("нет доступа «Всегда»", always: false)
+        try await attempt("геолокация запрещена", authorization: .denied)
+        try await attempt("фоновая запись выключена", background: false)
+    }
+
+    @MainActor
+    func testRelaunchWithoutUnfinishedRouteDoesNothing() async throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+        rig.session.setRelaunchOnMove(enabled: true)
+
+        let resumed = await rig.recorder.resumeAfterRelaunch()
+
+        XCTAssertFalse(resumed)
+        XCTAssertFalse(rig.recorder.isActive)
+        XCTAssertFalse(rig.session.watchingMoves, "Дописывать нечего: iOS больше не нужно запускать приложение")
+    }
+
+    @MainActor
+    func testRelaunchDoesNotTouchARecordingThatIsAlreadyRunning() async throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+        rig.recorder.start()
+        let runningID = try XCTUnwrap(rig.recorder.current).id
+        try await rig.storage.saveActive(unfinishedRoute())
+
+        let resumed = await rig.recorder.resumeAfterRelaunch()
+
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(rig.recorder.current?.id, runningID)
+        XCTAssertTrue(rig.session.watchingMoves, "Идущая запись продолжает следить за перемещениями")
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testOpeningTheAppByHandSavesTheRouteAndDropsTheSubscription() async throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+        rig.session.setRelaunchOnMove(enabled: true)
+        try await rig.storage.saveActive(unfinishedRoute())
+
+        await rig.recorder.recoverInterruptedRoute()
+
+        XCTAssertFalse(rig.session.watchingMoves, "Приложение открыли сами: подписка на перемещения от прежней записи не нужна")
+        XCTAssertEqual(rig.recorder.history.count, 1)
+        XCTAssertEqual(rig.recorder.history.first?.interrupted, true)
+        XCTAssertFalse(rig.recorder.isActive)
+    }
+
+    @MainActor
+    func testRecoveryLeavesAResumedRecordingAlone() async throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+        let unfinished = unfinishedRoute()
+        try await rig.storage.saveActive(unfinished)
+        let resumed = await rig.recorder.resumeAfterRelaunch()
+        XCTAssertTrue(resumed)
+
+        // Пользователь открыл приложение: обычный запуск не должен «закрыть» маршрут, который снова пишется
+        await rig.recorder.recoverInterruptedRoute()
+
+        XCTAssertTrue(rig.recorder.isActive)
+        XCTAssertTrue(rig.recorder.history.isEmpty)
+        XCTAssertEqual(rig.recorder.current?.id, unfinished.id)
+        XCTAssertTrue(rig.session.watchingMoves)
+        rig.recorder.stop()
+    }
+
+    @MainActor
+    func testReturningToTheAppKeepsTheResumedRoute() async throws {
+        let rig = try makeRig(authorization: .authorized, alwaysGranted: true)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        rig.recorder.continuesAfterClose = true
+        let unfinished = unfinishedRoute()
+        try await rig.storage.saveActive(unfinished)
+        let resumed = await rig.recorder.resumeAfterRelaunch()
+        XCTAssertTrue(resumed)
+
+        let startsBefore = rig.session.startCount
+        rig.recorder.appDidBecomeActive()
+
+        XCTAssertEqual(rig.recorder.current?.id, unfinished.id)
+        XCTAssertEqual(rig.recorder.state, .recording)
+        XCTAssertGreaterThan(rig.session.startCount, startsBefore, "При возвращении геолокация запускается заново, как и раньше")
+        XCTAssertTrue(rig.session.watchingMoves)
+        rig.recorder.stop()
     }
 }
 

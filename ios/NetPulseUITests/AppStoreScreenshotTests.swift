@@ -143,6 +143,7 @@ final class AppStoreScreenshotTests: XCTestCase {
         app.launchArguments += [
             "-netpulse_recording_hint_dismissed", "YES",   // подсказка про остров не должна закрывать карту
             "-netpulse_motion_off", "YES",                 // заставка и «рисование» маршрута не должны попасть в кадр
+            "-netpulse_pro", "YES",                        // в кадре остров без замка «PRO»
             "-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU"
         ]
         app.launch()
@@ -225,17 +226,13 @@ final class AppStoreScreenshotTests: XCTestCase {
         }
 
         // 4. Остальные вкладки
-        if openTab(app, "Узлы") {
+        if openTab(app, "Инструменты") {
             Thread.sleep(forTimeInterval: 12)         // карточки узлов набирают замеры, график рисуется
             shoot("06-hosts")
         }
         if openTab(app, "Трафик") {
             Thread.sleep(forTimeInterval: 4)
             shoot("07-traffic")
-        }
-        if openTab(app, "AI Диагност") {
-            Thread.sleep(forTimeInterval: 4)
-            shoot("08-ai")
         }
 
         // 5. Замер DNS из инструментов главного экрана

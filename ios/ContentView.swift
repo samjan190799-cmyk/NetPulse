@@ -9,7 +9,7 @@ import SwiftUI
 import UIKit
 
 /// Главный навигационный контейнер приложения NetPulse (Apple HIG 2026)
-/// 4 раздела: Сеть (карта, скорость и запись маршрута), Узлы (Диагностика), Трафик, AI Диагност.
+/// 3 раздела: Сеть (карта, скорость и запись маршрута), Инструменты (узлы, утилиты и AI-аудит), Трафик.
 /// Настройки открываются кнопкой на главном экране.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel.shared
@@ -27,11 +27,11 @@ public struct ContentView: View {
                     }
                     .tag(0)
 
-                // 2. Детальный мониторинг узлов и MTR-трассировка
+                // 2. Инструменты: мониторинг узлов, MTR-трассировка, утилиты и AI-аудит (входит в подписку PRO)
                 DiagnosticsView(viewModel: viewModel)
                     .npAppear()
                     .tabItem {
-                        Label("Узлы", systemImage: "network")
+                        Label("Инструменты", systemImage: "wrench.and.screwdriver.fill")
                     }
                     .tag(1)
 
@@ -42,21 +42,6 @@ public struct ContentView: View {
                         Label("Трафик", systemImage: "arrow.up.arrow.down.square.fill")
                     }
                     .tag(2)
-
-                // 4. Интеллектуальный AI-Диагност
-                // AI-аудит входит в подписку PRO: без неё на этом месте экран с описанием и кнопкой подписки
-                Group {
-                    if pro.isPro {
-                        AIDiagnosticsView(viewModel: viewModel)
-                    } else {
-                        ProLockedView(feature: .aiAudit)
-                    }
-                }
-                .npAppear()
-                .tabItem {
-                    Label("AI Диагност", systemImage: "sparkles")
-                }
-                .tag(3)
             }
             .tint(NPTheme.accentPrimary)
             .preferredColorScheme(.dark)

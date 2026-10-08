@@ -7,12 +7,11 @@
 
 import SwiftUI
 
-/// Экран настроек приложения NetPulse 2026 с переключателем тем оформления
+/// Экран настроек приложения NetPulse 2026
 @MainActor
 public struct SettingsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
-    @State private var themeManager = ThemeManager.shared
     @State private var newHostName: String = ""
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
@@ -82,36 +81,6 @@ public struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("settingsRestorePurchases")
-                }
-
-                // 1. Внешний вид и темы оформления
-                Section(
-                    header: Label("Внешний вид и стиль", systemImage: "paintpalette.fill"),
-                    footer: Text(themeManager.currentTheme.description)
-                ) {
-                    Picker("Тема интерфейса", selection: $themeManager.currentTheme) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.rawValue).tag(theme)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .onChange(of: themeManager.currentTheme) { _, _ in
-                        HapticManager.shared.selectionChanged()
-                    }
-
-                    // Образцы палитр (Theme Swatches)
-                    HStack(spacing: 8) {
-                        ForEach(AppTheme.allCases) { theme in
-                            ThemeSwatchButton(
-                                theme: theme,
-                                isSelected: themeManager.currentTheme == theme
-                            ) {
-                                themeManager.currentTheme = theme
-                                HapticManager.shared.impactMedium()
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
                 }
 
                 // 3. Статус и параметры опроса
@@ -226,7 +195,8 @@ public struct SettingsView: View {
                 }
 
                 // 4. Пороги сетевых алертов
-                Section("Пороги оповещений") {
+                Section {
+                    DisclosureGroup("Пороги оповещений") {
                     HStack {
                         Text("Предупреждение RTT")
                         Spacer()
@@ -250,6 +220,7 @@ public struct SettingsView: View {
                             .foregroundStyle(NPTheme.textSecondary)
                     }
                     Slider(value: $viewModel.lossCritThreshold, in: 1...20, step: 1)
+                                    }
                 }
 
                 // 5. Фоновый мониторинг трафика (24/7)
@@ -440,18 +411,22 @@ public struct SettingsView: View {
                 }
 
                 // 8. Обратная связь
-                Section("Тактильная отдача и звуки") {
+                Section {
+                    DisclosureGroup("Тактильная отдача и звуки") {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
                     Toggle("Звуковые предупреждения", isOn: $viewModel.soundEnabled)
+                                    }
                 }
 
                 // 8. Управление хранилищем трафика
-                Section("Хранилище трафика") {
+                Section {
+                    DisclosureGroup("Хранилище трафика") {
                     Button(role: .destructive) {
                         showResetTrafficAlert = true
                     } label: {
                         Label("Сбросить историю трафика", systemImage: "trash")
                     }
+                                    }
                 }
 
                 // 9. О приложении
@@ -547,60 +522,6 @@ public struct SettingsView: View {
         }
         .onDisappear {
             ProStore.shared.paywallHost = .root
-        }
-    }
-}
-
-/// Кнопка быстрого выбора темы со свотчем
-private struct ThemeSwatchButton: View {
-    let theme: AppTheme
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: 4) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(swatchBgColor)
-                        .frame(height: 32)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected ? swatchAccentColor : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
-                        )
-
-                    Circle()
-                        .fill(swatchAccentColor)
-                        .frame(width: 10, height: 10)
-                }
-
-                Text(theme.rawValue.components(separatedBy: " ").first ?? theme.rawValue)
-                    .font(.system(size: 9, weight: isSelected ? .bold : .medium))
-                    .foregroundStyle(isSelected ? NPTheme.accentPrimary : NPTheme.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .buttonStyle(NPPressableButtonStyle(scale: 0.92))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Тема: \(theme.rawValue)")
-        .accessibilityHint(isSelected ? "Активная тема" : "Дважды коснитесь для переключения")
-    }
-
-    private var swatchBgColor: Color {
-        switch theme {
-        case .obsidianMono: return Color(red: 0.027, green: 0.035, blue: 0.055)
-        case .cyberNeon: return Color(red: 0.031, green: 0.027, blue: 0.063)
-        case .titaniumFrost: return Color(red: 0.043, green: 0.051, blue: 0.067)
-        case .oledBlack: return Color.black
-        }
-    }
-
-    private var swatchAccentColor: Color {
-        switch theme {
-        case .obsidianMono: return Color.white
-        case .cyberNeon: return Color(red: 0.0, green: 0.95, blue: 0.85)
-        case .titaniumFrost: return Color(red: 0.40, green: 0.75, blue: 1.0)
-        case .oledBlack: return Color.white
         }
     }
 }

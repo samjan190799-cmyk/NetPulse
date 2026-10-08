@@ -1548,8 +1548,6 @@ public final class NetworkMonitorViewModel {
     public var aiMessages: [AIMessage] = []
     public var isAIAnalyzing: Bool = false
     public var activeToolCall: AIToolCall? = nil
-    /// Провайдер и модель хранятся в настройках, ключ API — в Keychain (раньше конфигурация сбрасывалась при каждом запуске)
-    public var aiProviderConfig: AIProviderConfig = AIConfigStore.load()
     public var selectedTroubleshootingScenario: TroubleshootingScenarioType = .gaming
     public var selectedDisputeTemplate: ISPDisputeTemplate = .packetLossAndLatency
     public var showDisputeSheet: Bool = false
@@ -1636,7 +1634,6 @@ public final class NetworkMonitorViewModel {
         let (response, toolCall, toolResult) = await AIDiagnosticsEngine.shared.executeAgenticQuery(
             prompt: text,
             context: context,
-            config: aiProviderConfig,
             history: history,
             anomalyReport: currentAnomalyReport
         ) { [weak self] call in
@@ -1658,11 +1655,6 @@ public final class NetworkMonitorViewModel {
         if hapticsEnabled {
             HapticManager.shared.impactLight()
         }
-    }
-
-    public func updateAIConfig(_ newConfig: AIProviderConfig) {
-        self.aiProviderConfig = newConfig
-        AIConfigStore.save(newConfig)
     }
 
     // MARK: - Интерактивный мастер устранения неполадок (Fixer Wizard)

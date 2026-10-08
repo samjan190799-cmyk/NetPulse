@@ -345,7 +345,7 @@ final class NetPulseUITests: XCTestCase {
         }
 
         let tabs: [(title: String, slug: String)] = [
-            ("Сеть", "map"), ("Узлы", "hosts"), ("Трафик", "traffic"), ("AI Диагност", "ai")
+            ("Сеть", "map"), ("Инструменты", "hosts"), ("Трафик", "traffic")
         ]
         for tab in tabs {
             XCTAssertTrue(app.tabBars.buttons[tab.title].exists, "Нет вкладки «\(tab.title)»")
@@ -673,7 +673,7 @@ final class NetPulseUITests: XCTestCase {
         waitForHome(app)
         XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 20), "Нет кнопки замера скорости")
 
-        for title in ["Узлы", "Трафик", "AI Диагност", "Сеть"] {
+        for title in ["Инструменты", "Трафик", "Сеть"] {
             app.tabBars.buttons[title].tap()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(title)»")
         }
@@ -707,27 +707,30 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После закрытия окна нет главного экрана")
     }
 
-    /// Без подписки на вкладке «AI Диагност» стоит заглушка, а кнопка в ней открывает окно подписки
-    @MainActor func testFreeUserSeesLockedAITab() throws {
+    /// Без подписки AI-аудит в «Инструментах» закрыт: плитка открывает окно подписки
+    @MainActor func testFreeUserSeesPaywallFromAIAudit() throws {
         let app = launchApp(pro: false)
         waitForHome(app)
 
-        app.tabBars.buttons["AI Диагност"].tap()
-        let locked = app.descendants(matching: .any)["proLockedView"]
-        XCTAssertTrue(locked.waitForExistence(timeout: 10), "На вкладке AI нет заглушки платной возможности")
-        attachScreenshot("ai-locked")
-
-        app.buttons["proUnlockButton"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["paywallView"].waitForExistence(timeout: 10), "Кнопка не открыла окно подписки")
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsAIAuditButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки AI-аудита")
+        tile.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["paywallView"].waitForExistence(timeout: 10), "Плитка не открыла окно подписки")
+        attachScreenshot("ai-paywall")
     }
 
-    /// С подпиской вкладка «AI Диагност» показывает сам AI-аудит, а не заглушку
-    @MainActor func testSubscriberSeesAIAudit() throws {
+    /// С подпиской плитка открывает сам AI-аудит
+    @MainActor func testSubscriberOpensAIAudit() throws {
         let app = launchApp()
         waitForHome(app)
 
-        app.tabBars.buttons["AI Диагност"].tap()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["proLockedView"].waitForExistence(timeout: 3), "У подписчика AI закрыт заглушкой")
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsAIAuditButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки AI-аудита")
+        tile.tap()
+        XCTAssertTrue(app.navigationBars["AI-аудит"].waitForExistence(timeout: 10), "AI-аудит не открылся")
+        XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "У подписчика открылось окно подписки")
+        app.buttons["aiAuditCloseButton"].tap()
     }
 }

@@ -7,41 +7,8 @@
 
 import Foundation
 
-/// Ошибки обращения к внешним AI-провайдерам (текст показывается пользователю)
-public enum AIProviderError: Error, LocalizedError, Sendable {
-    case unauthorized
-    case rateLimited
-    case modelNotFound
-    case badRequest(String)
-    case server(Int)
-    case refusal
-    case emptyResponse
-    case http(Int)
-
-    public var errorDescription: String? {
-        switch self {
-        case .unauthorized:
-            return "ключ API не принят (401/403) — проверьте ключ в настройках AI"
-        case .rateLimited:
-            return "превышен лимит запросов (429) — попробуйте через минуту"
-        case .modelNotFound:
-            return "модель не найдена (404) — проверьте название модели в настройках AI"
-        case .badRequest(let message):
-            return "запрос отклонён (400): \(message)"
-        case .server(let code):
-            return "сбой сервиса AI (код \(code))"
-        case .refusal:
-            return "модель отказалась отвечать на этот запрос"
-        case .emptyResponse:
-            return "сервис вернул пустой ответ"
-        case .http(let code):
-            return "ошибка HTTP \(code)"
-        }
-    }
-}
-
 /// Системный движок для сетевой диагностики: оценка здоровья сети, мастер траблшутинга, агент с инструментами
-/// и ответы AI (встроенный и внешние провайдеры).
+/// и встроенный AI: он работает на устройстве и ничего никуда не отправляет.
 ///
 /// Принцип: все выводы строятся по реальным измерениям. Если данных нет, движок говорит об этом, а не подставляет
 /// «нормальные» значения (раньше при отсутствии данных отчёт сообщал «Идеальное качество сети», а мастер
@@ -751,7 +718,6 @@ public final class AIDiagnosticsEngine: Sendable {
     public func executeAgenticQuery(
         prompt: String,
         context: NetworkDiagnosticsContext,
-        config: AIProviderConfig,
         history: [AIMessage] = [],
         anomalyReport: NetworkAnomalyReport? = nil,
         onToolCall: (@Sendable (AIToolCall) -> Void)? = nil
@@ -770,19 +736,13 @@ public final class AIDiagnosticsEngine: Sendable {
             toolResult = await runTool(call, context: context, anomalyReport: anomalyReport)
         }
 
-        // Результат инструмента передаётся модели вместе с вопросом
+        // Результат инструмента передаётся ответу вместе с вопросом
         var enrichedPrompt = prompt
         if let result = toolResult {
             enrichedPrompt += "\n\n[РЕЗУЛЬТАТ ИЗМЕРЕНИЯ ИНСТРУМЕНТОМ NETPULSE: \(result.outputText)]"
         }
 
-        let response = await askAI(
-            prompt: enrichedPrompt,
-            context: context,
-            config: config,
-            history: history,
-            anomalyReport: anomalyReport
-        )
+        let response = askAI(prompt: enrichedPrompt, context: context, anomalyReport: anomalyReport)
         return (response, toolCall, toolResult)
     }
 
@@ -901,47 +861,15 @@ public final class AIDiagnosticsEngine: Sendable {
         return Array(chips.prefix(6))
     }
 
-    // MARK: - 6. Ответы AI: встроенный и внешние провайдеры
+    // MARK: - 6. Ответы AI (встроенный, на устройстве)
 
+    /// Ответ строится на устройстве по измеренным данным; внешних AI-сервисов приложение не использует
     public func askAI(
         prompt: String,
         context: NetworkDiagnosticsContext,
-        config: AIProviderConfig,
-        history: [AIMessage] = [],
         anomalyReport: NetworkAnomalyReport? = nil
-    ) async -> String {
-        let provider = config.selectedProvider
-        let apiKey = config.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard provider.isCloud, !apiKey.isEmpty else {
-            return generateOfflineSmartResponse(prompt: prompt, context: context, anomalyReport: anomalyReport)
-        }
-
-        do {
-            switch provider {
-            case .offlineSmart:
-                return generateOfflineSmartResponse(prompt: prompt, context: context, anomalyReport: anomalyReport)
-            case .gemini:
-                return try await queryGeminiAPI(prompt: prompt, context: context, config: config, apiKey: apiKey, history: history)
-            case .openai:
-                return try await queryChatCompletionsAPI(
-                    url: "https://api.openai.com/v1/chat/completions",
-                    defaultModel: AIProviderType.openai.defaultModelName,
-                    prompt: prompt, context: context, config: config, apiKey: apiKey, history: history
-                )
-            case .claude:
-                return try await queryClaudeAPI(prompt: prompt, context: context, config: config, apiKey: apiKey, history: history)
-            case .deepseek:
-                return try await queryChatCompletionsAPI(
-                    url: "https://api.deepseek.com/chat/completions",
-                    defaultModel: AIProviderType.deepseek.defaultModelName,
-                    prompt: prompt, context: context, config: config, apiKey: apiKey, history: history
-                )
-            }
-        } catch {
-            let fallback = generateOfflineSmartResponse(prompt: prompt, context: context, anomalyReport: anomalyReport)
-            return "⚠️ *Не удалось получить ответ от \(provider.rawValue): \(error.localizedDescription). Ответ сформирован встроенным AI:*\n\n" + fallback
-        }
+    ) -> String {
+        generateOfflineSmartResponse(prompt: prompt, context: context, anomalyReport: anomalyReport)
     }
 
     // MARK: - 7. Встроенный автономный AI (Offline Smart)
@@ -1067,281 +995,5 @@ public final class AIDiagnosticsEngine: Sendable {
             Вы можете спросить про игры, стриминг, DNS или Bufferbloat, либо попросить измерить пинг до любого узла (например: *«Проверь пинг до 8.8.8.8»*).
             """
         }
-    }
-
-    // MARK: - 8. Внешние API (Claude, Gemini, OpenAI-совместимые)
-
-    private static let cloudSystemPromptBase = """
-    Ты — старший сетевой инженер и AI-диагност в iOS-приложении NetPulse. Отвечай на русском языке, кратко и структурированно (markdown).
-    Опирайся только на измерения устройства, приведённые ниже, и на результаты инструментов из вопроса. Не выдумывай значений, которых там нет: если данных не хватает, скажи, какой замер нужно выполнить (мониторинг, замер скорости, трассировка, DNS Бенчмарк, Bufferbloat Тест).
-    Замеры выполняются TCP-подключениями до публичных узлов, а не ICMP-пингом до игровых серверов.
-    """
-
-    private func cloudSystemPrompt(context: NetworkDiagnosticsContext) -> String {
-        Self.cloudSystemPromptBase + "\n\nИзмерения устройства:\n" + context.summaryForCloudAI
-    }
-
-    /// Реплики диалога для передачи в API: последние сообщения, чередование ролей, начало — с реплики пользователя;
-    /// текущий вопрос добавляется последним.
-    private static func conversationTurns(history: [AIMessage], prompt: String) -> [(role: String, text: String)] {
-        var turns: [(role: String, text: String)] = []
-
-        for message in history.suffix(10) {
-            let role: String
-            switch message.role {
-            case .user: role = "user"
-            case .assistant: role = "assistant"
-            case .tool: continue
-            }
-            let text = String(message.content.prefix(4000))
-            if let last = turns.last, last.role == role {
-                turns[turns.count - 1].text += "\n\n" + text
-            } else {
-                turns.append((role: role, text: text))
-            }
-        }
-
-        // API требует, чтобы диалог начинался с реплики пользователя (приветствие ассистента пропускается)
-        while let first = turns.first, first.role != "user" {
-            turns.removeFirst()
-        }
-
-        if let last = turns.last, last.role == "user" {
-            turns[turns.count - 1].text += "\n\n" + prompt
-        } else {
-            turns.append((role: "user", text: prompt))
-        }
-        return turns
-    }
-
-    // MARK: Anthropic Claude
-
-    /// Модели, для которых при вызове включаются серверные fallbacks (повтор на другой модели при отказе
-    /// классификаторов безопасности). Для остальных моделей параметр не отправляется.
-    private static let claudeFallbackModels: Set<String> = ["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]
-
-    /// Модели с поддержкой параметра `output_config.effort` (на более старых он вызывает ошибку 400)
-    private static let claudeEffortModelPrefixes = [
-        "claude-fable-5", "claude-mythos", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6",
-        "claude-sonnet-5", "claude-sonnet-4-6"
-    ]
-
-    private func queryClaudeAPI(
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig,
-        apiKey: String,
-        history: [AIMessage]
-    ) async throws -> String {
-        let customModel = config.customModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let model = customModel.isEmpty ? AIProviderType.claude.defaultModelName : customModel
-        let wantsFallbacks = Self.claudeFallbackModels.contains(model)
-
-        do {
-            return try await sendClaudeRequest(
-                model: model, prompt: prompt, context: context, apiKey: apiKey, history: history, includeFallbacks: wantsFallbacks
-            )
-        } catch AIProviderError.badRequest(let message) where wantsFallbacks && message.contains("anthropic-beta") {
-            // Бета-режим fallbacks недоступен для этого ключа — повторяем запрос без него
-            return try await sendClaudeRequest(
-                model: model, prompt: prompt, context: context, apiKey: apiKey, history: history, includeFallbacks: false
-            )
-        }
-    }
-
-    private func sendClaudeRequest(
-        model: String,
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        apiKey: String,
-        history: [AIMessage],
-        includeFallbacks: Bool
-    ) async throws -> String {
-        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else { throw URLError(.badURL) }
-
-        let messages: [[String: Any]] = Self.conversationTurns(history: history, prompt: prompt).map {
-            ["role": $0.role, "content": $0.text]
-        }
-
-        var body: [String: Any] = [
-            "model": model,
-            // Запас под рассуждения модели: они тоже расходуют max_tokens, а ответ в чате короткий
-            "max_tokens": 4096,
-            "system": cloudSystemPrompt(context: context),
-            "messages": messages
-        ]
-        // Для короткого ответа в чате достаточно низкого уровня усилия: быстрее и дешевле
-        if Self.claudeEffortModelPrefixes.contains(where: { model.hasPrefix($0) }) {
-            body["output_config"] = ["effort": "low"]
-        }
-        if includeFallbacks {
-            body["fallbacks"] = "default"
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        if includeFallbacks {
-            request.setValue("server-side-fallback-2026-07-01", forHTTPHeaderField: "anthropic-beta")
-        }
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 60.0
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        guard (200...299).contains(http.statusCode) else {
-            throw Self.mapHTTPError(status: http.statusCode, data: data)
-        }
-
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw AIProviderError.emptyResponse
-        }
-
-        // Классификаторы безопасности могут отклонить запрос: HTTP 200 со stop_reason == "refusal"
-        let stopReason = json["stop_reason"] as? String
-        if stopReason == "refusal" {
-            throw AIProviderError.refusal
-        }
-
-        // Ответ — массив блоков: перед текстом могут идти блоки thinking, поэтому берутся именно блоки типа text
-        let blocks = json["content"] as? [[String: Any]] ?? []
-        let text = blocks
-            .filter { ($0["type"] as? String) == "text" }
-            .compactMap { $0["text"] as? String }
-            .joined(separator: "\n\n")
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw AIProviderError.emptyResponse
-        }
-
-        if stopReason == "max_tokens" {
-            return text + "\n\n_(ответ обрезан по длине)_"
-        }
-        return text
-    }
-
-    // MARK: Google Gemini
-
-    private func queryGeminiAPI(
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig,
-        apiKey: String,
-        history: [AIMessage]
-    ) async throws -> String {
-        let customModel = config.customModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let model = customModel.isEmpty ? AIProviderType.gemini.defaultModelName : customModel
-        let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? model
-        // Ключ передаётся в заголовке, а не в строке запроса: так он не попадает в логи и историю URL
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(encodedModel):generateContent") else {
-            throw URLError(.badURL)
-        }
-
-        let contents: [[String: Any]] = Self.conversationTurns(history: history, prompt: prompt).map {
-            ["role": $0.role == "assistant" ? "model" : "user", "parts": [["text": $0.text]]]
-        }
-        let body: [String: Any] = [
-            "system_instruction": ["parts": [["text": cloudSystemPrompt(context: context)]]],
-            "contents": contents
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 30.0
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        guard (200...299).contains(http.statusCode) else {
-            throw Self.mapHTTPError(status: http.statusCode, data: data)
-        }
-
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let candidates = json["candidates"] as? [[String: Any]],
-           let content = candidates.first?["content"] as? [String: Any],
-           let parts = content["parts"] as? [[String: Any]] {
-            let text = parts.compactMap { $0["text"] as? String }.joined()
-            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return text
-            }
-        }
-        throw AIProviderError.emptyResponse
-    }
-
-    // MARK: OpenAI и DeepSeek (совместимый формат chat/completions)
-
-    private func queryChatCompletionsAPI(
-        url urlString: String,
-        defaultModel: String,
-        prompt: String,
-        context: NetworkDiagnosticsContext,
-        config: AIProviderConfig,
-        apiKey: String,
-        history: [AIMessage]
-    ) async throws -> String {
-        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
-        let customModel = config.customModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let model = customModel.isEmpty ? defaultModel : customModel
-
-        var messages: [[String: Any]] = [["role": "system", "content": cloudSystemPrompt(context: context)]]
-        messages.append(contentsOf: Self.conversationTurns(history: history, prompt: prompt).map {
-            ["role": $0.role, "content": $0.text]
-        })
-
-        let body: [String: Any] = ["model": model, "messages": messages]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 30.0
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        guard (200...299).contains(http.statusCode) else {
-            throw Self.mapHTTPError(status: http.statusCode, data: data)
-        }
-
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let choices = json["choices"] as? [[String: Any]],
-           let message = choices.first?["message"] as? [String: Any],
-           let text = message["content"] as? String,
-           !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return text
-        }
-        throw AIProviderError.emptyResponse
-    }
-
-    // MARK: Ошибки HTTP
-
-    private static func mapHTTPError(status: Int, data: Data) -> AIProviderError {
-        switch status {
-        case 401, 403:
-            return .unauthorized
-        case 404:
-            return .modelNotFound
-        case 429:
-            return .rateLimited
-        case 400:
-            return .badRequest(providerMessage(from: data) ?? "некорректный запрос")
-        case 500...599:
-            return .server(status)
-        default:
-            return .http(status)
-        }
-    }
-
-    /// Текст ошибки из тела ответа провайдера (`{"error": {"message": "..."}}`)
-    private static func providerMessage(from data: Data) -> String? {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let error = json["error"] as? [String: Any],
-              let message = error["message"] as? String else {
-            return nil
-        }
-        return String(message.prefix(300))
     }
 }

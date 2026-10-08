@@ -58,7 +58,6 @@
 		A10000F42C123456000000F5 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F42C123456000000F5 /* PaywallView.swift */; };
 		A10000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
 		A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */; };
-		A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000812C12345600000081 /* SpeechRecognizerManager.swift */; };
 		A10000902C12345600000090 /* DNSBenchmarkModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000902C12345600000090 /* DNSBenchmarkModels.swift */; };
 		A10000912C12345600000091 /* GamingRadarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000912C12345600000091 /* GamingRadarModels.swift */; };
 		A10000922C12345600000092 /* BufferbloatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000922C12345600000092 /* BufferbloatModels.swift */; };
@@ -200,7 +199,6 @@
 		B10000F42C123456000000F5 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PaywallView.swift; sourceTree = "<group>"; };
 		B10000702C12345600000070 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/WidgetDataManager.swift; sourceTree = "<group>"; };
 		B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AINetworkAnomalyDetector.swift; sourceTree = "<group>"; };
-		B10000812C12345600000081 /* SpeechRecognizerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SpeechRecognizerManager.swift; sourceTree = "<group>"; };
 		B10000902C12345600000090 /* DNSBenchmarkModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/DNSBenchmarkModels.swift; sourceTree = "<group>"; };
 		B10000912C12345600000091 /* GamingRadarModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/GamingRadarModels.swift; sourceTree = "<group>"; };
 		B10000922C12345600000092 /* BufferbloatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/BufferbloatModels.swift; sourceTree = "<group>"; };
@@ -427,7 +425,6 @@
 				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
 				B10000322C12345600000036 /* BackgroundTaskManager.swift */,
 				B10000602C12345600000060 /* NetPulseTheme.swift */,
-				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 				B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */,
 				B10000D12C123456000000D1 /* IslandDiagnostics.swift */,
 				B10000D42C123456000000D4 /* RouteStorage.swift */,
@@ -679,7 +676,6 @@
 				A10000602C12345600000060 /* NetPulseTheme.swift in Sources */,
 				A10000702C12345600000070 /* WidgetDataManager.swift in Sources */,
 				A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */,
-				A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */,
 				A10000902C12345600000090 /* DNSBenchmarkModels.swift in Sources */,
 				A10000912C12345600000091 /* GamingRadarModels.swift in Sources */,
 				A10000922C12345600000092 /* BufferbloatModels.swift in Sources */,

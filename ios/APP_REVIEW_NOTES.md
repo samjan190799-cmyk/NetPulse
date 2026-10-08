@@ -66,10 +66,8 @@ The app contains no advertising, no third-party SDKs, no analytics and does not 
 AppTrackingTransparency framework and does not request the App Tracking Transparency permission. The App Privacy
 answers are "Data Not Collected". The app has no account and no server.
 
-The optional cloud AI assistant (Settings of the "AI Диагност" tab) works only if the user enters their own API key
-of OpenAI, Anthropic, Google or DeepSeek. Then the user's question and summary network metrics (ping, jitter, loss,
-speed) are sent from the device straight to the provider the user chose; IP addresses and the name of the internet
-provider are not sent. By default the assistant runs on the device and nothing is sent.
+The AI audit runs entirely on the device: the app uses no external AI services and sends no measurements
+anywhere. The app has no microphone or speech-recognition features and asks for neither permission.
 
 SUBSCRIPTION (NetPulse PRO)
 
@@ -77,13 +75,13 @@ NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product c
 USD 0.99 per month). It unlocks exactly three features:
 1. Speed in the Dynamic Island / Live Activity (Settings -> "Dynamic Island", or the "Островок" button on the map).
 2. The floating game HUD inside the app (Settings -> "Плавающий игровой оверлей (HUD)").
-3. The deep AI audit (the "AI Диагност" tab: network health score, anomaly prediction, troubleshooting wizard,
+3. The deep AI audit (the "AI-аудит" tile in the "Инструменты" tab: network health score, anomaly prediction, troubleshooting wizard,
    ISP complaint letter).
 Everything else is free: speed test, route recording and the network map, traffic accounting, DNS / bufferbloat /
 LAN / gaming tools, the Home Screen widget, the quick AI verdict after a speed test.
 
 How to see the paywall: tap the slider button on the map -> "NetPulse PRO" (or tap "Островок", or open the
-"AI Диагност" tab). The paywall shows the price from the App Store, the billing period, the auto-renewal terms,
+"Инструменты" tab -> "AI-аудит"). The paywall shows the price from the App Store, the billing period, the auto-renewal terms,
 links to the Terms of Use (Apple standard EULA) and the Privacy Policy, and a "Восстановить покупки"
 (Restore Purchases) button. Purchases are handled only by StoreKit; the app has no account and no server.
 
@@ -100,7 +98,7 @@ The app's interface is in Russian.
 
 ## 2. Чек-лист перед отправкой на ревью
 
-1. **App Privacy.** В версии 1.0 нет ни рекламы, ни сторонних SDK, ни аналитики, поэтому ответ: «Данные не собираются», отслеживания нет (ни одного типа данных с пометкой «Используется для отслеживания»). Проверьте, что в App Store Connect → App Privacy именно так: раньше там были отмечены ID устройства, рекламные данные, взаимодействие с продуктом и примерная геолокация «для сторонней рекламы», что противоречит сборке без рекламы. Менять App Privacy может Account Holder или Admin. Облачный AI по собственному ключу пользователя: вопрос и сводные метрики без IP и названия провайдера уходят прямо выбранному провайдеру; сами решайте, считать ли это «сбором»: данные идут на сервис, который выбрал пользователь, а вы к ним доступа не имеете.
+1. **App Privacy.** В версии 1.0 нет ни рекламы, ни сторонних SDK, ни аналитики, поэтому ответ: «Данные не собираются», отслеживания нет (ни одного типа данных с пометкой «Используется для отслеживания»). Проверьте, что в App Store Connect → App Privacy именно так: раньше там были отмечены ID устройства, рекламные данные, взаимодействие с продуктом и примерная геолокация «для сторонней рекламы», что противоречит сборке без рекламы. Менять App Privacy может Account Holder или Admin.
 2. **Рекламы нет, есть подписка PRO.** Реклама Яндекса вместе с ATT удалена из сборки (запрос ATT приводил к отказу 2.1: окно не показывалось, потому что стояли демо-блоки). Подписка NetPulse PRO (1 USD в месяц) открывает остров, игровой HUD и глубокий AI-аудит. Подписку нужно создать в App Store Connect (группа «NetPulse PRO», продукт `com.samvel.netpulse.pro.monthly`, цена 0.99 USD, локализация, скриншот окна подписки для проверки) и отправить на проверку вместе с версией: первая подписка проверяется только вместе с приложением. Если реклама вернётся, обновите App Privacy, политику конфиденциальности и этот файл до выхода версии.
 3. **Манифест приватности.** `PrivacyInfo.xcprivacy` лежит в приложении и в расширении виджетов: UserDefaults (CA92.1 и 1C8F.1 для общей группы приложений) и время загрузки системы (35F9.1, `kern.boottime` для счётчиков трафика). Сборка без отслеживания и без собираемых данных. Если добавите SDK или новые API из списка Apple, обновите манифест.
 4. **Виджеты.** В Notes можно ответить на вопрос рецензента о виджетах: они есть (см. выше, раздел WIDGETS AND LIVE ACTIVITY).

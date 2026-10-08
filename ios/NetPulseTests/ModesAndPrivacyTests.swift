@@ -62,10 +62,10 @@ final class RouteRecorderStateTests: XCTestCase {
     }
 }
 
-// MARK: - Что уходит в облачный AI
+// MARK: - Обращение провайдеру
 
-/// В сторонний сервис не должны попадать IP-адреса и название провайдера, а отсутствие данных не маскируется.
-final class CloudPrivacyTests: XCTestCase {
+/// Обращение провайдеру содержит только измеренное, а отсутствие данных не маскируется.
+final class ISPReportTests: XCTestCase {
 
     private func context(
         hasLiveData: Bool,
@@ -92,24 +92,6 @@ final class CloudPrivacyTests: XCTestCase {
         )
     }
 
-    func testCloudSummaryOmitsIdentifyingData() {
-        let summary = context(hasLiveData: true, averagePingMs: 23.4, speedtestDownloadMbps: 90).summaryForCloudAI
-
-        for secret in ["192.168.7.23", "192.168.7.1", "203.0.113.77", "Секретный Провайдер", "10.9.8.7"] {
-            XCTAssertFalse(summary.contains(secret), "В облачную сводку попало: \(secret)")
-        }
-        XCTAssertTrue(summary.contains("23.4"), "Измеренный пинг должен быть в сводке")
-        XCTAssertTrue(summary.contains("отдача не измерена"), "Неизмеренная отдача не должна выдаваться за нуль")
-    }
-
-    func testSummaryAdmitsMissingData() {
-        let summary = context(hasLiveData: false, averagePingMs: nil, speedtestDownloadMbps: nil).summaryForCloudAI
-
-        XCTAssertTrue(summary.contains("свежих данных нет"))
-        XCTAssertTrue(summary.contains("Замер скорости не выполнялся"))
-        XCTAssertFalse(summary.contains("Средний пинг"), "Без данных мониторинга пинга в сводке быть не должно")
-    }
-
     func testUnmeasuredUploadStaysNil() {
         XCTAssertNil(context(hasLiveData: true, averagePingMs: 10, speedtestDownloadMbps: 50).measuredUploadMbps)
     }
@@ -123,17 +105,13 @@ final class CloudPrivacyTests: XCTestCase {
         XCTAssertFalse(report.contains("192.168.1.1"))
         XCTAssertFalse(report.localizedCaseInsensitiveContains("систематическ"))
     }
+}
 
-    func testProvidersHaveUniqueStorageKeysAndDefaultModels() {
-        XCTAssertFalse(AIProviderType.offlineSmart.isCloud)
-
-        for provider in AIProviderType.allCases where provider != .offlineSmart {
-            XCTAssertTrue(provider.isCloud, "\(provider.rawValue) должен считаться облачным")
-            XCTAssertFalse(provider.defaultModelName.isEmpty)
-        }
-
-        let keys = AIProviderType.allCases.map { $0.storageKey }
-        XCTAssertEqual(Set(keys).count, keys.count, "Ключи хранилища (Keychain) должны быть уникальны")
+/// Приложение не просит доступ к микрофону и распознаванию речи: голосового ввода больше нет.
+final class NoVoicePermissionsTests: XCTestCase {
+    func testInfoPlistHasNoMicrophoneOrSpeechKeys() {
+        XCTAssertNil(Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription"))
+        XCTAssertNil(Bundle.main.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription"))
     }
 }
 

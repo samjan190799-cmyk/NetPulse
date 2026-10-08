@@ -15,6 +15,8 @@ public struct DiagnosticsView: View {
     @State private var isExporting = false
     @State private var quickHostInput: String = ""
     @State private var showGlossarySheet: Bool = false
+    /// AI-аудит открывается отсюда (входит в подписку PRO)
+    @State private var showAIAudit: Bool = false
 
     public var body: some View {
         NavigationStack {
@@ -143,6 +145,9 @@ public struct DiagnosticsView: View {
                     ShareSheet(activityItems: [url])
                 }
             }
+            .fullScreenCover(isPresented: $showAIAudit) {
+                AIDiagnosticsView(viewModel: viewModel)
+            }
         }
     }
 
@@ -151,7 +156,7 @@ public struct DiagnosticsView: View {
     private var proUtilitiesHub: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("ПРОФЕССИОНАЛЬНЫЕ УТИЛИТЫ")
+                Text("ИНСТРУМЕНТЫ")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(NPTheme.textTertiary)
                     .tracking(0.5)
@@ -170,6 +175,29 @@ public struct DiagnosticsView: View {
                     .foregroundStyle(NPTheme.accentPrimary)
                 }
             }
+
+            // AI-аудит: сводная оценка сети, причины проблем и обращение к провайдеру. Входит в подписку PRO.
+            Button {
+                HapticManager.shared.impactLight()
+                if ProStore.shared.requirePro(.aiAudit) {
+                    showAIAudit = true
+                }
+            } label: {
+                proUtilityTile(
+                    title: "AI-аудит сети",
+                    subtitle: "Оценка 0–100, причины, обращение провайдеру",
+                    icon: "sparkles",
+                    color: NPTheme.accentPrimary
+                )
+                .overlay(alignment: .topTrailing) {
+                    if !ProStore.shared.isPro {
+                        ProBadge()
+                            .padding(6)
+                    }
+                }
+            }
+            .buttonStyle(NPPressableButtonStyle())
+            .accessibilityIdentifier("toolsAIAuditButton")
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {

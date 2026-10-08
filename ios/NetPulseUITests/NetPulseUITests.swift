@@ -19,11 +19,15 @@ final class NetPulseUITests: XCTestCase {
 
     // MARK: - Запуск и общие помощники
 
-    @MainActor private func launchApp() -> XCUIApplication {
+    /// `motion: false` выключает все анимации (заставка, «рисование» маршрута, бесконечное движение): снимки
+    /// экрана должны быть одинаковыми, а бесконечные анимации не дают дождаться покоя приложения. `motion: true`
+    /// оставляет разовые анимации (заставку, появление экранов), бесконечные по-прежнему выключены.
+    @MainActor private func launchApp(motion: Bool = false) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         // Подсказка «остров замирал» может быть скрыта предыдущим запуском: сбрасываем её
         app.launchArguments += ["-netpulse_recording_hint_dismissed", "NO"]
+        app.launchArguments += motion ? ["-netpulse_continuous_off", "YES"] : ["-netpulse_motion_off", "YES"]
         app.launch()
         dismissSystemAlerts()
         return app
@@ -655,5 +659,23 @@ final class NetPulseUITests: XCTestCase {
 
         // Уборка: останавливаем запись, чтобы она не мешала следующим тестам
         stopRecording(app)
+    }
+
+    /// Анимации включены (заставка, появление экранов, «рисование» маршрута): приложение запускается, главный
+    /// экран доступен, вкладки переключаются и главный экран остаётся рабочим
+    @MainActor func testMotionDoesNotBreakNavigation() throws {
+        let app = launchApp(motion: true)
+        waitForHome(app)
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 20), "Нет кнопки замера скорости")
+
+        for title in ["Узлы", "Трафик", "AI Диагност", "Сеть"] {
+            app.tabBars.buttons[title].tap()
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(title)»")
+        }
+
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После вкладок нет кнопки замера")
+        XCTAssertTrue(app.buttons["homeSpeedButton"].isHittable, "Из-за анимаций кнопка замера скорости недоступна")
+        XCTAssertTrue(app.buttons["networkMapStartButton"].isHittable, "Из-за анимаций кнопка записи недоступна")
+        attachScreenshot("motion-home")
     }
 }

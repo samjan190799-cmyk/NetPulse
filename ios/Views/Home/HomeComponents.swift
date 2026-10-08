@@ -159,6 +159,8 @@ struct HomeStatTile: View {
                     .font(.system(size: 20, weight: .bold))
                     .monospacedDigit()
                     .foregroundStyle(NPTheme.textPrimary)
+                    .contentTransition(.numericText())
+                    .npAnimation(value: value)
                 if let unit {
                     Text(unit)
                         .font(.system(size: 12, weight: .semibold))
@@ -261,8 +263,13 @@ struct QualitySwatch: View {
 /// он есть только у линий маршрутов, то есть у мест, где сеть действительно измерялась.
 @MainActor
 struct HomeUserMarker: View {
+    @Environment(\.npContinuousMotion) private var continuous
+
     var body: some View {
         ZStack {
+            if continuous {
+                ripple
+            }
             Circle()
                 .fill(Color.white)
                 .frame(width: 22, height: 22)
@@ -273,6 +280,20 @@ struct HomeUserMarker: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// Мягкая волна от точки: показывает, что положение живое. Бежит, только пока бесконечное движение разрешено.
+    private var ripple: some View {
+        Circle()
+            .stroke(Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.55), lineWidth: 2)
+            .frame(width: 22, height: 22)
+            .phaseAnimator([0.0, 1.0]) { view, progress in
+                view
+                    .scaleEffect(1 + 1.6 * progress)
+                    .opacity(0.7 * (1 - progress))
+            } animation: { progress in
+                progress == 1.0 ? .easeOut(duration: 1.8) : nil
+            }
     }
 }
 

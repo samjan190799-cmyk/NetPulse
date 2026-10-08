@@ -6,8 +6,21 @@
 # Использование: swift_probe.sh [ИМЯ.swift ...]   (файлы лежат в ios/ci/probes; без аргументов проверяются все)
 # Для каждого файла печатается «ПРОШЁЛ» или «НЕ ПРОШЁЛ» и сообщения компилятора. Заведомо неверный вызов
 # (например, UserAnnotation(zzz: 1)) удобен тем, что компилятор перечисляет в ответ все подходящие конструкторы.
+#
+# Переменная PROBE_WITH: файлы приложения (пути от каталога ios, через пробел), которые проверяются вместе с
+# фрагментом. Так новые экраны и модификаторы проверяются вместе с темой оформления, не собирая всё приложение.
 set -o pipefail
 set -f
+
+ios_dir="$(cd "$(dirname "$0")/.." && pwd)"
+extra=()
+for rel in ${PROBE_WITH:-}; do
+  if ! printf '%s' "$rel" | grep -Eq '^[A-Za-z0-9_./-]+\.swift$' || printf '%s' "$rel" | grep -q '\.\.'; then
+    echo "Недопустимый путь в PROBE_WITH: $rel"
+    exit 2
+  fi
+  extra+=("$ios_dir/$rel")
+done
 
 dir="$(cd "$(dirname "$0")" && pwd)/probes"
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
@@ -44,7 +57,7 @@ for file in "${files[@]}"; do
     failed=$((failed + 1))
     continue
   fi
-  output="$(xcrun swiftc -typecheck -sdk "$sdk" -target arm64-apple-ios17.0-simulator -swift-version 6 "$file" 2>&1)"
+  output="$(xcrun swiftc -typecheck -sdk "$sdk" -target arm64-apple-ios17.0-simulator -swift-version 6 "$file" "${extra[@]}" 2>&1)"
   code=$?
   printf '%s\n' "$output" | head -n 90
   if [ "$code" -eq 0 ]; then

@@ -27,6 +27,7 @@ public struct ContentView: View {
 
                 // 2. Детальный мониторинг узлов и MTR-трассировка
                 DiagnosticsView(viewModel: viewModel)
+                    .npAppear()
                     .tabItem {
                         Label("Узлы", systemImage: "network")
                     }
@@ -34,6 +35,7 @@ public struct ContentView: View {
 
                 // 3. Аналитика трафика 24/7 и лимиты
                 TrafficView(viewModel: viewModel)
+                    .npAppear()
                     .tabItem {
                         Label("Трафик", systemImage: "arrow.up.arrow.down.square.fill")
                     }
@@ -41,6 +43,7 @@ public struct ContentView: View {
 
                 // 4. Интеллектуальный AI-Диагност
                 AIDiagnosticsView(viewModel: viewModel)
+                    .npAppear()
                     .tabItem {
                         Label("AI Диагност", systemImage: "sparkles")
                     }
@@ -92,7 +95,11 @@ public struct ContentView: View {
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
+
+            // Короткая заставка при запуске: касания проходят сквозь неё, показывается один раз за запуск
+            NPIntroOverlay()
         }
+        .npMotionPolicy()
     }
 
     /// Настройка нативного полупрозрачного Glassmorphism таб-бара Apple

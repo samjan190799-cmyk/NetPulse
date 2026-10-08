@@ -324,3 +324,51 @@ final class CoverageBuilderTests: XCTestCase {
         XCTAssertEqual(tiny.last, long.last)
     }
 }
+
+// MARK: - Линия-пульс
+
+final class ECGShapeTests: XCTestCase {
+    private let rect = CGRect(x: 0, y: 0, width: 200, height: 40)
+
+    @MainActor func testPeakIsTheHighestPointOfTheBeat() {
+        let peak = ECGShape.wave(0.345)
+        XCTAssertEqual(peak, 1.0, accuracy: 0.05)
+        for position in stride(from: 0.0, to: 1.0, by: 0.01) {
+            XCTAssertLessThanOrEqual(ECGShape.wave(position), peak + 0.001)
+        }
+    }
+
+    @MainActor func testWaveIsCalmBetweenBeats() {
+        XCTAssertEqual(ECGShape.wave(0.0), 0, accuracy: 0.02)
+        XCTAssertEqual(ECGShape.wave(0.95), 0, accuracy: 0.02)
+    }
+
+    @MainActor func testNothingDrawnGivesEmptyPath() {
+        XCTAssertTrue(ECGShape(drawn: 0).path(in: rect).isEmpty)
+    }
+
+    @MainActor func testDrawnFractionLimitsTheLineWidth() {
+        let half = ECGShape(drawn: 0.5).path(in: rect).boundingRect
+        let full = ECGShape(drawn: 1).path(in: rect).boundingRect
+        XCTAssertLessThan(half.maxX, full.maxX)
+        XCTAssertEqual(full.maxX, rect.maxX, accuracy: 2)
+        XCTAssertEqual(half.maxX, rect.maxX / 2, accuracy: 4)
+    }
+
+    @MainActor func testZeroAmplitudeIsAFlatLine() {
+        let flat = ECGShape(amplitude: 0).path(in: rect).boundingRect
+        XCTAssertEqual(flat.height, 0, accuracy: 0.001)
+    }
+
+    @MainActor func testPhaseMovesTheWave() {
+        let first = ECGShape(phase: 0).path(in: rect)
+        let moved = ECGShape(phase: 0.25).path(in: rect)
+        XCTAssertNotEqual(first, moved)
+    }
+
+    @MainActor func testPathStaysInsideTheRectangleVertically() {
+        let box = ECGShape(amplitude: 1).path(in: rect).boundingRect
+        XCTAssertGreaterThanOrEqual(box.minY, rect.minY - 0.5)
+        XCTAssertLessThanOrEqual(box.maxY, rect.maxY + 0.5)
+    }
+}

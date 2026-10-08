@@ -41,6 +41,10 @@ on:
         description: 'Для проверки фрагментов: имена файлов из ios/ci/probes через пробел (пусто — все)'
         required: false
         default: ''
+      probe_with:
+        description: 'Для проверки фрагментов: файлы приложения (пути от ios/, через пробел), которые проверяются вместе с фрагментом'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -77,6 +81,7 @@ jobs:
         env:
           # Значение проходит через окружение, имена файлов проверяются в скрипте (защита от инъекции команд)
           PROBE_FILES: ${{ inputs.probe_files }}
+          PROBE_WITH: ${{ inputs.probe_with }}
         run: |
           set -f
           # shellcheck disable=SC2086

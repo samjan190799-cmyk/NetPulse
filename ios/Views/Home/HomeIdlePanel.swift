@@ -101,6 +101,11 @@ struct HomeIdlePanel: View {
         return "СКАЧИВАНИЕ"
     }
 
+    /// Цвет «пульса сети»: оценка связи сейчас; пока её нет, основной цвет приложения
+    private var pulseColor: Color {
+        viewModel.homeLinkQuality?.displayColor ?? NPTheme.accentPrimary
+    }
+
     private var capabilities: [CapabilityItem] {
         NetworkCapabilityEvaluator(
             downloadMbps: displayedDownload,
@@ -182,9 +187,10 @@ struct HomeIdlePanel: View {
                         .monospacedDigit()
                         .foregroundStyle(NPTheme.textPrimary)
                         .contentTransition(.numericText(value: shownSpeed))
-                        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: shownSpeed)
+                        .npAnimation(.spring(response: 0.35, dampingFraction: 0.8), value: shownSpeed)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                        .npBreathingGlow(color: NPTheme.accentPrimary, active: viewModel.isSpeedtestRunning)
                     Text("Мбит/с")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(NPTheme.textSecondary)
@@ -196,6 +202,17 @@ struct HomeIdlePanel: View {
             capabilityHint
         }
         .frame(height: 76)
+        .background(alignment: .bottom) {
+            // «Пульс сети»: бегущая линия за цифрами. Цвет — оценка связи, размах — скорость, без связи линия ровная
+            NetworkPulseLine(
+                color: pulseColor,
+                intensity: min(max(shownSpeed / 150.0, 0), 1),
+                isFlat: viewModel.homeLinkQuality == .dead,
+                isBusy: viewModel.isSpeedtestRunning
+            )
+            .frame(height: 44)
+            .opacity(0.55)
+        }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("homeSpeedValue")
     }

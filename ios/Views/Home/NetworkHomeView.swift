@@ -244,6 +244,11 @@ public struct NetworkHomeView: View {
             }
             panel(containerHeight: containerHeight)
         }
+        // Сообщения над панелью появляются и исчезают плавно
+        .npAnimation(value: viewModel.showRecordingHint)
+        .npAnimation(value: viewModel.sleepTraffic)
+        .npAnimation(value: viewModel.speedtestError)
+        .npAnimation(value: recorder.notice)
     }
 
     @ViewBuilder

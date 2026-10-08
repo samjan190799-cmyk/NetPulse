@@ -193,6 +193,7 @@ struct HomeLinkPill: View {
                 Image(systemName: quality.systemIcon)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(quality.displayColor)
+                    .npBounce(value: quality)
                 Text(quality.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(quality.displayColor)
@@ -248,10 +249,7 @@ struct HomeRecordingPill: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(NPTheme.semanticCritical)
-                .frame(width: 10, height: 10)
-                .shadow(color: NPTheme.semanticCritical.opacity(0.6), radius: 4)
+            NPRecordingDot(color: NPTheme.semanticCritical)
             Text("Запись")
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(NPTheme.textPrimary)
@@ -291,6 +289,7 @@ struct HomeLiveQualityCard: View {
                 Image(systemName: quality.systemIcon)
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(quality.displayColor)
+                    .npBounce(value: quality)
                     .frame(width: 48, height: 48)
                     .overlay(Circle().stroke(quality.displayColor, lineWidth: 3))
 

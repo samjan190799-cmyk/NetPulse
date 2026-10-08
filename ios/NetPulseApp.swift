@@ -14,8 +14,6 @@ struct NetPulseApp: App {
     init() {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
-
-        // Рекламу Яндекса запускает onAppear/активация: при фоновом запуске (например, по геолокации) ей делать нечего
     }
 
     var body: some Scene {
@@ -23,14 +21,10 @@ struct NetPulseApp: App {
             ContentView()
                 .onAppear {
                     restoreLiveActivityIfNeeded()
-                    YandexAdManager.shared.start()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
-                        YandexAdManager.shared.start()
-                        // Окно разрешения на отслеживание показывается только у активного приложения: повторяем запрос
-                        YandexAdManager.shared.requestTrackingAuthorization()
                     }
                 }
         }

@@ -73,15 +73,6 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // 2. Рекламный блок Яндекса (показывается, только если реклама включена в этой сборке)
-                if YandexAdManager.shared.canShowAds {
-                    Section(header: Label("Реклама", systemImage: "megaphone")) {
-                        YandexBannerView(contextTag: "Настройки")
-                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                            .listRowBackground(Color.clear)
-                    }
-                }
-
                 // 3. Статус и параметры опроса
                 Section(header: Label("Мониторинг сети", systemImage: "waveform.path.ecg")) {
                     HStack {
@@ -463,76 +454,6 @@ public struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settingsSupportLink")
                 }
-
-                #if DEBUG
-                // 10. Диагностика рекламы Яндекса (только в отладочных сборках)
-                Section {
-                    HStack {
-                        Text("Статус SDK Яндекса")
-                        Spacer()
-                        Text(YandexAdManager.shared.isSDKInitialized ? "Запущен" : "Ожидание")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(YandexAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
-                    }
-
-                    HStack {
-                        Text("ATT Авторизация")
-                        Spacer()
-                        Text(YandexAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(YandexAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
-                    }
-
-                    HStack {
-                        Text("Межстраничная реклама")
-                        Spacer()
-                        Text(YandexAdManager.shared.isInterstitialLoaded ? "Готова к показу" : "Загружается")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(NPTheme.textSecondary)
-                    }
-
-                    HStack {
-                        Text("Реклама за награду")
-                        Spacer()
-                        Text(YandexAdManager.shared.isRewardedLoaded ? "Готова к показу" : "Загружается")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(NPTheme.textSecondary)
-                    }
-
-                    HStack {
-                        Text("Рекламные блоки")
-                        Spacer()
-                        Text(YandexAdConfig.usesDemoUnits ? "Демо (тестовая реклама)" : "Боевые")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(YandexAdConfig.usesDemoUnits ? Color.orange : Color.green)
-                    }
-
-                    Button("Тест показа межстраничной рекламы") {
-                        HapticManager.shared.impactMedium()
-                        YandexAdManager.shared.presentInterstitial()
-                    }
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(NPTheme.accentPrimary)
-
-                    Button("Тест рекламы за награду") {
-                        HapticManager.shared.impactMedium()
-                        YandexAdManager.shared.showRewarded(
-                            onRewardConfirmed: {
-                                HapticManager.shared.notificationSuccess()
-                            },
-                            onUnavailable: {
-                                HapticManager.shared.notificationWarning()
-                            }
-                        )
-                    }
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(NPTheme.accentPrimary)
-                } header: {
-                    Label("Отладка: реклама Яндекса", systemImage: "megaphone")
-                } footer: {
-                    Text("Инженерная панель рекламы. Видна только в отладочных сборках.")
-                }
-                #endif
             }
             .navigationTitle("Настройки")
             .toolbar {

@@ -9,7 +9,7 @@ import SwiftUI
 import UIKit
 
 /// Сообщения над нижней панелью: ошибка замера, нет доступа к геолокации, итог записи, подсказка про остров,
-/// AI-вердикт. Показывается одно сообщение за раз — самое важное. Когда сообщений нет, места они не занимают.
+/// трафик за время сна приложения, AI-вердикт. Показывается одно сообщение за раз — самое важное. Когда сообщений нет, места они не занимают.
 @MainActor
 struct HomeFloatingCards: View {
     let viewModel: NetworkMonitorViewModel
@@ -27,6 +27,8 @@ struct HomeFloatingCards: View {
             noticeCard(notice)
         } else if isIdle, viewModel.showRecordingHint {
             recordingHintCard
+        } else if isIdle, let note = viewModel.sleepTraffic {
+            sleepTrafficCard(note)
         } else if isIdle, !viewModel.isSpeedtestRunning,
                   let summary = viewModel.instantAISummary, dismissedAISummary != summary {
             aiVerdictCard(summary)
@@ -128,27 +130,58 @@ struct HomeFloatingCards: View {
         }
     }
 
-    /// Свёрнутое приложение iOS усыпляет, и остров стоит на последних цифрах. Пока идёт запись маршрута,
-    /// приложение остаётся активным, и остров обновляется и в фоне.
+    /// Заметка «пока приложение спало, устройство передало столько-то»: остров стоял (iOS усыпила приложение),
+    /// а сеть работала. Цифры берутся из системных счётчиков интерфейсов и охватывают весь трафик устройства.
+    private func sleepTrafficCard(_ note: SleepTrafficNote) -> some View {
+        card {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "arrow.up.arrow.down.circle.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(NPTheme.accentPrimary)
+                Text(note.text)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(NPTheme.textPrimary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("homeSleepTraffic")
+                Spacer(minLength: 0)
+                closeButton(label: "Скрыть сообщение") {
+                    viewModel.dismissSleepTraffic()
+                }
+            }
+        }
+    }
+
+    /// Свёрнутое приложение iOS усыпляет, и остров не может обновляться: он показывает, что данные устарели, а не
+    /// застывшие цифры. Пока идёт запись маршрута, приложение остаётся активным, и остров обновляется и в фоне.
     private var recordingHintCard: some View {
         card {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "pause.circle.fill")
+                    Image(systemName: "moon.zzz.fill")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(NPTheme.semanticWarn)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Остров замирал, пока приложение было свёрнуто")
+                        Text("iOS усыпила приложение, пока оно было свёрнуто")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(NPTheme.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                         Text(recorder.recordsInBackground
-                             ? "iOS усыпляет свёрнутое приложение, и остров стоит на последних цифрах. Пока идёт запись маршрута, приложение остаётся активным и остров обновляется и в фоне. Для записи используется геолокация, в строке состояния появится её значок."
-                             : "iOS усыпляет свёрнутое приложение, и остров стоит на последних цифрах. Чтобы он обновлялся в фоне, включите в настройках «Записывать маршрут в фоне» и начните запись: тогда приложение остаётся активным. Для записи используется геолокация, в строке состояния появится её значок.")
+                             ? "Пока приложение спит, остров обновляться не может: это правило iOS, а сеть при этом работает как обычно. Чтобы остров показывал скорость и в фоне, запишите маршрут: приложение остаётся активным, в строке состояния виден значок геолокации."
+                             : "Пока приложение спит, остров обновляться не может: это правило iOS, а сеть при этом работает как обычно. Чтобы остров обновлялся в фоне, включите в настройках «Записывать маршрут в фоне» и начните запись: тогда приложение остаётся активным. Для записи используется геолокация, в строке состояния появится её значок.")
                             .font(.system(size: 12))
                             .foregroundStyle(NPTheme.textSecondary)
                             .lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)
+                        if let note = viewModel.sleepTraffic {
+                            Text(note.text)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(NPTheme.textPrimary)
+                                .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.top, 2)
+                                .accessibilityIdentifier("homeSleepTraffic")
+                        }
                     }
                     Spacer(minLength: 0)
                 }

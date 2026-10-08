@@ -19,23 +19,17 @@ final class NetPulseUITests: XCTestCase {
 
     // MARK: - Запуск и общие помощники
 
-    /// `ads: false` выключает рекламу Яндекса: она ходит во внешнюю сеть, показывает окно разрешения на отслеживание
-    /// и меняет раскладку экранов, поэтому во всех проверках, кроме рекламной, её нет (аргумент действует только
-    /// в отладочной сборке).
-    @MainActor private func launchApp(ads: Bool = false) -> XCUIApplication {
+    @MainActor private func launchApp() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         // Подсказка «остров замирал» может быть скрыта предыдущим запуском: сбрасываем её
         app.launchArguments += ["-netpulse_recording_hint_dismissed", "NO"]
-        if !ads {
-            app.launchArguments += ["-netpulse_ads_disabled", "YES"]
-        }
         app.launch()
         dismissSystemAlerts()
         return app
     }
 
-    /// Закрывает системные окна SpringBoard (ATT, геолокация, уведомления, Live Activities), предпочитая «Разрешить».
+    /// Закрывает системные окна SpringBoard (геолокация, уведомления, Live Activities), предпочитая «Разрешить».
     @MainActor private func dismissSystemAlerts(timeout: TimeInterval = 6) {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let preferred = [
@@ -231,7 +225,7 @@ final class NetPulseUITests: XCTestCase {
 
     /// Заголовок подсказки «остров замирал» над нижней панелью главного экрана
     @MainActor private func recordingHintTitle(_ app: XCUIApplication) -> XCUIElement {
-        app.staticTexts["Остров замирал, пока приложение было свёрнуто"]
+        app.staticTexts["iOS усыпила приложение, пока оно было свёрнуто"]
     }
 
     /// Разворачивает нижнюю панель главного экрана: нажатие на ряд «Мои маршруты»
@@ -661,50 +655,5 @@ final class NetPulseUITests: XCTestCase {
 
         // Уборка: останавливаем запись, чтобы она не мешала следующим тестам
         stopRecording(app)
-    }
-
-    /// Реклама Яндекса: SDK запускается, баннер запрашивается и (если рекламная сеть ответила) показывается внизу
-    /// главного экрана и над таб-баром других вкладок. Ответ рекламной сети от приложения не зависит (нет сети,
-    /// нет подходящего объявления), поэтому загрузка объявления только записывается в журнал, а проверяется то,
-    /// что зависит от приложения: SDK поднялся, баннер запрошен, экран остался рабочим.
-    @MainActor func testYandexAdsStartAndShowBanner() throws {
-        let app = launchApp(ads: true)
-        waitForHome(app)
-
-        let requested = app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier == 'yandexBanner.requested' OR identifier == 'yandexBanner.loaded'")
-        ).firstMatch
-        let loaded = app.descendants(matching: .any)["yandexBanner.loaded"]
-
-        // 1. SDK запущен, баннер запрошен (до этого пользователь отвечает на окно «Разрешить отслеживание?»)
-        dismissSystemAlerts(timeout: 4)
-        let requestedAfter = secondsUntilExists(requested, timeout: 60)
-        print("NETPULSE-CI: реклама Яндекса: баннер запрошен через \(requestedAfter.map { String(format: "%.0f", $0) } ?? "—") с")
-        if requestedAfter == nil {
-            attachScreenshot("ads-not-requested")
-            attachHierarchy(app, name: "ads-not-requested-hierarchy")
-        }
-        XCTAssertNotNil(requestedAfter, "Реклама Яндекса не запустилась: баннер не запрошен за 60 секунд")
-
-        // 2. Объявление пришло (мягкая проверка: зависит от внешней рекламной сети)
-        let loadedAfter = secondsUntilExists(loaded, timeout: 60)
-        if let loadedAfter {
-            print("NETPULSE-CI: реклама Яндекса: баннер на главном экране загружен через \(String(format: "%.0f", loadedAfter)) с")
-        } else {
-            print("NETPULSE-CI: реклама Яндекса: баннер на главном экране НЕ загрузился за 60 с (зависит от внешней рекламной сети)")
-        }
-        attachScreenshot("ads-home")
-
-        // Баннер не должен ломать главный экран: главные кнопки по-прежнему доступны
-        XCTAssertTrue(app.buttons["homeSpeedButton"].isHittable, "Из-за рекламы кнопка замера скорости недоступна")
-        XCTAssertTrue(app.buttons["networkMapStartButton"].isHittable, "Из-за рекламы кнопка записи маршрута недоступна")
-
-        // 3. Другая вкладка: над таб-баром закреплённый баннер, в содержимом рекламная карточка (или предложение PRO)
-        app.tabBars.buttons["Узлы"].tap()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «Узлы»")
-        let tabLoadedAfter = secondsUntilExists(app.descendants(matching: .any)["yandexBanner.loaded"], timeout: 45)
-        print("NETPULSE-CI: реклама Яндекса: баннеры на вкладке «Узлы» загружены через \(tabLoadedAfter.map { String(format: "%.0f", $0) } ?? "— (не загрузились)") с")
-        attachScreenshot("ads-tab-hosts")
-        XCTAssertTrue(app.tabBars.firstMatch.exists, "Панель вкладок пропала из-за рекламы")
     }
 }

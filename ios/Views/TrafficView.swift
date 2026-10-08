@@ -72,10 +72,6 @@ public struct TrafficView: View {
                     // 3. Главная сводная карточка расхода трафика
                     heroSummaryCard
 
-                    // 4. Рекламный баннер Яндекса на видном месте
-                    YandexBannerView(contextTag: "Трафик и безопасность")
-                        .padding(.horizontal)
-
                     // 5. 24-часовая тепловая карта сетевой активности (Traffic Heatmap)
                     trafficHeatmapSection
 

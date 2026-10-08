@@ -55,10 +55,6 @@ public struct AIDiagnosticsView: View {
                                 issuesAndRecommendationsSection(report: report)
                             }
 
-                            // 7. Рекламный баннер Яндекса на видном месте
-                            YandexBannerView(contextTag: "AI и безопасность")
-                                .padding(.horizontal)
-
                             // 8. Сценарии интерактивного мастера траблшутинга
                             troubleshootingScenariosSection
 
@@ -288,10 +284,9 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 3.1 Бонусный глубокий AI-аудит (реклама за вознаграждение)
+    // MARK: - 3.1 Глубокий AI-аудит
 
-    /// Запуск полного аудита. Аудит локальный и бесплатный (его же запускает «Обновить аудит»), поэтому
-    /// он выполняется и после просмотра ролика, и когда ролика нет — отсутствие рекламы не блокирует пользователя.
+    /// Запуск полного аудита. Аудит локальный (его же запускает «Обновить аудит»).
     private func runDeepAudit() {
         Task {
             await viewModel.runAIDiagnosticsAudit()
@@ -301,10 +296,7 @@ public struct AIDiagnosticsView: View {
 
     private var rewardedAIAnalysisCard: some View {
         Button {
-            YandexAdManager.shared.showRewarded(
-                onRewardConfirmed: { runDeepAudit() },
-                onUnavailable: { runDeepAudit() }
-            )
+            runDeepAudit()
         } label: {
             HStack(spacing: 12) {
                 ZStack {
@@ -328,30 +320,11 @@ public struct AIDiagnosticsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("Глубокий AI-аудит сети")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(NPTheme.textPrimary)
+                    Text("Глубокий AI-аудит сети")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.textPrimary)
 
-                        if YandexAdManager.shared.canShowAds {
-                            HStack(spacing: 2) {
-                                Image(systemName: "infinity")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                                Text("Реклама")
-                                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                            }
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(Color(red: 0.0, green: 0.55, blue: 1.0).opacity(0.12))
-                            .clipShape(Capsule())
-                        }
-                    }
-
-                    Text(YandexAdManager.shared.canShowAds
-                         ? "Запустить полный анализ сети. Если доступен рекламный ролик, он покажется перед аудитом"
-                         : "Запустить полный анализ параметров сети")
+                    Text("Запустить полный анализ параметров сети")
                         .font(.system(size: 11))
                         .foregroundStyle(NPTheme.textSecondary)
                 }

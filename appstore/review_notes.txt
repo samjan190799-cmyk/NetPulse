@@ -19,4 +19,11 @@ HOW TO TEST
 4. Tap "Остановить и сохранить" (Stop and save): the route summary appears and the route is saved under "Мои маршруты" (My routes), where it can be deleted.
 In the Simulator use Features -> Location -> City Run / Freeway Drive. If the phone stays on a desk, points are written only every 30 seconds.
 
+ADVERTISING AND TRACKING
+The app contains no advertising, no third-party SDKs and no analytics, and does not track users: it does not use the AppTrackingTransparency framework and does not request the App Tracking Transparency permission. The App Privacy answers are "Data Not Collected". There is no account and no server.
+The optional cloud AI assistant works only if the user enters their own API key (OpenAI, Anthropic, Google or DeepSeek); then the user's question and summary network metrics (no IP addresses, no internet provider name) are sent from the device to the provider the user chose. By default the assistant runs on the device and nothing is sent.
+
+WIDGETS AND LIVE ACTIVITY
+The app includes a Home Screen widget ("NetPulse Монитор", WidgetKit: network status, latency, connection speed and data usage) and a Live Activity shown on the Lock Screen and in the Dynamic Island with live speed and latency. Both work without location permission.
+
 The app's interface is in Russian.

@@ -41,15 +41,6 @@ on:
         description: 'Для проверки фрагментов: имена файлов из ios/ci/probes через пробел (пусто — все)'
         required: false
         default: ''
-      yandex_probe:
-        description: 'Вместо фрагментов — справка по SDK рекламы Яндекса: интерфейс пакета и SKAdNetwork-идентификаторы (около 3 минут)'
-        type: boolean
-        required: false
-        default: false
-      yandex_pattern:
-        description: 'Для справки по SDK Яндекса: что искать в интерфейсе (регулярное выражение); пусто — основные типы рекламы'
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -82,15 +73,7 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: "Справка по SDK рекламы Яндекса"
-        if: ${{ inputs.yandex_probe }}
-        timeout-minutes: 12
-        env:
-          YANDEX_PATTERN: ${{ inputs.yandex_pattern }}
-        run: bash ios/ci/yandex_sdk_probe.sh
-
       - name: "Проверка фрагментов"
-        if: ${{ !inputs.yandex_probe }}
         env:
           # Значение проходит через окружение, имена файлов проверяются в скрипте (защита от инъекции команд)
           PROBE_FILES: ${{ inputs.probe_files }}
@@ -123,10 +106,6 @@ jobs:
             sudo xcode-select -s /Applications/Xcode.app
           fi
           xcodebuild -version
-
-      - name: "Разрешение зависимостей Swift Package Manager"
-        working-directory: ./ios
-        run: xcodebuild -resolvePackageDependencies -project NetPulse.xcodeproj -scheme NetPulse
 
       - name: "Выбор и запуск симулятора"
         working-directory: ./ios
@@ -161,8 +140,8 @@ jobs:
         run: |
           echo "=== Ошибки компиляции и сборки ==="
           grep -E "error:" build/build.log 2>/dev/null | sort -u | head -n 60 || true
-          echo "=== Предупреждения про рекламу, изоляцию акторов и Sendable (Swift 6) ==="
-          grep -E "warning:" build/build.log 2>/dev/null | grep -Ei "yandex|banner|interstitial|rewarded|AdManager|AdModels|isolat|sendable" | sort -u | head -n 60 || true
+          echo "=== Предупреждения про изоляцию акторов и Sendable (Swift 6) ==="
+          grep -E "warning:" build/build.log 2>/dev/null | grep -Ei "isolat|sendable" | sort -u | head -n 60 || true
 
       - name: "Юнит-тесты"
         id: unit
@@ -353,13 +332,6 @@ jobs:
               head -n 60 "$report"
             fi
           done
-
-      - name: "Журнал рекламы Яндекса (из приложения в симуляторе)"
-        if: always()
-        run: |
-          # Строки категории ads пишет YandexAdManager и баннеры: запуск SDK, ответ на запрос разрешения, загрузка и ошибки рекламы
-          xcrun simctl spawn "$UDID" log show --last 90m --style compact \
-            --predicate 'process == "NetPulse" AND category == "ads"' 2>/dev/null | tail -n 150 || true
 
       - name: "Сводка результатов"
         if: always()

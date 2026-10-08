@@ -65,17 +65,6 @@ public struct ContentView: View {
                 }
             }
 
-            // Закрепленный рекламный баннер Яндекса над системным таб-баром.
-            // На главном экране (карта) баннер стоит внутри нижней панели и ничего не перекрывает.
-            if selectedTab != 0 {
-                VStack(spacing: 0) {
-                    Spacer()
-                    YandexStickyBannerView()
-                        .padding(.bottom, 49) // Высота стандартного таб-бара iOS
-                }
-                .ignoresSafeArea(.keyboard)
-            }
-
             // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх других приложений и рабочего стола
             if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
                 PiPAnchorRepresentable(viewModel: viewModel)

@@ -19,14 +19,14 @@ import ActivityKit
 /// - «Перезапустить» действительно создаёт активность заново (раньше подключалась к старой и упиралась в тот же флаг);
 /// - после возврата в приложение, если остров не обновился за несколько секунд, он пересоздаётся сам;
 /// - у каждого кадра есть `staleDate`: если обновления прекратились (приложение усыпили), iOS помечает остров
-///   устаревшим, и он показывает паузу, а не застывшие цифры, выдаваемые за живые;
+///   устаревшим, и он показывает «спит» и возраст данных, а не застывшие цифры, выдаваемые за живые;
 /// - неудачный запуск активности повторяется не чаще раза в 10 секунд, а не каждую секунду;
 /// - важные события пишутся в журнал (`IslandDiagnostics`).
 @MainActor
 public final class ActivityManager {
     public static let shared = ActivityManager()
 
-    /// Через сколько секунд без обновлений iOS пометит остров устаревшим (виджет покажет паузу)
+    /// Через сколько секунд без обновлений iOS пометит остров устаревшим (виджет покажет, что приложение спит)
     public static let staleAfter: TimeInterval = 20
     /// Сколько секунд ждать ответа системы на отправку кадра, прежде чем считать её зависшей
     public static let sendTimeout: TimeInterval = 5
@@ -400,8 +400,10 @@ public final class ActivityManager {
         }
 
         let attributes = NetPulseAttributes(sessionTitle: "Мониторинг NetPulse")
+        var stamped = state
+        stamped.updatedAt = Date()
         let content = ActivityContent(
-            state: state,
+            state: stamped,
             staleDate: Date().addingTimeInterval(Self.staleAfter),
             relevanceScore: Self.relevance(for: state)
         )
@@ -491,9 +493,12 @@ public final class ActivityManager {
 
     private func makeSender(for activity: Activity<NetPulseAttributes>) -> IslandUpdatePipeline<NetPulseAttributes.ContentState>.Sender {
         return { state in
-            // staleDate продлевается с каждым кадром: если кадры прекратятся, iOS сама пометит остров устаревшим
+            // staleDate продлевается с каждым кадром: если кадры прекратятся, iOS сама пометит остров устаревшим.
+            // Метка времени кадра нужна, чтобы устаревший остров показывал «данные N назад»
+            var stamped = state
+            stamped.updatedAt = Date()
             let content = ActivityContent(
-                state: state,
+                state: stamped,
                 staleDate: Date().addingTimeInterval(ActivityManager.staleAfter),
                 relevanceScore: ActivityManager.relevance(for: state)
             )

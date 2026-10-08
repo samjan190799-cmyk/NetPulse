@@ -37,10 +37,6 @@ public struct LANScannerView: View {
                     // 1. Сводная карточка подсети и статус безопасности
                     subnetSummaryHeroCard
 
-                    // 2. Рекламный баннер Яндекса на видном месте
-                    YandexBannerView(contextTag: "Безопасность устройств")
-                        .padding(.horizontal)
-
                     // 3. Индикатор прогресса сканирования подсети
                     if isScanning {
                         scanProgressCard

@@ -142,7 +142,6 @@ final class AppStoreScreenshotTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += [
             "-netpulse_recording_hint_dismissed", "YES",   // подсказка про остров не должна закрывать карту
-            "-netpulse_ads_disabled", "YES",               // в карточке магазина чужая реклама не нужна
             "-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU"
         ]
         app.launch()

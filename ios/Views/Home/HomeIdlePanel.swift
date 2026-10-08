@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Нижняя панель главного экрана в обычном режиме: скорость сети, две главные кнопки и ряд «Мои маршруты».
 /// Её можно потянуть вверх (или нажать на ручку): под ней откроются маршруты, настройки записи, инструменты
-/// и оценка возможностей сети. Внизу панели закреплён рекламный баннер, если он загрузился.
+/// и оценка возможностей сети.
 @MainActor
 struct HomeIdlePanel: View {
     let viewModel: NetworkMonitorViewModel
@@ -35,7 +35,7 @@ struct HomeIdlePanel: View {
     // MARK: - Размеры и жест
 
     private var expandedScrollHeight: CGFloat {
-        // Над панелью остаётся место для плашек и кнопок на карте; запас снизу — под рекламный баннер
+        // Над панелью остаётся место для плашек и кнопок на карте
         max(Self.mediumScrollHeight + 120, containerHeight - 60 - Self.handleHeight - 56)
     }
 
@@ -141,8 +141,6 @@ struct HomeIdlePanel: View {
                     }
                 }
             }
-
-            YandexStickyBannerView()
         }
         .frame(maxWidth: .infinity)
         .background(HomePanelBackground())

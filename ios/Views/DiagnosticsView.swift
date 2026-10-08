@@ -33,9 +33,6 @@ public struct DiagnosticsView: View {
                             }
                         )
 
-                        // 2. Рекламный баннер Яндекса на видном месте
-                        YandexBannerView(contextTag: "Диагностика сети")
-
                         // 3. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
                         proUtilitiesHub
 

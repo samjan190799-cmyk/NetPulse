@@ -149,6 +149,11 @@ public final class NetworkMonitorViewModel {
     public var showRecordingHint: Bool = false
     private static let kRecordingHintDismissedKey = "netpulse_recording_hint_dismissed"
 
+    /// Сколько трафика прошло, пока приложение спало: остров в это время стоит, а сеть работает. Показывается на главном
+    /// экране после возвращения и скрывается сам.
+    public var sleepTraffic: SleepTrafficNote?
+    private var sleepTrafficClearTask: Task<Void, Never>?
+
     public var floatingHUDEnabled: Bool {
         didSet {
             UserDefaults.standard.set(floatingHUDEnabled, forKey: Self.kFloatingHUDKey)
@@ -265,6 +270,31 @@ public final class NetworkMonitorViewModel {
     }
 
     /// Скрывает подсказку про запись маршрута; `forever` — больше не показывать
+    /// Скрывает заметку о трафике за время сна
+    public func dismissSleepTraffic() {
+        sleepTrafficClearTask?.cancel()
+        sleepTrafficClearTask = nil
+        sleepTraffic = nil
+    }
+
+    /// Запоминает, сколько трафика прошло, пока приложение спало (по системным счётчикам), и на время показывает это
+    /// на главном экране
+    private func noteTrafficWhileAway(_ summary: SleepTrafficSummary?, since: Date?) {
+        let away = since.map { Date().timeIntervalSince($0) }
+        guard let note = SleepTrafficNote.make(summary: summary, awaySeconds: away) else { return }
+        sleepTraffic = note
+        IslandDiagnostics.shared.log(
+            "Пока приложение спало (\(IslandDiagnostics.formatAge(note.awaySeconds))): принято \(note.downloadBytes) Б, отправлено \(note.uploadBytes) Б",
+            .lifecycle
+        )
+        sleepTrafficClearTask?.cancel()
+        sleepTrafficClearTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(45))
+            guard !Task.isCancelled else { return }
+            self?.sleepTraffic = nil
+        }
+    }
+
     public func dismissRecordingHint(forever: Bool) {
         showRecordingHint = false
         if forever {
@@ -406,14 +436,17 @@ public final class NetworkMonitorViewModel {
     private func handleWillEnterForeground() {
         IslandDiagnostics.shared.log("Приложение возвращается на экран.", .lifecycle)
         endBackgroundAssertion()
+        // Когда приложение свернули: к моменту сверки счётчиков метка ещё не сброшена (её снимает handleDidBecomeActive)
+        let sleptSince = backgroundedAt
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
             // Моментальная сверка с аппаратными счетчиками ядра за время сна/фона (Zero-Loss)
-            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+            let missed = await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
                 currentConnectionType: info.connectionType.rawValue,
                 currentNetworkName: self.currentNetworkTitle
             )
+            self.noteTrafficWhileAway(missed, since: sleptSince)
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
             self.syncWidgetData(reloadTimelines: true)
         }
@@ -1286,9 +1319,6 @@ public final class NetworkMonitorViewModel {
 
                 await self.storage.recordSpeedtest(result)
                 self.syncWidgetData(reloadTimelines: true)
-
-                // Межстраничная реклама Яндекса: раз в несколько замеров, если ролик уже загружен
-                YandexAdManager.shared.recordActionAndTriggerInterstitial()
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
                 self.isSpeedtestRunning = false

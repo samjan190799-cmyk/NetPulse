@@ -125,10 +125,17 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(opened, "Экран «Настройки» не открылся")
     }
 
-    /// Возвращается на вкладку «Сеть» и ждёт главный экран
+    /// Возвращается на вкладку «Сеть» и ждёт главный экран: обычную панель с кнопкой замера или, если идёт запись
+    /// маршрута, панель записи с кнопкой «Остановить и сохранить»
     @MainActor private func closeSettings(_ app: XCUIApplication) {
         app.tabBars.buttons["Сеть"].tap()
-        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После настроек главный экран не появился")
+        let speed = app.buttons["homeSpeedButton"]
+        let stop = app.buttons["networkMapStopButton"]
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, !speed.exists, !stop.exists {
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        XCTAssertTrue(speed.exists || stop.exists, "После настроек главный экран не появился")
     }
 
     /// Прокручивает экран, пока элемент не станет видимым (строки SwiftUI-списка создаются лениво).

@@ -50,6 +50,9 @@ struct PaywallView: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
+            // Метка стоит на прокручиваемом содержимом, а не на всём окне: иначе она перебивает идентификатор
+            // кнопки «Закрыть» в наложении, и кнопку не найти ни тестам, ни Универсальному доступу
+            .accessibilityIdentifier("paywallView")
         }
         .overlay(alignment: .topTrailing) {
             Button {
@@ -83,7 +86,6 @@ struct PaywallView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
-        .accessibilityIdentifier("paywallView")
     }
 
     // MARK: - Шапка

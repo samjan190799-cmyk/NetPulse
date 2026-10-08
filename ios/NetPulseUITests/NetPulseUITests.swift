@@ -22,9 +22,14 @@ final class NetPulseUITests: XCTestCase {
     /// `motion: false` выключает все анимации (заставка, «рисование» маршрута, бесконечное движение): снимки
     /// экрана должны быть одинаковыми, а бесконечные анимации не дают дождаться покоя приложения. `motion: true`
     /// оставляет разовые анимации (заставку, появление экранов), бесконечные по-прежнему выключены.
-    @MainActor private func launchApp(motion: Bool = false) -> XCUIApplication {
+    /// `pro: true` (по умолчанию) запускает отладочную сборку с подпиской: остров, HUD и AI-аудит открыты. Тесты платного
+    /// доступа запускают приложение с `pro: false`.
+    @MainActor private func launchApp(motion: Bool = false, pro: Bool = true) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
+        if pro {
+            app.launchArguments += ["-netpulse_pro", "YES"]
+        }
         // Подсказка «остров замирал» может быть скрыта предыдущим запуском: сбрасываем её
         app.launchArguments += ["-netpulse_recording_hint_dismissed", "NO"]
         app.launchArguments += motion ? ["-netpulse_continuous_off", "YES"] : ["-netpulse_motion_off", "YES"]
@@ -677,5 +682,52 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["homeSpeedButton"].isHittable, "Из-за анимаций кнопка замера скорости недоступна")
         XCTAssertTrue(app.buttons["networkMapStartButton"].isHittable, "Из-за анимаций кнопка записи недоступна")
         attachScreenshot("motion-home")
+    }
+
+    // MARK: - Подписка PRO
+
+    /// Без подписки остров закрыт: кнопка острова на главном экране открывает окно подписки с ценой, условиями и кнопкой
+    /// «Восстановить покупки» (правило App Store 3.1.2)
+    @MainActor func testFreeUserSeesPaywallInsteadOfIsland() throws {
+        let app = launchApp(pro: false)
+        waitForHome(app)
+
+        let island = app.buttons["homeIslandButton"]
+        XCTAssertTrue(island.waitForExistence(timeout: 15), "На главном экране нет кнопки острова")
+        island.tap()
+
+        let paywall = app.descendants(matching: .any)["paywallView"]
+        XCTAssertTrue(paywall.waitForExistence(timeout: 10), "Окно подписки не открылось")
+        XCTAssertTrue(app.buttons["paywallSubscribeButton"].exists, "В окне подписки нет кнопки «Подписаться»")
+        XCTAssertTrue(app.buttons["paywallRestoreButton"].exists, "В окне подписки нет «Восстановить покупки»")
+        XCTAssertTrue(app.descendants(matching: .any)["paywallLegal"].exists, "В окне подписки нет условий автопродления")
+        attachScreenshot("paywall")
+
+        app.buttons["paywallCloseButton"].tap()
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После закрытия окна нет главного экрана")
+    }
+
+    /// Без подписки на вкладке «AI Диагност» стоит заглушка, а кнопка в ней открывает окно подписки
+    @MainActor func testFreeUserSeesLockedAITab() throws {
+        let app = launchApp(pro: false)
+        waitForHome(app)
+
+        app.tabBars.buttons["AI Диагност"].tap()
+        let locked = app.descendants(matching: .any)["proLockedView"]
+        XCTAssertTrue(locked.waitForExistence(timeout: 10), "На вкладке AI нет заглушки платной возможности")
+        attachScreenshot("ai-locked")
+
+        app.buttons["proUnlockButton"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["paywallView"].waitForExistence(timeout: 10), "Кнопка не открыла окно подписки")
+    }
+
+    /// С подпиской вкладка «AI Диагност» показывает сам AI-аудит, а не заглушку
+    @MainActor func testSubscriberSeesAIAudit() throws {
+        let app = launchApp()
+        waitForHome(app)
+
+        app.tabBars.buttons["AI Диагност"].tap()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["proLockedView"].waitForExistence(timeout: 3), "У подписчика AI закрыт заглушкой")
     }
 }

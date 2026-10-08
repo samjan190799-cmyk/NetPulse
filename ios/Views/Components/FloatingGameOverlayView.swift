@@ -16,7 +16,6 @@ public struct FloatingGameOverlayView: View {
     public let pingMs: Double?
     public let jitterMs: Double?
     public let packetLossPct: Double
-    public let onTogglePiP: () -> Void
     public let onClose: () -> Void
 
     @State private var offset: CGSize = CGSize(width: 16, height: 110)
@@ -147,20 +146,7 @@ public struct FloatingGameOverlayView: View {
                                 }
                             }
 
-                            // 4. Кнопка PiP
-                            Button(action: {
-                                HapticManager.shared.impactMedium()
-                                onTogglePiP()
-                            }) {
-                                Image(systemName: "pip.enter")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(NPTheme.accentPrimary)
-                                    .padding(4)
-                                    .background(NPTheme.accentPrimary.opacity(0.12))
-                                    .clipShape(Circle())
-                            }
-
-                            // 5. Кнопка сворачивания
+                            // 4. Кнопка сворачивания
                             Button(action: {
                                 HapticManager.shared.impactLight()
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -173,7 +159,7 @@ public struct FloatingGameOverlayView: View {
                                     .padding(3)
                             }
 
-                            // 6. Кнопка закрытия
+                            // 5. Кнопка закрытия
                             Button(action: {
                                 HapticManager.shared.impactLight()
                                 onClose()

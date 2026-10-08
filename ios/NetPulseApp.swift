@@ -20,6 +20,8 @@ struct NetPulseApp: App {
         WindowGroup {
             ContentView()
                 .onAppear {
+                    // Подписка PRO: слушает покупки и подтверждает статус (остров, HUD и AI-аудит входят в подписку)
+                    ProStore.shared.start()
                     restoreLiveActivityIfNeeded()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
@@ -31,7 +33,8 @@ struct NetPulseApp: App {
     }
 
     private func restoreLiveActivityIfNeeded() {
-        let isLiveEnabled = UserDefaults.standard.object(forKey: "netpulse_live_activity_enabled") as? Bool ?? true
+        let isLiveEnabled = (UserDefaults.standard.object(forKey: "netpulse_live_activity_enabled") as? Bool ?? true)
+            && ProStore.shared.isPro
         let isBgEnabled = UserDefaults.standard.object(forKey: "netpulse_background_monitoring_enabled") as? Bool ?? true
 
         if isLiveEnabled || isBgEnabled {

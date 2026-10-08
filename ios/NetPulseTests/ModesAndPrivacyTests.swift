@@ -221,3 +221,109 @@ final class AppLinksTests: XCTestCase {
         XCTAssertNotEqual(AppLinks.privacyPolicy, AppLinks.support)
     }
 }
+
+// MARK: - Подписка PRO
+
+final class ProEntitlementTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    func testActiveMonthlySubscriptionGrantsPro() {
+        XCTAssertTrue(ProEntitlement.grantsPro(
+            productID: ProEntitlement.monthlyID, revocationDate: nil,
+            expirationDate: now.addingTimeInterval(86_400), now: now
+        ))
+    }
+
+    func testSubscriptionWithoutExpirationDateGrantsPro() {
+        XCTAssertTrue(ProEntitlement.grantsPro(productID: ProEntitlement.monthlyID, revocationDate: nil, expirationDate: nil, now: now))
+    }
+
+    func testExpiredSubscriptionDoesNotGrantPro() {
+        XCTAssertFalse(ProEntitlement.grantsPro(
+            productID: ProEntitlement.monthlyID, revocationDate: nil,
+            expirationDate: now.addingTimeInterval(-1), now: now
+        ))
+    }
+
+    func testRevokedSubscriptionDoesNotGrantPro() {
+        XCTAssertFalse(ProEntitlement.grantsPro(
+            productID: ProEntitlement.monthlyID, revocationDate: now.addingTimeInterval(-3_600),
+            expirationDate: now.addingTimeInterval(86_400), now: now
+        ))
+    }
+
+    func testOtherProductDoesNotGrantPro() {
+        XCTAssertFalse(ProEntitlement.grantsPro(productID: "com.example.other", revocationDate: nil, expirationDate: nil, now: now))
+    }
+
+    func testPaidFeaturesAreIslandHudAndAIAudit() {
+        XCTAssertEqual(ProFeature.included, [.island, .hud, .aiAudit])
+        for feature in ProFeature.allCases {
+            XCTAssertFalse(feature.title.isEmpty)
+            XCTAssertFalse(feature.summary.isEmpty)
+            XCTAssertFalse(feature.icon.isEmpty)
+        }
+    }
+}
+
+@MainActor
+final class ProStoreTests: XCTestCase {
+    private func makeDefaults() throws -> UserDefaults {
+        let suite = "netpulse.test.pro.\(UUID().uuidString)"
+        return try XCTUnwrap(UserDefaults(suiteName: suite))
+    }
+
+    func testFreeUserIsRefusedAndPaywallOpens() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        XCTAssertFalse(store.isPro)
+        XCTAssertNil(store.paywall)
+        XCTAssertFalse(store.requirePro(.island))
+        XCTAssertEqual(store.paywall, .island, "Окно подписки подсвечивает возможность, с которой его открыли")
+    }
+
+    func testSubscriberPassesWithoutPaywall() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        store.apply(isActive: true)
+        XCTAssertTrue(store.isPro)
+        XCTAssertTrue(store.requirePro(.hud))
+        XCTAssertNil(store.paywall)
+    }
+
+    func testBecomingProClosesPaywallAndNotifiesOnce() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        var notifications = 0
+        store.onChange = { notifications += 1 }
+        store.paywall = .aiAudit
+
+        store.apply(isActive: true)
+        XCTAssertEqual(notifications, 1)
+        XCTAssertNil(store.paywall, "После покупки окно подписки закрывается")
+
+        store.apply(isActive: true)
+        XCTAssertEqual(notifications, 1, "Тот же статус повторно никого не будит")
+    }
+
+    func testLosingSubscriptionNotifiesAndLocksFeatures() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        store.apply(isActive: true)
+        var notifications = 0
+        store.onChange = { notifications += 1 }
+
+        store.apply(isActive: false)
+        XCTAssertFalse(store.isPro)
+        XCTAssertEqual(notifications, 1, "Остров должен погаснуть сразу, а не после перезапуска")
+        XCTAssertFalse(store.requirePro(.island))
+    }
+
+    func testStatusIsRememberedBetweenLaunches() throws {
+        let defaults = try makeDefaults()
+        let first = ProStore(defaults: defaults)
+        first.apply(isActive: true)
+
+        let second = ProStore(defaults: defaults)
+        XCTAssertTrue(second.isPro, "Подписчик не должен видеть замок до ответа StoreKit")
+
+        second.apply(isActive: false)
+        XCTAssertFalse(ProStore(defaults: defaults).isPro, "Отозванная подписка не должна вернуться из памяти")
+    }
+}

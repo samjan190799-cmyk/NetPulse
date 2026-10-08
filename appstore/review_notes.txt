@@ -23,6 +23,22 @@ ADVERTISING AND TRACKING
 The app contains no advertising, no third-party SDKs and no analytics, and does not track users: it does not use the AppTrackingTransparency framework and does not request the App Tracking Transparency permission. The App Privacy answers are "Data Not Collected". There is no account and no server.
 The optional cloud AI assistant works only if the user enters their own API key (OpenAI, Anthropic, Google or DeepSeek); then the user's question and summary network metrics (no IP addresses, no internet provider name) are sent from the device to the provider the user chose. By default the assistant runs on the device and nothing is sent.
 
+SUBSCRIPTION (NetPulse PRO)
+
+NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product com.samvel.netpulse.pro.monthly,
+USD 0.99 per month). It unlocks exactly three features:
+1. Speed in the Dynamic Island / Live Activity (Settings -> "Dynamic Island", or the "Островок" button on the map).
+2. The floating game HUD inside the app (Settings -> "Плавающий игровой оверлей (HUD)").
+3. The deep AI audit (the "AI Диагност" tab: network health score, anomaly prediction, troubleshooting wizard,
+   ISP complaint letter).
+Everything else is free: speed test, route recording and the network map, traffic accounting, DNS / bufferbloat /
+LAN / gaming tools, the Home Screen widget, the quick AI verdict after a speed test.
+
+How to see the paywall: tap the slider button on the map -> "NetPulse PRO" (or tap "Островок", or open the
+"AI Диагност" tab). The paywall shows the price from the App Store, the billing period, the auto-renewal terms,
+links to the Terms of Use (Apple standard EULA) and the Privacy Policy, and a "Восстановить покупки"
+(Restore Purchases) button. Purchases are handled only by StoreKit; the app has no account and no server.
+
 WIDGETS AND LIVE ACTIVITY
 The app includes a Home Screen widget ("NetPulse Монитор", WidgetKit: network status, latency, connection speed and data usage) and a Live Activity shown on the Lock Screen and in the Dynamic Island with live speed and latency. Both work without location permission.
 

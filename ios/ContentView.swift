@@ -13,6 +13,8 @@ import UIKit
 /// Настройки открываются кнопкой на главном экране.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel.shared
+    /// Подписка PRO: окно подписки открывается поверх любого экрана
+    @Bindable private var pro = ProStore.shared
     @State private var selectedTab: Int = 0
 
     public var body: some View {
@@ -42,12 +44,19 @@ public struct ContentView: View {
                     .tag(2)
 
                 // 4. Интеллектуальный AI-Диагност
-                AIDiagnosticsView(viewModel: viewModel)
-                    .npAppear()
-                    .tabItem {
-                        Label("AI Диагност", systemImage: "sparkles")
+                // AI-аудит входит в подписку PRO: без неё на этом месте экран с описанием и кнопкой подписки
+                Group {
+                    if pro.isPro {
+                        AIDiagnosticsView(viewModel: viewModel)
+                    } else {
+                        ProLockedView(feature: .aiAudit)
                     }
-                    .tag(3)
+                }
+                .npAppear()
+                .tabItem {
+                    Label("AI Диагност", systemImage: "sparkles")
+                }
+                .tag(3)
             }
             .tint(NPTheme.accentPrimary)
             .preferredColorScheme(.dark)
@@ -56,23 +65,6 @@ public struct ContentView: View {
             }
             .onAppear {
                 configureTabBarAppearance()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-                if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
-                    PiPHUDManager.shared.startPiP()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported && PiPHUDManager.shared.isPiPActive {
-                    PiPHUDManager.shared.stopPiP()
-                }
-            }
-
-            // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх других приложений и рабочего стола
-            if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
-                PiPAnchorRepresentable(viewModel: viewModel)
-                    .frame(width: 1, height: 1)
-                    .opacity(0.001)
             }
 
             // Плавающий игровой HUD внутри приложения
@@ -84,9 +76,6 @@ public struct ContentView: View {
                     pingMs: viewModel.currentAveragePing,
                     jitterMs: viewModel.currentAverageJitter,
                     packetLossPct: viewModel.currentPacketLossPct,
-                    onTogglePiP: {
-                        PiPHUDManager.shared.togglePiP()
-                    },
                     onClose: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             viewModel.floatingHUDEnabled = false
@@ -100,6 +89,12 @@ public struct ContentView: View {
             NPIntroOverlay()
         }
         .npMotionPolicy()
+        .sheet(item: Binding(
+            get: { pro.paywallHost == .root ? pro.paywall : nil },
+            set: { pro.paywall = $0 }
+        )) { feature in
+            PaywallView(feature: feature)
+        }
     }
 
     /// Настройка нативного полупрозрачного Glassmorphism таб-бара Apple
@@ -113,133 +108,3 @@ public struct ContentView: View {
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 }
-
-/// Системный мост UIView для инициализации AVPictureInPictureController
-private struct PiPAnchorRepresentable: UIViewRepresentable {
-    var viewModel: NetworkMonitorViewModel
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
-        view.backgroundColor = .clear
-        view.isUserInteractionEnabled = false
-
-        let rootView = AnyView(
-            PiPHUDContentView()
-        )
-        PiPHUDManager.shared.setup(with: view, rootView: rootView)
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        // Управление телеметрией переведено в фоновый цикл ViewModel -> PiPHUDManager.shared
-    }
-}
-
-/// Полноформатный киберспортивный оверлей Picture-in-Picture (PiP) на 100% окна без пустот и с живым обновлением
-private struct PiPHUDContentView: View {
-    @ObservedObject private var manager = PiPHUDManager.shared
-
-    private var pingColor: Color {
-        guard let p = manager.pingMs else { return NPTheme.accentPrimary }
-        if p < 45 {
-            return NPTheme.semanticOK
-        } else if p < 100 {
-            return NPTheme.semanticWarn
-        } else {
-            return NPTheme.semanticCritical
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: 5) {
-            // Верхняя строка: Тип сети + статус + пинг
-            HStack {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 5, height: 5)
-                    Text(manager.connectionType.uppercased())
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.white.opacity(0.12))
-                .clipShape(Capsule())
-
-                Spacer()
-
-                if let ping = manager.pingMs {
-                    HStack(spacing: 3) {
-                        Circle()
-                            .fill(pingColor)
-                            .frame(width: 4.5, height: 4.5)
-                        Text(String(format: "%.0f ms", ping))
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(pingColor)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(pingColor.opacity(0.15))
-                    .clipShape(Capsule())
-                }
-            }
-
-            // Нижняя строка: Крупные показатели скорости Down / Up
-            HStack(spacing: 8) {
-                HStack(spacing: 3.5) {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundStyle(NPTheme.accentPrimary)
-                    Text(manager.downloadText)
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(NPTheme.accentPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-
-                Spacer()
-
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(NPTheme.accentSilver)
-                    Text(manager.uploadText)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.85))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-            }
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.08, green: 0.10, blue: 0.15),
-                    Color(red: 0.02, green: 0.03, blue: 0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.white.opacity(0.06)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .ignoresSafeArea()
-    }
-}
-

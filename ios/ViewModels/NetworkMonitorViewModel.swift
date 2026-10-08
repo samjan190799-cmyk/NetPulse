@@ -138,11 +138,19 @@ public final class NetworkMonitorViewModel {
         }
     }
 
-    // Виджеты: Dynamic Island & Игровой HUD
-    public var liveActivityEnabled: Bool {
+    // Виджеты: Dynamic Island & Игровой HUD. Оба входят в подписку PRO: настройка пользователя хранится отдельно
+    // (`...Preference`), а работают они, только пока подписка есть (`...Enabled`), поэтому код, который читает
+    // `liveActivityEnabled` и `floatingHUDEnabled`, сам уважает подписку.
+    /// Хочет ли пользователь остров (хранится в настройках)
+    public var liveActivityPreference: Bool {
         didSet {
-            UserDefaults.standard.set(liveActivityEnabled, forKey: Self.kLiveActivityKey)
+            UserDefaults.standard.set(liveActivityPreference, forKey: Self.kLiveActivityKey)
         }
+    }
+    /// Остров работает: пользователь его включил и есть подписка PRO
+    public var liveActivityEnabled: Bool {
+        get { liveActivityPreference && ProStore.shared.isPro }
+        set { liveActivityPreference = newValue }
     }
     // Подсказка на главном экране: остров замирал, пока приложение было свёрнуто, а запись маршрута не шла
     // (пока она идёт, приложение остаётся активным в фоне, и остров обновляется)
@@ -154,10 +162,16 @@ public final class NetworkMonitorViewModel {
     public var sleepTraffic: SleepTrafficNote?
     private var sleepTrafficClearTask: Task<Void, Never>?
 
-    public var floatingHUDEnabled: Bool {
+    /// Хочет ли пользователь игровой HUD (хранится в настройках)
+    public var floatingHUDPreference: Bool {
         didSet {
-            UserDefaults.standard.set(floatingHUDEnabled, forKey: Self.kFloatingHUDKey)
+            UserDefaults.standard.set(floatingHUDPreference, forKey: Self.kFloatingHUDKey)
         }
+    }
+    /// HUD работает: пользователь его включил и есть подписка PRO
+    public var floatingHUDEnabled: Bool {
+        get { floatingHUDPreference && ProStore.shared.isPro }
+        set { floatingHUDPreference = newValue }
     }
     public var isFloatingHUDCollapsed: Bool {
         didSet {
@@ -222,14 +236,18 @@ public final class NetworkMonitorViewModel {
         let savedBg = UserDefaults.standard.object(forKey: Self.kBackgroundMonitoringKey) as? Bool ?? true
         let savedCollapsed = UserDefaults.standard.bool(forKey: Self.kFloatingHUDCollapsedKey)
 
-        self.liveActivityEnabled = savedLive
-        self.floatingHUDEnabled = savedHUD
+        self.liveActivityPreference = savedLive
+        self.floatingHUDPreference = savedHUD
         self.isFloatingHUDCollapsed = savedCollapsed
         self.backgroundMonitoringEnabled = savedBg
 
         loadSavedSettings()
         initMetricsForTargets()
         setupBackgroundObservation()
+        // Подписка появилась или закончилась: остров запускается или гасится
+        ProStore.shared.onChange = { [weak self] in
+            self?.proStatusChanged()
+        }
         Task {
             // Быстрый снимок локальной сети (без интернет-запросов): тип подключения нужен сразу —
             // раньше он появлялся только после опроса сервисов публичного IP (до 10 секунд)
@@ -302,7 +320,35 @@ public final class NetworkMonitorViewModel {
         }
     }
 
+    /// Подписка PRO появилась или закончилась: остров запускается или гасится сразу, не дожидаясь перезапуска
+    public func proStatusChanged() {
+        if liveActivityEnabled {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
+            ActivityManager.shared.checkAndRestoreActivity(
+                downloadSpeedText: liveBandwidth.formattedDownloadSpeed,
+                uploadSpeedText: liveBandwidth.formattedUploadSpeed,
+                compactDownloadText: liveBandwidth.compactDownload,
+                compactUploadText: liveBandwidth.compactUpload,
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
+                isTesting: isSpeedtestRunning,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет",
+                isGamingMode: floatingHUDEnabled
+            )
+            startBandwidthTask()
+        } else {
+            ActivityManager.shared.stopActivity()
+            if !floatingHUDEnabled && !backgroundMonitoringEnabled {
+                BackgroundTelemetryKeeper.shared.stopKeepAlive()
+            }
+        }
+        syncWidgetData()
+    }
+
     public func toggleLiveActivity(enabled: Bool) {
+        // Остров входит в подписку PRO: без неё открывается окно подписки
+        if enabled && !ProStore.shared.requirePro(.island) { return }
         self.liveActivityEnabled = enabled
         if enabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
@@ -765,17 +811,7 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // 2. Непрерывная передача в PiP (Picture-in-Picture)
-                PiPHUDManager.shared.updateTelemetry(
-                    downloadText: dlText,
-                    uploadText: ulText,
-                    pingMs: self.currentAveragePing,
-                    jitterMs: self.currentAverageJitter,
-                    connectionType: self.systemInfo.connectionType.rawValue,
-                    isTesting: self.isSpeedtestRunning
-                )
-
-                // 3. Асинхронное сохранение трафика в базе данных (только при наличии активности)
+                // 2. Асинхронное сохранение трафика в базе данных (только при наличии активности)
                 if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
                     Task { [snapshot = self.liveBandwidth, netName = self.currentNetworkTitle, connType = self.systemInfo.connectionType.rawValue, isWifi = (self.systemInfo.connectionType == .wifi), testing = self.isSpeedtestRunning] in
                         await TrafficStorage.shared.recordTrafficSample(
@@ -1252,15 +1288,6 @@ public final class NetworkMonitorViewModel {
                     Task { @MainActor in
                         self.liveDownloadSpeed = dl
                         self.liveUploadSpeed = ul
-
-                        PiPHUDManager.shared.updateTelemetry(
-                            downloadText: String(format: "%.1f Мбит/с", dl),
-                            uploadText: String(format: "%.1f Мбит/с", ul),
-                            pingMs: self.currentAveragePing,
-                            jitterMs: self.currentAverageJitter,
-                            connectionType: self.systemInfo.connectionType.rawValue,
-                            isTesting: true
-                        )
 
                         if self.liveActivityEnabled {
                             ActivityManager.shared.updateActivity(

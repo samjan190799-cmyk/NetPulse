@@ -40,9 +40,50 @@ public struct SettingsView: View {
             : "Остров в фоне обновляется, пока на главном экране идёт запись маршрута («Записать маршрут»)."
     }
 
+    /// Строка подписки: статус и цена
+    private var proRow: some View {
+        let store = ProStore.shared
+        return HStack(spacing: 10) {
+            Image(systemName: "star.circle.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(NPTheme.accentPrimary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NetPulse PRO")
+                    .font(.system(size: 15, weight: .semibold))
+                Text(store.isPro
+                     ? "Подписка активна: остров, HUD и AI-аудит"
+                     : "Остров, игровой HUD и AI-аудит" + (store.priceText.map { " · \($0)" } ?? ""))
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.textSecondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settingsProRow")
+    }
+
     public var body: some View {
         NavigationStack {
             Form {
+                // 0. Подписка PRO
+                Section(header: Label("Подписка", systemImage: "star.fill")) {
+                    proRow
+                    if ProStore.shared.isPro {
+                        Link("Управлять подпиской", destination: AppLinks.manageSubscriptions)
+                            .accessibilityIdentifier("settingsManageSubscription")
+                    } else {
+                        Button("Оформить NetPulse PRO") {
+                            ProStore.shared.paywall = .general
+                        }
+                        .accessibilityIdentifier("settingsOpenPaywall")
+                    }
+                    Button("Восстановить покупки") {
+                        Task {
+                            await ProStore.shared.restore()
+                        }
+                    }
+                    .accessibilityIdentifier("settingsRestorePurchases")
+                }
+
                 // 1. Внешний вид и темы оформления
                 Section(
                     header: Label("Внешний вид и стиль", systemImage: "paintpalette.fill"),
@@ -282,8 +323,13 @@ public struct SettingsView: View {
                         set: { viewModel.toggleLiveActivity(enabled: $0) }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Dynamic Island (Спидометр скорости)")
-                                .font(.system(size: 15, weight: .medium))
+                            HStack(spacing: 6) {
+                                Text("Dynamic Island (Спидометр скорости)")
+                                    .font(.system(size: 15, weight: .medium))
+                                if !ProStore.shared.isPro {
+                                    ProBadge()
+                                }
+                            }
                             Text("Индикатор скорости передачи данных (↓ Скачивание / ↑ Отдача) в вырезе экрана и на Lock Screen")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
@@ -361,10 +407,11 @@ public struct SettingsView: View {
                         .accessibilityIdentifier("islandDiagnosticsButton")
                     }
 
-                    // Плавающий игровой оверлей (HUD): доступен всем
+                    // Плавающий игровой оверлей (HUD): входит в подписку PRO
                     Toggle(isOn: Binding(
                         get: { viewModel.floatingHUDEnabled },
                         set: { enabled in
+                            if enabled && !ProStore.shared.requirePro(.hud) { return }
                             viewModel.floatingHUDEnabled = enabled
                             if enabled {
                                 BackgroundTelemetryKeeper.shared.startKeepAlive()
@@ -381,8 +428,11 @@ public struct SettingsView: View {
                             HStack(spacing: 6) {
                                 Text("Плавающий игровой оверлей (HUD)")
                                     .font(.system(size: 15, weight: .medium))
+                                if !ProStore.shared.isPro {
+                                    ProBadge()
+                                }
                             }
-                            Text("Мини-виджет пинга и скорости поверх экрана; режим «картинка в картинке» доступен, если его поддерживает устройство")
+                            Text("Мини-панель пинга, джиттера, потерь и скорости поверх экранов NetPulse; остров переходит в игровой режим")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -483,6 +533,20 @@ public struct SettingsView: View {
             .sheet(isPresented: $showIslandDiagnostics) {
                 IslandDiagnosticsView()
             }
+        }
+        // Настройки лежат в полноэкранном окне, поверх которого корневой экран ничего показать не может:
+        // окно подписки из настроек показывают сами настройки
+        .sheet(item: Binding(
+            get: { ProStore.shared.paywallHost == .settings ? ProStore.shared.paywall : nil },
+            set: { ProStore.shared.paywall = $0 }
+        )) { feature in
+            PaywallView(feature: feature)
+        }
+        .onAppear {
+            ProStore.shared.paywallHost = .settings
+        }
+        .onDisappear {
+            ProStore.shared.paywallHost = .root
         }
     }
 }

@@ -215,6 +215,7 @@ struct HomeIslandPill: View {
 
     var body: some View {
         let active = ActivityManager.shared.isLiveActivityActive
+        let isPro = ProStore.shared.isPro
         Button {
             HapticManager.shared.impactMedium()
             if !ActivityManager.shared.isLiveActivityActive {
@@ -227,9 +228,12 @@ struct HomeIslandPill: View {
                 Circle()
                     .fill(active ? Color.green : Color.orange)
                     .frame(width: 8, height: 8)
-                Text(active ? "Островок" : "Старт островка")
+                Text(active ? "Островок" : (isPro ? "Старт островка" : "Островок"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(NPTheme.textPrimary)
+                if !isPro {
+                    ProBadge()
+                }
             }
             .padding(.horizontal, 12)
             .frame(height: 34)

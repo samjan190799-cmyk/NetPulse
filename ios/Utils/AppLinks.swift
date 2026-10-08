@@ -17,4 +17,8 @@ enum AppLinks {
     static let privacyPolicy = URL(string: "https://github.com/samjan190799-cmyk/NetPulse/blob/appstore-assets/legal/privacy-policy-ru.md")!
     /// Поддержка: как написать разработчику и ответы на частые вопросы
     static let support = URL(string: "https://github.com/samjan190799-cmyk/NetPulse/blob/appstore-assets/legal/support-ru.md")!
+    /// Условия использования подписки: стандартное лицензионное соглашение Apple (правило App Store 3.1.2)
+    static let termsOfUse = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    /// Управление подписками в учётной записи Apple ID: отмена и смена тарифа
+    static let manageSubscriptions = URL(string: "https://apps.apple.com/account/subscriptions")!
 }

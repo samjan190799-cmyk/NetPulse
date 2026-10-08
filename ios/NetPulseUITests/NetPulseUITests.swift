@@ -289,6 +289,16 @@ final class NetPulseUITests: XCTestCase {
         return true
     }
 
+    /// Ждёт, пока у элемента (кнопки-переключателя) появится нужное значение для VoiceOver
+    @MainActor private func waitForValue(_ expected: String, of element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.value as? String == expected { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return element.value as? String == expected
+    }
+
     /// Ждёт, пока элемент исчезнет с экрана
     @MainActor private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
@@ -495,6 +505,16 @@ final class NetPulseUITests: XCTestCase {
 
         XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
         XCTAssertTrue(app.descendants(matching: .any)["recordingBanner"].waitForExistence(timeout: 10), "Нет плашки «Запись» над картой")
+
+        // Карта едет за вами и поворачивается по ходу движения: переключатель есть, включён и выключается
+        let heading = app.buttons["networkMapHeadingButton"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 5), "Во время записи нет кнопки поворота карты по движению")
+        XCTAssertEqual(heading.value as? String, "Включена", "Поворот карты по движению должен быть включён по умолчанию")
+        heading.tap()
+        XCTAssertTrue(waitForValue("Выключена", of: heading), "Кнопка поворота карты не выключилась")
+        heading.tap()
+        XCTAssertTrue(waitForValue("Включена", of: heading), "Кнопка поворота карты не включилась обратно")
+
         let points = waitForPoints(app, atLeast: 3, timeout: 75)
         print("NETPULSE-CI: запись маршрута: набрано точек \(points)")
         attachScreenshot("route-recording")

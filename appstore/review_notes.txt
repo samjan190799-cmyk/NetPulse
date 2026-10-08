@@ -5,42 +5,31 @@ While the user records a route, the app saves every few seconds the device posit
 USER CONTROL
 - Recording starts ONLY when the user taps "Record route"; never at launch or after a restart.
 - While recording, the iOS location indicator is visible, the map screen shows a red "Recording" pill with a timer, and the user ends it with "Stop and save".
-- Location permission ("While Using the App") is requested only after that tap. The purpose string says the location is used to record a route and that the data stays on the device.
-- Routes are stored in the app's Application Support directory, excluded from backups, never uploaded; the user can delete one route or all routes. No account, no server.
-- Settings -> "Запись маршрута": the switch "Записывать маршрут в фоне" (default on). When it is off, the app does not use location while it is in the background and no background location indicator appears; recording simply waits and continues when the user returns. A second switch stops a recording automatically after 20 minutes without movement (default on) to save battery.
-- All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
+- Location permission ("While Using the App") is requested only after that tap; the purpose string says the data stays on the device.
+- Routes are stored on the device, excluded from backups, never uploaded; the user can delete one route or all routes.
+- "Настройки" tab -> "Запись маршрута": the switch "Записывать маршрут в фоне" (default on). When it is off, the app does not use location in the background. A second switch stops a recording automatically after 20 minutes without movement.
+- All other features (speed test, tools, widget, Dynamic Island) work without location permission.
 
-The map (Apple MapKit) is the home screen and is visible before any permission is requested. Routes are drawn as coloured lines from points recorded by the app (green / yellow / orange / red dashed = good / fair / poor / no connection); earlier routes are shown as thinner lines, and a map button hides them. The colour comes from the app's own ping, not from location data, and no operator coverage data is used.
+The map (Apple MapKit) is the home screen, visible before any permission is requested. The route colour comes from the app's own ping, not from location data; no operator coverage data is used.
 
 HOW TO TEST
 1. The first screen is the map with the bottom panel (network speed and two buttons).
-2. Drag the panel up -> "Показать пример маршрута" (Show example route): a clearly labelled DEMO route is drawn on the map.
-3. Tap "Записать маршрут" (Record route) -> allow "While Using the App". Walk or drive; the points counter grows. Locking the device or switching to another app keeps recording (location indicator in the status bar).
-4. Tap "Остановить и сохранить" (Stop and save): the route summary appears and the route is saved under "Мои маршруты" (My routes), where it can be deleted.
-In the Simulator use Features -> Location -> City Run / Freeway Drive. If the phone stays on a desk, points are written only every 30 seconds.
+2. Drag the panel up -> "Показать пример маршрута" (Show example route): a labelled DEMO route is drawn on the map.
+3. Tap "Записать маршрут" (Record route) -> allow "While Using the App". In the Simulator use Features -> Location -> City Run.
+4. Tap "Остановить и сохранить" (Stop and save): the route is saved under "Мои маршруты" (My routes), where it can be deleted.
 
 ADVERTISING AND TRACKING
-The app contains no advertising, no third-party SDKs and no analytics, and does not track users: it does not use the AppTrackingTransparency framework and does not request the App Tracking Transparency permission. The App Privacy answers are "Data Not Collected". There is no account and no server.
-The AI audit runs entirely on the device: the app uses no external AI services and sends no measurements
-anywhere. The app has no microphone or speech-recognition features and asks for neither permission.
+The app contains no advertising, no third-party SDKs and no analytics, and does not track users: it does not use the AppTrackingTransparency framework and does not request the App Tracking Transparency permission. App Privacy answers: "Data Not Collected". No account, no server. The AI audit runs entirely on the device (no external AI services). The app has no microphone or speech-recognition features.
 
 SUBSCRIPTION (NetPulse PRO)
-
-NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product com.samvel.netpulse.pro.monthly2,
-USD 0.99 per month). It unlocks exactly three features:
-1. Speed in the Dynamic Island / Live Activity ("Настройки" tab -> "Dynamic Island", or the "Островок" button on the map).
-2. The floating game HUD inside the app ("Настройки" tab -> "Плавающий игровой оверлей (HUD)").
-3. The deep AI audit (the "AI-аудит" tile in the "Инструменты" tab: network health score, anomaly prediction, troubleshooting wizard,
-   ISP complaint letter).
-Everything else is free: speed test, route recording and the network map, traffic accounting, DNS / bufferbloat /
-LAN / gaming tools, the Home Screen widget, the quick AI verdict after a speed test.
-
-How to see the paywall: open the "Настройки" tab -> "NetPulse PRO" (or tap "Островок", or open the
-"Инструменты" tab -> "AI-аудит"). The paywall shows the price from the App Store, the billing period, the auto-renewal terms,
-links to the Terms of Use (Apple standard EULA) and the Privacy Policy, and a "Восстановить покупки"
-(Restore Purchases) button. Purchases are handled only by StoreKit; the app has no account and no server.
+ONE auto-renewable subscription: group "NetPulse PRO", product com.samvel.netpulse.pro.monthly2, USD 0.99 per month. It unlocks three features:
+1. Speed in the Dynamic Island / Live Activity ("Настройки" tab -> "Dynamic Island (Спидометр скорости)", or the "Островок" button on the map).
+2. The floating game HUD inside the app ("Настройки" tab -> HUD switch).
+3. The deep AI audit ("Инструменты" tab -> "AI-аудит" tile).
+Everything else is free: speed test, route recording and the map, traffic accounting, DNS / bufferbloat / LAN / gaming tools, the Home Screen widget.
+To see the paywall: "Настройки" tab -> "Оформить NetPulse PRO" (or tap "Островок", or open "Инструменты" -> "AI-аудит"). It shows the App Store price, the monthly period, the auto-renewal terms, links to the Terms of Use (Apple standard EULA) and the Privacy Policy, and "Восстановить покупки" (Restore Purchases). Purchases go only through StoreKit.
 
 WIDGETS AND LIVE ACTIVITY
-The app includes a Home Screen widget ("NetPulse Монитор", WidgetKit: network status, latency, connection speed and data usage) and a Live Activity shown on the Lock Screen and in the Dynamic Island with live speed and latency. Both work without location permission.
+Home Screen widget "NetPulse Монитор" (WidgetKit: network status, latency, speed, data usage) and a Live Activity on the Lock Screen and in the Dynamic Island. Both work without location permission.
 
 The app's interface is in Russian.

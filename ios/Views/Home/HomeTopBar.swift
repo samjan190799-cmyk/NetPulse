@@ -29,6 +29,8 @@ struct HomeTopBar: View {
     @Binding var satellite: Bool
     /// Показывать ли покрытие сети (цветная зона вокруг вас и полосы прежних маршрутов) в обычном режиме
     @Binding var coverageOn: Bool
+    /// Во время записи карта поворачивается по направлению движения
+    @Binding var followsHeading: Bool
     let onRecenter: () -> Void
     let onBack: () -> Void
 
@@ -41,8 +43,9 @@ struct HomeTopBar: View {
             }
             if style == .recording {
                 HomeLiveQualityCard(recorder: recorder)
-                HStack {
+                HStack(spacing: 8) {
                     Spacer(minLength: 0)
+                    headingButton
                     recenterButton
                 }
             }
@@ -141,6 +144,20 @@ struct HomeTopBar: View {
             identifier: "homeCoverageButton"
         ) {
             coverageOn.toggle()
+            HapticManager.shared.selectionChanged()
+        }
+    }
+
+    /// Включает и выключает поворот карты по ходу движения. Включено: карта едет за вами и «смотрит» вперёд.
+    /// Выключено: карта тоже едет за вами, но север остаётся вверху.
+    private var headingButton: some View {
+        GlassCircleButton(
+            systemImage: followsHeading ? "location.north.line.fill" : "location.north",
+            label: "Карта по направлению движения",
+            value: followsHeading ? "Включена" : "Выключена",
+            identifier: "networkMapHeadingButton"
+        ) {
+            followsHeading.toggle()
             HapticManager.shared.selectionChanged()
         }
     }

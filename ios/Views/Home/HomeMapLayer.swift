@@ -35,6 +35,9 @@ struct HomeMapLayer: View {
     /// Метки «Старт» и «Финиш»: в обычном режиме они только мешают (могут уехать под строку состояния)
     let showsEndpoints: Bool
     @Binding var camera: MapCameraPosition
+    /// Камера остановилась (палец отпущен или карта доехала до точки): по этому сигналу экран решает, не пора ли
+    /// вернуть карту к пользователю
+    var onCameraSettled: () -> Void = {}
 
     @Environment(\.npOneShotMotion) private var oneShotMotion
     /// Какому маршруту (по времени начала) относится `revealFraction`
@@ -120,6 +123,9 @@ struct HomeMapLayer: View {
         }
         .mapStyle(mapStyleValue)
         .mapControlVisibility(.hidden)
+        .onMapCameraChange(frequency: .onEnd) { _ in
+            onCameraSettled()
+        }
         .task(id: route?.startedAt) {
             await reveal()
         }

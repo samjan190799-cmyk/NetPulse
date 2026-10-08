@@ -110,17 +110,13 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(start.exists, "На главном экране нет кнопки «Записать маршрут»")
     }
 
-    /// Открывает настройки кнопкой с ползунками на главном экране
+    /// Открывает настройки: это четвёртая вкладка нижней панели
     @MainActor private func openSettings(_ app: XCUIApplication) {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 30), "Панель вкладок не появилась: приложение не запустилось или упало")
-        let button = app.buttons["homeSettingsButton"]
-        if !button.waitForExistence(timeout: 20) {
-            attachScreenshot("settings-button-not-found")
-            attachHierarchy(app, name: "settings-button-not-found-hierarchy")
-        }
-        XCTAssertTrue(button.exists, "На главном экране нет кнопки «Настройки»")
-        button.tap()
+        let tab = app.tabBars.buttons["Настройки"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 20), "В нижней панели нет вкладки «Настройки»")
+        tab.tap()
         let opened = app.navigationBars["Настройки"].waitForExistence(timeout: 10)
         if !opened {
             attachScreenshot("settings-not-opened")
@@ -129,16 +125,10 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(opened, "Экран «Настройки» не открылся")
     }
 
-    /// Закрывает настройки кнопкой «Готово» и ждёт возвращения на главный экран
+    /// Возвращается на вкладку «Сеть» и ждёт главный экран
     @MainActor private func closeSettings(_ app: XCUIApplication) {
-        let close = app.buttons["settingsCloseButton"]
-        guard close.waitForExistence(timeout: 5) else {
-            attachScreenshot("settings-close-not-found")
-            XCTFail("В настройках нет кнопки «Готово»")
-            return
-        }
-        close.tap()
-        XCTAssertTrue(app.buttons["homeSettingsButton"].waitForExistence(timeout: 10), "После закрытия настроек главный экран не появился")
+        app.tabBars.buttons["Сеть"].tap()
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После настроек главный экран не появился")
     }
 
     /// Прокручивает экран, пока элемент не станет видимым (строки SwiftUI-списка создаются лениво).
@@ -340,19 +330,16 @@ final class NetPulseUITests: XCTestCase {
         attachScreenshot("launch-home")
 
         // Главный экран: карта, плашка связи, кнопки справа и две главные кнопки в нижней панели
-        for identifier in ["homeSettingsButton", "networkMapStyleButton", "homeCoverageButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
+        for identifier in ["networkMapStyleButton", "homeCoverageButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
             XCTAssertTrue(app.buttons[identifier].exists, "На главном экране нет элемента «\(identifier)»")
         }
 
         let tabs: [(title: String, slug: String)] = [
-            ("Сеть", "map"), ("Инструменты", "hosts"), ("Трафик", "traffic")
+            ("Сеть", "map"), ("Инструменты", "hosts"), ("Трафик", "traffic"), ("Настройки", "settings")
         ]
         for tab in tabs {
             XCTAssertTrue(app.tabBars.buttons[tab.title].exists, "Нет вкладки «\(tab.title)»")
         }
-        // Настройки больше не вкладка: они открываются кнопкой на главном экране
-        XCTAssertFalse(app.tabBars.buttons["Настройки"].exists, "Вкладки «Настройки» быть не должно")
-
         for tab in tabs {
             app.tabBars.buttons[tab.title].tap()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(tab.title)»")
@@ -673,7 +660,7 @@ final class NetPulseUITests: XCTestCase {
         waitForHome(app)
         XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 20), "Нет кнопки замера скорости")
 
-        for title in ["Инструменты", "Трафик", "Сеть"] {
+        for title in ["Инструменты", "Трафик", "Настройки", "Сеть"] {
             app.tabBars.buttons[title].tap()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(title)»")
         }

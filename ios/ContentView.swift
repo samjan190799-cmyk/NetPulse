@@ -9,8 +9,7 @@ import SwiftUI
 import UIKit
 
 /// Главный навигационный контейнер приложения NetPulse (Apple HIG 2026)
-/// 3 раздела: Сеть (карта, скорость и запись маршрута), Инструменты (узлы, утилиты и AI-аудит), Трафик.
-/// Настройки открываются кнопкой на главном экране.
+/// 4 раздела: Сеть (карта, скорость и запись маршрута), Инструменты (узлы, утилиты и AI-аудит), Трафик, Настройки.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel.shared
     /// Подписка PRO: окно подписки открывается поверх любого экрана
@@ -42,6 +41,14 @@ public struct ContentView: View {
                         Label("Трафик", systemImage: "arrow.up.arrow.down.square.fill")
                     }
                     .tag(2)
+
+                // 4. Настройки (подписка, остров, запись маршрута, пороги)
+                SettingsView(viewModel: viewModel)
+                    .npAppear()
+                    .tabItem {
+                        Label("Настройки", systemImage: "gearshape.fill")
+                    }
+                    .tag(3)
             }
             .tint(NPTheme.accentPrimary)
             .preferredColorScheme(.dark)
@@ -74,10 +81,7 @@ public struct ContentView: View {
             NPIntroOverlay()
         }
         .npMotionPolicy()
-        .sheet(item: Binding(
-            get: { pro.paywallHost == .root ? pro.paywall : nil },
-            set: { pro.paywall = $0 }
-        )) { feature in
+        .sheet(item: $pro.paywall) { feature in
             PaywallView(feature: feature)
         }
     }

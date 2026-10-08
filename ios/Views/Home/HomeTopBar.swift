@@ -29,7 +29,6 @@ struct HomeTopBar: View {
     @Binding var satellite: Bool
     /// Показывать ли покрытие сети (цветная зона вокруг вас и полосы прежних маршрутов) в обычном режиме
     @Binding var coverageOn: Bool
-    let onSettings: () -> Void
     let onRecenter: () -> Void
     let onBack: () -> Void
 
@@ -108,15 +107,9 @@ struct HomeTopBar: View {
     @ViewBuilder
     private var trailing: some View {
         if style == .recording {
-            HStack(spacing: 8) {
-                settingsButton
-                styleButton
-            }
+            styleButton
         } else {
             VStack(spacing: 8) {
-                if style == .idle {
-                    settingsButton
-                }
                 if !(style == .idle && compact) {
                     styleButton
                     if style == .idle {
@@ -126,15 +119,6 @@ struct HomeTopBar: View {
                 }
             }
         }
-    }
-
-    private var settingsButton: some View {
-        GlassCircleButton(
-            systemImage: "slider.horizontal.3",
-            label: "Настройки",
-            identifier: "homeSettingsButton",
-            action: onSettings
-        )
     }
 
     private var styleButton: some View {

@@ -33,7 +33,6 @@ public struct NetworkHomeView: View {
     @State private var metric: RouteMetric = .latency
     /// Пока маршрута нет и во время записи карта смотрит на вас; у готового маршрута — на весь маршрут целиком
     @State private var camera: MapCameraPosition = .userLocation(fallback: .region(HomeMapDefaults.region))
-    @State private var showSettings = false
     @State private var showGlossary = false
     @State private var confirmDeleteAll = false
     @State private var pendingDeleteID: UUID?
@@ -150,7 +149,6 @@ public struct NetworkHomeView: View {
                         compact: panelIsExpanded,
                         satellite: $satellite,
                         coverageOn: $coverageOn,
-                        onSettings: { showSettings = true },
                         onRecenter: { recenter() },
                         onBack: { closeRoute() }
                     )
@@ -216,9 +214,6 @@ public struct NetworkHomeView: View {
                 }
             } message: {
                 Text("Маршрут будет стёрт с этого устройства без возможности восстановления.")
-            }
-            .fullScreenCover(isPresented: $showSettings) {
-                SettingsView(viewModel: viewModel)
             }
             .sheet(isPresented: $showGlossary) {
                 NetworkGlossarySheetView()

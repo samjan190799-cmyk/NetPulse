@@ -28,14 +28,14 @@ SUBSCRIPTION (NetPulse PRO)
 
 NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product com.samvel.netpulse.pro.monthly2,
 USD 0.99 per month). It unlocks exactly three features:
-1. Speed in the Dynamic Island / Live Activity (Settings -> "Dynamic Island", or the "Островок" button on the map).
-2. The floating game HUD inside the app (Settings -> "Плавающий игровой оверлей (HUD)").
+1. Speed in the Dynamic Island / Live Activity ("Настройки" tab -> "Dynamic Island", or the "Островок" button on the map).
+2. The floating game HUD inside the app ("Настройки" tab -> "Плавающий игровой оверлей (HUD)").
 3. The deep AI audit (the "AI-аудит" tile in the "Инструменты" tab: network health score, anomaly prediction, troubleshooting wizard,
    ISP complaint letter).
 Everything else is free: speed test, route recording and the network map, traffic accounting, DNS / bufferbloat /
 LAN / gaming tools, the Home Screen widget, the quick AI verdict after a speed test.
 
-How to see the paywall: tap the slider button on the map -> "NetPulse PRO" (or tap "Островок", or open the
+How to see the paywall: open the "Настройки" tab -> "NetPulse PRO" (or tap "Островок", or open the
 "Инструменты" tab -> "AI-аудит"). The paywall shows the price from the App Store, the billing period, the auto-renewal terms,
 links to the Terms of Use (Apple standard EULA) and the Privacy Policy, and a "Восстановить покупки"
 (Restore Purchases) button. Purchases are handled only by StoreKit; the app has no account and no server.

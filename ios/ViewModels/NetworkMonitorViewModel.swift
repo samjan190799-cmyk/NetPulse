@@ -447,6 +447,8 @@ public final class NetworkMonitorViewModel {
 
     private func handleDidEnterBackground() {
         backgroundedAt = Date()
+        // Счётчики на момент ухода в фон: от них при возвращении считается, сколько трафика прошло за время сна
+        BandwidthEngine.shared.markBackground()
         // Если фоновая запись выключена в настройках, идущая запись встаёт на паузу до возвращения в приложение
         RouteRecorder.shared.appDidEnterBackground()
         IslandDiagnostics.shared.log("Приложение свёрнуто. \(RouteRecorder.shared.diagnosticContext())", .lifecycle)
@@ -484,15 +486,17 @@ public final class NetworkMonitorViewModel {
         endBackgroundAssertion()
         // Когда приложение свернули: к моменту сверки счётчиков метка ещё не сброшена (её снимает handleDidBecomeActive)
         let sleptSince = backgroundedAt
+        // Сколько прошло за время сна, читается сразу, до всего остального: живой цикл учёта трафика при возвращении
+        // успевает «съесть» эту разницу в первую же секунду
+        noteTrafficWhileAway(BandwidthEngine.shared.trafficSinceBackgroundMark(), since: sleptSince)
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
             // Моментальная сверка с аппаратными счетчиками ядра за время сна/фона (Zero-Loss)
-            let missed = await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
+            await TrafficStorage.shared.reconcileBackgroundHardwareTraffic(
                 currentConnectionType: info.connectionType.rawValue,
                 currentNetworkName: self.currentNetworkTitle
             )
-            self.noteTrafficWhileAway(missed, since: sleptSince)
             await self.refreshTrafficData(period: self.selectedTrafficPeriod)
             self.syncWidgetData(reloadTimelines: true)
         }

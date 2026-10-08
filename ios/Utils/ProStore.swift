@@ -61,12 +61,6 @@ public enum ProFeature: String, Identifiable, CaseIterable, Sendable {
     }
 }
 
-/// Какой экран показывает окно подписки
-public enum PaywallHost: Sendable {
-    case root
-    case settings
-}
-
 // MARK: - Правило доступа
 
 /// Какая покупка даёт PRO. Вынесено из менеджера, чтобы проверяться юнит-тестами без App Store.
@@ -105,9 +99,6 @@ public final class ProStore {
     public var errorMessage: String?
     /// Окно подписки открыто, если не `nil`; значение подсвечивает возможность, с которой его открыли
     public var paywall: ProFeature?
-    /// Кто показывает окно подписки. Настройки открываются полноэкранным окном поверх корневого экрана, а поверх
-    /// него корень показать ничего не может: пока настройки открыты, окно подписки показывают они сами.
-    public var paywallHost: PaywallHost = .root
     /// Вызывается, когда подписка появилась или закончилась: остров запускается или гасится
     @ObservationIgnored public var onChange: (@MainActor () -> Void)?
 

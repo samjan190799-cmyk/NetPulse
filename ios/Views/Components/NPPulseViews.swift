@@ -72,6 +72,11 @@ struct ECGShape: Shape {
 /// «Пульс сети»: тонкая бегущая линия-кардиограмма за цифрами скорости. Цвет — качество связи, размах — скорость,
 /// без связи — ровная красная линия. Пока идёт замер, линия ярче. Бежит только когда бесконечное движение
 /// разрешено (нет «Уменьшения движения» и энергосбережения, приложение на экране); иначе стоит на месте.
+///
+/// Как устроена плавность. Линия рисуется один раз (с запасом в два удара) и склеивается в одну картинку на GPU,
+/// а бежит она сдвигом этой картинки ровно на один удар: сдвиг считает система, а не приложение, поэтому он идёт
+/// с частотой экрана (120 Гц на ProMotion) и почти не грузит процессор. Раньше линия пересчитывалась в коде 24 раза
+/// в секунду, и на ProMotion это выглядело рывками.
 struct NetworkPulseLine: View {
     let color: Color
     /// Размах ударов, 0...1
@@ -82,29 +87,58 @@ struct NetworkPulseLine: View {
     var isBusy = false
 
     @Environment(\.npContinuousMotion) private var continuous
+    @State private var shifted = false
 
-    /// Скорость бега: ударов в секунду. Постоянная, чтобы при смене состояния волна не прыгала.
-    private static let beatsPerSecond = 0.5
+    /// Сколько ударов видно по ширине
+    private static let visibleCycles = 2.5
+    /// За сколько секунд линия сдвигается на один удар
+    private static let cycleSeconds = 2.0
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !continuous)) { context in
-            let seconds = context.date.timeIntervalSinceReferenceDate
-            let phase = continuous ? seconds * Self.beatsPerSecond : 0
-            line(phase: phase)
+        GeometryReader { proxy in
+            let cycleWidth = proxy.size.width / Self.visibleCycles
+            line
+                .frame(width: cycleWidth * (Self.visibleCycles + 2), height: proxy.size.height)
+                .offset(x: shifted ? 0 : -cycleWidth)
         }
+        .clipped()
         .mask(edgeFade)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+        .onAppear {
+            updateMotion()
+        }
+        .onChange(of: continuous) { _, _ in
+            updateMotion()
+        }
     }
 
-    private func line(phase: Double) -> some View {
+    /// Линия шире видимой части на два удара: сдвиг на один удар возвращает картинку в то же положение
+    private var line: some View {
         let amplitude = isFlat ? 0.02 : 0.35 + 0.65 * min(max(intensity, 0), 1)
         return ZStack {
-            ECGShape(cycles: 2.5, phase: phase, amplitude: amplitude)
+            ECGShape(cycles: Self.visibleCycles + 2, phase: 0, amplitude: amplitude)
                 .stroke(color.opacity(isBusy ? 0.4 : 0.22), style: StrokeStyle(lineWidth: isBusy ? 7 : 5, lineCap: .round, lineJoin: .round))
                 .blur(radius: 3)
-            ECGShape(cycles: 2.5, phase: phase, amplitude: amplitude)
+            ECGShape(cycles: Self.visibleCycles + 2, phase: 0, amplitude: amplitude)
                 .stroke(color.opacity(isBusy ? 0.95 : 0.7), style: StrokeStyle(lineWidth: isBusy ? 2.5 : 2, lineCap: .round, lineJoin: .round))
+        }
+        .drawingGroup()
+    }
+
+    /// Запускает или останавливает бесконечный сдвиг
+    private func updateMotion() {
+        if continuous {
+            guard !shifted else { return }
+            withAnimation(.linear(duration: Self.cycleSeconds).repeatForever(autoreverses: false)) {
+                shifted = true
+            }
+        } else {
+            var transaction = Transaction(animation: nil)
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                shifted = false
+            }
         }
     }
 

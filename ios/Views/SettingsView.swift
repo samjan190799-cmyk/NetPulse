@@ -18,8 +18,6 @@ public struct SettingsView: View {
     @State private var showResetTrafficAlert: Bool = false
     @State private var showIslandDiagnostics: Bool = false
     @State private var addHostError: String?
-    /// Настройки открываются поверх главного экрана (кнопка с ползунками): «Готово» закрывает их
-    @Environment(\.dismiss) private var dismiss
 
     /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
     private var appVersionText: String {
@@ -481,15 +479,6 @@ public struct SettingsView: View {
                 }
             }
             .navigationTitle("Настройки")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Готово") {
-                        dismiss()
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .accessibilityIdentifier("settingsCloseButton")
-                }
-            }
             .confirmationDialog(
                 "Сбросить историю трафика?",
                 isPresented: $showResetTrafficAlert,
@@ -508,20 +497,6 @@ public struct SettingsView: View {
             .sheet(isPresented: $showIslandDiagnostics) {
                 IslandDiagnosticsView()
             }
-        }
-        // Настройки лежат в полноэкранном окне, поверх которого корневой экран ничего показать не может:
-        // окно подписки из настроек показывают сами настройки
-        .sheet(item: Binding(
-            get: { ProStore.shared.paywallHost == .settings ? ProStore.shared.paywall : nil },
-            set: { ProStore.shared.paywall = $0 }
-        )) { feature in
-            PaywallView(feature: feature)
-        }
-        .onAppear {
-            ProStore.shared.paywallHost = .settings
-        }
-        .onDisappear {
-            ProStore.shared.paywallHost = .root
         }
     }
 }

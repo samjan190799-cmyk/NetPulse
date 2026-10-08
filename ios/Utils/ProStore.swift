@@ -72,7 +72,7 @@ public enum PaywallHost: Sendable {
 /// Какая покупка даёт PRO. Вынесено из менеджера, чтобы проверяться юнит-тестами без App Store.
 enum ProEntitlement {
     /// Идентификатор подписки: должен совпадать с App Store Connect (группа «NetPulse PRO»)
-    static let monthlyID = "com.samvel.netpulse.pro.monthly"
+    static let monthlyID = "com.samvel.netpulse.pro.monthly2"
 
     /// Даёт ли такая запись о покупке доступ к PRO: это наша подписка, она не отозвана и не истекла
     static func grantsPro(productID: String, revocationDate: Date?, expirationDate: Date?, now: Date = Date()) -> Bool {

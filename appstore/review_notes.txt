@@ -26,7 +26,7 @@ anywhere. The app has no microphone or speech-recognition features and asks for 
 
 SUBSCRIPTION (NetPulse PRO)
 
-NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product com.samvel.netpulse.pro.monthly,
+NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product com.samvel.netpulse.pro.monthly2,
 USD 0.99 per month). It unlocks exactly three features:
 1. Speed in the Dynamic Island / Live Activity (Settings -> "Dynamic Island", or the "Островок" button on the map).
 2. The floating game HUD inside the app (Settings -> "Плавающий игровой оверлей (HUD)").

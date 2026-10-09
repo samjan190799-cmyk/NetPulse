@@ -56,7 +56,7 @@ public struct LANScannerView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle("LAN Сканер")
+        .navigationTitle("Сканер сети")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .onDisappear {

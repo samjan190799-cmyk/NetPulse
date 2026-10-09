@@ -50,7 +50,7 @@ public struct GamingRadarView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle("Gaming Радар")
+        .navigationTitle("Радар для игр")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .onDisappear {

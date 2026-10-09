@@ -327,7 +327,7 @@ public struct TrafficView: View {
                         Circle()
                             .fill(NPTheme.accentSilver)
                             .frame(width: 7, height: 7)
-                        Text("Cell: \(Int(viewModel.trafficSummary.cellularPercentage))%")
+                        Text("Сотовая: \(Int(viewModel.trafficSummary.cellularPercentage))%")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(NPTheme.accentSilver)
                     }
@@ -340,14 +340,14 @@ public struct TrafficView: View {
             // Сетка Скачивание / Отдача
             HStack(spacing: 12) {
                 metricTile(
-                    title: "Скачивание (Down)",
+                    title: "Скачивание",
                     value: TrafficFormatter.formatBytes(viewModel.trafficSummary.totalDownload),
                     icon: "arrow.down.circle.fill",
                     color: NPTheme.download
                 )
 
                 metricTile(
-                    title: "Отдача (Up)",
+                    title: "Отдача",
                     value: TrafficFormatter.formatBytes(viewModel.trafficSummary.totalUpload),
                     icon: "arrow.up.circle.fill",
                     color: NPTheme.upload

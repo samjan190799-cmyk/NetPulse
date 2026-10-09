@@ -109,7 +109,7 @@ public struct SettingsView: View {
                 }
 
                 // 3. Целевые узлы мониторинга
-                Section(header: Text("Узлы мониторинга"), footer: Text("Добавьте IP-адреса или домены для постоянного мониторинга задержки, джиттера и потерь.")) {
+                Section(header: Label("Узлы мониторинга", systemImage: "server.rack"), footer: Text("Добавьте IP-адреса или домены для постоянного мониторинга задержки, джиттера и потерь.")) {
                     ForEach(viewModel.targets) { target in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -196,7 +196,7 @@ public struct SettingsView: View {
                 Section {
                     DisclosureGroup("Пороги оповещений") {
                     HStack {
-                        Text("Предупреждение RTT")
+                        Text("Задержка: предупреждение")
                         Spacer()
                         Text("\(Int(viewModel.latencyWarnThreshold)) мс")
                             .foregroundStyle(NPTheme.textSecondary)
@@ -204,7 +204,7 @@ public struct SettingsView: View {
                     Slider(value: $viewModel.latencyWarnThreshold, in: 30...300, step: 10)
 
                     HStack {
-                        Text("Критическая задержка RTT")
+                        Text("Задержка: критический порог")
                         Spacer()
                         Text("\(Int(viewModel.latencyCritThreshold)) мс")
                             .foregroundStyle(NPTheme.textSecondary)
@@ -478,6 +478,9 @@ public struct SettingsView: View {
                     .accessibilityIdentifier("settingsSupportLink")
                 }
             }
+            // Тот же фон, что и на остальных вкладках, вместо стандартного чёрного списка iOS
+            .scrollContentBackground(.hidden)
+            .background(NPTheme.backgroundGradient.ignoresSafeArea())
             .navigationTitle("Настройки")
             .confirmationDialog(
                 "Сбросить историю трафика?",

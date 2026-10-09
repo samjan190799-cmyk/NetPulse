@@ -211,7 +211,7 @@ public struct GlossaryCatalog {
     public static let items: [GlossaryItem] = [
         // 1. Метрики
         GlossaryItem(
-            title: "RTT (Задержка / Пинг)",
+            title: "Задержка (RTT) и пинг",
             subtitle: "Round-Trip Time в миллисекундах",
             icon: "timer",
             iconColor: Color.cyan,
@@ -275,7 +275,7 @@ public struct GlossaryCatalog {
 
         // 3. Утилиты
         GlossaryItem(
-            title: "DNS Гонка (Benchmark)",
+            title: "Гонка DNS (сравнение серверов)",
             subtitle: "Тест скорости серверов имен",
             icon: "bolt.shield.fill",
             iconColor: Color.cyan,
@@ -285,7 +285,7 @@ public struct GlossaryCatalog {
             practicalTip: "Cloudflare (1.1.1.1) обеспечивает максимальную скорость, а Quad9 (9.9.9.9) и AdGuard фильтруют вирусы и рекламу."
         ),
         GlossaryItem(
-            title: "Gaming Радар",
+            title: "Радар для игр",
             subtitle: "Пинг до игровых серверов",
             icon: "gamecontroller.fill",
             iconColor: Color.mint,
@@ -305,7 +305,7 @@ public struct GlossaryCatalog {
             practicalTip: "Устраняется включением алгоритма SQM (Cake / FQ_CoDel) в настройках современного роутера."
         ),
         GlossaryItem(
-            title: "LAN Сканер",
+            title: "Сканер сети",
             subtitle: "Поиск устройств и аудит портов",
             icon: "wifi.router.fill",
             iconColor: Color.cyan,

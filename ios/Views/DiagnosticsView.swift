@@ -50,18 +50,12 @@ public struct DiagnosticsView: View {
                     .padding(16)
                     .padding(.bottom, 110) // Безопасный отступ для закрепленного рекламного баннера и таб-бара
                 }
-
-                // Всплывающий баннер алертов
-                if let alert = viewModel.activeAlert {
-                    AlertsBannerView(alert: alert) {
-                        withAnimation {
-                            viewModel.activeAlert = nil
-                        }
-                    }
-                    .padding(.top, 8)
+                // Баннер лежит над содержимым, а не поверх него: карточка под ним не прячется
+                .safeAreaInset(edge: .top, spacing: 8) {
+                    alertBanner
                 }
             }
-            .navigationTitle("Диагностика")
+            .navigationTitle("Инструменты")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Кнопка паузы / запуска пинга
@@ -151,12 +145,35 @@ public struct DiagnosticsView: View {
         }
     }
 
+    // MARK: - Баннер оповещения
+
+    /// Баннер только для серьёзных проблем (узел не отвечает, потери, высокая задержка) и сам исчезает через несколько
+    /// секунд. Предупреждения вроде «задержка 118 мс» остаются цветом на карточках узлов и не отвлекают.
+    @ViewBuilder
+    private var alertBanner: some View {
+        if let alert = viewModel.activeAlert, alert.severity == .critical {
+            AlertsBannerView(alert: alert) {
+                withAnimation {
+                    viewModel.activeAlert = nil
+                }
+            }
+            .task(id: alert.id) {
+                try? await Task.sleep(for: .seconds(6))
+                if !Task.isCancelled, viewModel.activeAlert?.id == alert.id {
+                    withAnimation {
+                        viewModel.activeAlert = nil
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - 2. Секция Pro-утилит (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
 
     private var proUtilitiesHub: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("ИНСТРУМЕНТЫ")
+                Text("ПРОВЕРКИ СЕТИ")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(NPTheme.textTertiary)
                     .tracking(0.5)
@@ -202,7 +219,7 @@ public struct DiagnosticsView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
                     proUtilityTile(
-                        title: "DNS Гонка",
+                        title: "Гонка DNS",
                         subtitle: "12+ Anycast узлов",
                         icon: "bolt.shield.fill",
                         color: NPTheme.accentPrimary
@@ -212,7 +229,7 @@ public struct DiagnosticsView: View {
 
                 NavigationLink(destination: GamingRadarView(viewModel: viewModel)) {
                     proUtilityTile(
-                        title: "Gaming Радар",
+                        title: "Радар для игр",
                         subtitle: "CS2, Dota, Valorant",
                         icon: "gamecontroller.fill",
                         color: Color.mint
@@ -232,7 +249,7 @@ public struct DiagnosticsView: View {
 
                 NavigationLink(destination: LANScannerView(viewModel: viewModel)) {
                     proUtilityTile(
-                        title: "LAN Сканер",
+                        title: "Сканер сети",
                         subtitle: "Устройства и порты",
                         icon: "wifi.router.fill",
                         color: Color.cyan

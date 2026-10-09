@@ -40,6 +40,8 @@ public struct NetworkHomeView: View {
     @State private var dismissedAISummary: String?
     /// Линии прежних маршрутов: считаются один раз при изменении списка, а не при каждой перерисовке экрана
     @State private var coverageRuns: [CoverageRun] = []
+    /// Расчёт линий идёт в фоне; новый расчёт отменяет прежний
+    @State private var coverageTask: Task<Void, Never>?
     @AppStorage("netpulse_map_satellite") private var satellite = false
     /// Показывать ли на карте линии прежних маршрутов (ключ прежний, чтобы выбор пользователя сохранился)
     @AppStorage("netpulse_map_coverage") private var coverageOn = true
@@ -116,7 +118,17 @@ public struct NetworkHomeView: View {
 
     /// Последний маршрут нарисован отдельно (толстой линией), остальные — тонкими
     private func refreshCoverage() {
-        coverageRuns = CoverageBuilder.runs(from: Array(recorder.history.dropFirst()), metric: metric)
+        let routes = Array(recorder.history.dropFirst())
+        let currentMetric = metric
+        coverageTask?.cancel()
+        // Расчёт линий всех прежних маршрутов тяжёлый: делаем его вне главного потока, чтобы не дёргать заставку и карту
+        coverageTask = Task {
+            let runs = await Task.detached(priority: .userInitiated) {
+                CoverageBuilder.runs(from: routes, metric: currentMetric)
+            }.value
+            guard !Task.isCancelled else { return }
+            coverageRuns = runs
+        }
     }
 
     // MARK: - Экран

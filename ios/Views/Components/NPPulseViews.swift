@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Foundation
 
 // MARK: - Линия-кардиограмма
@@ -172,7 +173,6 @@ private enum NPIntroState {
 struct NPIntroOverlay: View {
     @Environment(\.npOneShotMotion) private var oneShot
     @State private var isActive = !NPIntroState.played && !NPMotionSwitches.allOff
-    @State private var drawn = 0.0
     @State private var titleOpacity = 0.0
 
     var body: some View {
@@ -180,15 +180,7 @@ struct NPIntroOverlay: View {
             ZStack {
                 NPTheme.backgroundDeep.ignoresSafeArea()
                 VStack(spacing: 18) {
-                    ECGShape(cycles: 1.6, phase: 0.05, amplitude: 1, drawn: drawn)
-                        .stroke(
-                            LinearGradient(
-                                colors: [NPTheme.accentPrimary, NPTheme.accentSoft],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
-                        )
+                    NPIntroPulseLine()
                         .frame(width: 220, height: 70)
                     Text("NetPulse")
                         .font(.system(size: 26, weight: .heavy, design: .rounded))
@@ -207,9 +199,6 @@ struct NPIntroOverlay: View {
 
     private func play() async {
         NPIntroState.played = true
-        withAnimation(.easeInOut(duration: 0.75)) {
-            drawn = 1
-        }
         withAnimation(.easeOut(duration: 0.4).delay(0.3)) {
             titleOpacity = 1
         }
@@ -217,5 +206,73 @@ struct NPIntroOverlay: View {
         withAnimation(.easeIn(duration: 0.3)) {
             isActive = false
         }
+    }
+}
+
+// MARK: - Линия заставки на Core Animation
+
+/// Линия-пульс заставки рисуется анимацией слоя (`strokeEnd`), которую ведёт сама система, а не приложение. Пока главный
+/// поток занят запуском (карта, данные, подписка), кадры анимации всё равно идут плавно: раньше линия пересчитывалась
+/// на каждом кадре в приложении и дёргалась.
+private struct NPIntroPulseLine: UIViewRepresentable {
+    func makeUIView(context: Context) -> NPIntroPulseLayerView {
+        NPIntroPulseLayerView()
+    }
+
+    func updateUIView(_ uiView: NPIntroPulseLayerView, context: Context) {}
+}
+
+private final class NPIntroPulseLayerView: UIView {
+    private let gradient = CAGradientLayer()
+    private let line = CAShapeLayer()
+    private var started = false
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+
+        gradient.colors = [UIColor(NPTheme.accentPrimary).cgColor, UIColor(NPTheme.accentSoft).cgColor]
+        gradient.startPoint = CGPoint(x: 0, y: 0.5)
+        gradient.endPoint = CGPoint(x: 1, y: 0.5)
+
+        line.fillColor = nil
+        line.strokeColor = UIColor.black.cgColor
+        line.lineWidth = 3
+        line.lineCap = .round
+        line.lineJoin = .round
+        line.strokeEnd = 0
+        gradient.mask = line
+        layer.addSublayer(gradient)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) не используется")
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradient.frame = bounds
+        line.frame = bounds
+        line.path = ECGShape(cycles: 1.6, phase: 0.05, amplitude: 1, drawn: 1).path(in: bounds).cgPath
+        startIfNeeded()
+    }
+
+    private func startIfNeeded() {
+        guard !started, bounds.width > 1, window != nil else { return }
+        started = true
+        let animation = CABasicAnimation(keyPath: "strokeEnd")
+        animation.fromValue = 0
+        animation.toValue = 1
+        animation.duration = 0.75
+        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        line.strokeEnd = 1
+        line.add(animation, forKey: "draw")
     }
 }

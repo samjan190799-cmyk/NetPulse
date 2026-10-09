@@ -15,6 +15,10 @@ public struct ContentView: View {
     /// Подписка PRO: окно подписки открывается поверх любого экрана
     @Bindable private var pro = ProStore.shared
     @State private var selectedTab: Int = 0
+    #if DEBUG || NETPULSE_TESTER
+    /// Счётчик кадров и нагрузки (включается в тестовом разделе настроек)
+    @AppStorage("netpulse_perf_overlay") private var perfOverlayEnabled = false
+    #endif
 
     public var body: some View {
         ZStack {
@@ -52,15 +56,30 @@ public struct ContentView: View {
             }
             .tint(NPTheme.accentPrimary)
             .preferredColorScheme(.dark)
-            .onChange(of: selectedTab) { _, _ in
+            .onChange(of: selectedTab) { _, newTab in
                 HapticManager.shared.selectionChanged()
+                #if DEBUG || NETPULSE_TESTER
+                PerformanceMonitor.shared.screenName = ["Сеть", "Инструменты", "Трафик", "Настройки"][min(max(newTab, 0), 3)]
+                #endif
             }
             .onReceive(NotificationCenter.default.publisher(for: .netPulseShowHome)) { _ in
                 selectedTab = 0
             }
             .onAppear {
                 configureTabBarAppearance()
+                #if DEBUG || NETPULSE_TESTER
+                if perfOverlayEnabled { PerformanceMonitor.shared.start() }
+                #endif
             }
+            #if DEBUG || NETPULSE_TESTER
+            .onChange(of: perfOverlayEnabled) { _, enabled in
+                if enabled {
+                    PerformanceMonitor.shared.start()
+                } else {
+                    PerformanceMonitor.shared.stop()
+                }
+            }
+            #endif
 
             // Плавающий игровой HUD внутри приложения
             if viewModel.floatingHUDEnabled {
@@ -79,6 +98,15 @@ public struct ContentView: View {
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
+
+            #if DEBUG || NETPULSE_TESTER
+            if perfOverlayEnabled {
+                PerformanceOverlay()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(.leading, 8)
+                    .padding(.bottom, 92)
+            }
+            #endif
 
             // Короткая заставка при запуске: касания проходят сквозь неё, показывается один раз за запуск
             NPIntroOverlay()

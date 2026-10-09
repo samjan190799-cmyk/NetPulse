@@ -54,6 +54,8 @@
 		A20000F02C123456000000F1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B20000F02C123456000000F1 /* PrivacyInfo.xcprivacy */; };
 		A10000F12C123456000000F2 /* NPMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F12C123456000000F2 /* NPMotion.swift */; };
 		A10000F22C123456000000F3 /* NPPulseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F22C123456000000F3 /* NPPulseViews.swift */; };
+		A54900002C12345600000049 /* MetricsReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54900002C12345600000049 /* MetricsReporter.swift */; };
+		A54800002C12345600000048 /* PerformanceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54800002C12345600000048 /* PerformanceMonitor.swift */; };
 		A54700002C12345600000047 /* SpeedTestIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54700002C12345600000047 /* SpeedTestIntent.swift */; };
 		A54600002C12345600000046 /* AlertNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54600002C12345600000046 /* AlertNotifier.swift */; };
 		A54500002C12345600000045 /* RouteExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54500002C12345600000045 /* RouteExport.swift */; };
@@ -203,6 +205,8 @@
 		B20000F02C123456000000F1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = NetPulseWidgets/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B10000F12C123456000000F2 /* NPMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/NPMotion.swift; sourceTree = "<group>"; };
 		B10000F22C123456000000F3 /* NPPulseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NPPulseViews.swift; sourceTree = "<group>"; };
+		B54900002C12345600000049 /* MetricsReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/MetricsReporter.swift; sourceTree = "<group>"; };
+		B54800002C12345600000048 /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/PerformanceMonitor.swift; sourceTree = "<group>"; };
 		B54700002C12345600000047 /* SpeedTestIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SpeedTestIntent.swift; sourceTree = "<group>"; };
 		B54600002C12345600000046 /* AlertNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AlertNotifier.swift; sourceTree = "<group>"; };
 		B54500002C12345600000045 /* RouteExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteExport.swift; sourceTree = "<group>"; };
@@ -457,6 +461,8 @@
 				B54500002C12345600000045 /* RouteExport.swift */,
 				B54600002C12345600000046 /* AlertNotifier.swift */,
 				B54700002C12345600000047 /* SpeedTestIntent.swift */,
+				B54800002C12345600000048 /* PerformanceMonitor.swift */,
+				B54900002C12345600000049 /* MetricsReporter.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -717,6 +723,8 @@
 				A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */,
 				A10000F12C123456000000F2 /* NPMotion.swift in Sources */,
 				A10000F22C123456000000F3 /* NPPulseViews.swift in Sources */,
+				A54900002C12345600000049 /* MetricsReporter.swift in Sources */,
+				A54800002C12345600000048 /* PerformanceMonitor.swift in Sources */,
 				A54700002C12345600000047 /* SpeedTestIntent.swift in Sources */,
 				A54600002C12345600000046 /* AlertNotifier.swift in Sources */,
 				A54500002C12345600000045 /* RouteExport.swift in Sources */,

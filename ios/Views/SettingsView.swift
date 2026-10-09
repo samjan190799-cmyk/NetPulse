@@ -24,6 +24,8 @@ public struct SettingsView: View {
     #if DEBUG || NETPULSE_TESTER
     /// Зеркало тестового выключателя PRO: чтобы переключатель сразу отражал выбор
     @State private var testOverride: ProTestOverride = ProStore.shared.testOverride
+    /// Счётчик кадров и нагрузки поверх приложения (тот же ключ читает ContentView)
+    @AppStorage("netpulse_perf_overlay") private var perfOverlayEnabled = false
     #endif
 
     /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
@@ -105,6 +107,9 @@ public struct SettingsView: View {
                         ProStore.shared.testOverride = newValue
                         HapticManager.shared.selectionChanged()
                     }
+
+                    Toggle("Счётчик кадров и нагрузки", isOn: $perfOverlayEnabled)
+                        .accessibilityIdentifier("settingsPerfOverlayToggle")
 
                     HStack {
                         Text("Сейчас")

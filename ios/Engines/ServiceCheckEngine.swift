@@ -67,7 +67,7 @@ public enum ServiceCheckEngine {
     /// С какой задержки ответ считается медленным
     public static let slowThresholdMs: Double = 1_500
     /// Сколько ждать ответа, секунд
-    public static let timeoutSeconds: TimeInterval = 8
+    public static let timeoutSeconds: TimeInterval = 6
 
     private static func site(_ string: String) -> URL {
         URL(string: string) ?? URL(fileURLWithPath: "/")
@@ -144,26 +144,28 @@ public enum ServiceCheckEngine {
 
     // MARK: - Проверка
 
-    /// Проверяет один сервис: время до начала ответа сервера
-    public static func check(_ target: ServiceTarget) async -> ServiceCheckResult {
+    /// Сессия для проверок: без кэша и ожидания сети, соединений на сервер немного. Одна на весь список.
+    private static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = timeoutSeconds
         configuration.timeoutIntervalForResource = timeoutSeconds
         configuration.waitsForConnectivity = false
+        configuration.httpMaximumConnectionsPerHost = 1
         configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        let session = URLSession(configuration: configuration)
-        defer { session.invalidateAndCancel() }
+        configuration.urlCache = nil
+        return URLSession(configuration: configuration)
+    }
 
-        var request = URLRequest(url: target.url)
-        request.httpMethod = "GET"
-        request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
+    /// Проверяет один сервис: время до ответа сервера. Запрос HEAD, то есть только заголовки: страница не скачивается,
+    /// трафик и нагрузка минимальны. Любой ответ сервера означает, что сервис досягаем.
+    static func check(_ target: ServiceTarget, session: URLSession) async -> ServiceCheckResult {
+        var request = URLRequest(url: target.url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: timeoutSeconds)
+        request.httpMethod = "HEAD"
 
         let started = Date()
         do {
-            // Нужны только заголовки ответа: тело не читается, сессия закрывается сразу после замера
-            let (_, response) = try await session.bytes(for: request)
+            _ = try await session.data(for: request)
             let elapsedMs = Date().timeIntervalSince(started) * 1_000
-            _ = response
             let state = classify(latencyMs: elapsedMs)
             let detail = state == .slow
                 ? "Ответ за \(formatLatency(elapsedMs)): медленно"
@@ -176,15 +178,45 @@ public enum ServiceCheckEngine {
         }
     }
 
-    /// Проверяет все сервисы одновременно; результаты идут в порядке списка
-    public static func checkAll(_ list: [ServiceTarget] = ServiceCheckEngine.targets) async -> [ServiceCheckResult] {
-        await withTaskGroup(of: ServiceCheckResult.self, returning: [ServiceCheckResult].self) { group in
-            for target in list {
-                group.addTask { await ServiceCheckEngine.check(target) }
+    /// Проверяет один сервис отдельной сессией
+    public static func check(_ target: ServiceTarget) async -> ServiceCheckResult {
+        let session = makeSession()
+        defer { session.finishTasksAndInvalidate() }
+        return await check(target, session: session)
+    }
+
+    /// Проверяет все сервисы, не более `maxConcurrent` одновременно (радио мобильной сети не любит десяток
+    /// рукопожатий разом); результаты идут в порядке списка
+    public static func checkAll(_ list: [ServiceTarget] = ServiceCheckEngine.targets, maxConcurrent: Int = 4) async -> [ServiceCheckResult] {
+        let session = makeSession()
+        defer { session.finishTasksAndInvalidate() }
+        return await run(list, maxConcurrent: maxConcurrent) { target in
+            await check(target, session: session)
+        }
+    }
+
+    /// Запускает проверки «скользящим окном»: как только одна закончилась, стартует следующая. Вынесено ради теста.
+    static func run(
+        _ list: [ServiceTarget],
+        maxConcurrent: Int,
+        probe: @escaping @Sendable (ServiceTarget) async -> ServiceCheckResult
+    ) async -> [ServiceCheckResult] {
+        let limit = max(1, maxConcurrent)
+        return await withTaskGroup(of: ServiceCheckResult.self, returning: [ServiceCheckResult].self) { group in
+            var next = 0
+            while next < min(limit, list.count) {
+                let target = list[next]
+                next += 1
+                group.addTask { await probe(target) }
             }
             var byID: [String: ServiceCheckResult] = [:]
             for await result in group {
                 byID[result.targetID] = result
+                if next < list.count {
+                    let target = list[next]
+                    next += 1
+                    group.addTask { await probe(target) }
+                }
             }
             return list.compactMap { byID[$0.id] }
         }

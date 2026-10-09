@@ -54,6 +54,11 @@ struct ServiceCheckView: View {
         guard !isChecking else { return }
         isChecking = true
         let output = await ServiceCheckEngine.checkAll()
+        // Ушли с экрана посреди проверки: «прервано» не записываем как «не отвечает»
+        guard !Task.isCancelled else {
+            isChecking = false
+            return
+        }
         history.record(output)
         results = output
         lastChecked = Date()

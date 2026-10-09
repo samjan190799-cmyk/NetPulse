@@ -12,6 +12,8 @@ public struct NetworkInfoCardView: View {
     public let info: NetworkInterfaceInfo
     public let isMonitoring: Bool
     public var onInfoTap: (() -> Void)? = nil
+    /// Постоянная пульсация точки выключается при энергосбережении, «Уменьшении движения» и в фоне
+    @Environment(\.npContinuousMotion) private var continuousMotion
 
     public init(
         info: NetworkInterfaceInfo,
@@ -56,7 +58,7 @@ public struct NetworkInfoCardView: View {
                             .fill(isMonitoring ? NPTheme.accentPrimary : NPTheme.semanticWarn)
                             .frame(width: 8, height: 8)
                             .scaleEffect(isMonitoring ? 1.1 : 0.9)
-                            .animation(.easeInOut(duration: 0.8).repeatForever(), value: isMonitoring)
+                            .animation(continuousMotion ? .easeInOut(duration: 0.8).repeatForever() : nil, value: isMonitoring)
 
                         // Статус относится к мониторингу, а не к связи: раньше «ONLINE» означало лишь «мониторинг включён»,
                         // в том числе без сети

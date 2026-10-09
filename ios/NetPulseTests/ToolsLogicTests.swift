@@ -204,7 +204,45 @@ final class DNSPacketTests: XCTestCase {
 
 // MARK: - Доступность сервисов (PRO)
 
+/// Считает, сколько проверок идёт одновременно
+private actor ConcurrencyGauge {
+    private(set) var peak = 0
+    private var current = 0
+
+    func enter() {
+        current += 1
+        peak = max(peak, current)
+    }
+
+    func leave() {
+        current -= 1
+    }
+}
+
 final class ServiceCheckTests: XCTestCase {
+    func testChecksNeverRunAllAtOnceAndKeepTheListOrder() async {
+        let gauge = ConcurrencyGauge()
+        let list = ServiceCheckEngine.targets
+        let results = await ServiceCheckEngine.run(list, maxConcurrent: 3) { target in
+            await gauge.enter()
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            await gauge.leave()
+            return ServiceCheckResult(targetID: target.id, state: .ok, latencyMs: 10, detail: "")
+        }
+        let peak = await gauge.peak
+        XCTAssertLessThanOrEqual(peak, 3, "Одновременно идёт не больше трёх проверок")
+        XCTAssertGreaterThan(peak, 1, "Проверки всё же идут параллельно")
+        XCTAssertEqual(results.map(\.targetID), list.map(\.id), "Порядок результатов совпадает со списком")
+    }
+
+    func testOneAtATimeStillFinishesEveryCheck() async {
+        let list = Array(ServiceCheckEngine.targets.prefix(4))
+        let results = await ServiceCheckEngine.run(list, maxConcurrent: 0) { target in
+            ServiceCheckResult(targetID: target.id, state: .slow, latencyMs: 2_000, detail: "")
+        }
+        XCTAssertEqual(results.count, 4, "Нулевой лимит не должен заблокировать проверку")
+    }
+
     private func result(_ id: String, _ state: ServiceState) -> ServiceCheckResult {
         ServiceCheckResult(targetID: id, state: state, latencyMs: state == .down ? nil : 100, detail: "")
     }

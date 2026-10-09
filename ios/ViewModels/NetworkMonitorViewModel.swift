@@ -110,7 +110,9 @@ public final class NetworkMonitorViewModel {
     // Alerts & Notifications
     public var recentAlerts: [NetworkAlert] = []
     public var activeAlert: NetworkAlert?
-    public var soundEnabled: Bool = true {
+    /// Звуковые предупреждения выключены, пока пользователь сам их не включит: на мобильной сети задержка скачет, и
+    /// сигнал раздавался почти постоянно (вместе с вибрацией, если телефон в беззвучном режиме)
+    public var soundEnabled: Bool = false {
         didSet { UserDefaults.standard.set(soundEnabled, forKey: Self.kSoundKey) }
     }
     public var hapticsEnabled: Bool = true {
@@ -212,7 +214,7 @@ public final class NetworkMonitorViewModel {
     private let alertCooldown: TimeInterval = 60
     /// Когда последний раз прозвучал звук критического алерта и как часто он может звучать
     private var lastAlertSoundDate: Date = .distantPast
-    private static let alertSoundMinimumInterval: TimeInterval = 30
+    private static let alertSoundMinimumInterval: TimeInterval = 60
     /// Адрес шлюза, под который накоплена статистика строки «gateway»
     private var lastResolvedGatewayIP: String?
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
@@ -1253,10 +1255,11 @@ public final class NetworkMonitorViewModel {
             await history.recordAlert(alert)
         }
 
-        // Тумблер «Звуковые предупреждения». Звук только у нового или усилившегося критического алерта, только пока
-        // приложение на экране и не чаще раза в 30 секунд: несколько узлов и показателей не должны звучать подряд
+        // Тумблер «Звуковые предупреждения». Звук только когда узел перестал отвечать (скачок задержки или джиттера
+        // на мобильной сети случается постоянно и звучать не должен), только у нового или усилившегося алерта, пока
+        // приложение на экране и не чаще раза в минуту: несколько узлов не должны звучать подряд
         let soundTime = Date()
-        if soundEnabled, playsSound, condition.severity == .critical,
+        if soundEnabled, playsSound, condition.severity == .critical, condition.metric == "availability",
            UIApplication.shared.applicationState == .active,
            soundTime.timeIntervalSince(lastAlertSoundDate) >= Self.alertSoundMinimumInterval {
             lastAlertSoundDate = soundTime

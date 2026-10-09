@@ -480,15 +480,24 @@ struct HomeIdlePanel: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Запись маршрута")
 
+            // «Карта скорости»: автоматические замеры на маршруте входят в подписку PRO
             Toggle(isOn: Binding(
-                get: { recorder.measuresSpeed },
-                set: { recorder.measuresSpeed = $0 }
+                get: { recorder.measuresSpeed && ProStore.shared.isPro },
+                set: { enabled in
+                    if enabled && !ProStore.shared.requirePro(.speedMap) { return }
+                    recorder.measuresSpeed = enabled
+                }
             )) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Замерять скорость на маршруте")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(NPTheme.textPrimary)
-                    Text("Раз в 30 секунд скачивается до 1,5 МБ. На мобильном интернете это расходует трафик, поэтому по умолчанию выключено.")
+                    HStack(spacing: 6) {
+                        Text("Замерять скорость на маршруте")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(NPTheme.textPrimary)
+                        if !ProStore.shared.isPro {
+                            ProBadge()
+                        }
+                    }
+                    Text("Раз в 30 секунд скачивается до 1,5 МБ, и карта показывает, где интернет быстрый. На мобильном интернете это расходует трафик, поэтому по умолчанию выключено.")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                 }

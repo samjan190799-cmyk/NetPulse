@@ -1255,9 +1255,19 @@ public final class NetworkMonitorViewModel {
             await history.recordAlert(alert)
         }
 
-        // Тумблер «Звуковые предупреждения». Звук только когда узел перестал отвечать (скачок задержки или джиттера
-        // на мобильной сети случается постоянно и звучать не должен), только у нового или усилившегося алерта, пока
-        // приложение на экране и не чаще раза в минуту: несколько узлов не должны звучать подряд
+        // Уведомление PRO: узел перестал отвечать или потери пакетов критические, а приложение не на экране.
+        // Скачки задержки и джиттера уведомлений не вызывают: на мобильной сети они случаются постоянно.
+        let isSeriousMetric = condition.metric == "availability" || condition.metric == "packet_loss"
+        if playsSound, condition.severity == .critical, isSeriousMetric {
+            AlertNotifier.shared.notifyProblem(
+                key: "\(address)|\(condition.metric)",
+                title: "Проблема со связью: \(host.name)",
+                body: condition.message
+            )
+        }
+
+        // Тумблер «Звуковые предупреждения». Звук только когда узел перестал отвечать, только у нового или усилившегося
+        // алерта, пока приложение на экране и не чаще раза в минуту: несколько узлов не должны звучать подряд
         let soundTime = Date()
         if soundEnabled, playsSound, condition.severity == .critical, condition.metric == "availability",
            UIApplication.shared.applicationState == .active,
@@ -1363,6 +1373,14 @@ public final class NetworkMonitorViewModel {
                 }
 
                 await self.storage.recordSpeedtest(result)
+                // История замеров на устройстве: сохраняется у всех, смотреть её с графиками можно в подписке PRO
+                SpeedHistoryStore.shared.add(SpeedHistoryEntry(
+                    downloadMbps: result.downloadMbps,
+                    uploadMbps: result.uploadMbps,
+                    pingMs: result.pingMs ?? self.currentAveragePing,
+                    jitterMs: result.jitterMs ?? self.currentAverageJitter,
+                    connection: SpeedHistoryEntry.label(for: self.systemInfo.connectionType)
+                ))
                 self.syncWidgetData(reloadTimelines: true)
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")

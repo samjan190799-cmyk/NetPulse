@@ -55,6 +55,9 @@ public struct ContentView: View {
             .onChange(of: selectedTab) { _, _ in
                 HapticManager.shared.selectionChanged()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .netPulseShowHome)) { _ in
+                selectedTab = 0
+            }
             .onAppear {
                 configureTabBarAppearance()
             }

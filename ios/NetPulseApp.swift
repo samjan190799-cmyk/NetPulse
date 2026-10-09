@@ -14,6 +14,9 @@ struct NetPulseApp: App {
     init() {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
+        // «Карта скорости»: автоматические замеры на маршруте входят в подписку PRO
+        RouteRecorder.shared.speedSamplingAllowed = { ProStore.shared.isPro }
+        AlertNotifier.shared.clearStaleReminder()
     }
 
     var body: some Scene {
@@ -23,13 +26,22 @@ struct NetPulseApp: App {
                     // Подписка PRO: слушает покупки и подтверждает статус (остров, HUD и AI-аудит входят в подписку)
                     ProStore.shared.start()
                     restoreLiveActivityIfNeeded()
+                    runRequestedSpeedtest()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
+                        runRequestedSpeedtest()
                     }
                 }
         }
+    }
+
+    /// Команда «Замерить скорость» (Siri, Команды, Action Button) оставила просьбу: открываем главный экран и меряем
+    private func runRequestedSpeedtest() {
+        guard SpeedTestRequest.consume() else { return }
+        NotificationCenter.default.post(name: .netPulseShowHome, object: nil)
+        NetworkMonitorViewModel.shared.startSpeedtest()
     }
 
     private func restoreLiveActivityIfNeeded() {

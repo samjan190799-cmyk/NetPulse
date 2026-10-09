@@ -18,6 +18,13 @@ public struct SettingsView: View {
     @State private var showResetTrafficAlert: Bool = false
     @State private var showIslandDiagnostics: Bool = false
     @State private var addHostError: String?
+    /// Оповещения PRO: выбор пользователя и отказ iOS в разрешении
+    @State private var alertsEnabled: Bool = AlertNotifier.shared.isEnabled
+    @State private var alertsDenied: Bool = false
+    #if DEBUG || NETPULSE_TESTER
+    /// Зеркало тестового выключателя PRO: чтобы переключатель сразу отражал выбор
+    @State private var testOverride: ProTestOverride = ProStore.shared.testOverride
+    #endif
 
     /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
     private var appVersionText: String {
@@ -48,8 +55,8 @@ public struct SettingsView: View {
                 Text("NetPulse PRO")
                     .font(.system(size: 15, weight: .semibold))
                 Text(store.isPro
-                     ? "Подписка активна: остров, HUD и AI-аудит"
-                     : "Остров, игровой HUD и AI-аудит" + (store.priceText.map { " · \($0)" } ?? ""))
+                     ? "Подписка активна: остров, HUD, AI-аудит, отчёт, сервисы и другое"
+                     : "Остров, HUD, AI-аудит, отчёт и другое" + (store.priceText.map { " · \($0)" } ?? ""))
                     .font(.system(size: 12))
                     .foregroundStyle(NPTheme.textSecondary)
             }
@@ -79,6 +86,69 @@ public struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("settingsRestorePurchases")
+                }
+
+                #if DEBUG || NETPULSE_TESTER
+                // Тестовый режим: только в тестовых сборках, в сборке для App Store его нет
+                Section(
+                    header: Label("Тестовый режим", systemImage: "wrench.and.screwdriver.fill"),
+                    footer: Text("Только для проверки в тестовой сборке. «PRO включён» открывает платные возможности без покупки, «PRO выключен» показывает приложение, как у пользователя без подписки. Реклама (если появится) показывается только при выключенном PRO.")
+                ) {
+                    Picker("Режим PRO", selection: $testOverride) {
+                        ForEach(ProTestOverride.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("settingsTestProPicker")
+                    .onChange(of: testOverride) { _, newValue in
+                        ProStore.shared.testOverride = newValue
+                        HapticManager.shared.selectionChanged()
+                    }
+
+                    HStack {
+                        Text("Сейчас")
+                        Spacer()
+                        Text(ProStore.shared.isPro ? "PRO активен" : "Без подписки")
+                            .foregroundStyle(ProStore.shared.isPro ? NPTheme.accentPrimary : NPTheme.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("settingsTestProState")
+                }
+                #endif
+
+                // Оповещения о проблемах сети (PRO)
+                Section(
+                    header: Label("Оповещения", systemImage: "bell.badge.fill"),
+                    footer: Text(alertsDenied
+                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → NetPulse → Уведомления."
+                                 : "Уведомление приходит, когда узел перестал отвечать или потери пакетов критические, и напоминание, если запись маршрута идёт больше часа. Работает, пока приложение живо в фоне (запись маршрута, остров): iOS не даёт следить за сетью в закрытом приложении.")
+                ) {
+                    Toggle(isOn: Binding(
+                        get: { alertsEnabled && ProStore.shared.isPro },
+                        set: { enabled in
+                            if enabled {
+                                guard ProStore.shared.requirePro(.alerts) else { return }
+                                Task {
+                                    let granted = await AlertNotifier.shared.enable()
+                                    alertsEnabled = granted
+                                    alertsDenied = !granted
+                                }
+                            } else {
+                                AlertNotifier.shared.disable()
+                                alertsEnabled = false
+                                alertsDenied = false
+                            }
+                        }
+                    )) {
+                        HStack(spacing: 6) {
+                            Text("Уведомления о проблемах сети")
+                            if !ProStore.shared.isPro {
+                                ProBadge()
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("settingsAlertsToggle")
                 }
 
                 // 3. Статус и параметры опроса

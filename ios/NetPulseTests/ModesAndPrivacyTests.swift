@@ -234,8 +234,12 @@ final class ProEntitlementTests: XCTestCase {
         XCTAssertFalse(ProEntitlement.grantsPro(productID: "com.example.other", revocationDate: nil, expirationDate: nil, now: now))
     }
 
-    func testPaidFeaturesAreIslandHudAndAIAudit() {
-        XCTAssertEqual(ProFeature.included, [.island, .hud, .aiAudit])
+    func testPaidFeaturesAreAllListedOnce() {
+        XCTAssertEqual(
+            ProFeature.included,
+            [.island, .hud, .aiAudit, .report, .services, .history, .speedMap, .alerts, .export]
+        )
+        XCTAssertEqual(Set(ProFeature.included).count, ProFeature.included.count, "Возможности в окне подписки не повторяются")
         for feature in ProFeature.allCases {
             XCTAssertFalse(feature.title.isEmpty)
             XCTAssertFalse(feature.summary.isEmpty)
@@ -304,6 +308,39 @@ final class ProStoreTests: XCTestCase {
         second.apply(isActive: false)
         XCTAssertFalse(ProStore(defaults: defaults).isPro, "Отозванная подписка не должна вернуться из памяти")
     }
+
+    #if DEBUG || NETPULSE_TESTER
+    func testTestOverrideForcesProOnAndOff() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        XCTAssertFalse(store.isPro)
+
+        store.testOverride = .on
+        XCTAssertTrue(store.isPro, "«PRO включён» открывает платные возможности без покупки")
+        XCTAssertTrue(store.requirePro(.report))
+
+        store.testOverride = .off
+        XCTAssertFalse(store.isPro)
+        store.apply(isActive: true)
+        XCTAssertFalse(store.isPro, "«PRO выключен» скрывает даже настоящую подписку: так проверяют бесплатный вид")
+        XCTAssertFalse(store.requirePro(.alerts))
+        XCTAssertEqual(store.paywall, .alerts)
+
+        store.testOverride = .store
+        XCTAssertTrue(store.isPro, "«Как в магазине» возвращает настоящий статус")
+    }
+
+    func testTestOverrideIsRememberedAndNotifies() throws {
+        let defaults = try makeDefaults()
+        let first = ProStore(defaults: defaults)
+        var notifications = 0
+        first.onChange = { notifications += 1 }
+        first.testOverride = .on
+        first.testOverride = .on
+        XCTAssertEqual(notifications, 1, "Повторный выбор того же режима ничего не меняет")
+
+        XCTAssertTrue(ProStore(defaults: defaults).isPro, "Выбор тестового режима переживает перезапуск")
+    }
+    #endif
 }
 
 /// Переключатель «Тактильный отклик» гасит всю вибрацию приложения, а не только часть вызовов в модели

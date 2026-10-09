@@ -17,6 +17,12 @@ public struct DiagnosticsView: View {
     @State private var showGlossarySheet: Bool = false
     /// AI-аудит открывается отсюда (входит в подписку PRO)
     @State private var showAIAudit: Bool = false
+    /// Экраны подписки PRO: доступность сервисов и история замеров
+    @State private var showServices: Bool = false
+    @State private var showSpeedHistory: Bool = false
+    /// Отчёт для провайдера: собирается по нажатию и открывается в окне «Поделиться»
+    @State private var reportShare: SharePayload?
+    @State private var isBuildingReport: Bool = false
 
     public var body: some View {
         NavigationStack {
@@ -57,6 +63,15 @@ public struct DiagnosticsView: View {
             }
             .navigationTitle("Инструменты")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showServices) {
+                ServiceCheckView()
+            }
+            .navigationDestination(isPresented: $showSpeedHistory) {
+                SpeedHistoryView()
+            }
+            .sheet(item: $reportShare) { payload in
+                NPShareSheet(activityItems: payload.items)
+            }
             .toolbar {
                 // Кнопка паузы / запуска пинга
                 ToolbarItem(placement: .topBarLeading) {
@@ -216,6 +231,42 @@ public struct DiagnosticsView: View {
             .buttonStyle(NPPressableButtonStyle())
             .accessibilityIdentifier("toolsAIAuditButton")
 
+            // Возможности подписки PRO: отчёт провайдеру, доступность сервисов, история замеров
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                proToolButton(
+                    feature: .report,
+                    title: "Отчёт провайдеру",
+                    subtitle: isBuildingReport ? "Готовим PDF…" : "PDF для претензии",
+                    icon: "doc.text.fill",
+                    color: Color.orange,
+                    identifier: "toolsReportButton"
+                ) {
+                    buildReport()
+                }
+
+                proToolButton(
+                    feature: .services,
+                    title: "Сервисы",
+                    subtitle: "Telegram, YouTube, WhatsApp",
+                    icon: "antenna.radiowaves.left.and.right",
+                    color: Color.pink,
+                    identifier: "toolsServicesButton"
+                ) {
+                    showServices = true
+                }
+
+                proToolButton(
+                    feature: .history,
+                    title: "История замеров",
+                    subtitle: "Графики и итоги",
+                    icon: "chart.xyaxis.line",
+                    color: Color.indigo,
+                    identifier: "toolsHistoryButton"
+                ) {
+                    showSpeedHistory = true
+                }
+            }
+
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
                     proUtilityTile(
@@ -256,6 +307,51 @@ public struct DiagnosticsView: View {
                     )
                 }
                 .buttonStyle(NPPressableButtonStyle())
+            }
+        }
+    }
+
+    /// Плитка возможности PRO: без подписки нажатие открывает окно подписки, с подпиской выполняет действие
+    private func proToolButton(
+        feature: ProFeature,
+        title: String,
+        subtitle: String,
+        icon: String,
+        color: Color,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            HapticManager.shared.impactLight()
+            if ProStore.shared.requirePro(feature) {
+                action()
+            }
+        } label: {
+            proUtilityTile(title: title, subtitle: subtitle, icon: icon, color: color)
+                .overlay(alignment: .topTrailing) {
+                    if !ProStore.shared.isPro {
+                        ProBadge()
+                            .padding(4)
+                    }
+                }
+        }
+        .buttonStyle(NPPressableButtonStyle())
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// Собирает PDF-отчёт и открывает «Поделиться»
+    private func buildReport() {
+        guard !isBuildingReport else { return }
+        isBuildingReport = true
+        let data = ProReportData.gather(viewModel: viewModel)
+        Task {
+            let url = await Task.detached(priority: .userInitiated) {
+                ProReportData.writePDF(data)
+            }.value
+            isBuildingReport = false
+            if let url {
+                reportShare = SharePayload(items: [url])
+                HapticManager.shared.notificationSuccess()
             }
         }
     }

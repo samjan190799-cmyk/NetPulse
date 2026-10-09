@@ -97,7 +97,7 @@ struct PaywallView: View {
             Text("NetPulse PRO")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .foregroundStyle(NPTheme.textPrimary)
-            Text(feature == .general ? "Остров, игровой HUD и AI-аудит сети" : "«\(feature.title)» входит в подписку PRO")
+            Text(feature == .general ? "Остров, HUD, AI-аудит, отчёт провайдеру и другое" : "«\(feature.title)» входит в подписку PRO")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(NPTheme.textSecondary)
                 .multilineTextAlignment(.center)

@@ -21,12 +21,24 @@ public enum ProFeature: String, Identifiable, CaseIterable, Sendable {
     case hud
     /// Глубокий AI-аудит сети
     case aiAudit
+    /// Доступность сервисов: Telegram, YouTube, WhatsApp и другие
+    case services
+    /// История замеров скорости с графиками
+    case history
+    /// Отчёт для провайдера в PDF
+    case report
+    /// Автоматические замеры скорости во время записи маршрута
+    case speedMap
+    /// Оповещения о проблемах сети
+    case alerts
+    /// Экспорт маршрута в GPX и картинка карты
+    case export
 
     public var id: String { rawValue }
 
     /// Возможности, которые входят в подписку (без «общего» пункта)
     public static var included: [ProFeature] {
-        [.island, .hud, .aiAudit]
+        [.island, .hud, .aiAudit, .report, .services, .history, .speedMap, .alerts, .export]
     }
 
     public var title: String {
@@ -35,19 +47,37 @@ public enum ProFeature: String, Identifiable, CaseIterable, Sendable {
         case .island: return "Скорость в Dynamic Island"
         case .hud: return "Игровой HUD"
         case .aiAudit: return "Глубокий AI-аудит"
+        case .services: return "Доступность сервисов"
+        case .history: return "История замеров"
+        case .report: return "Отчёт для провайдера"
+        case .speedMap: return "Карта скорости"
+        case .alerts: return "Оповещения"
+        case .export: return "Экспорт маршрута"
         }
     }
 
     public var summary: String {
         switch self {
         case .general:
-            return "Остров, игровой HUD и AI-аудит сети"
+            return "Остров, игровой HUD, AI-аудит, отчёт провайдеру и другие возможности"
         case .island:
             return "Скачивание, отдача и пинг в Dynamic Island и на экране блокировки"
         case .hud:
             return "Плавающая панель пинга, джиттера, потерь и скорости поверх экранов приложения"
         case .aiAudit:
             return "Оценка сети от 0 до 100, предсказание просадок, мастер поиска причин и обращение к провайдеру"
+        case .services:
+            return "Отвечают ли Telegram, YouTube, WhatsApp, Discord и другие сервисы, и как быстро"
+        case .history:
+            return "Все замеры скорости с графиками по дням: дома, в дороге, в мобильной сети"
+        case .report:
+            return "PDF для претензии провайдеру: скорость, пинг, потери, обрывы и карта проблемных мест"
+        case .speedMap:
+            return "Во время записи приложение само меряет скорость, и карта показывает, где интернет быстрый, а где нет"
+        case .alerts:
+            return "Уведомление, когда связь пропала или стала плохой, и напоминание, если запись маршрута забыта"
+        case .export:
+            return "Маршрут в файл GPX и картинка карты, чтобы показать или сохранить"
         }
     }
 
@@ -57,6 +87,12 @@ public enum ProFeature: String, Identifiable, CaseIterable, Sendable {
         case .island: return "capsule.inset.filled"
         case .hud: return "gamecontroller.fill"
         case .aiAudit: return "sparkles"
+        case .services: return "antenna.radiowaves.left.and.right"
+        case .history: return "chart.xyaxis.line"
+        case .report: return "doc.text.fill"
+        case .speedMap: return "speedometer"
+        case .alerts: return "bell.badge.fill"
+        case .export: return "square.and.arrow.up.fill"
         }
     }
 }
@@ -76,6 +112,40 @@ enum ProEntitlement {
     }
 }
 
+// MARK: - Тестовый режим
+
+#if DEBUG || NETPULSE_TESTER
+/// Выключатель PRO для проверки платных возможностей без покупки. Существует только в отладочных и тестовых сборках
+/// (флаг `NETPULSE_TESTER` ставится при выгрузке тестовой сборки в TestFlight); в сборке для App Store этого кода нет.
+public enum ProTestOverride: String, CaseIterable, Identifiable, Sendable {
+    /// Как есть: решает App Store
+    case store
+    /// PRO включён, будто подписка куплена
+    case on
+    /// PRO выключен, будто подписки нет (чтобы проверить окно подписки и бесплатный вид)
+    case off
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .store: return "Как в магазине"
+        case .on: return "PRO включён"
+        case .off: return "PRO выключен"
+        }
+    }
+
+    /// Итоговый статус PRO при данном переопределении и статусе подписки в App Store
+    public func resolve(store: Bool) -> Bool {
+        switch self {
+        case .store: return store
+        case .on: return true
+        case .off: return false
+        }
+    }
+}
+#endif
+
 // MARK: - Менеджер подписки
 
 /// Менеджер подписки NetPulse PRO: загрузка цены, покупка, восстановление, слежение за статусом.
@@ -88,9 +158,21 @@ public final class ProStore {
     public static let shared = ProStore()
 
     private static let cacheKey = "netpulse_pro_cached"
+    private static let overrideKey = "netpulse_pro_test_override"
 
-    /// Есть ли активная подписка
+    /// Есть ли доступ к PRO: подписка из App Store, а в тестовых сборках ещё и переопределение `testOverride`
     public private(set) var isPro: Bool
+    /// Что говорит App Store (или запомненный статус до ответа StoreKit)
+    @ObservationIgnored private var storeIsPro: Bool
+    #if DEBUG || NETPULSE_TESTER
+    /// Тестовый выключатель PRO (в настройках, раздел «Тестовый режим»); запоминается между запусками
+    public var testOverride: ProTestOverride {
+        didSet {
+            defaults.set(testOverride.rawValue, forKey: Self.overrideKey)
+            refreshEffectiveStatus()
+        }
+    }
+    #endif
     /// Подписка из App Store: оттуда берутся цена и срок
     public private(set) var product: Product?
     public private(set) var isLoadingProduct = false
@@ -117,7 +199,15 @@ public final class ProStore {
         let forced = false
         #endif
         self.debugForced = forced
-        self.isPro = forced || defaults.bool(forKey: Self.cacheKey)
+        let remembered = forced || defaults.bool(forKey: Self.cacheKey)
+        self.storeIsPro = remembered
+        #if DEBUG || NETPULSE_TESTER
+        let override = ProTestOverride(rawValue: defaults.string(forKey: Self.overrideKey) ?? "") ?? .store
+        self.testOverride = override
+        self.isPro = override.resolve(store: remembered)
+        #else
+        self.isPro = remembered
+        #endif
     }
 
     // MARK: - Запуск
@@ -236,6 +326,17 @@ public final class ProStore {
         if !debugForced {
             defaults.set(value, forKey: Self.cacheKey)
         }
+        storeIsPro = value
+        refreshEffectiveStatus()
+    }
+
+    /// Пересчитывает итоговый статус PRO (подписка плюс тестовое переопределение) и сообщает, если он изменился
+    private func refreshEffectiveStatus() {
+        #if DEBUG || NETPULSE_TESTER
+        let value = testOverride.resolve(store: storeIsPro)
+        #else
+        let value = storeIsPro
+        #endif
         guard value != isPro else { return }
         isPro = value
         if value {

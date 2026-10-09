@@ -120,6 +120,10 @@ public final class RouteRecorder {
         didSet { defaults.set(measuresSpeed, forKey: Self.measureSpeedKey) }
     }
 
+    /// Разрешены ли автоматические замеры скорости на маршруте. Приложение разрешает их только подписчикам PRO
+    /// («Карта скорости»); по умолчанию разрешено, чтобы тесты и вызовы без подписки не зависели от неё.
+    @ObservationIgnored public var speedSamplingAllowed: @MainActor () -> Bool = { true }
+
     private static let backgroundKey = "netpulse_route_background"
     /// Продолжать ли запись, пока приложение свёрнуто или экран заблокирован. Включено по умолчанию: так карта
     /// охватывает весь путь. Выключено — в фоне запись стоит на паузе (геолокация не работает, значка в строке
@@ -233,9 +237,10 @@ public final class RouteRecorder {
         wantsRecording = true
         pausedInBackground = false
         lastMovementAt = now
-        current = RouteRecord(startedAt: now, measuredSpeed: measuresSpeed)
+        current = RouteRecord(startedAt: now, measuredSpeed: measuresSpeed && speedSamplingAllowed())
         recordingSince = now
         IslandDiagnostics.shared.log("Запись маршрута начата", .location)
+        AlertNotifier.shared.scheduleRecordingReminder()
         applyDesiredState()
     }
 
@@ -251,6 +256,7 @@ public final class RouteRecorder {
         recordingSince = nil
         state = .idle
         IslandDiagnostics.shared.log("Запись маршрута остановлена", .location)
+        AlertNotifier.shared.cancelRecordingReminder()
 
         guard var record = finished else { return }
         record.endedAt = Date()
@@ -473,7 +479,7 @@ public final class RouteRecorder {
         }
         guard let fix = latestFix else { return }
 
-        let wantsSpeed = measuresSpeed && now.timeIntervalSince(lastSpeedProbeAt) >= Self.speedProbeInterval
+        let wantsSpeed = measuresSpeed && speedSamplingAllowed() && now.timeIntervalSince(lastSpeedProbeAt) >= Self.speedProbeInterval
         if wantsSpeed {
             lastSpeedProbeAt = now
         }

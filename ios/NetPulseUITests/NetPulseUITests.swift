@@ -747,4 +747,85 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "У подписчика открылось окно подписки")
         app.buttons["aiAuditCloseButton"].tap()
     }
+
+    // MARK: - Новые возможности PRO
+
+    /// С подпиской плитка «Сервисы» открывает экран проверки доступности
+    @MainActor func testSubscriberOpensServiceCheck() throws {
+        let app = launchApp()
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsServicesButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки «Сервисы»")
+        tile.tap()
+        XCTAssertTrue(app.buttons["serviceCheckButton"].waitForExistence(timeout: 15), "Экран проверки сервисов не открылся")
+        XCTAssertTrue(app.descendants(matching: .any)["serviceVerdict"].waitForExistence(timeout: 5), "Нет вывода по сервисам")
+        XCTAssertTrue(app.descendants(matching: .any)["serviceRow-telegram"].exists, "Нет строки Telegram")
+        XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "У подписчика открылось окно подписки")
+        attachScreenshot("services")
+    }
+
+    /// Без подписки плитки PRO открывают окно подписки
+    @MainActor func testFreeUserSeesPaywallFromProTiles() throws {
+        let app = launchApp(pro: false)
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        for identifier in ["toolsServicesButton", "toolsHistoryButton", "toolsReportButton"] {
+            let tile = app.buttons[identifier]
+            XCTAssertTrue(tile.waitForExistence(timeout: 15), "Нет плитки \(identifier)")
+            tile.tap()
+            XCTAssertTrue(
+                app.descendants(matching: .any)["paywallView"].waitForExistence(timeout: 10),
+                "Плитка \(identifier) не открыла окно подписки"
+            )
+            app.buttons["paywallCloseButton"].tap()
+            XCTAssertTrue(waitUntilGone(app.descendants(matching: .any)["paywallView"], timeout: 10), "Окно подписки не закрылось")
+        }
+    }
+
+    /// С подпиской открывается история замеров (пока пустая) с фильтром по подключению
+    @MainActor func testSubscriberOpensSpeedHistory() throws {
+        let app = launchApp()
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsHistoryButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки «История замеров»")
+        tile.tap()
+        XCTAssertTrue(app.segmentedControls["speedHistoryFilter"].waitForExistence(timeout: 10), "Нет фильтра по подключению")
+        let hasContent = app.descendants(matching: .any)["speedHistoryEmpty"].exists
+            || app.descendants(matching: .any)["speedHistorySummary"].exists
+        XCTAssertTrue(hasContent, "История не показала ни замеров, ни пустого состояния")
+        attachScreenshot("speed-history")
+    }
+
+    /// Тестовый режим: выключатель PRO прячет и возвращает платные возможности
+    @MainActor func testTestModeSwitchesProOffAndOn() throws {
+        let app = launchApp()
+        waitForHome(app)
+        openSettings(app)
+
+        let picker = app.segmentedControls["settingsTestProPicker"]
+        XCTAssertTrue(reveal(picker, in: app), "В настройках нет тестового выключателя PRO")
+        let state = app.descendants(matching: .any)["settingsTestProState"]
+        XCTAssertTrue(state.waitForExistence(timeout: 5))
+
+        picker.buttons["PRO выключен"].tap()
+        XCTAssertTrue(waitForLabel(containing: "Без подписки", of: state), "После «PRO выключен» подписка не пропала")
+        picker.buttons["PRO включён"].tap()
+        XCTAssertTrue(waitForLabel(containing: "PRO активен", of: state), "После «PRO включён» подписка не появилась")
+        attachScreenshot("test-mode")
+    }
+
+    /// Ждёт, пока подпись элемента будет содержать текст
+    @MainActor private func waitForLabel(containing text: String, of element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.label.contains(text) { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return element.label.contains(text)
+    }
 }

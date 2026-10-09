@@ -54,6 +54,14 @@
 		A20000F02C123456000000F1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B20000F02C123456000000F1 /* PrivacyInfo.xcprivacy */; };
 		A10000F12C123456000000F2 /* NPMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F12C123456000000F2 /* NPMotion.swift */; };
 		A10000F22C123456000000F3 /* NPPulseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F22C123456000000F3 /* NPPulseViews.swift */; };
+		A54700002C12345600000047 /* SpeedTestIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54700002C12345600000047 /* SpeedTestIntent.swift */; };
+		A54600002C12345600000046 /* AlertNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54600002C12345600000046 /* AlertNotifier.swift */; };
+		A54500002C12345600000045 /* RouteExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54500002C12345600000045 /* RouteExport.swift */; };
+		A54400002C12345600000044 /* ReportBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54400002C12345600000044 /* ReportBuilder.swift */; };
+		A54300002C12345600000043 /* SpeedHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54300002C12345600000043 /* SpeedHistoryView.swift */; };
+		A54200002C12345600000042 /* SpeedHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54200002C12345600000042 /* SpeedHistoryStore.swift */; };
+		A54100002C12345600000041 /* ServiceCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54100002C12345600000041 /* ServiceCheckView.swift */; };
+		A54000002C12345600000040 /* ServiceCheckEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B54000002C12345600000040 /* ServiceCheckEngine.swift */; };
 		A10000F32C123456000000F4 /* ProStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F32C123456000000F4 /* ProStore.swift */; };
 		A10000F42C123456000000F5 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000F42C123456000000F5 /* PaywallView.swift */; };
 		A10000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
@@ -195,6 +203,14 @@
 		B20000F02C123456000000F1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = NetPulseWidgets/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B10000F12C123456000000F2 /* NPMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/NPMotion.swift; sourceTree = "<group>"; };
 		B10000F22C123456000000F3 /* NPPulseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NPPulseViews.swift; sourceTree = "<group>"; };
+		B54700002C12345600000047 /* SpeedTestIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SpeedTestIntent.swift; sourceTree = "<group>"; };
+		B54600002C12345600000046 /* AlertNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AlertNotifier.swift; sourceTree = "<group>"; };
+		B54500002C12345600000045 /* RouteExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteExport.swift; sourceTree = "<group>"; };
+		B54400002C12345600000044 /* ReportBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ReportBuilder.swift; sourceTree = "<group>"; };
+		B54300002C12345600000043 /* SpeedHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SpeedHistoryView.swift; sourceTree = "<group>"; };
+		B54200002C12345600000042 /* SpeedHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SpeedHistoryStore.swift; sourceTree = "<group>"; };
+		B54100002C12345600000041 /* ServiceCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ServiceCheckView.swift; sourceTree = "<group>"; };
+		B54000002C12345600000040 /* ServiceCheckEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/ServiceCheckEngine.swift; sourceTree = "<group>"; };
 		B10000F32C123456000000F4 /* ProStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ProStore.swift; sourceTree = "<group>"; };
 		B10000F42C123456000000F5 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PaywallView.swift; sourceTree = "<group>"; };
 		B10000702C12345600000070 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/WidgetDataManager.swift; sourceTree = "<group>"; };
@@ -359,6 +375,7 @@
 				B10000962C12345600000096 /* BufferbloatEngine.swift */,
 				B10000972C12345600000097 /* LANScannerEngine.swift */,
 				B10000D72C123456000000D7 /* NetworkProbe.swift */,
+				B54000002C12345600000040 /* ServiceCheckEngine.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -393,6 +410,8 @@
 				B10000DE2C123456000000DE /* HomeRecordingPanel.swift */,
 				B10000DF2C123456000000DF /* HomeRoutePanel.swift */,
 				B10000E02C123456000000E0 /* HomeFloatingCards.swift */,
+				B54100002C12345600000041 /* ServiceCheckView.swift */,
+				B54300002C12345600000043 /* SpeedHistoryView.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -433,6 +452,11 @@
 				B10000E82C123456000000E8 /* AppLinks.swift */,
 				B10000F12C123456000000F2 /* NPMotion.swift */,
 				B10000F32C123456000000F4 /* ProStore.swift */,
+				B54200002C12345600000042 /* SpeedHistoryStore.swift */,
+				B54400002C12345600000044 /* ReportBuilder.swift */,
+				B54500002C12345600000045 /* RouteExport.swift */,
+				B54600002C12345600000046 /* AlertNotifier.swift */,
+				B54700002C12345600000047 /* SpeedTestIntent.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -693,6 +717,14 @@
 				A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */,
 				A10000F12C123456000000F2 /* NPMotion.swift in Sources */,
 				A10000F22C123456000000F3 /* NPPulseViews.swift in Sources */,
+				A54700002C12345600000047 /* SpeedTestIntent.swift in Sources */,
+				A54600002C12345600000046 /* AlertNotifier.swift in Sources */,
+				A54500002C12345600000045 /* RouteExport.swift in Sources */,
+				A54400002C12345600000044 /* ReportBuilder.swift in Sources */,
+				A54300002C12345600000043 /* SpeedHistoryView.swift in Sources */,
+				A54200002C12345600000042 /* SpeedHistoryStore.swift in Sources */,
+				A54100002C12345600000041 /* ServiceCheckView.swift in Sources */,
+				A54000002C12345600000040 /* ServiceCheckEngine.swift in Sources */,
 				A10000F32C123456000000F4 /* ProStore.swift in Sources */,
 				A10000F42C123456000000F5 /* PaywallView.swift in Sources */,
 				A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */,

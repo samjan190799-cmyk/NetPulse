@@ -9,6 +9,11 @@ on:
         description: 'Маркетинговая версия (например: 1.0.0)'
         required: true
         default: '1.0.0'
+      tester_mode:
+        description: 'Тестовая сборка: в настройках появляется выключатель PRO (только для TestFlight, НЕ для отправки в App Store)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -170,11 +175,25 @@ jobs:
           # Значения из inputs передаются через окружение, а не подставляются в текст скрипта (защита от инъекции команд)
           VERSION_NAME: ${{ github.event.inputs.version_name }}
           BUILD_NUMBER: ${{ github.run_number }}
+          TESTER_MODE: ${{ github.event.inputs.tester_mode }}
         run: |
           set -euo pipefail
           if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
             echo "❌ Некорректная версия: '$VERSION_NAME' (ожидается вид 1.0.0)"
             exit 1
+          fi
+
+          # Тестовая сборка содержит выключатель PRO и не должна попасть в App Store. Чтобы её нельзя было случайно
+          # приложить к версии на проверке, ей запрещена версия 1.0 / 1.0.0: App Store Connect покажет такую сборку
+          # только среди сборок другой версии.
+          EXTRA_FLAGS=()
+          if [ "$TESTER_MODE" = "true" ]; then
+            if [[ "$VERSION_NAME" == "1.0" || "$VERSION_NAME" == "1.0.0" ]]; then
+              echo "❌ Тестовую сборку нельзя выпускать под версией $VERSION_NAME (она на проверке в App Store). Укажите, например, 1.0.1."
+              exit 1
+            fi
+            echo "⚠️ ТЕСТОВАЯ СБОРКА: включён тестовый режим PRO (флаг NETPULSE_TESTER). В App Store не отправлять."
+            EXTRA_FLAGS+=('SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) NETPULSE_TESTER')
           fi
 
           # Версия и номер сборки задаются настройками сборки для обоих таргетов (приложение и виджеты);
@@ -190,7 +209,8 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ${EXTRA_FLAGS[@]+"${EXTRA_FLAGS[@]}"}
 
           # Внедрение CFBundleIconName в скомпилированный Info.plist архива
           ARCHIVE_PLIST="build/NetPulse.xcarchive/Products/Applications/NetPulse.app/Info.plist"

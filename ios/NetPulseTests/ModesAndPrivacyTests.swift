@@ -305,3 +305,24 @@ final class ProStoreTests: XCTestCase {
         XCTAssertFalse(ProStore(defaults: defaults).isPro, "Отозванная подписка не должна вернуться из памяти")
     }
 }
+
+/// Переключатель «Тактильный отклик» гасит всю вибрацию приложения, а не только часть вызовов в модели
+@MainActor
+final class HapticSettingTests: XCTestCase {
+    func testHapticsAreOnByDefault() {
+        UserDefaults.standard.removeObject(forKey: HapticManager.defaultsKey)
+        XCTAssertTrue(HapticManager.shared.isEnabled, "Пока пользователь ничего не менял, отклик включён")
+    }
+
+    func testSwitchTurnsHapticsOffAndOn() {
+        defer { UserDefaults.standard.removeObject(forKey: HapticManager.defaultsKey) }
+        UserDefaults.standard.set(false, forKey: HapticManager.defaultsKey)
+        XCTAssertFalse(HapticManager.shared.isEnabled, "Выключенный переключатель должен гасить весь отклик")
+        UserDefaults.standard.set(true, forKey: HapticManager.defaultsKey)
+        XCTAssertTrue(HapticManager.shared.isEnabled)
+    }
+
+    func testKeyIsTheOneSavedByEarlierBuilds() {
+        XCTAssertEqual(HapticManager.defaultsKey, "netpulse_haptics_enabled", "Выбор пользователя не должен сброситься")
+    }
+}

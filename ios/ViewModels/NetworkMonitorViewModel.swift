@@ -126,7 +126,7 @@ public final class NetworkMonitorViewModel {
     private static let kTargetsKey = "netpulse_targets_v1"
     private static let kPollingIntervalKey = "netpulse_polling_interval"
     private static let kSoundKey = "netpulse_sound_enabled"
-    private static let kHapticsKey = "netpulse_haptics_enabled"
+    private static let kHapticsKey = HapticManager.defaultsKey
     private static let kLatencyWarnKey = "netpulse_latency_warn_threshold"
     private static let kLatencyCritKey = "netpulse_latency_crit_threshold"
     private static let kJitterWarnKey = "netpulse_jitter_warn_threshold"
@@ -210,6 +210,9 @@ public final class NetworkMonitorViewModel {
     /// Узлы, переживающие эпизод сбоя (от DOWN до полного восстановления)
     private var outageEpisodes: Set<String> = []
     private let alertCooldown: TimeInterval = 60
+    /// Когда последний раз прозвучал звук критического алерта и как часто он может звучать
+    private var lastAlertSoundDate: Date = .distantPast
+    private static let alertSoundMinimumInterval: TimeInterval = 30
     /// Адрес шлюза, под который накоплена статистика строки «gateway»
     private var lastResolvedGatewayIP: String?
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
@@ -1201,15 +1204,18 @@ public final class NetworkMonitorViewModel {
             activeKeys.insert(key)
 
             let shouldEmit: Bool
+            // Звук нужен, когда проблема появилась или стала серьёзнее; напоминание «всё ещё плохо» раз в минуту
+            // молчит, иначе при долгой проблеме телефон гудит каждую минуту
+            var isNewOrEscalated = true
             if let previous = alertStates[key] {
-                shouldEmit = Self.severityRank(condition.severity) > Self.severityRank(previous.severity)
-                    || now.timeIntervalSince(previous.date) >= alertCooldown
+                isNewOrEscalated = Self.severityRank(condition.severity) > Self.severityRank(previous.severity)
+                shouldEmit = isNewOrEscalated || now.timeIntervalSince(previous.date) >= alertCooldown
             } else {
                 shouldEmit = true
             }
             if shouldEmit {
                 alertStates[key] = (severity: condition.severity, date: now)
-                publishAlert(address: address, condition: condition)
+                publishAlert(address: address, condition: condition, playsSound: isNewOrEscalated)
             }
         }
 
@@ -1223,7 +1229,7 @@ public final class NetworkMonitorViewModel {
         }
     }
 
-    private func publishAlert(address: String, condition: PendingAlert) {
+    private func publishAlert(address: String, condition: PendingAlert, playsSound: Bool) {
         guard let host = hostMetrics[address] else { return }
 
         let alert = NetworkAlert(
@@ -1247,8 +1253,13 @@ public final class NetworkMonitorViewModel {
             await history.recordAlert(alert)
         }
 
-        // Тумблер «Звуковые предупреждения» раньше нигде не читался
-        if soundEnabled && condition.severity == .critical {
+        // Тумблер «Звуковые предупреждения». Звук только у нового или усилившегося критического алерта, только пока
+        // приложение на экране и не чаще раза в 30 секунд: несколько узлов и показателей не должны звучать подряд
+        let soundTime = Date()
+        if soundEnabled, playsSound, condition.severity == .critical,
+           UIApplication.shared.applicationState == .active,
+           soundTime.timeIntervalSince(lastAlertSoundDate) >= Self.alertSoundMinimumInterval {
+            lastAlertSoundDate = soundTime
             AudioServicesPlaySystemSound(1007)
         }
     }

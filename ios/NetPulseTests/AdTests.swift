@@ -166,4 +166,22 @@ final class AdInfoPlistTests: XCTestCase {
         let purpose = Bundle.main.object(forInfoDictionaryKey: "NSUserTrackingUsageDescription") as? String
         XCTAssertFalse((purpose ?? "").isEmpty, "в Info.plist нет NSUserTrackingUsageDescription")
     }
+
+    /// Манифест приватности приложения: заявленное отслеживание должно совпадать с App Privacy в App Store Connect,
+    /// а без причины для UserDefaults Apple присылает замечание ITMS-91053 при загрузке сборки.
+    func testPrivacyManifestMatchesAdsAndUserDefaultsUsage() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"), "в приложении нет PrivacyInfo.xcprivacy")
+        let data = try Data(contentsOf: url)
+        let manifest = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        XCTAssertEqual(manifest["NSPrivacyTracking"] as? Bool, true, "реклама Яндекса использует IDFA: отслеживание заявлено")
+
+        let collected = manifest["NSPrivacyCollectedDataTypes"] as? [[String: Any]] ?? []
+        let deviceID = collected.first { ($0["NSPrivacyCollectedDataType"] as? String) == "NSPrivacyCollectedDataTypeDeviceID" }
+        XCTAssertEqual(deviceID?["NSPrivacyCollectedDataTypeTracking"] as? Bool, true)
+        XCTAssertEqual(collected.count, 6, "App Privacy в App Store Connect заявляет шесть типов данных")
+
+        let apis = manifest["NSPrivacyAccessedAPITypes"] as? [[String: Any]] ?? []
+        let userDefaults = apis.first { ($0["NSPrivacyAccessedAPIType"] as? String) == "NSPrivacyAccessedAPICategoryUserDefaults" }
+        XCTAssertNotNil(userDefaults, "не объявлена причина использования UserDefaults")
+    }
 }

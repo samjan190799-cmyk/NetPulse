@@ -51,6 +51,8 @@
 		A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000522C12345600000052 /* AIDiagnosticsView.swift */; };
 		A10000602C12345600000060 /* NetPulseTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000602C12345600000060 /* NetPulseTheme.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
+		A10000F12C123456000000F1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B10000F12C123456000000F1 /* PrivacyInfo.xcprivacy */; };
+		A20000F12C123456000000F1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B20000F12C123456000000F1 /* PrivacyInfo.xcprivacy */; };
 		A10000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
 		A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */; };
 		A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000812C12345600000081 /* SpeechRecognizerManager.swift */; };
@@ -194,6 +196,8 @@
 		B10000512C12345600000051 /* AIDiagnosticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AIDiagnosticsEngine.swift; sourceTree = "<group>"; };
 		B10000522C12345600000052 /* AIDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIDiagnosticsView.swift; sourceTree = "<group>"; };
 		B10000602C12345600000060 /* NetPulseTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/NetPulseTheme.swift; sourceTree = "<group>"; };
+		B10000F12C123456000000F1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B20000F12C123456000000F1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = NetPulseWidgets/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000702C12345600000070 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/WidgetDataManager.swift; sourceTree = "<group>"; };
 		B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AINetworkAnomalyDetector.swift; sourceTree = "<group>"; };
@@ -294,6 +298,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000002C12345600000000 /* Info.plist */,
+				B10000F12C123456000000F1 /* PrivacyInfo.xcprivacy */,
 				B10000012C12345600000001 /* NetPulseApp.swift */,
 				B10000022C12345600000002 /* ContentView.swift */,
 				E10000022C12345600000002 /* Models */,
@@ -317,6 +322,7 @@
 				B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */,
 				B20000052C12345600000005 /* NetPulseAttributes.swift */,
 				B20000032C12345600000003 /* Info.plist */,
+				B20000F12C123456000000F1 /* PrivacyInfo.xcprivacy */,
 			);
 			name = NetPulseWidgets;
 			sourceTree = "<group>";
@@ -613,6 +619,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000020AC1234560000002A /* Assets.xcassets in Resources */,
+				A10000F12C123456000000F1 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -620,6 +627,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A20000F12C123456000000F1 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

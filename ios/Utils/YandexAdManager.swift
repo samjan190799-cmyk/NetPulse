@@ -18,21 +18,45 @@ private let adLog = Logger(subsystem: "com.samvel.netpulse", category: "ads")
 
 /// Идентификаторы рекламных блоков Яндекса (Рекламная сеть Яндекса, РСЯ).
 ///
-/// ВАЖНО: ниже — ДЕМО-блоки Яндекса. Они показывают тестовую рекламу и денег не приносят. Настоящие идентификаторы
-/// вида `R-M-123456-1` выдаёт кабинет РСЯ (partner.yandex.ru → «Мобильные приложения»): добавьте приложение
-/// с идентификатором `com.samvel.netpulse` и создайте три блока: баннер 320×50, межстраничный и с вознаграждением.
-/// Подставьте их сюда — больше ничего менять не нужно.
+/// Боевые блоки созданы в кабинете РСЯ (partner.yandex.ru → «Реклама в приложениях») для приложения
+/// `com.samvel.netpulse` (ID 20229806). В выпускной сборке (TestFlight, App Store) работают они. В отладочной
+/// (симулятор, тесты на CI) стоят демо-блоки Яндекса с тестовой рекламой: показы и нажатия в автотестах по
+/// боевым блокам Яндекс считает недействительным трафиком, а за него блокируют аккаунт.
 enum YandexAdConfig {
-    static let bannerUnitID = "demo-banner-yandex"
-    static let interstitialUnitID = "demo-interstitial-yandex"
-    static let rewardedUnitID = "demo-rewarded-yandex"
+    static let liveBannerUnitID = "R-M-20229806-1"
+    static let liveInterstitialUnitID = "R-M-20229806-2"
+    static let liveRewardedUnitID = "R-M-20229806-3"
+
+    static var bannerUnitID: String {
+        #if DEBUG
+        "demo-banner-yandex"
+        #else
+        liveBannerUnitID
+        #endif
+    }
+
+    static var interstitialUnitID: String {
+        #if DEBUG
+        "demo-interstitial-yandex"
+        #else
+        liveInterstitialUnitID
+        #endif
+    }
+
+    static var rewardedUnitID: String {
+        #if DEBUG
+        "demo-rewarded-yandex"
+        #else
+        liveRewardedUnitID
+        #endif
+    }
 
     /// Размер баннера. Стандартный 320×50 занимает заранее известное место, поэтому раскладка экрана не прыгает
     /// в момент загрузки объявления.
     static let bannerWidth: CGFloat = 320
     static let bannerHeight: CGFloat = 50
 
-    /// Пока стоят демо-блоки, реклама тестовая и дохода не приносит
+    /// Демо-блоки (отладочная сборка) показывают тестовую рекламу и дохода не приносят
     static var usesDemoUnits: Bool {
         [bannerUnitID, interstitialUnitID, rewardedUnitID].contains { $0.hasPrefix("demo-") }
     }

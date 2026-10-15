@@ -124,6 +124,17 @@ final class YandexAdManagerTests: XCTestCase {
         XCTAssertEqual(YandexAdConfig.bannerWidth, 320)
         XCTAssertEqual(YandexAdConfig.bannerHeight, 50)
     }
+
+    /// Опечатка в боевом идентификаторе включила бы рекламу в выпускной сборке с блоком, который не загрузится.
+    /// Поэтому боевые идентификаторы обязаны иметь вид `R-M-123456-1`, быть разными и принадлежать одному приложению.
+    func testLiveUnitIdentifiersLookLikeYandexUnits() {
+        let ids = [YandexAdConfig.liveBannerUnitID, YandexAdConfig.liveInterstitialUnitID, YandexAdConfig.liveRewardedUnitID]
+        XCTAssertEqual(Set(ids).count, ids.count, "у каждого блока свой идентификатор")
+        for id in ids {
+            XCTAssertNotNil(id.range(of: #"^R-M-\d+-\d+$"#, options: .regularExpression), "«\(id)» не похож на блок РСЯ")
+            XCTAssertTrue(id.hasPrefix("R-M-20229806-"), "«\(id)» не из приложения NetPulse")
+        }
+    }
 }
 
 // MARK: - Info.plist: настройки для рекламы

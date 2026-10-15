@@ -40,7 +40,7 @@ public struct GamingRadarView: View {
                     // 2. Карточка лучшего сервера для матча (Matchmaking Advisor)
                     bestServerHeroCard
 
-                    // 3. Рекламный баннер Яндекса на видном месте
+                    // Рекламный баннер Яндекса (у подписчиков PRO его нет)
                     YandexBannerView(contextTag: "Гейминг")
                         .padding(.horizontal)
 
@@ -54,7 +54,7 @@ public struct GamingRadarView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle("Gaming Радар")
+        .navigationTitle("Радар для игр")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .onDisappear {

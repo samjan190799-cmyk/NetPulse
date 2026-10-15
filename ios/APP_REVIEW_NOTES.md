@@ -60,14 +60,45 @@ HOW TO TEST
 Note: if the phone stays on a desk, points are written only every 30 seconds. In the Simulator use
 Features → Location → City Run / Freeway Drive.
 
-ADVERTISING
+ADVERTISING AND TRACKING
 
-The app shows ads from the Yandex Advertising Network (Yandex Mobile Ads SDK): a small banner at the bottom of
-the screens, an interstitial after some speed tests, and an optional rewarded video (the "Deep AI audit" card on
-the AI tab). The device location is NOT passed to the ad SDK (location tracking is switched off for it); location
-permission is requested only for the route recording described above. After launch the app shows the system
-App Tracking Transparency prompt once. Ads work if the user declines ("Ask App Not to Track"); they are just not
-personalised.
+The app shows ads from the Yandex Advertising Network (Yandex Mobile Ads SDK) to users without a subscription: a small
+banner at the bottom of the screens and an interstitial after some speed tests. Subscribers of NetPulse PRO (see below)
+see no ads and no tracking prompt. The device location is NOT passed to the ad SDK (location tracking is switched off
+for it); location permission is requested only for the route recording described above.
+
+On the first launch the app shows the system App Tracking Transparency prompt once (it appears right after the
+app starts, before the first ad request). Ads also work if the user declines ("Ask App Not to Track"); they are just
+not personalised. The App Privacy answers in App Store Connect declare the data of the ad SDK: Device ID (linked, used
+for tracking), Product Interaction, Crash Data, Performance Data, Other Diagnostic Data and Other Data.
+The app has no account and no server.
+
+The AI audit runs entirely on the device: the app uses no external AI services and sends no measurements
+anywhere. The app has no microphone or speech-recognition features and asks for neither permission.
+
+SUBSCRIPTION (NetPulse PRO)
+
+NetPulse PRO is ONE auto-renewable subscription (group "NetPulse PRO", product com.samvel.netpulse.pro.monthly2,
+USD 0.99 per month). It unlocks these features (the main three first):
+1. Speed in the Dynamic Island / Live Activity ("Настройки" tab -> "Dynamic Island", or the "Островок" button on the map).
+2. The floating game HUD inside the app ("Настройки" tab -> "Плавающий игровой оверлей (HUD)").
+3. The deep AI audit (the "AI-аудит" tile in the "Инструменты" tab: network health score, anomaly prediction, troubleshooting wizard,
+   ISP complaint letter).
+4. Also included: service availability check, speed-test history with charts, a PDF report for the ISP, the speed map during
+   route recording, network alerts and route export (GPX / map image).
+It also removes the ads. Everything else is free: speed test, route recording and the network map, traffic accounting, DNS / bufferbloat /
+LAN / gaming tools, the Home Screen widget, the quick AI verdict after a speed test.
+
+How to see the paywall: open the "Настройки" tab -> "NetPulse PRO" (or tap "Островок", or open the
+"Инструменты" tab -> "AI-аудит"). The paywall shows the price from the App Store, the billing period, the auto-renewal terms,
+links to the Terms of Use (Apple standard EULA) and the Privacy Policy, and a "Восстановить покупки"
+(Restore Purchases) button. Purchases are handled only by StoreKit; the app has no account and no server.
+
+WIDGETS AND LIVE ACTIVITY
+
+The app includes a Home Screen widget ("NetPulse Монитор", WidgetKit: network status, latency, connection speed and
+data usage) and a Live Activity shown on the Lock Screen and in the Dynamic Island with live speed and latency.
+Both work without location permission.
 
 The app's interface is in Russian.
 ```
@@ -76,13 +107,13 @@ The app's interface is in Russian.
 
 ## 2. Чек-лист перед отправкой на ревью
 
-1. **App Privacy.** Код NetPulse координаты никуда не отправляет, а рекламному SDK Яндекса геолокация отключена в коде (`YandexAds.setLocationTracking(false)` в `YandexAdManager.start()`). Но SDK Яндекса (внутри него работает AppMetrica) собирает свои данные: как минимум идентификаторы устройства и рекламы (IDFA, если пользователь разрешил отслеживание), сведения о показах и нажатиях на рекламу, диагностику (сбои, производительность). Откройте документацию Яндекса о данных, которые собирает SDK, и отметьте в App Privacy всё перечисленное там; данные, которые используются для рекламы и отслеживания, отметьте как «Используются для отслеживания». Приложение показывает окно App Tracking Transparency, поэтому ответ «не отслеживаем» был бы неверным. Ответ должен совпадать с действительностью.
-2. **Рекламные блоки.** В выпускной сборке стоят боевые блоки РСЯ приложения 20229806 (`YandexAdConfig.live…`), в отладочной — демо. Владение приложением в кабинете РСЯ нужно подтвердить, а модерация должна быть пройдена, иначе реклама не показывается. Политика конфиденциальности должна упоминать рекламу Яндекса.
-3. **Подписки нет.** PRO удалён: приложение бесплатное, игровой HUD и глубокий AI-аудит доступны всем. В выпускной сборке реклама Яндекса работает на боевых блоках.
+1. **App Privacy.** Приложение показывает рекламу Яндекса и запрашивает IDFA после разрешения пользователя, поэтому в App Store Connect → App Privacy должны быть заявлены шесть типов данных: ID устройства (связано с пользователем, для отслеживания; цели — сторонняя реклама, реклама разработчика, аналитика), взаимодействие с продуктом, данные о сбоях, данные о производительности, другие данные диагностики и другие данные (не связаны с пользователем, без отслеживания). Это уже сделано; `PrivacyInfo.xcprivacy` объявляет то же самое (`NSPrivacyTracking = true`). Геолокация рекламному SDK отключена в коде (`YandexAds.setLocationTracking(false)` в `YandexAdManager.start()`), маршруты остаются на устройстве. Менять App Privacy может Account Holder или Admin.
+2. **Реклама и подписка PRO.** Бесплатные пользователи видят рекламу Яндекса (баннер, межстраничную после замеров) и один раз после запуска системное окно ATT; подписчики PRO не видят ни рекламы, ни окна. Окно ATT показывается при первом запуске (раньше отказ 2.1 был из-за того, что в сборке для ревью реклама, а значит и окно, не включалась). В выпускной сборке работают боевые блоки РСЯ приложения 20229806 (`YandexAdConfig.live…`); владение приложением в кабинете РСЯ подтверждено, модерация пройдена. Подписка NetPulse PRO (0,99 USD в месяц) открывает остров, игровой HUD, глубокий AI-аудит и другие платные возможности. Подписку нужно создать в App Store Connect (группа «NetPulse PRO», продукт `com.samvel.netpulse.pro.monthly2`, цена 0.99 USD, локализация, скриншот окна подписки для проверки) и отправить на проверку вместе с версией: первая подписка проверяется только вместе с приложением.
+3. **Манифест приватности.** `PrivacyInfo.xcprivacy` лежит в приложении и в расширении виджетов: UserDefaults (CA92.1 и 1C8F.1 для общей группы приложений) и время загрузки системы (35F9.1, `kern.boottime` для счётчиков трафика). В манифесте приложения заявлены отслеживание и шесть типов данных рекламного SDK (как в App Privacy). Если добавите SDK или новые API из списка Apple, обновите манифест.
 4. **Показ рекламы в странах ЕС.** Окна согласия на персонализацию (CMP) в приложении нет, `YandexAds.setUserConsent` не вызывается: по документации Яндекса значение по умолчанию — «согласия нет». Если приложение будет доступно в странах ЕС, подумайте о форме согласия (модуль `YandexMobileAdsConsentManagement` в том же пакете) или ограничьте страны распространения.
-5. **Политика конфиденциальности** (ссылка обязательна) должна упоминать запись маршрутов: что именно сохраняется (положение, качество сети, время), что всё хранится на устройстве, как удалить.
-6. **Проверка на устройстве перед отправкой:** значок геолокации в строке состояния во время записи; запись продолжается при заблокированном экране и в другом приложении; «Остановить и сохранить» сохраняет маршрут; в запросе разрешения видны все кнопки (в том числе «При использовании приложения»); «Удалить все» стирает маршруты.
-7. **Скриншоты для App Store:** карта с маршрутом (в развёрнутой панели кнопка «Показать пример маршрута» рисует демо-маршрут с пометкой «Пример · демо-данные» — в скриншоте для магазина лучше использовать настоящую запись).
-8. **Фоновая запись.** Фоновая геолокация включается только записью, которую начал сам пользователь. В «Настройки → Запись маршрута» есть тумблер «Записывать маршрут в фоне» (по умолчанию включён; выключенный — свёрнутое приложение не получает геолокацию и значок в строке состояния не появляется) и тумблер автоостановки: через 20 минут без движения маршрут сохраняется, запись останавливается.
-9. **Манифест приватности.** В проекте нет `PrivacyInfo.xcprivacy`, хотя приложение использует API, требующие объявления причины (например, `UserDefaults`, отметки времени файлов). При загрузке в App Store Connect могут прийти замечания `ITMS-91053`. Это отдельная задача: нужно добавить манифест приложения и убедиться, что SDK приносят свои.
+5. **Виджеты.** В Notes можно ответить на вопрос рецензента о виджетах: они есть (см. выше, раздел WIDGETS AND LIVE ACTIVITY).
+6. **Политика конфиденциальности** (ссылка обязательна) должна упоминать запись маршрутов: что именно сохраняется (положение, качество сети, время), что всё хранится на устройстве, как удалить.
+7. **Проверка на устройстве перед отправкой:** значок геолокации в строке состояния во время записи; запись продолжается при заблокированном экране и в другом приложении; «Остановить и сохранить» сохраняет маршрут; в запросе разрешения видны все кнопки (в том числе «При использовании приложения»); «Удалить все» стирает маршруты.
+8. **Скриншоты для App Store:** карта с маршрутом (в развёрнутой панели кнопка «Показать пример маршрута» рисует демо-маршрут с пометкой «Пример · демо-данные» — в скриншоте для магазина лучше использовать настоящую запись).
+9. **Фоновая запись.** Фоновая геолокация включается только записью, которую начал сам пользователь. В «Настройки → Запись маршрута» есть тумблер «Записывать маршрут в фоне» (по умолчанию включён; выключенный — свёрнутое приложение не получает геолокацию и значок в строке состояния не появляется) и тумблер автоостановки: через 20 минут без движения маршрут сохраняется, запись останавливается.
 10. **Если ревью отклонит запись маршрута** — убрать `location` из `UIBackgroundModes` и экран записи в магазинной сборке (функции в сборке просто не будет), а не прятать её. Остров продолжит обновляться, пока приложение открыто, и покажет «паузу» в фоне.

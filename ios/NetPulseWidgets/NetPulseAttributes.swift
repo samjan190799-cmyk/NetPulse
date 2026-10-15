@@ -27,6 +27,9 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
         public var gameTitle: String?
         public var gameRegion: String?
         public var packetLossPct: Double?
+        /// Когда приложение отправило этот кадр. Остров показывает «данные N назад», если обновления прекратились
+        /// (iOS усыпила приложение): подпись обновляет сама система, приложению для этого работать не нужно.
+        public var updatedAt: Date?
 
         public init(
             downloadSpeedText: String = "0 Мбит/с",
@@ -41,7 +44,8 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
             isGamingMode: Bool = false,
             gameTitle: String? = nil,
             gameRegion: String? = nil,
-            packetLossPct: Double? = nil
+            packetLossPct: Double? = nil,
+            updatedAt: Date? = nil
         ) {
             self.downloadSpeedText = downloadSpeedText
             self.uploadSpeedText = uploadSpeedText
@@ -56,6 +60,7 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
             self.gameTitle = gameTitle
             self.gameRegion = gameRegion
             self.packetLossPct = packetLossPct
+            self.updatedAt = updatedAt
         }
     }
 

@@ -44,8 +44,14 @@ public final class SpeedtestEngine: Sendable {
 
     private let primaryUploadEndpoints: [URL] = [
         URL(string: "https://speed.cloudflare.com/__up")!,
-        URL(string: "https://httpbin.org/post")!,
+        URL(string: "https://speed.cloudflare.com/__up")!,
         URL(string: "https://speed.cloudflare.com/__up")!
+    ]
+
+    /// Запасной сервер отдачи: к нему идём, только если Cloudflare не принял ни одного байта. Раньше один из трёх
+    /// потоков всегда шёл на httpbin.org; при его сбоях поток обрывался, и отдача занижалась.
+    private let fallbackUploadEndpoints: [URL] = [
+        URL(string: "https://httpbin.org/post")!
     ]
 
     public init() {}
@@ -74,13 +80,22 @@ public final class SpeedtestEngine: Sendable {
             throw SpeedtestError.noConnection
         }
 
-        // 3. Параллельный мультипоточный замер отдачи (3 потока)
-        let uploadSpeed = await measureMultiStreamUpload(
+        // 3. Параллельный мультипоточный замер отдачи (3 потока); если Cloudflare ничего не принял, запасной сервер
+        var uploadSpeed = await measureMultiStreamUpload(
             endpoints: primaryUploadEndpoints,
             streamCount: 3,
             durationSeconds: 4.0
         ) { currentMbps in
             progressHandler?(downloadSpeed, currentMbps)
+        }
+        if uploadSpeed <= 0 {
+            uploadSpeed = await measureMultiStreamUpload(
+                endpoints: fallbackUploadEndpoints,
+                streamCount: 2,
+                durationSeconds: 3.0
+            ) { currentMbps in
+                progressHandler?(downloadSpeed, currentMbps)
+            }
         }
 
         let elapsed = ContinuousClock().now - startTime
@@ -334,6 +349,12 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
     private var samples: [(time: Double, bytes: Int64)] = []
     private var smoothedMbps: Double = 0.0
 
+    /// Отсчёты пишутся не чаще раза в 50 мс. Чанки при быстрой сети приходят сотни раз в секунду, и окно из
+    /// последних 40 отсчётов покрывало считанные миллисекунды: скорость выходила средней за весь замер вместе
+    /// с разгоном TCP, а «скользящее окно» и исключение первых 0,5 с не работали.
+    private static let sampleInterval = 0.05
+    private static let maxSamples = 400
+
     func startTracking() {
         lock.lock()
         defer { lock.unlock() }
@@ -350,10 +371,11 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
         guard let start = startInstant else { return }
         let elapsed = ContinuousClock().now - start
         let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+        if let last = samples.last, seconds - last.time < Self.sampleInterval { return }
         samples.append((time: seconds, bytes: totalBytes))
-        // Сохраняем скользящее окно за последние 2.0 секунды
-        if samples.count > 40 {
-            samples.removeFirst(10)
+        // Запас: замеры длятся 4-5 секунд (около 100 отсчётов); предел нужен лишь на случай очень долгого замера
+        if samples.count > Self.maxSamples {
+            samples.removeFirst(Self.maxSamples / 2)
         }
     }
 
@@ -378,10 +400,11 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
             return 0.0
         }
 
-        // Берем сэмплы за последнее скользящее окно (до 1.0 сек)
-        guard let latest = samples.last, let fallbackFirst = samples.first else {
+        // Берем сэмплы за последнее скользящее окно (до 1.0 сек); правый край окна — текущий момент
+        guard let fallbackFirst = samples.first else {
             return smoothedMbps
         }
+        let latest = (time: totalSecs, bytes: totalBytes)
         let windowCutoff = max(0.0, latest.time - 1.0)
         let relevantOldest = samples.first(where: { $0.time >= windowCutoff }) ?? fallbackFirst
 
@@ -414,9 +437,9 @@ private final class MultiStreamByteTracker: @unchecked Sendable {
         guard totalSeconds > 0.2 else { return 0.0 }
 
         // Исключаем стартовый интервал раскрутки TCP (первые 0.5 сек) если данных достаточно
-        if samples.count >= 6, let stableStart = samples.first(where: { $0.time >= 0.5 }), let latest = samples.last {
-            let dt = latest.time - stableStart.time
-            let db = latest.bytes - stableStart.bytes
+        if samples.count >= 6, let stableStart = samples.first(where: { $0.time >= 0.5 }) {
+            let dt = totalSeconds - stableStart.time
+            let db = totalBytes - stableStart.bytes
             if dt > 0.5 && db > 0 {
                 let sustainedRate = (Double(db) * 8.0) / (dt * 1_000_000.0)
                 return (sustainedRate * 10).rounded() / 10

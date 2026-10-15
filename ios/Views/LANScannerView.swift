@@ -37,7 +37,7 @@ public struct LANScannerView: View {
                     // 1. Сводная карточка подсети и статус безопасности
                     subnetSummaryHeroCard
 
-                    // 2. Рекламный баннер Яндекса на видном месте
+                    // Рекламный баннер Яндекса (у подписчиков PRO его нет)
                     YandexBannerView(contextTag: "Безопасность устройств")
                         .padding(.horizontal)
 
@@ -60,7 +60,7 @@ public struct LANScannerView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle("LAN Сканер")
+        .navigationTitle("Сканер сети")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .onDisappear {

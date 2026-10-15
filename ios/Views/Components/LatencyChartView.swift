@@ -42,7 +42,7 @@ public struct LatencyChartView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("ДИНАМИКА ЗАДЕРЖКИ RTT")
+                    Text("ДИНАМИКА ЗАДЕРЖКИ")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(NPTheme.textSecondary)
                     Text("В реальном времени (мс)")

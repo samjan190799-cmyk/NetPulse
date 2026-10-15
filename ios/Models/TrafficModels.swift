@@ -317,3 +317,55 @@ public enum TrafficFormatter {
     }
 }
 
+// MARK: - Трафик, прошедший, пока приложение спало
+
+/// Сколько байт прошло по системным счётчикам интерфейсов с последней сверки (приложение спало или было закрыто).
+/// Счётчики общие для всего устройства, поэтому это трафик всех приложений, а не только NetPulse.
+public struct SleepTrafficSummary: Equatable, Sendable {
+    public let downloadBytes: UInt64
+    public let uploadBytes: UInt64
+
+    public init(downloadBytes: UInt64, uploadBytes: UInt64) {
+        self.downloadBytes = downloadBytes
+        self.uploadBytes = uploadBytes
+    }
+
+    public var totalBytes: UInt64 { downloadBytes + uploadBytes }
+}
+
+/// Заметка для главного экрана: «пока приложение спало, устройство передало столько-то». Остров в это время стоит
+/// (iOS усыпила приложение), а трафик шёл, и пользователь видит его после возвращения.
+public struct SleepTrafficNote: Equatable, Sendable {
+    public let downloadBytes: UInt64
+    public let uploadBytes: UInt64
+    public let awaySeconds: TimeInterval
+
+    /// Короче этого приложение «не спало»: обычное переключение между приложениями
+    public static let minAwaySeconds: TimeInterval = 20
+    /// Меньше этого — фоновый шум системы, который не стоит показывать
+    public static let minBytes: UInt64 = 50_000
+
+    public init(downloadBytes: UInt64, uploadBytes: UInt64, awaySeconds: TimeInterval) {
+        self.downloadBytes = downloadBytes
+        self.uploadBytes = uploadBytes
+        self.awaySeconds = awaySeconds
+    }
+
+    /// Заметка нужна, если приложение отсутствовало заметно долго и за это время прошёл заметный трафик
+    public static func make(summary: SleepTrafficSummary?, awaySeconds: TimeInterval?) -> SleepTrafficNote? {
+        guard let summary, let awaySeconds,
+              awaySeconds >= minAwaySeconds,
+              summary.totalBytes >= minBytes else { return nil }
+        return SleepTrafficNote(
+            downloadBytes: summary.downloadBytes,
+            uploadBytes: summary.uploadBytes,
+            awaySeconds: awaySeconds
+        )
+    }
+
+    /// «Пока приложение было свёрнуто (3 мин), устройство передало: ↓ 120.0 МБ, ↑ 8.0 МБ»
+    public var text: String {
+        let away = IslandDiagnostics.formatAge(awaySeconds)
+        return "Пока приложение было свёрнуто (\(away)), устройство передало: ↓ \(TrafficFormatter.formatBytes(downloadBytes)), ↑ \(TrafficFormatter.formatBytes(uploadBytes))"
+    }
+}

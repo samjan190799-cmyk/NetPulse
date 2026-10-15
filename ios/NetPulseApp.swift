@@ -14,20 +14,29 @@ struct NetPulseApp: App {
     init() {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
-
-        // Рекламу Яндекса запускает onAppear/активация: при фоновом запуске (например, по геолокации) ей делать нечего
+        // «Карта скорости»: автоматические замеры на маршруте входят в подписку PRO
+        RouteRecorder.shared.speedSamplingAllowed = { ProStore.shared.isPro }
+        AlertNotifier.shared.clearStaleReminder()
+        // Системные отчёты о сбоях и зависаниях пишутся в журнал «Диагностика острова» (остаются на устройстве)
+        MetricsReporter.shared.start()
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .onAppear {
+                    // Подписка PRO: слушает покупки и подтверждает статус (остров, HUD и AI-аудит входят в подписку)
+                    ProStore.shared.start()
                     restoreLiveActivityIfNeeded()
+                    runRequestedSpeedtest()
+                    // Реклама Яндекса запускается, только когда приложение на экране (не при фоновом запуске) и
+                    // подписки PRO нет: подписчикам реклама и окно разрешения на отслеживание не показываются
                     YandexAdManager.shared.start()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
+                        runRequestedSpeedtest()
                         YandexAdManager.shared.start()
                         // Окно разрешения на отслеживание показывается только у активного приложения: повторяем запрос
                         YandexAdManager.shared.requestTrackingAuthorization()
@@ -36,8 +45,16 @@ struct NetPulseApp: App {
         }
     }
 
+    /// Команда «Замерить скорость» (Siri, Команды, Action Button) оставила просьбу: открываем главный экран и меряем
+    private func runRequestedSpeedtest() {
+        guard SpeedTestRequest.consume() else { return }
+        NotificationCenter.default.post(name: .netPulseShowHome, object: nil)
+        NetworkMonitorViewModel.shared.startSpeedtest()
+    }
+
     private func restoreLiveActivityIfNeeded() {
-        let isLiveEnabled = UserDefaults.standard.object(forKey: "netpulse_live_activity_enabled") as? Bool ?? true
+        let isLiveEnabled = (UserDefaults.standard.object(forKey: "netpulse_live_activity_enabled") as? Bool ?? true)
+            && ProStore.shared.isPro
         let isBgEnabled = UserDefaults.standard.object(forKey: "netpulse_background_monitoring_enabled") as? Bool ?? true
 
         if isLiveEnabled || isBgEnabled {

@@ -33,7 +33,6 @@ public struct NetworkHomeView: View {
     @State private var metric: RouteMetric = .latency
     /// Пока маршрута нет и во время записи карта смотрит на вас; у готового маршрута — на весь маршрут целиком
     @State private var camera: MapCameraPosition = .userLocation(fallback: .region(HomeMapDefaults.region))
-    @State private var showSettings = false
     @State private var showGlossary = false
     @State private var confirmDeleteAll = false
     @State private var pendingDeleteID: UUID?
@@ -41,9 +40,18 @@ public struct NetworkHomeView: View {
     @State private var dismissedAISummary: String?
     /// Линии прежних маршрутов: считаются один раз при изменении списка, а не при каждой перерисовке экрана
     @State private var coverageRuns: [CoverageRun] = []
+    /// Расчёт линий идёт в фоне; новый расчёт отменяет прежний
+    @State private var coverageTask: Task<Void, Never>?
     @AppStorage("netpulse_map_satellite") private var satellite = false
     /// Показывать ли на карте линии прежних маршрутов (ключ прежний, чтобы выбор пользователя сохранился)
     @AppStorage("netpulse_map_coverage") private var coverageOn = true
+    /// Во время записи карта поворачивается по направлению движения (как навигатор), чтобы не крутить её руками
+    @AppStorage("netpulse_map_follow_heading") private var followsHeading = true
+    /// Отсчёт до возврата карты к пользователю после того, как он сдвинул её пальцем во время записи
+    @State private var refollowTask: Task<Void, Never>?
+
+    /// Через сколько секунд после касания карта сама возвращается к вам во время записи
+    private static let refollowDelay: Duration = .seconds(8)
 
     private var recorder: RouteRecorder {
         RouteRecorder.shared
@@ -110,7 +118,17 @@ public struct NetworkHomeView: View {
 
     /// Последний маршрут нарисован отдельно (толстой линией), остальные — тонкими
     private func refreshCoverage() {
-        coverageRuns = CoverageBuilder.runs(from: Array(recorder.history.dropFirst()), metric: metric)
+        let routes = Array(recorder.history.dropFirst())
+        let currentMetric = metric
+        coverageTask?.cancel()
+        // Расчёт линий всех прежних маршрутов тяжёлый: делаем его вне главного потока, чтобы не дёргать заставку и карту
+        coverageTask = Task {
+            let runs = await Task.detached(priority: .userInitiated) {
+                CoverageBuilder.runs(from: routes, metric: currentMetric)
+            }.value
+            guard !Task.isCancelled else { return }
+            coverageRuns = runs
+        }
     }
 
     // MARK: - Экран
@@ -131,7 +149,8 @@ public struct NetworkHomeView: View {
                             satellite: satellite,
                             previousRoutes: mode == .idle && coverageOn ? coverageRuns : [],
                             showsEndpoints: mode != .idle,
-                            camera: $camera
+                            camera: $camera,
+                            onCameraSettled: { cameraSettled() }
                         )
                         .accessibilityLabel("Карта маршрута")
                         .accessibilityIdentifier("networkMapMap")
@@ -150,7 +169,7 @@ public struct NetworkHomeView: View {
                         compact: panelIsExpanded,
                         satellite: $satellite,
                         coverageOn: $coverageOn,
-                        onSettings: { showSettings = true },
+                        followsHeading: followsHeadingBinding,
                         onRecenter: { recenter() },
                         onBack: { closeRoute() }
                     )
@@ -217,9 +236,6 @@ public struct NetworkHomeView: View {
             } message: {
                 Text("Маршрут будет стёрт с этого устройства без возможности восстановления.")
             }
-            .fullScreenCover(isPresented: $showSettings) {
-                SettingsView(viewModel: viewModel)
-            }
             .sheet(isPresented: $showGlossary) {
                 NetworkGlossarySheetView()
             }
@@ -244,6 +260,11 @@ public struct NetworkHomeView: View {
             }
             panel(containerHeight: containerHeight)
         }
+        // Сообщения над панелью появляются и исчезают плавно
+        .npAnimation(value: viewModel.showRecordingHint)
+        .npAnimation(value: viewModel.sleepTraffic)
+        .npAnimation(value: viewModel.speedtestError)
+        .npAnimation(value: recorder.notice)
     }
 
     @ViewBuilder
@@ -304,13 +325,38 @@ public struct NetworkHomeView: View {
         HapticManager.shared.selectionChanged()
     }
 
-    /// Куда смотрит карта: у готового маршрута — на весь маршрут, иначе — на вас
+    /// Переключатель «карта по направлению движения»; сразу применяется к карте
+    private var followsHeadingBinding: Binding<Bool> {
+        Binding(
+            get: { followsHeading },
+            set: { enabled in
+                followsHeading = enabled
+                updateCamera()
+            }
+        )
+    }
+
+    /// Камера остановилась. Если во время записи вы сдвинули карту пальцем, она теряет привязку к вашему положению:
+    /// через несколько секунд после последнего касания карта возвращается к вам сама, чтобы не нажимать кнопку на ходу.
+    private func cameraSettled() {
+        refollowTask?.cancel()
+        guard case .recording = mode, !camera.followsUserLocation else { return }
+        refollowTask = Task { @MainActor in
+            try? await Task.sleep(for: Self.refollowDelay)
+            guard !Task.isCancelled, case .recording = mode else { return }
+            updateCamera()
+        }
+    }
+
+    /// Куда смотрит карта: у готового маршрута — на весь маршрут, во время записи — на вас (и по ходу движения),
+    /// иначе — на вас, севером вверх
     private func updateCamera() {
+        refollowTask?.cancel()
         switch mode {
         case .route:
             camera = .automatic
         case .recording:
-            camera = .userLocation(fallback: .automatic)
+            camera = .userLocation(followsHeading: followsHeading, fallback: .automatic)
         case .idle:
             camera = .userLocation(fallback: recorder.history.isEmpty ? .region(HomeMapDefaults.region) : .automatic)
         }

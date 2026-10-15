@@ -2,21 +2,21 @@
 //  AIDiagnosticsView.swift
 //  NetPulse
 //
-//  Created for iOS (Swift 6.0+ / SwiftUI / Speech) - 2026.
+//  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
 
 import SwiftUI
 import UIKit
 
 /// Главный экран AI-Диагноста 2026 с нейросферой (Neural Pulse Orb),
-/// агентским Tool Calling, предиктивными аномалиями, голосовым вводом и мастером траблшутинга.
+/// агентским Tool Calling, предиктивными аномалиями и мастером траблшутинга. Входит в подписку PRO и открывается
+/// из «Инструментов».
 public struct AIDiagnosticsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
     @State private var inputText: String = ""
-    @State private var showSettingsSheet: Bool = false
     @State private var showCopiedReportToast: Bool = false
-    @State private var speechManager = SpeechRecognizerManager.shared
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var isInputFocused: Bool
 
     public var body: some View {
@@ -54,10 +54,6 @@ public struct AIDiagnosticsView: View {
                             if let report = viewModel.currentHealthReport, !report.identifiedIssues.isEmpty {
                                 issuesAndRecommendationsSection(report: report)
                             }
-
-                            // 7. Рекламный баннер Яндекса на видном месте
-                            YandexBannerView(contextTag: "AI и безопасность")
-                                .padding(.horizontal)
 
                             // 8. Сценарии интерактивного мастера траблшутинга
                             troubleshootingScenariosSection
@@ -103,30 +99,19 @@ public struct AIDiagnosticsView: View {
                     .zIndex(10)
                 }
             }
-            .navigationTitle("AI Диагност")
+            .navigationTitle("AI-аудит")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettingsSheet = true
-                        HapticManager.shared.impactLight()
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(NPTheme.accentPrimary)
+                    Button("Готово") {
+                        dismiss()
                     }
-                    .npMinHitTarget()
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(NPTheme.accentPrimary)
+                    .accessibilityIdentifier("aiAuditCloseButton")
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 chatInputBar
-            }
-            .sheet(isPresented: $showSettingsSheet) {
-                AIProviderSettingsSheet(
-                    config: viewModel.aiProviderConfig,
-                    onSave: { newConfig in
-                        viewModel.updateAIConfig(newConfig)
-                    }
-                )
             }
             .sheet(isPresented: $viewModel.showTroubleshootingSheet) {
                 TroubleshootingWizardSheet(viewModel: viewModel)
@@ -152,20 +137,16 @@ public struct AIDiagnosticsView: View {
     private var providerStatusPill: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(viewModel.aiProviderConfig.selectedProvider == .offlineSmart ? NPTheme.accentPrimary : NPTheme.accentSilver)
+                .fill(NPTheme.accentPrimary)
                 .frame(width: 7, height: 7)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(viewModel.aiProviderConfig.selectedProvider.rawValue)
+                Text("Встроенный AI")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(NPTheme.textPrimary)
-
-                if viewModel.aiProviderConfig.selectedProvider.isCloud
-                    && viewModel.aiProviderConfig.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("Ключ API не задан — отвечает встроенный AI")
-                        .font(.system(size: 10))
-                        .foregroundStyle(NPTheme.semanticWarn)
-                }
+                Text("Работает на устройстве, данные никуда не отправляются")
+                    .font(.system(size: 10))
+                    .foregroundStyle(NPTheme.textSecondary)
             }
 
             Spacer()
@@ -288,10 +269,9 @@ public struct AIDiagnosticsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - 3.1 Бонусный глубокий AI-аудит (реклама за вознаграждение)
+    // MARK: - 3.1 Глубокий AI-аудит
 
-    /// Запуск полного аудита. Аудит локальный и бесплатный (его же запускает «Обновить аудит»), поэтому
-    /// он выполняется и после просмотра ролика, и когда ролика нет — отсутствие рекламы не блокирует пользователя.
+    /// Запуск полного аудита. Аудит локальный (его же запускает «Обновить аудит»).
     private func runDeepAudit() {
         Task {
             await viewModel.runAIDiagnosticsAudit()
@@ -301,10 +281,7 @@ public struct AIDiagnosticsView: View {
 
     private var rewardedAIAnalysisCard: some View {
         Button {
-            YandexAdManager.shared.showRewarded(
-                onRewardConfirmed: { runDeepAudit() },
-                onUnavailable: { runDeepAudit() }
-            )
+            runDeepAudit()
         } label: {
             HStack(spacing: 12) {
                 ZStack {
@@ -328,30 +305,11 @@ public struct AIDiagnosticsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("Глубокий AI-аудит сети")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(NPTheme.textPrimary)
+                    Text("Глубокий AI-аудит сети")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(NPTheme.textPrimary)
 
-                        if YandexAdManager.shared.canShowAds {
-                            HStack(spacing: 2) {
-                                Image(systemName: "infinity")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                                Text("Реклама")
-                                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(Color(red: 0.0, green: 0.55, blue: 1.0))
-                            }
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(Color(red: 0.0, green: 0.55, blue: 1.0).opacity(0.12))
-                            .clipShape(Capsule())
-                        }
-                    }
-
-                    Text(YandexAdManager.shared.canShowAds
-                         ? "Запустить полный анализ сети. Если доступен рекламный ролик, он покажется перед аудитом"
-                         : "Запустить полный анализ параметров сети")
+                    Text("Запустить полный анализ параметров сети")
                         .font(.system(size: 11))
                         .foregroundStyle(NPTheme.textSecondary)
                 }
@@ -631,19 +589,10 @@ public struct AIDiagnosticsView: View {
         }
     }
 
-    // MARK: - 9. Нижняя панель ввода со смарт-чипами и микрофоном
+    // MARK: - 9. Нижняя панель ввода со смарт-чипами
 
     private var chatInputBar: some View {
         VStack(spacing: 8) {
-            // Причина, по которой не работает голосовой ввод (нет доступа к микрофону и т.п.)
-            if let speechError = speechManager.errorMessage {
-                Text(speechError)
-                    .font(.system(size: 11))
-                    .foregroundStyle(NPTheme.semanticWarn)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-            }
-
             // Адаптивные динамические смарт-чипы
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -669,33 +618,6 @@ public struct AIDiagnosticsView: View {
             }
 
             HStack(spacing: 8) {
-                // Кнопка микрофона для голосового ввода
-                Button {
-                    if speechManager.isRecording {
-                        speechManager.stopRecording()
-                    } else {
-                        speechManager.startRecording { transcribed in
-                            inputText = transcribed
-                        }
-                    }
-                } label: {
-                    ZStack {
-                        if speechManager.isRecording {
-                            Circle()
-                                .fill(NPTheme.semanticCritical.opacity(0.25))
-                                .frame(width: 36, height: 36)
-                                .scaleEffect(1.0 + CGFloat(speechManager.audioLevel) * 0.4)
-                        }
-
-                        Image(systemName: speechManager.isRecording ? "waveform.badge.microphone" : "mic.fill")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(speechManager.isRecording ? NPTheme.semanticCritical : NPTheme.accentPrimary)
-                            .frame(width: 36, height: 36)
-                    }
-                }
-                .npMinHitTarget()
-                .buttonStyle(NPPressableButtonStyle())
-
                 // Текстовое поле
                 TextField("Спросите AI или введите хост...", text: $inputText)
                     .font(.system(size: 14))
@@ -713,9 +635,6 @@ public struct AIDiagnosticsView: View {
                     let text = inputText
                     inputText = ""
                     isInputFocused = false
-                    if speechManager.isRecording {
-                        speechManager.stopRecording()
-                    }
                     HapticManager.shared.impactLight()
                     Task {
                         await viewModel.sendAIMessage(text)
@@ -1167,89 +1086,6 @@ private struct ISPDisputeLetterSheet: View {
                     Button("Закрыть") { dismiss() }
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(NPTheme.accentPrimary)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Окно настроек провайдера AI
-
-private struct AIProviderSettingsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var selectedProvider: AIProviderType
-    @State private var apiKey: String
-    @State private var customModel: String
-
-    let onSave: (AIProviderConfig) -> Void
-
-    init(config: AIProviderConfig, onSave: @escaping (AIProviderConfig) -> Void) {
-        self._selectedProvider = State(initialValue: config.selectedProvider)
-        self._apiKey = State(initialValue: config.apiKey)
-        self._customModel = State(initialValue: config.customModel)
-        self.onSave = onSave
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Выбор провайдера") {
-                    Picker("Провайдер AI", selection: $selectedProvider) {
-                        ForEach(AIProviderType.allCases) { provider in
-                            Text(provider.rawValue).tag(provider)
-                        }
-                    }
-                    .onChange(of: selectedProvider) { _, newProv in
-                        // У каждого провайдера свой ключ и своя модель (раньше ключ оставался от предыдущего провайдера)
-                        apiKey = AIConfigStore.apiKey(for: newProv)
-                        customModel = AIConfigStore.storedModel(for: newProv)
-                    }
-                }
-
-                if selectedProvider != .offlineSmart {
-                    Section(
-                        header: Text("Параметры API (\(selectedProvider.rawValue))"),
-                        footer: Text("API-ключ хранится в Keychain на этом устройстве. Облачному провайдеру отправляются ваш вопрос и сводные метрики сети (пинг, джиттер, потери, скорость); IP-адреса и название вашего провайдера связи не передаются.")
-                    ) {
-                        SecureField("API Key", text: $apiKey)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-
-                        TextField("Название модели", text: $customModel)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    }
-                } else {
-                    Section(footer: Text("Встроенный AI формирует ответы на устройстве по готовым правилам (это не нейросеть, поэтому свободные вопросы он понимает ограниченно). Замеры (пинг, DNS, трассировка) выполняются напрямую с вашего устройства; AI-провайдерам ничего не отправляется.")) {
-                        HStack {
-                            Image(systemName: "checkmark.shield.fill")
-                                .foregroundStyle(NPTheme.accentPrimary)
-                            Text("Данные не отправляются AI-провайдерам")
-                                .font(.system(size: 14))
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Настройки AI")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") {
-                        let newConfig = AIProviderConfig(
-                            selectedProvider: selectedProvider,
-                            apiKey: apiKey,
-                            customModel: customModel
-                        )
-                        onSave(newConfig)
-                        HapticManager.shared.notificationSuccess()
-                        dismiss()
-                    }
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(NPTheme.accentPrimary)
                 }
             }
         }

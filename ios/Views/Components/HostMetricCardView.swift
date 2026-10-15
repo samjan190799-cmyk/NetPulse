@@ -156,6 +156,8 @@ public struct HostMetricCardView: View {
 private struct StatusPill: View {
     let status: HostStatus
     @State private var isBreathing: Bool = false
+    /// Постоянное «дыхание» точки выключается при энергосбережении, «Уменьшении движения» и в фоне
+    @Environment(\.npContinuousMotion) private var continuousMotion
 
     var body: some View {
         HStack(spacing: 5) {
@@ -164,7 +166,7 @@ private struct StatusPill: View {
                 .frame(width: 6, height: 6)
                 .scaleEffect(status == .ok && isBreathing ? 1.3 : 1.0)
                 .opacity(status == .ok && isBreathing ? 0.7 : 1.0)
-                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isBreathing)
+                .animation(continuousMotion ? .easeInOut(duration: 1.2).repeatForever(autoreverses: true) : nil, value: isBreathing)
 
             Text(status.rawValue)
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -175,7 +177,10 @@ private struct StatusPill: View {
         .background(statusColor.opacity(0.1))
         .clipShape(Capsule())
         .onAppear {
-            isBreathing = true
+            isBreathing = continuousMotion
+        }
+        .onChange(of: continuousMotion) { _, enabled in
+            isBreathing = enabled
         }
     }
 

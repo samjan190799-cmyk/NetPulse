@@ -40,7 +40,7 @@ public struct BufferbloatView: View {
                     // 2. Фазы тестирования (Индикатор текущего этапа)
                     testingPhasesCard
 
-                    // Рекламный баннер Яндекса на видном месте
+                    // Рекламный баннер Яндекса (у подписчиков PRO его нет)
                     YandexBannerView(contextTag: "Оборудование и роутеры")
                         .padding(.horizontal)
 

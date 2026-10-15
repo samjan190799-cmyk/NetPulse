@@ -177,6 +177,10 @@ jobs:
             exit 1
           fi
 
+          # Тестового режима PRO в выгружаемых сборках нет: выключатель существует только в отладочной сборке
+          # (симулятор), поэтому любая сборка из TestFlight совпадает с тем, что увидят пользователи App Store.
+          EXTRA_FLAGS=()
+
           # Версия и номер сборки задаются настройками сборки для обоих таргетов (приложение и виджеты);
           # Info.plist читают их через $(MARKETING_VERSION) и $(CURRENT_PROJECT_VERSION).
           # Раньше agvtool с `|| true` молча не срабатывал, а в plist были зашиты 1.0.0 и 1.
@@ -190,7 +194,8 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ${EXTRA_FLAGS[@]+"${EXTRA_FLAGS[@]}"}
 
           # Внедрение CFBundleIconName в скомпилированный Info.plist архива
           ARCHIVE_PLIST="build/NetPulse.xcarchive/Products/Applications/NetPulse.app/Info.plist"
@@ -202,7 +207,7 @@ jobs:
       - name: "Фреймворки в архиве: снять подпись линкера (ad hoc)"
         working-directory: ./ios
         run: |
-          # Статическую библиотеку (например, рекламу Яндекса) Xcode 26 кладёт в приложение «бескодовым» фреймворком
+          # Статическую библиотеку (если она появится в проекте) Xcode 26 кладёт в приложение «бескодовым» фреймворком
           # и вставляет в него пустую заглушку, подписанную линкером (ad hoc). Архив собирается без подписи, и экспорт
           # такую готовую подпись оставляет как есть: Apple отклоняет сборку («Invalid Signature … not properly signed»).
           # Снимаем подпись линкера, чтобы экспорт подписал заглушку сертификатом распространения.

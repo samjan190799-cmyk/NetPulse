@@ -17,6 +17,10 @@ struct HomeRoutePanel: View {
     let onDone: () -> Void
     let onDelete: () -> Void
 
+    /// Экспорт маршрута: файл GPX или картинка карты (входит в подписку PRO)
+    @State private var sharePayload: SharePayload?
+    @State private var isPreparingExport = false
+
     private var hasSpeedData: Bool {
         route.points.contains { ($0.downloadMbps ?? 0) > 0 }
     }
@@ -64,6 +68,29 @@ struct HomeRoutePanel: View {
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HomePanelBackground())
+        .sheet(item: $sharePayload) { payload in
+            NPShareSheet(activityItems: payload.items)
+        }
+    }
+
+    // MARK: - Экспорт
+
+    private func exportGPX() {
+        guard ProStore.shared.requirePro(.export) else { return }
+        guard let url = RouteExport.writeGPX(for: route) else { return }
+        sharePayload = SharePayload(items: [url])
+    }
+
+    private func exportImage() {
+        guard ProStore.shared.requirePro(.export), !isPreparingExport else { return }
+        isPreparingExport = true
+        Task {
+            let image = await RouteExport.mapImage(for: route)
+            isPreparingExport = false
+            if let image {
+                sharePayload = SharePayload(items: [image])
+            }
+        }
     }
 
     // MARK: - Шапка
@@ -245,6 +272,41 @@ struct HomeRoutePanel: View {
                 }
                 .buttonStyle(NPPressableButtonStyle(scale: 0.97))
                 .accessibilityIdentifier("homeDeleteRouteButton")
+
+                Menu {
+                    Button {
+                        exportGPX()
+                    } label: {
+                        Label("Файл GPX", systemImage: "doc.badge.arrow.up")
+                    }
+                    Button {
+                        exportImage()
+                    } label: {
+                        Label("Картинка карты", systemImage: "photo")
+                    }
+                } label: {
+                    Group {
+                        if isPreparingExport {
+                            ProgressView()
+                                .tint(NPTheme.textPrimary)
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(NPTheme.textPrimary)
+                        }
+                    }
+                    .frame(width: 52, height: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(NPTheme.cardBackgroundTertiary)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                    )
+                }
+                .accessibilityLabel("Поделиться маршрутом")
+                .accessibilityIdentifier("homeRouteShareMenu")
 
                 Button {
                     onDone()

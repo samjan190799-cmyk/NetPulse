@@ -39,22 +39,11 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
 public final class ThemeManager {
     public static let shared = ThemeManager()
 
-    private let themeKey = "netpulse_selected_theme_v2"
+    /// Тема одна: приложение всегда тёмное, выбор из четырёх тем убран как лишний. Свойство осталось, чтобы код
+    /// оформления продолжал читать тему из одного места.
+    public var currentTheme: AppTheme = .obsidianMono
 
-    public var currentTheme: AppTheme {
-        didSet {
-            UserDefaults.standard.set(currentTheme.rawValue, forKey: themeKey)
-        }
-    }
-
-    private init() {
-        if let saved = UserDefaults.standard.string(forKey: themeKey),
-           let theme = AppTheme(rawValue: saved) {
-            self.currentTheme = theme
-        } else {
-            self.currentTheme = .obsidianMono
-        }
-    }
+    private init() {}
 }
 
 /// Централизованные дизайн-токены NetPulse.

@@ -9,11 +9,16 @@ import SwiftUI
 import UIKit
 
 /// Главный навигационный контейнер приложения NetPulse (Apple HIG 2026)
-/// 4 раздела: Сеть (карта, скорость и запись маршрута), Узлы (Диагностика), Трафик, AI Диагност.
-/// Настройки открываются кнопкой на главном экране.
+/// 4 раздела: Сеть (карта, скорость и запись маршрута), Инструменты (узлы, утилиты и AI-аудит), Трафик, Настройки.
 public struct ContentView: View {
     @State private var viewModel = NetworkMonitorViewModel.shared
+    /// Подписка PRO: окно подписки открывается поверх любого экрана
+    @Bindable private var pro = ProStore.shared
     @State private var selectedTab: Int = 0
+    #if DEBUG || NETPULSE_TESTER
+    /// Счётчик кадров и нагрузки (включается в тестовом разделе настроек)
+    @AppStorage("netpulse_perf_overlay") private var perfOverlayEnabled = false
+    #endif
 
     public var body: some View {
         ZStack {
@@ -25,47 +30,58 @@ public struct ContentView: View {
                     }
                     .tag(0)
 
-                // 2. Детальный мониторинг узлов и MTR-трассировка
+                // 2. Инструменты: мониторинг узлов, MTR-трассировка, утилиты и AI-аудит (входит в подписку PRO)
                 DiagnosticsView(viewModel: viewModel)
+                    .npAppear()
                     .tabItem {
-                        Label("Узлы", systemImage: "network")
+                        Label("Инструменты", systemImage: "wrench.and.screwdriver.fill")
                     }
                     .tag(1)
 
                 // 3. Аналитика трафика 24/7 и лимиты
                 TrafficView(viewModel: viewModel)
+                    .npAppear()
                     .tabItem {
                         Label("Трафик", systemImage: "arrow.up.arrow.down.square.fill")
                     }
                     .tag(2)
 
-                // 4. Интеллектуальный AI-Диагност
-                AIDiagnosticsView(viewModel: viewModel)
+                // 4. Настройки (подписка, остров, запись маршрута, пороги)
+                SettingsView(viewModel: viewModel)
+                    .npAppear()
                     .tabItem {
-                        Label("AI Диагност", systemImage: "sparkles")
+                        Label("Настройки", systemImage: "gearshape.fill")
                     }
                     .tag(3)
             }
             .tint(NPTheme.accentPrimary)
             .preferredColorScheme(.dark)
-            .onChange(of: selectedTab) { _, _ in
+            .onChange(of: selectedTab) { _, newTab in
                 HapticManager.shared.selectionChanged()
+                #if DEBUG || NETPULSE_TESTER
+                PerformanceMonitor.shared.screenName = ["Сеть", "Инструменты", "Трафик", "Настройки"][min(max(newTab, 0), 3)]
+                #endif
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .netPulseShowHome)) { _ in
+                selectedTab = 0
             }
             .onAppear {
                 configureTabBarAppearance()
+                #if DEBUG || NETPULSE_TESTER
+                if perfOverlayEnabled { PerformanceMonitor.shared.start() }
+                #endif
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-                if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
-                    PiPHUDManager.shared.startPiP()
+            #if DEBUG || NETPULSE_TESTER
+            .onChange(of: perfOverlayEnabled) { _, enabled in
+                if enabled {
+                    PerformanceMonitor.shared.start()
+                } else {
+                    PerformanceMonitor.shared.stop()
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported && PiPHUDManager.shared.isPiPActive {
-                    PiPHUDManager.shared.stopPiP()
-                }
-            }
+            #endif
 
-            // Закрепленный рекламный баннер Яндекса над системным таб-баром.
+            // Закрепленный рекламный баннер Яндекса над системным таб-баром (у подписчиков PRO его нет).
             // На главном экране (карта) баннер стоит внутри нижней панели и ничего не перекрывает.
             if selectedTab != 0 {
                 VStack(spacing: 0) {
@@ -74,13 +90,6 @@ public struct ContentView: View {
                         .padding(.bottom, 49) // Высота стандартного таб-бара iOS
                 }
                 .ignoresSafeArea(.keyboard)
-            }
-
-            // Невидимый системный якорь для выпадающего Picture-in-Picture окна поверх других приложений и рабочего стола
-            if viewModel.floatingHUDEnabled && PiPHUDManager.shared.isPiPSupported {
-                PiPAnchorRepresentable(viewModel: viewModel)
-                    .frame(width: 1, height: 1)
-                    .opacity(0.001)
             }
 
             // Плавающий игровой HUD внутри приложения
@@ -92,9 +101,6 @@ public struct ContentView: View {
                     pingMs: viewModel.currentAveragePing,
                     jitterMs: viewModel.currentAverageJitter,
                     packetLossPct: viewModel.currentPacketLossPct,
-                    onTogglePiP: {
-                        PiPHUDManager.shared.togglePiP()
-                    },
                     onClose: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             viewModel.floatingHUDEnabled = false
@@ -103,6 +109,22 @@ public struct ContentView: View {
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
+
+            #if DEBUG || NETPULSE_TESTER
+            if perfOverlayEnabled {
+                PerformanceOverlay()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(.leading, 8)
+                    .padding(.bottom, 92)
+            }
+            #endif
+
+            // Короткая заставка при запуске: касания проходят сквозь неё, показывается один раз за запуск
+            NPIntroOverlay()
+        }
+        .npMotionPolicy()
+        .sheet(item: $pro.paywall) { feature in
+            PaywallView(feature: feature)
         }
     }
 
@@ -117,133 +139,3 @@ public struct ContentView: View {
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 }
-
-/// Системный мост UIView для инициализации AVPictureInPictureController
-private struct PiPAnchorRepresentable: UIViewRepresentable {
-    var viewModel: NetworkMonitorViewModel
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
-        view.backgroundColor = .clear
-        view.isUserInteractionEnabled = false
-
-        let rootView = AnyView(
-            PiPHUDContentView()
-        )
-        PiPHUDManager.shared.setup(with: view, rootView: rootView)
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        // Управление телеметрией переведено в фоновый цикл ViewModel -> PiPHUDManager.shared
-    }
-}
-
-/// Полноформатный киберспортивный оверлей Picture-in-Picture (PiP) на 100% окна без пустот и с живым обновлением
-private struct PiPHUDContentView: View {
-    @ObservedObject private var manager = PiPHUDManager.shared
-
-    private var pingColor: Color {
-        guard let p = manager.pingMs else { return NPTheme.accentPrimary }
-        if p < 45 {
-            return NPTheme.semanticOK
-        } else if p < 100 {
-            return NPTheme.semanticWarn
-        } else {
-            return NPTheme.semanticCritical
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: 5) {
-            // Верхняя строка: Тип сети + статус + пинг
-            HStack {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 5, height: 5)
-                    Text(manager.connectionType.uppercased())
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.white.opacity(0.12))
-                .clipShape(Capsule())
-
-                Spacer()
-
-                if let ping = manager.pingMs {
-                    HStack(spacing: 3) {
-                        Circle()
-                            .fill(pingColor)
-                            .frame(width: 4.5, height: 4.5)
-                        Text(String(format: "%.0f ms", ping))
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(pingColor)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(pingColor.opacity(0.15))
-                    .clipShape(Capsule())
-                }
-            }
-
-            // Нижняя строка: Крупные показатели скорости Down / Up
-            HStack(spacing: 8) {
-                HStack(spacing: 3.5) {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundStyle(NPTheme.accentPrimary)
-                    Text(manager.downloadText)
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(NPTheme.accentPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-
-                Spacer()
-
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(NPTheme.accentSilver)
-                    Text(manager.uploadText)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.85))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-            }
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.08, green: 0.10, blue: 0.15),
-                    Color(red: 0.02, green: 0.03, blue: 0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.white.opacity(0.06)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .ignoresSafeArea()
-    }
-}
-

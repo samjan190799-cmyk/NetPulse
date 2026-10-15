@@ -110,7 +110,9 @@ public final class NetworkMonitorViewModel {
     // Alerts & Notifications
     public var recentAlerts: [NetworkAlert] = []
     public var activeAlert: NetworkAlert?
-    public var soundEnabled: Bool = true {
+    /// Звуковые предупреждения выключены, пока пользователь сам их не включит: на мобильной сети задержка скачет, и
+    /// сигнал раздавался почти постоянно (вместе с вибрацией, если телефон в беззвучном режиме)
+    public var soundEnabled: Bool = false {
         didSet { UserDefaults.standard.set(soundEnabled, forKey: Self.kSoundKey) }
     }
     public var hapticsEnabled: Bool = true {
@@ -126,7 +128,7 @@ public final class NetworkMonitorViewModel {
     private static let kTargetsKey = "netpulse_targets_v1"
     private static let kPollingIntervalKey = "netpulse_polling_interval"
     private static let kSoundKey = "netpulse_sound_enabled"
-    private static let kHapticsKey = "netpulse_haptics_enabled"
+    private static let kHapticsKey = HapticManager.defaultsKey
     private static let kLatencyWarnKey = "netpulse_latency_warn_threshold"
     private static let kLatencyCritKey = "netpulse_latency_crit_threshold"
     private static let kJitterWarnKey = "netpulse_jitter_warn_threshold"
@@ -138,21 +140,40 @@ public final class NetworkMonitorViewModel {
         }
     }
 
-    // Виджеты: Dynamic Island & Игровой HUD
-    public var liveActivityEnabled: Bool {
+    // Виджеты: Dynamic Island & Игровой HUD. Оба входят в подписку PRO: настройка пользователя хранится отдельно
+    // (`...Preference`), а работают они, только пока подписка есть (`...Enabled`), поэтому код, который читает
+    // `liveActivityEnabled` и `floatingHUDEnabled`, сам уважает подписку.
+    /// Хочет ли пользователь остров (хранится в настройках)
+    public var liveActivityPreference: Bool {
         didSet {
-            UserDefaults.standard.set(liveActivityEnabled, forKey: Self.kLiveActivityKey)
+            UserDefaults.standard.set(liveActivityPreference, forKey: Self.kLiveActivityKey)
         }
+    }
+    /// Остров работает: пользователь его включил и есть подписка PRO
+    public var liveActivityEnabled: Bool {
+        get { liveActivityPreference && ProStore.shared.isPro }
+        set { liveActivityPreference = newValue }
     }
     // Подсказка на главном экране: остров замирал, пока приложение было свёрнуто, а запись маршрута не шла
     // (пока она идёт, приложение остаётся активным в фоне, и остров обновляется)
     public var showRecordingHint: Bool = false
     private static let kRecordingHintDismissedKey = "netpulse_recording_hint_dismissed"
 
-    public var floatingHUDEnabled: Bool {
+    /// Сколько трафика прошло, пока приложение спало: остров в это время стоит, а сеть работает. Показывается на главном
+    /// экране после возвращения и скрывается сам.
+    public var sleepTraffic: SleepTrafficNote?
+    private var sleepTrafficClearTask: Task<Void, Never>?
+
+    /// Хочет ли пользователь игровой HUD (хранится в настройках)
+    public var floatingHUDPreference: Bool {
         didSet {
-            UserDefaults.standard.set(floatingHUDEnabled, forKey: Self.kFloatingHUDKey)
+            UserDefaults.standard.set(floatingHUDPreference, forKey: Self.kFloatingHUDKey)
         }
+    }
+    /// HUD работает: пользователь его включил и есть подписка PRO
+    public var floatingHUDEnabled: Bool {
+        get { floatingHUDPreference && ProStore.shared.isPro }
+        set { floatingHUDPreference = newValue }
     }
     public var isFloatingHUDCollapsed: Bool {
         didSet {
@@ -191,6 +212,9 @@ public final class NetworkMonitorViewModel {
     /// Узлы, переживающие эпизод сбоя (от DOWN до полного восстановления)
     private var outageEpisodes: Set<String> = []
     private let alertCooldown: TimeInterval = 60
+    /// Когда последний раз прозвучал звук критического алерта и как часто он может звучать
+    private var lastAlertSoundDate: Date = .distantPast
+    private static let alertSoundMinimumInterval: TimeInterval = 60
     /// Адрес шлюза, под который накоплена статистика строки «gateway»
     private var lastResolvedGatewayIP: String?
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
@@ -217,14 +241,18 @@ public final class NetworkMonitorViewModel {
         let savedBg = UserDefaults.standard.object(forKey: Self.kBackgroundMonitoringKey) as? Bool ?? true
         let savedCollapsed = UserDefaults.standard.bool(forKey: Self.kFloatingHUDCollapsedKey)
 
-        self.liveActivityEnabled = savedLive
-        self.floatingHUDEnabled = savedHUD
+        self.liveActivityPreference = savedLive
+        self.floatingHUDPreference = savedHUD
         self.isFloatingHUDCollapsed = savedCollapsed
         self.backgroundMonitoringEnabled = savedBg
 
         loadSavedSettings()
         initMetricsForTargets()
         setupBackgroundObservation()
+        // Подписка появилась или закончилась: остров запускается или гасится
+        ProStore.shared.onChange = { [weak self] in
+            self?.proStatusChanged()
+        }
         Task {
             // Быстрый снимок локальной сети (без интернет-запросов): тип подключения нужен сразу —
             // раньше он появлялся только после опроса сервисов публичного IP (до 10 секунд)
@@ -265,6 +293,31 @@ public final class NetworkMonitorViewModel {
     }
 
     /// Скрывает подсказку про запись маршрута; `forever` — больше не показывать
+    /// Скрывает заметку о трафике за время сна
+    public func dismissSleepTraffic() {
+        sleepTrafficClearTask?.cancel()
+        sleepTrafficClearTask = nil
+        sleepTraffic = nil
+    }
+
+    /// Запоминает, сколько трафика прошло, пока приложение спало (по системным счётчикам), и на время показывает это
+    /// на главном экране
+    private func noteTrafficWhileAway(_ summary: SleepTrafficSummary?, since: Date?) {
+        let away = since.map { Date().timeIntervalSince($0) }
+        guard let note = SleepTrafficNote.make(summary: summary, awaySeconds: away) else { return }
+        sleepTraffic = note
+        IslandDiagnostics.shared.log(
+            "Пока приложение спало (\(IslandDiagnostics.formatAge(note.awaySeconds))): принято \(note.downloadBytes) Б, отправлено \(note.uploadBytes) Б",
+            .lifecycle
+        )
+        sleepTrafficClearTask?.cancel()
+        sleepTrafficClearTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(45))
+            guard !Task.isCancelled else { return }
+            self?.sleepTraffic = nil
+        }
+    }
+
     public func dismissRecordingHint(forever: Bool) {
         showRecordingHint = false
         if forever {
@@ -272,7 +325,35 @@ public final class NetworkMonitorViewModel {
         }
     }
 
+    /// Подписка PRO появилась или закончилась: остров запускается или гасится сразу, не дожидаясь перезапуска
+    public func proStatusChanged() {
+        if liveActivityEnabled {
+            BackgroundTelemetryKeeper.shared.startKeepAlive()
+            ActivityManager.shared.checkAndRestoreActivity(
+                downloadSpeedText: liveBandwidth.formattedDownloadSpeed,
+                uploadSpeedText: liveBandwidth.formattedUploadSpeed,
+                compactDownloadText: liveBandwidth.compactDownload,
+                compactUploadText: liveBandwidth.compactUpload,
+                pingMs: currentAveragePing,
+                jitterMs: currentAverageJitter,
+                isTesting: isSpeedtestRunning,
+                connectionType: systemInfo.connectionType.rawValue,
+                ispName: systemInfo.ispName ?? "Интернет",
+                isGamingMode: floatingHUDEnabled
+            )
+            startBandwidthTask()
+        } else {
+            ActivityManager.shared.stopActivity()
+            if !floatingHUDEnabled && !backgroundMonitoringEnabled {
+                BackgroundTelemetryKeeper.shared.stopKeepAlive()
+            }
+        }
+        syncWidgetData()
+    }
+
     public func toggleLiveActivity(enabled: Bool) {
+        // Остров входит в подписку PRO: без неё открывается окно подписки
+        if enabled && !ProStore.shared.requirePro(.island) { return }
         self.liveActivityEnabled = enabled
         if enabled {
             BackgroundTelemetryKeeper.shared.startKeepAlive()
@@ -371,6 +452,8 @@ public final class NetworkMonitorViewModel {
 
     private func handleDidEnterBackground() {
         backgroundedAt = Date()
+        // Счётчики на момент ухода в фон: от них при возвращении считается, сколько трафика прошло за время сна
+        BandwidthEngine.shared.markBackground()
         // Если фоновая запись выключена в настройках, идущая запись встаёт на паузу до возвращения в приложение
         RouteRecorder.shared.appDidEnterBackground()
         IslandDiagnostics.shared.log("Приложение свёрнуто. \(RouteRecorder.shared.diagnosticContext())", .lifecycle)
@@ -406,6 +489,11 @@ public final class NetworkMonitorViewModel {
     private func handleWillEnterForeground() {
         IslandDiagnostics.shared.log("Приложение возвращается на экран.", .lifecycle)
         endBackgroundAssertion()
+        // Когда приложение свернули: к моменту сверки счётчиков метка ещё не сброшена (её снимает handleDidBecomeActive)
+        let sleptSince = backgroundedAt
+        // Сколько прошло за время сна, читается сразу, до всего остального: живой цикл учёта трафика при возвращении
+        // успевает «съесть» эту разницу в первую же секунду
+        noteTrafficWhileAway(BandwidthEngine.shared.trafficSinceBackgroundMark(), since: sleptSince)
         Task {
             let info = await self.diagnostics.collectSystemInfo()
             self.systemInfo = info
@@ -732,17 +820,7 @@ public final class NetworkMonitorViewModel {
                     )
                 }
 
-                // 2. Непрерывная передача в PiP (Picture-in-Picture)
-                PiPHUDManager.shared.updateTelemetry(
-                    downloadText: dlText,
-                    uploadText: ulText,
-                    pingMs: self.currentAveragePing,
-                    jitterMs: self.currentAverageJitter,
-                    connectionType: self.systemInfo.connectionType.rawValue,
-                    isTesting: self.isSpeedtestRunning
-                )
-
-                // 3. Асинхронное сохранение трафика в базе данных (только при наличии активности)
+                // 2. Асинхронное сохранение трафика в базе данных (только при наличии активности)
                 if snapshot.deltaDownloadBytes > 0 || snapshot.deltaUploadBytes > 0 {
                     Task { [snapshot = self.liveBandwidth, netName = self.currentNetworkTitle, connType = self.systemInfo.connectionType.rawValue, isWifi = (self.systemInfo.connectionType == .wifi), testing = self.isSpeedtestRunning] in
                         await TrafficStorage.shared.recordTrafficSample(
@@ -1128,15 +1206,18 @@ public final class NetworkMonitorViewModel {
             activeKeys.insert(key)
 
             let shouldEmit: Bool
+            // Звук нужен, когда проблема появилась или стала серьёзнее; напоминание «всё ещё плохо» раз в минуту
+            // молчит, иначе при долгой проблеме телефон гудит каждую минуту
+            var isNewOrEscalated = true
             if let previous = alertStates[key] {
-                shouldEmit = Self.severityRank(condition.severity) > Self.severityRank(previous.severity)
-                    || now.timeIntervalSince(previous.date) >= alertCooldown
+                isNewOrEscalated = Self.severityRank(condition.severity) > Self.severityRank(previous.severity)
+                shouldEmit = isNewOrEscalated || now.timeIntervalSince(previous.date) >= alertCooldown
             } else {
                 shouldEmit = true
             }
             if shouldEmit {
                 alertStates[key] = (severity: condition.severity, date: now)
-                publishAlert(address: address, condition: condition)
+                publishAlert(address: address, condition: condition, playsSound: isNewOrEscalated)
             }
         }
 
@@ -1150,7 +1231,7 @@ public final class NetworkMonitorViewModel {
         }
     }
 
-    private func publishAlert(address: String, condition: PendingAlert) {
+    private func publishAlert(address: String, condition: PendingAlert, playsSound: Bool) {
         guard let host = hostMetrics[address] else { return }
 
         let alert = NetworkAlert(
@@ -1174,8 +1255,24 @@ public final class NetworkMonitorViewModel {
             await history.recordAlert(alert)
         }
 
-        // Тумблер «Звуковые предупреждения» раньше нигде не читался
-        if soundEnabled && condition.severity == .critical {
+        // Уведомление PRO: узел перестал отвечать или потери пакетов критические, а приложение не на экране.
+        // Скачки задержки и джиттера уведомлений не вызывают: на мобильной сети они случаются постоянно.
+        let isSeriousMetric = condition.metric == "availability" || condition.metric == "packet_loss"
+        if playsSound, condition.severity == .critical, isSeriousMetric {
+            AlertNotifier.shared.notifyProblem(
+                key: "\(address)|\(condition.metric)",
+                title: "Проблема со связью: \(host.name)",
+                body: condition.message
+            )
+        }
+
+        // Тумблер «Звуковые предупреждения». Звук только когда узел перестал отвечать, только у нового или усилившегося
+        // алерта, пока приложение на экране и не чаще раза в минуту: несколько узлов не должны звучать подряд
+        let soundTime = Date()
+        if soundEnabled, playsSound, condition.severity == .critical, condition.metric == "availability",
+           UIApplication.shared.applicationState == .active,
+           soundTime.timeIntervalSince(lastAlertSoundDate) >= Self.alertSoundMinimumInterval {
+            lastAlertSoundDate = soundTime
             AudioServicesPlaySystemSound(1007)
         }
     }
@@ -1219,15 +1316,6 @@ public final class NetworkMonitorViewModel {
                     Task { @MainActor in
                         self.liveDownloadSpeed = dl
                         self.liveUploadSpeed = ul
-
-                        PiPHUDManager.shared.updateTelemetry(
-                            downloadText: String(format: "%.1f Мбит/с", dl),
-                            uploadText: String(format: "%.1f Мбит/с", ul),
-                            pingMs: self.currentAveragePing,
-                            jitterMs: self.currentAverageJitter,
-                            connectionType: self.systemInfo.connectionType.rawValue,
-                            isTesting: true
-                        )
 
                         if self.liveActivityEnabled {
                             ActivityManager.shared.updateActivity(
@@ -1285,9 +1373,17 @@ public final class NetworkMonitorViewModel {
                 }
 
                 await self.storage.recordSpeedtest(result)
+                // История замеров на устройстве: сохраняется у всех, смотреть её с графиками можно в подписке PRO
+                SpeedHistoryStore.shared.add(SpeedHistoryEntry(
+                    downloadMbps: result.downloadMbps,
+                    uploadMbps: result.uploadMbps,
+                    pingMs: result.pingMs ?? self.currentAveragePing,
+                    jitterMs: result.jitterMs ?? self.currentAverageJitter,
+                    connection: SpeedHistoryEntry.label(for: self.systemInfo.connectionType)
+                ))
                 self.syncWidgetData(reloadTimelines: true)
 
-                // Межстраничная реклама Яндекса: раз в несколько замеров, если ролик уже загружен
+                // Межстраничная реклама Яндекса: раз в несколько замеров, если ролик уже загружен (подписчикам PRO не показывается)
                 YandexAdManager.shared.recordActionAndTriggerInterstitial()
             } catch {
                 print("⚠️ Ошибка Speedtest: \(error.localizedDescription)")
@@ -1491,8 +1587,6 @@ public final class NetworkMonitorViewModel {
     public var aiMessages: [AIMessage] = []
     public var isAIAnalyzing: Bool = false
     public var activeToolCall: AIToolCall? = nil
-    /// Провайдер и модель хранятся в настройках, ключ API — в Keychain (раньше конфигурация сбрасывалась при каждом запуске)
-    public var aiProviderConfig: AIProviderConfig = AIConfigStore.load()
     public var selectedTroubleshootingScenario: TroubleshootingScenarioType = .gaming
     public var selectedDisputeTemplate: ISPDisputeTemplate = .packetLossAndLatency
     public var showDisputeSheet: Bool = false
@@ -1579,7 +1673,6 @@ public final class NetworkMonitorViewModel {
         let (response, toolCall, toolResult) = await AIDiagnosticsEngine.shared.executeAgenticQuery(
             prompt: text,
             context: context,
-            config: aiProviderConfig,
             history: history,
             anomalyReport: currentAnomalyReport
         ) { [weak self] call in
@@ -1601,11 +1694,6 @@ public final class NetworkMonitorViewModel {
         if hapticsEnabled {
             HapticManager.shared.impactLight()
         }
-    }
-
-    public func updateAIConfig(_ newConfig: AIProviderConfig) {
-        self.aiProviderConfig = newConfig
-        AIConfigStore.save(newConfig)
     }
 
     // MARK: - Интерактивный мастер устранения неполадок (Fixer Wizard)

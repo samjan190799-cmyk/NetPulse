@@ -97,9 +97,9 @@ final class YandexAdManager: NSObject {
     private(set) var isRewardedLoaded = false
 
     /// Реклама показывается, если сборка её допускает (в выпускной сборке — только с боевыми блоками,
-    /// см. `YandexAdConfig.isAllowed`)
+    /// см. `YandexAdConfig.isAllowed`) и подписки NetPulse PRO нет: подписчикам реклама не показывается
     var canShowAds: Bool {
-        !Self.isDisabledForTesting && YandexAdConfig.isAllowedInThisBuild
+        !Self.isDisabledForTesting && YandexAdConfig.isAllowedInThisBuild && !ProStore.shared.isPro
     }
 
     /// Баннеры можно запрашивать, когда SDK инициализирован

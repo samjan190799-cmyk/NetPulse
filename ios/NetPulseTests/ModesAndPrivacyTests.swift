@@ -62,10 +62,10 @@ final class RouteRecorderStateTests: XCTestCase {
     }
 }
 
-// MARK: - Что уходит в облачный AI
+// MARK: - Обращение провайдеру
 
-/// В сторонний сервис не должны попадать IP-адреса и название провайдера, а отсутствие данных не маскируется.
-final class CloudPrivacyTests: XCTestCase {
+/// Обращение провайдеру содержит только измеренное, а отсутствие данных не маскируется.
+final class ISPReportTests: XCTestCase {
 
     private func context(
         hasLiveData: Bool,
@@ -92,24 +92,6 @@ final class CloudPrivacyTests: XCTestCase {
         )
     }
 
-    func testCloudSummaryOmitsIdentifyingData() {
-        let summary = context(hasLiveData: true, averagePingMs: 23.4, speedtestDownloadMbps: 90).summaryForCloudAI
-
-        for secret in ["192.168.7.23", "192.168.7.1", "203.0.113.77", "Секретный Провайдер", "10.9.8.7"] {
-            XCTAssertFalse(summary.contains(secret), "В облачную сводку попало: \(secret)")
-        }
-        XCTAssertTrue(summary.contains("23.4"), "Измеренный пинг должен быть в сводке")
-        XCTAssertTrue(summary.contains("отдача не измерена"), "Неизмеренная отдача не должна выдаваться за нуль")
-    }
-
-    func testSummaryAdmitsMissingData() {
-        let summary = context(hasLiveData: false, averagePingMs: nil, speedtestDownloadMbps: nil).summaryForCloudAI
-
-        XCTAssertTrue(summary.contains("свежих данных нет"))
-        XCTAssertTrue(summary.contains("Замер скорости не выполнялся"))
-        XCTAssertFalse(summary.contains("Средний пинг"), "Без данных мониторинга пинга в сводке быть не должно")
-    }
-
     func testUnmeasuredUploadStaysNil() {
         XCTAssertNil(context(hasLiveData: true, averagePingMs: 10, speedtestDownloadMbps: 50).measuredUploadMbps)
     }
@@ -123,17 +105,13 @@ final class CloudPrivacyTests: XCTestCase {
         XCTAssertFalse(report.contains("192.168.1.1"))
         XCTAssertFalse(report.localizedCaseInsensitiveContains("систематическ"))
     }
+}
 
-    func testProvidersHaveUniqueStorageKeysAndDefaultModels() {
-        XCTAssertFalse(AIProviderType.offlineSmart.isCloud)
-
-        for provider in AIProviderType.allCases where provider != .offlineSmart {
-            XCTAssertTrue(provider.isCloud, "\(provider.rawValue) должен считаться облачным")
-            XCTAssertFalse(provider.defaultModelName.isEmpty)
-        }
-
-        let keys = AIProviderType.allCases.map { $0.storageKey }
-        XCTAssertEqual(Set(keys).count, keys.count, "Ключи хранилища (Keychain) должны быть уникальны")
+/// Приложение не просит доступ к микрофону и распознаванию речи: голосового ввода больше нет.
+final class NoVoicePermissionsTests: XCTestCase {
+    func testInfoPlistHasNoMicrophoneOrSpeechKeys() {
+        XCTAssertNil(Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription"))
+        XCTAssertNil(Bundle.main.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription"))
     }
 }
 
@@ -219,5 +197,169 @@ final class AppLinksTests: XCTestCase {
             XCTAssertFalse((url.host ?? "").isEmpty, "У ссылки нет хоста: \(url)")
         }
         XCTAssertNotEqual(AppLinks.privacyPolicy, AppLinks.support)
+    }
+}
+
+// MARK: - Подписка PRO
+
+final class ProEntitlementTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    func testActiveMonthlySubscriptionGrantsPro() {
+        XCTAssertTrue(ProEntitlement.grantsPro(
+            productID: ProEntitlement.monthlyID, revocationDate: nil,
+            expirationDate: now.addingTimeInterval(86_400), now: now
+        ))
+    }
+
+    func testSubscriptionWithoutExpirationDateGrantsPro() {
+        XCTAssertTrue(ProEntitlement.grantsPro(productID: ProEntitlement.monthlyID, revocationDate: nil, expirationDate: nil, now: now))
+    }
+
+    func testExpiredSubscriptionDoesNotGrantPro() {
+        XCTAssertFalse(ProEntitlement.grantsPro(
+            productID: ProEntitlement.monthlyID, revocationDate: nil,
+            expirationDate: now.addingTimeInterval(-1), now: now
+        ))
+    }
+
+    func testRevokedSubscriptionDoesNotGrantPro() {
+        XCTAssertFalse(ProEntitlement.grantsPro(
+            productID: ProEntitlement.monthlyID, revocationDate: now.addingTimeInterval(-3_600),
+            expirationDate: now.addingTimeInterval(86_400), now: now
+        ))
+    }
+
+    func testOtherProductDoesNotGrantPro() {
+        XCTAssertFalse(ProEntitlement.grantsPro(productID: "com.example.other", revocationDate: nil, expirationDate: nil, now: now))
+    }
+
+    func testPaidFeaturesAreAllListedOnce() {
+        XCTAssertEqual(
+            ProFeature.included,
+            [.island, .hud, .aiAudit, .report, .services, .history, .speedMap, .alerts, .export]
+        )
+        XCTAssertEqual(Set(ProFeature.included).count, ProFeature.included.count, "Возможности в окне подписки не повторяются")
+        for feature in ProFeature.allCases {
+            XCTAssertFalse(feature.title.isEmpty)
+            XCTAssertFalse(feature.summary.isEmpty)
+            XCTAssertFalse(feature.icon.isEmpty)
+        }
+    }
+}
+
+@MainActor
+final class ProStoreTests: XCTestCase {
+    private func makeDefaults() throws -> UserDefaults {
+        let suite = "netpulse.test.pro.\(UUID().uuidString)"
+        return try XCTUnwrap(UserDefaults(suiteName: suite))
+    }
+
+    func testFreeUserIsRefusedAndPaywallOpens() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        XCTAssertFalse(store.isPro)
+        XCTAssertNil(store.paywall)
+        XCTAssertFalse(store.requirePro(.island))
+        XCTAssertEqual(store.paywall, .island, "Окно подписки подсвечивает возможность, с которой его открыли")
+    }
+
+    func testSubscriberPassesWithoutPaywall() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        store.apply(isActive: true)
+        XCTAssertTrue(store.isPro)
+        XCTAssertTrue(store.requirePro(.hud))
+        XCTAssertNil(store.paywall)
+    }
+
+    func testBecomingProClosesPaywallAndNotifiesOnce() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        var notifications = 0
+        store.onChange = { notifications += 1 }
+        store.paywall = .aiAudit
+
+        store.apply(isActive: true)
+        XCTAssertEqual(notifications, 1)
+        XCTAssertNil(store.paywall, "После покупки окно подписки закрывается")
+
+        store.apply(isActive: true)
+        XCTAssertEqual(notifications, 1, "Тот же статус повторно никого не будит")
+    }
+
+    func testLosingSubscriptionNotifiesAndLocksFeatures() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        store.apply(isActive: true)
+        var notifications = 0
+        store.onChange = { notifications += 1 }
+
+        store.apply(isActive: false)
+        XCTAssertFalse(store.isPro)
+        XCTAssertEqual(notifications, 1, "Остров должен погаснуть сразу, а не после перезапуска")
+        XCTAssertFalse(store.requirePro(.island))
+    }
+
+    func testStatusIsRememberedBetweenLaunches() throws {
+        let defaults = try makeDefaults()
+        let first = ProStore(defaults: defaults)
+        first.apply(isActive: true)
+
+        let second = ProStore(defaults: defaults)
+        XCTAssertTrue(second.isPro, "Подписчик не должен видеть замок до ответа StoreKit")
+
+        second.apply(isActive: false)
+        XCTAssertFalse(ProStore(defaults: defaults).isPro, "Отозванная подписка не должна вернуться из памяти")
+    }
+
+    #if DEBUG || NETPULSE_TESTER
+    func testTestOverrideForcesProOnAndOff() throws {
+        let store = ProStore(defaults: try makeDefaults())
+        XCTAssertFalse(store.isPro)
+
+        store.testOverride = .on
+        XCTAssertTrue(store.isPro, "«PRO включён» открывает платные возможности без покупки")
+        XCTAssertTrue(store.requirePro(.report))
+
+        store.testOverride = .off
+        XCTAssertFalse(store.isPro)
+        store.apply(isActive: true)
+        XCTAssertFalse(store.isPro, "«PRO выключен» скрывает даже настоящую подписку: так проверяют бесплатный вид")
+        XCTAssertFalse(store.requirePro(.alerts))
+        XCTAssertEqual(store.paywall, .alerts)
+
+        store.testOverride = .store
+        XCTAssertTrue(store.isPro, "«Как в магазине» возвращает настоящий статус")
+    }
+
+    func testTestOverrideIsRememberedAndNotifies() throws {
+        let defaults = try makeDefaults()
+        let first = ProStore(defaults: defaults)
+        var notifications = 0
+        first.onChange = { notifications += 1 }
+        first.testOverride = .on
+        first.testOverride = .on
+        XCTAssertEqual(notifications, 1, "Повторный выбор того же режима ничего не меняет")
+
+        XCTAssertTrue(ProStore(defaults: defaults).isPro, "Выбор тестового режима переживает перезапуск")
+    }
+    #endif
+}
+
+/// Переключатель «Тактильный отклик» гасит всю вибрацию приложения, а не только часть вызовов в модели
+@MainActor
+final class HapticSettingTests: XCTestCase {
+    func testHapticsAreOnByDefault() {
+        UserDefaults.standard.removeObject(forKey: HapticManager.defaultsKey)
+        XCTAssertTrue(HapticManager.shared.isEnabled, "Пока пользователь ничего не менял, отклик включён")
+    }
+
+    func testSwitchTurnsHapticsOffAndOn() {
+        defer { UserDefaults.standard.removeObject(forKey: HapticManager.defaultsKey) }
+        UserDefaults.standard.set(false, forKey: HapticManager.defaultsKey)
+        XCTAssertFalse(HapticManager.shared.isEnabled, "Выключенный переключатель должен гасить весь отклик")
+        UserDefaults.standard.set(true, forKey: HapticManager.defaultsKey)
+        XCTAssertTrue(HapticManager.shared.isEnabled)
+    }
+
+    func testKeyIsTheOneSavedByEarlierBuilds() {
+        XCTAssertEqual(HapticManager.defaultsKey, "netpulse_haptics_enabled", "Выбор пользователя не должен сброситься")
     }
 }

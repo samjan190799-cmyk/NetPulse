@@ -130,6 +130,58 @@ public final class BandwidthEngine: @unchecked Sendable {
         self.prevTimestamp = Date()
     }
 
+    // MARK: - Трафик за время, пока приложение спало
+
+    private var backgroundMark: [String: (inBytes: UInt64, outBytes: UInt64)]?
+    private var backgroundMarkedAt: Date?
+
+    /// Запоминает счётчики интерфейсов в момент ухода приложения в фон
+    public func markBackground() {
+        lock.lock()
+        defer { lock.unlock() }
+        backgroundMark = Self.fetchDetailedInterfaceMap()
+        backgroundMarkedAt = Date()
+    }
+
+    /// Сколько байт прошло по счётчикам интерфейсов с момента `markBackground()`; метка при этом сбрасывается.
+    /// Считается от собственной метки, а не от базовой точки живого цикла: живой цикл при возвращении успевает
+    /// «съесть» эту разницу раньше, чем её прочитает экран. `nil` — метки не было.
+    /// Ограничение: счётчики Darwin 32-битные, поэтому разницу свыше 4 ГБ за один сон точно не отличить от переполнения,
+    /// такой интервал отбрасывается.
+    public func trafficSinceBackgroundMark() -> SleepTrafficSummary? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let mark = backgroundMark, let markedAt = backgroundMarkedAt else { return nil }
+        backgroundMark = nil
+        backgroundMarkedAt = nil
+
+        let current = Self.fetchDetailedInterfaceMap()
+        let elapsed = max(Date().timeIntervalSince(markedAt), 1.0)
+        let plausible = UInt64(min(elapsed * 200_000_000.0, 4_000_000_000.0))
+
+        var physicalIn: UInt64 = 0
+        var physicalOut: UInt64 = 0
+        var vpnIn: UInt64 = 0
+        var vpnOut: UInt64 = 0
+        for (name, now) in current {
+            guard let before = mark[name] else { continue }
+            let inDelta = Self.computeSingleInterfaceDelta(prev: before.inBytes, current: now.inBytes, maxPlausibleDelta: plausible)
+            let outDelta = Self.computeSingleInterfaceDelta(prev: before.outBytes, current: now.outBytes, maxPlausibleDelta: plausible)
+            switch Self.interfaceKind(for: name) {
+            case .wifi, .cellular:
+                physicalIn += inDelta
+                physicalOut += outDelta
+            case .vpn:
+                vpnIn += inDelta
+                vpnOut += outDelta
+            case .ignored:
+                break
+            }
+        }
+        // Как и в живом цикле: туннель дублирует физический трафик, поэтому берётся большее из двух
+        return SleepTrafficSummary(downloadBytes: max(physicalIn, vpnIn), uploadBytes: max(physicalOut, vpnOut))
+    }
+
     /// Принудительная синхронизация базовой точки отсчета
     public func resetBaseline(to counters: InterfaceByteCounters? = nil) {
         lock.lock()

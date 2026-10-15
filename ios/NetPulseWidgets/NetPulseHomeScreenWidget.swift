@@ -147,7 +147,7 @@ private struct SmallWidgetView: View {
 
             // Центр: Крупная задержка RTT
             VStack(alignment: .leading, spacing: 0) {
-                Text("RTT ПИНГ")
+                Text("ПИНГ")
                     .font(.system(size: 8, weight: .heavy))
                     .foregroundStyle(.white.opacity(0.5))
                     .tracking(0.5)
@@ -497,7 +497,7 @@ private struct AccessoryRectangularView: View {
                     .font(.system(size: 11, weight: .bold))
             }
 
-            Text("RTT: \(data.formattedPing) (Jitter: \(data.formattedJitter))")
+            Text("Пинг: \(data.formattedPing) (джиттер: \(data.formattedJitter))")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .monospacedDigit()
 

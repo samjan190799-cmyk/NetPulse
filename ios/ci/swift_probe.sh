@@ -55,9 +55,15 @@ for rel in ${PROBE_WITH:-}; do
   extra+=("$ios_dir/$rel")
 done
 
-# Целые цели проверяются без предупреждений: в них их много, а нужны только ошибки
+# Целые цели проверяются без предупреждений: в них их много, а нужны только ошибки. Одной проверки типов для них мало:
+# ошибки изоляции потоков («sending ... risks causing data races») находятся уже при разборе SIL, поэтому цели
+# проходят через `-emit-sil` (без генерации кода и линковки).
+mode=(-typecheck)
 case "${PROBE_WITH:-}" in
-  *@*) flags+=(-suppress-warnings) ;;
+  *@*)
+    flags+=(-suppress-warnings)
+    mode=(-emit-sil -wmo -Onone -o /dev/null)
+    ;;
 esac
 
 dir="$(cd "$(dirname "$0")" && pwd)/probes"
@@ -95,7 +101,7 @@ for file in "${files[@]}"; do
     failed=$((failed + 1))
     continue
   fi
-  output="$(xcrun swiftc -typecheck -sdk "$sdk" -target arm64-apple-ios17.0-simulator -swift-version 6 "${flags[@]}" "$file" "${extra[@]}" 2>&1)"
+  output="$(xcrun swiftc "${mode[@]}" -sdk "$sdk" -target arm64-apple-ios17.0-simulator -swift-version 6 "${flags[@]}" "$file" "${extra[@]}" 2>&1)"
   code=$?
   printf '%s\n' "$output" | head -n 90
   if [ "$code" -eq 0 ]; then

@@ -235,6 +235,35 @@ public final class ActivityManager {
         #endif
     }
 
+    /// Есть ли сейчас живая активность (нужно кнопке «Обновить»: без острова обновлять нечего)
+    public var hasLiveActivity: Bool {
+        #if canImport(ActivityKit)
+        return liveActivity() != nil
+        #else
+        return false
+        #endif
+    }
+
+    /// Свежий кадр по кнопке «Обновить» на острове: берёт показанное сейчас и подставляет только что измеренное.
+    /// Кадр уходит в обход очереди и ограничений режима экономии: пользователь попросил сам. Срок свежести у него
+    /// дольше обычного (см. `IslandSnapshot.staleAfter`).
+    public func applyOnDemandMeasurement(_ result: ProbeResult) async {
+        #if canImport(ActivityKit)
+        guard let activity = liveActivity() else { return }
+        let state = IslandSnapshot.state(from: result, previous: activity.content.state, now: Date())
+        let content = ActivityContent(
+            state: state,
+            staleDate: Date().addingTimeInterval(IslandSnapshot.staleAfter),
+            relevanceScore: Self.relevance(for: state)
+        )
+        await activity.update(content)
+        lastRenderedState = state
+        lastRenderedAt = Date()
+        let pingText = state.pingMs.map { "\(Int($0)) мс" } ?? "нет ответа"
+        IslandDiagnostics.shared.log("Остров обновлён по кнопке: пинг \(pingText), \(state.downloadSpeedText)", .island)
+        #endif
+    }
+
     /// Остановка Live Activity
     public func stopActivity() {
         #if canImport(ActivityKit)

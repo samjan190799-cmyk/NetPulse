@@ -36,6 +36,8 @@ struct NetPulseApp: App {
         // «Карта скорости»: автоматические замеры на маршруте входят в подписку PRO
         RouteRecorder.shared.speedSamplingAllowed = { ProStore.shared.isPro }
         AlertNotifier.shared.clearStaleReminder()
+        // Кнопка «Обновить» на острове: система выполняет её в приложении, в том числе при запуске в фоне
+        IslandRefresh.install()
         // Системные отчёты о сбоях и зависаниях пишутся в журнал «Диагностика острова» (остаются на устройстве)
         MetricsReporter.shared.start()
     }

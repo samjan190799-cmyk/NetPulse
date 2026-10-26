@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppIntents
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -86,12 +87,14 @@ public struct NetPulseLiveActivityWidget: Widget {
                                     .foregroundStyle(Color.orange)
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
-                                Text("Откройте NetPulse и запишите маршрут — остров будет жить в фоне")
+                                Text("Нажмите «Обновить» или запишите маршрут — тогда остров живёт в фоне")
                                     .font(.system(size: 10))
                                     .foregroundStyle(.white.opacity(0.6))
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.7)
                             }
+                            Spacer(minLength: 4)
+                            IslandRefreshButton(style: .labeled)
                         }
                         .padding(.horizontal, 8)
                         .padding(.top, 4)
@@ -152,6 +155,8 @@ public struct NetPulseLiveActivityWidget: Widget {
                                         .lineLimit(1)
                                 }
                             }
+
+                            IslandRefreshButton(style: .compact)
                         }
                         .padding(.horizontal, 8)
                         .padding(.top, 4)
@@ -267,6 +272,41 @@ public struct NetPulseLiveActivityWidget: Widget {
     }
 }
 
+/// Кнопка «Обновить»: система выполняет её в приложении (LiveActivityIntent), приложение делает свежий замер
+/// и отправляет в остров новый кадр. Нужна, когда iOS усыпила свёрнутое приложение и остров показывает старые цифры.
+private struct IslandRefreshButton: View {
+    enum Style {
+        case labeled
+        case compact
+    }
+
+    let style: Style
+
+    var body: some View {
+        Button(intent: RefreshIslandIntent()) {
+            switch style {
+            case .labeled:
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Обновить")
+                }
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(Color.cyan.opacity(0.35)))
+            case .compact:
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(Color.white.opacity(0.12)))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Баннер на экране блокировки с реальной скоростью и пингом
 private struct LockScreenLiveActivityView: View {
     let state: NetPulseAttributes.ContentState
@@ -369,6 +409,8 @@ private struct LockScreenLiveActivityView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
+                IslandRefreshButton(style: isStale ? .labeled : .compact)
+                    .padding(.top, 2)
             }
         }
         .padding(14)

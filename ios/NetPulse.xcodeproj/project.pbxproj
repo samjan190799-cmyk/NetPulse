@@ -122,6 +122,10 @@
 		A300000B2C1234560000000B /* ZoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000B2C1234560000000B /* ZoneTests.swift */; };
 		A10000EC2C123456000000EC /* PowerSaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000EC2C123456000000EC /* PowerSaver.swift */; };
 		A300000C2C1234560000000C /* PowerSaverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000C2C1234560000000C /* PowerSaverTests.swift */; };
+		A10001012C12345600000101 /* IslandRefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001012C12345600000101 /* IslandRefreshIntent.swift */; };
+		A20001012C12345600000101 /* IslandRefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001012C12345600000101 /* IslandRefreshIntent.swift */; };
+		A10001022C12345600000102 /* IslandSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001022C12345600000102 /* IslandSnapshot.swift */; };
+		A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001012C12345600000103 /* IslandRefreshTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -284,6 +288,9 @@
 		B300000B2C1234560000000B /* ZoneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ZoneTests.swift; sourceTree = "<group>"; };
 		B10000EC2C123456000000EC /* PowerSaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/PowerSaver.swift; sourceTree = "<group>"; };
 		B300000C2C1234560000000C /* PowerSaverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/PowerSaverTests.swift; sourceTree = "<group>"; };
+		B10001012C12345600000101 /* IslandRefreshIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandRefreshIntent.swift; sourceTree = "<group>"; };
+		B10001022C12345600000102 /* IslandSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandSnapshot.swift; sourceTree = "<group>"; };
+		B30001012C12345600000103 /* IslandRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandRefreshTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -481,6 +488,8 @@
 				B54700002C12345600000047 /* SpeedTestIntent.swift */,
 				B54800002C12345600000048 /* PerformanceMonitor.swift */,
 				B54900002C12345600000049 /* MetricsReporter.swift */,
+				B10001012C12345600000101 /* IslandRefreshIntent.swift */,
+				B10001022C12345600000102 /* IslandSnapshot.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -510,6 +519,7 @@
 				B300000A2C1234560000000A /* AlertSoundTests.swift */,
 				B300000B2C1234560000000B /* ZoneTests.swift */,
 				B300000C2C1234560000000C /* PowerSaverTests.swift */,
+				B30001012C12345600000103 /* IslandRefreshTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -776,6 +786,8 @@
 				A10000EA2C123456000000EA /* ZoneModels.swift in Sources */,
 				A10000EB2C123456000000EB /* CoverageZoneLayer.swift in Sources */,
 				A10000EC2C123456000000EC /* PowerSaver.swift in Sources */,
+				A10001012C12345600000101 /* IslandRefreshIntent.swift in Sources */,
+				A10001022C12345600000102 /* IslandSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -788,6 +800,7 @@
 				A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */,
 				A20000702C12345600000070 /* WidgetDataManager.swift in Sources */,
 				A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */,
+				A20001012C12345600000101 /* IslandRefreshIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -806,6 +819,7 @@
 				A300000A2C1234560000000A /* AlertSoundTests.swift in Sources */,
 				A300000B2C1234560000000B /* ZoneTests.swift in Sources */,
 				A300000C2C1234560000000C /* PowerSaverTests.swift in Sources */,
+				A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

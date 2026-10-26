@@ -9,12 +9,27 @@
 #
 # Переменная PROBE_WITH: файлы приложения (пути от каталога ios, через пробел), которые проверяются вместе с
 # фрагментом. Так новые экраны и модификаторы проверяются вместе с темой оформления, не собирая всё приложение.
+# Метки вместо путей: @app — все файлы фазы Sources цели NetPulse, @widgets — цели NetPulseWidgets (список берётся
+# из project.pbxproj, см. target_sources.py). Так вся цель проверяется на типы за пару минут, без сборки и симулятора.
 set -o pipefail
 set -f
 
 ios_dir="$(cd "$(dirname "$0")/.." && pwd)"
 extra=()
 for rel in ${PROBE_WITH:-}; do
+  case "$rel" in
+    @app|@widgets)
+      case "$rel" in
+        @app) target_name="NetPulse" ;;
+        @widgets) target_name="NetPulseWidgets" ;;
+      esac
+      listed="$(python3 "$ios_dir/ci/target_sources.py" "$target_name")" || { echo "$listed"; exit 2; }
+      while IFS= read -r path; do
+        extra+=("$path")
+      done <<< "$listed"
+      continue
+      ;;
+  esac
   if ! printf '%s' "$rel" | grep -Eq '^[A-Za-z0-9_./-]+\.swift$' || printf '%s' "$rel" | grep -q '\.\.'; then
     echo "Недопустимый путь в PROBE_WITH: $rel"
     exit 2

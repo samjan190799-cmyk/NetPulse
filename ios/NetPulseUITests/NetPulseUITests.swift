@@ -19,23 +19,26 @@ final class NetPulseUITests: XCTestCase {
 
     // MARK: - Запуск и общие помощники
 
-    /// `ads: false` выключает рекламу Яндекса: она ходит во внешнюю сеть, показывает окно разрешения на отслеживание
-    /// и меняет раскладку экранов, поэтому во всех проверках, кроме рекламной, её нет (аргумент действует только
-    /// в отладочной сборке).
-    @MainActor private func launchApp(ads: Bool = false) -> XCUIApplication {
+    /// `motion: false` выключает все анимации (заставка, «рисование» маршрута, бесконечное движение): снимки
+    /// экрана должны быть одинаковыми, а бесконечные анимации не дают дождаться покоя приложения. `motion: true`
+    /// оставляет разовые анимации (заставку, появление экранов), бесконечные по-прежнему выключены.
+    /// `pro: true` (по умолчанию) запускает отладочную сборку с подпиской: остров, HUD и AI-аудит открыты. Тесты платного
+    /// доступа запускают приложение с `pro: false`.
+    @MainActor private func launchApp(motion: Bool = false, pro: Bool = true) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
+        if pro {
+            app.launchArguments += ["-netpulse_pro", "YES"]
+        }
         // Подсказка «остров замирал» может быть скрыта предыдущим запуском: сбрасываем её
         app.launchArguments += ["-netpulse_recording_hint_dismissed", "NO"]
-        if !ads {
-            app.launchArguments += ["-netpulse_ads_disabled", "YES"]
-        }
+        app.launchArguments += motion ? ["-netpulse_continuous_off", "YES"] : ["-netpulse_motion_off", "YES"]
         app.launch()
         dismissSystemAlerts()
         return app
     }
 
-    /// Закрывает системные окна SpringBoard (ATT, геолокация, уведомления, Live Activities), предпочитая «Разрешить».
+    /// Закрывает системные окна SpringBoard (геолокация, уведомления, Live Activities), предпочитая «Разрешить».
     @MainActor private func dismissSystemAlerts(timeout: TimeInterval = 6) {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let preferred = [
@@ -107,17 +110,13 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(start.exists, "На главном экране нет кнопки «Записать маршрут»")
     }
 
-    /// Открывает настройки кнопкой с ползунками на главном экране
+    /// Открывает настройки: это четвёртая вкладка нижней панели
     @MainActor private func openSettings(_ app: XCUIApplication) {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 30), "Панель вкладок не появилась: приложение не запустилось или упало")
-        let button = app.buttons["homeSettingsButton"]
-        if !button.waitForExistence(timeout: 20) {
-            attachScreenshot("settings-button-not-found")
-            attachHierarchy(app, name: "settings-button-not-found-hierarchy")
-        }
-        XCTAssertTrue(button.exists, "На главном экране нет кнопки «Настройки»")
-        button.tap()
+        let tab = app.tabBars.buttons["Настройки"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 20), "В нижней панели нет вкладки «Настройки»")
+        tab.tap()
         let opened = app.navigationBars["Настройки"].waitForExistence(timeout: 10)
         if !opened {
             attachScreenshot("settings-not-opened")
@@ -126,16 +125,17 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(opened, "Экран «Настройки» не открылся")
     }
 
-    /// Закрывает настройки кнопкой «Готово» и ждёт возвращения на главный экран
+    /// Возвращается на вкладку «Сеть» и ждёт главный экран: обычную панель с кнопкой замера или, если идёт запись
+    /// маршрута, панель записи с кнопкой «Остановить и сохранить»
     @MainActor private func closeSettings(_ app: XCUIApplication) {
-        let close = app.buttons["settingsCloseButton"]
-        guard close.waitForExistence(timeout: 5) else {
-            attachScreenshot("settings-close-not-found")
-            XCTFail("В настройках нет кнопки «Готово»")
-            return
+        app.tabBars.buttons["Сеть"].tap()
+        let speed = app.buttons["homeSpeedButton"]
+        let stop = app.buttons["networkMapStopButton"]
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, !speed.exists, !stop.exists {
+            Thread.sleep(forTimeInterval: 0.25)
         }
-        close.tap()
-        XCTAssertTrue(app.buttons["homeSettingsButton"].waitForExistence(timeout: 10), "После закрытия настроек главный экран не появился")
+        XCTAssertTrue(speed.exists || stop.exists, "После настроек главный экран не появился")
     }
 
     /// Прокручивает экран, пока элемент не станет видимым (строки SwiftUI-списка создаются лениво).
@@ -231,7 +231,7 @@ final class NetPulseUITests: XCTestCase {
 
     /// Заголовок подсказки «остров замирал» над нижней панелью главного экрана
     @MainActor private func recordingHintTitle(_ app: XCUIApplication) -> XCUIElement {
-        app.staticTexts["Остров замирал, пока приложение было свёрнуто"]
+        app.staticTexts["iOS усыпила приложение, пока оно было свёрнуто"]
     }
 
     /// Разворачивает нижнюю панель главного экрана: нажатие на ряд «Мои маршруты»
@@ -296,6 +296,16 @@ final class NetPulseUITests: XCTestCase {
         return true
     }
 
+    /// Ждёт, пока у элемента (кнопки-переключателя) появится нужное значение для VoiceOver
+    @MainActor private func waitForValue(_ expected: String, of element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.value as? String == expected { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return element.value as? String == expected
+    }
+
     /// Ждёт, пока элемент исчезнет с экрана
     @MainActor private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
@@ -337,19 +347,16 @@ final class NetPulseUITests: XCTestCase {
         attachScreenshot("launch-home")
 
         // Главный экран: карта, плашка связи, кнопки справа и две главные кнопки в нижней панели
-        for identifier in ["homeSettingsButton", "networkMapStyleButton", "homeCoverageButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
+        for identifier in ["networkMapStyleButton", "homeCoverageButton", "networkMapRecenterButton", "homeSpeedButton", "homeRoutesRow"] {
             XCTAssertTrue(app.buttons[identifier].exists, "На главном экране нет элемента «\(identifier)»")
         }
 
         let tabs: [(title: String, slug: String)] = [
-            ("Сеть", "map"), ("Узлы", "hosts"), ("Трафик", "traffic"), ("AI Диагност", "ai")
+            ("Сеть", "map"), ("Инструменты", "hosts"), ("Трафик", "traffic"), ("Настройки", "settings")
         ]
         for tab in tabs {
             XCTAssertTrue(app.tabBars.buttons[tab.title].exists, "Нет вкладки «\(tab.title)»")
         }
-        // Настройки больше не вкладка: они открываются кнопкой на главном экране
-        XCTAssertFalse(app.tabBars.buttons["Настройки"].exists, "Вкладки «Настройки» быть не должно")
-
         for tab in tabs {
             app.tabBars.buttons[tab.title].tap()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(tab.title)»")
@@ -561,6 +568,16 @@ final class NetPulseUITests: XCTestCase {
 
         XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
         XCTAssertTrue(app.descendants(matching: .any)["recordingBanner"].waitForExistence(timeout: 10), "Нет плашки «Запись» над картой")
+
+        // Карта едет за вами и поворачивается по ходу движения: переключатель есть, включён и выключается
+        let heading = app.buttons["networkMapHeadingButton"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 5), "Во время записи нет кнопки поворота карты по движению")
+        XCTAssertEqual(heading.value as? String, "Включена", "Поворот карты по движению должен быть включён по умолчанию")
+        heading.tap()
+        XCTAssertTrue(waitForValue("Выключена", of: heading), "Кнопка поворота карты не выключилась")
+        heading.tap()
+        XCTAssertTrue(waitForValue("Включена", of: heading), "Кнопка поворота карты не включилась обратно")
+
         let points = waitForPoints(app, atLeast: 3, timeout: 75)
         print("NETPULSE-CI: запись маршрута: набрано точек \(points)")
         attachScreenshot("route-recording")
@@ -719,48 +736,152 @@ final class NetPulseUITests: XCTestCase {
         stopRecording(app)
     }
 
-    /// Реклама Яндекса: SDK запускается, баннер запрашивается и (если рекламная сеть ответила) показывается внизу
-    /// главного экрана и над таб-баром других вкладок. Ответ рекламной сети от приложения не зависит (нет сети,
-    /// нет подходящего объявления), поэтому загрузка объявления только записывается в журнал, а проверяется то,
-    /// что зависит от приложения: SDK поднялся, баннер запрошен, экран остался рабочим.
-    @MainActor func testYandexAdsStartAndShowBanner() throws {
-        let app = launchApp(ads: true)
+    /// Анимации включены (заставка, появление экранов, «рисование» маршрута): приложение запускается, главный
+    /// экран доступен, вкладки переключаются и главный экран остаётся рабочим
+    @MainActor func testMotionDoesNotBreakNavigation() throws {
+        let app = launchApp(motion: true)
+        waitForHome(app)
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 20), "Нет кнопки замера скорости")
+
+        for title in ["Инструменты", "Трафик", "Настройки", "Сеть"] {
+            app.tabBars.buttons[title].tap()
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «\(title)»")
+        }
+
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После вкладок нет кнопки замера")
+        XCTAssertTrue(app.buttons["homeSpeedButton"].isHittable, "Из-за анимаций кнопка замера скорости недоступна")
+        XCTAssertTrue(app.buttons["networkMapStartButton"].isHittable, "Из-за анимаций кнопка записи недоступна")
+        attachScreenshot("motion-home")
+    }
+
+    // MARK: - Подписка PRO
+
+    /// Без подписки остров закрыт: кнопка острова на главном экране открывает окно подписки с ценой, условиями и кнопкой
+    /// «Восстановить покупки» (правило App Store 3.1.2)
+    @MainActor func testFreeUserSeesPaywallInsteadOfIsland() throws {
+        let app = launchApp(pro: false)
         waitForHome(app)
 
-        let requested = app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier == 'yandexBanner.requested' OR identifier == 'yandexBanner.loaded'")
-        ).firstMatch
-        let loaded = app.descendants(matching: .any)["yandexBanner.loaded"]
+        let island = app.buttons["homeIslandButton"]
+        XCTAssertTrue(island.waitForExistence(timeout: 15), "На главном экране нет кнопки острова")
+        island.tap()
 
-        // 1. SDK запущен, баннер запрошен (до этого пользователь отвечает на окно «Разрешить отслеживание?»)
-        dismissSystemAlerts(timeout: 4)
-        let requestedAfter = secondsUntilExists(requested, timeout: 60)
-        print("NETPULSE-CI: реклама Яндекса: баннер запрошен через \(requestedAfter.map { String(format: "%.0f", $0) } ?? "—") с")
-        if requestedAfter == nil {
-            attachScreenshot("ads-not-requested")
-            attachHierarchy(app, name: "ads-not-requested-hierarchy")
+        let paywall = app.descendants(matching: .any)["paywallView"]
+        XCTAssertTrue(paywall.waitForExistence(timeout: 10), "Окно подписки не открылось")
+        XCTAssertTrue(app.buttons["paywallSubscribeButton"].exists, "В окне подписки нет кнопки «Подписаться»")
+        XCTAssertTrue(app.buttons["paywallRestoreButton"].exists, "В окне подписки нет «Восстановить покупки»")
+        XCTAssertTrue(app.descendants(matching: .any)["paywallLegal"].exists, "В окне подписки нет условий автопродления")
+        attachScreenshot("paywall")
+
+        app.buttons["paywallCloseButton"].tap()
+        XCTAssertTrue(app.buttons["homeSpeedButton"].waitForExistence(timeout: 10), "После закрытия окна нет главного экрана")
+    }
+
+    /// Без подписки AI-аудит в «Инструментах» закрыт: плитка открывает окно подписки
+    @MainActor func testFreeUserSeesPaywallFromAIAudit() throws {
+        let app = launchApp(pro: false)
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsAIAuditButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки AI-аудита")
+        tile.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["paywallView"].waitForExistence(timeout: 10), "Плитка не открыла окно подписки")
+        attachScreenshot("ai-paywall")
+    }
+
+    /// С подпиской плитка открывает сам AI-аудит
+    @MainActor func testSubscriberOpensAIAudit() throws {
+        let app = launchApp()
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsAIAuditButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки AI-аудита")
+        tile.tap()
+        XCTAssertTrue(app.navigationBars["AI-аудит"].waitForExistence(timeout: 10), "AI-аудит не открылся")
+        XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "У подписчика открылось окно подписки")
+        app.buttons["aiAuditCloseButton"].tap()
+    }
+
+    // MARK: - Новые возможности PRO
+
+    /// С подпиской плитка «Сервисы» открывает экран проверки доступности
+    @MainActor func testSubscriberOpensServiceCheck() throws {
+        let app = launchApp()
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsServicesButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки «Сервисы»")
+        tile.tap()
+        XCTAssertTrue(app.buttons["serviceCheckButton"].waitForExistence(timeout: 15), "Экран проверки сервисов не открылся")
+        XCTAssertTrue(app.descendants(matching: .any)["serviceVerdict"].waitForExistence(timeout: 5), "Нет вывода по сервисам")
+        XCTAssertTrue(app.descendants(matching: .any)["serviceRow-telegram"].exists, "Нет строки Telegram")
+        XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "У подписчика открылось окно подписки")
+        attachScreenshot("services")
+    }
+
+    /// Без подписки плитки PRO открывают окно подписки
+    @MainActor func testFreeUserSeesPaywallFromProTiles() throws {
+        let app = launchApp(pro: false)
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        for identifier in ["toolsServicesButton", "toolsHistoryButton", "toolsReportButton"] {
+            let tile = app.buttons[identifier]
+            XCTAssertTrue(tile.waitForExistence(timeout: 15), "Нет плитки \(identifier)")
+            tile.tap()
+            XCTAssertTrue(
+                app.descendants(matching: .any)["paywallView"].waitForExistence(timeout: 10),
+                "Плитка \(identifier) не открыла окно подписки"
+            )
+            app.buttons["paywallCloseButton"].tap()
+            XCTAssertTrue(waitUntilGone(app.descendants(matching: .any)["paywallView"], timeout: 10), "Окно подписки не закрылось")
         }
-        XCTAssertNotNil(requestedAfter, "Реклама Яндекса не запустилась: баннер не запрошен за 60 секунд")
+    }
 
-        // 2. Объявление пришло (мягкая проверка: зависит от внешней рекламной сети)
-        let loadedAfter = secondsUntilExists(loaded, timeout: 60)
-        if let loadedAfter {
-            print("NETPULSE-CI: реклама Яндекса: баннер на главном экране загружен через \(String(format: "%.0f", loadedAfter)) с")
-        } else {
-            print("NETPULSE-CI: реклама Яндекса: баннер на главном экране НЕ загрузился за 60 с (зависит от внешней рекламной сети)")
+    /// С подпиской открывается история замеров (пока пустая) с фильтром по подключению
+    @MainActor func testSubscriberOpensSpeedHistory() throws {
+        let app = launchApp()
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsHistoryButton"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 15), "В «Инструментах» нет плитки «История замеров»")
+        tile.tap()
+        XCTAssertTrue(app.segmentedControls["speedHistoryFilter"].waitForExistence(timeout: 10), "Нет фильтра по подключению")
+        let hasContent = app.descendants(matching: .any)["speedHistoryEmpty"].exists
+            || app.descendants(matching: .any)["speedHistorySummary"].exists
+        XCTAssertTrue(hasContent, "История не показала ни замеров, ни пустого состояния")
+        attachScreenshot("speed-history")
+    }
+
+    /// Тестовый режим: выключатель PRO прячет и возвращает платные возможности
+    @MainActor func testTestModeSwitchesProOffAndOn() throws {
+        let app = launchApp()
+        waitForHome(app)
+        openSettings(app)
+
+        let picker = app.segmentedControls["settingsTestProPicker"]
+        XCTAssertTrue(reveal(picker, in: app), "В настройках нет тестового выключателя PRO")
+        let state = app.descendants(matching: .any)["settingsTestProState"]
+        XCTAssertTrue(state.waitForExistence(timeout: 5))
+
+        picker.buttons["PRO выключен"].tap()
+        XCTAssertTrue(waitForLabel(containing: "Без подписки", of: state), "После «PRO выключен» подписка не пропала")
+        picker.buttons["PRO включён"].tap()
+        XCTAssertTrue(waitForLabel(containing: "PRO активен", of: state), "После «PRO включён» подписка не появилась")
+        attachScreenshot("test-mode")
+    }
+
+    /// Ждёт, пока подпись элемента будет содержать текст
+    @MainActor private func waitForLabel(containing text: String, of element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.label.contains(text) { return true }
+            Thread.sleep(forTimeInterval: 0.2)
         }
-        attachScreenshot("ads-home")
-
-        // Баннер не должен ломать главный экран: главные кнопки по-прежнему доступны
-        XCTAssertTrue(app.buttons["homeSpeedButton"].isHittable, "Из-за рекламы кнопка замера скорости недоступна")
-        XCTAssertTrue(app.buttons["networkMapStartButton"].isHittable, "Из-за рекламы кнопка записи маршрута недоступна")
-
-        // 3. Другая вкладка: над таб-баром закреплённый баннер, в содержимом рекламная карточка (или предложение PRO)
-        app.tabBars.buttons["Узлы"].tap()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «Узлы»")
-        let tabLoadedAfter = secondsUntilExists(app.descendants(matching: .any)["yandexBanner.loaded"], timeout: 45)
-        print("NETPULSE-CI: реклама Яндекса: баннеры на вкладке «Узлы» загружены через \(tabLoadedAfter.map { String(format: "%.0f", $0) } ?? "— (не загрузились)") с")
-        attachScreenshot("ads-tab-hosts")
-        XCTAssertTrue(app.tabBars.firstMatch.exists, "Панель вкладок пропала из-за рекламы")
+        return element.label.contains(text)
     }
 }

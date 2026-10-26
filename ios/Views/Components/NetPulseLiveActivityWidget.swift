@@ -40,6 +40,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                         Text(context.state.downloadSpeedText)
                             .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
@@ -63,6 +64,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                         Text(context.state.uploadSpeedText)
                             .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
@@ -74,15 +76,22 @@ public struct NetPulseLiveActivityWidget: Widget {
                 // Нижний регион (по зажатию): Панель задержки (Ping RTT), джиттера, потерь и сети
                 DynamicIslandExpandedRegion(.bottom) {
                     if context.isStale {
-                        // Обновления не приходят: приложение приостановлено системой
+                        // Обновления не приходят: iOS усыпила свёрнутое приложение. Возраст данных считает сама система
                         HStack(spacing: 6) {
-                            Image(systemName: "pause.circle.fill")
+                            Image(systemName: "moon.zzz.fill")
                                 .foregroundStyle(Color.orange)
-                            Text("Нет обновлений — приложение приостановлено")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Color.orange)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                            VStack(alignment: .leading, spacing: 1) {
+                                staleAgeText(context.state.updatedAt, prefix: "iOS усыпила приложение")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.orange)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                                Text("Откройте NetPulse и запишите маршрут — остров будет жить в фоне")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
+                            }
                         }
                         .padding(.horizontal, 8)
                         .padding(.top, 4)
@@ -96,6 +105,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                                 Text(formatPingText(context.state.pingMs))
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .monospacedDigit()
+                                    .contentTransition(.numericText())
                                     .foregroundStyle(.white)
                                 Text("•")
                                     .font(.system(size: 9))
@@ -122,6 +132,7 @@ public struct NetPulseLiveActivityWidget: Widget {
                                         Text("±\(String(format: "%.1f", jitter))мс")
                                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
                                             .monospacedDigit()
+                                            .contentTransition(.numericText())
                                             .foregroundStyle(.white.opacity(0.6))
                                     }
 
@@ -149,12 +160,13 @@ public struct NetPulseLiveActivityWidget: Widget {
             } compactLeading: {
                 // MARK: - Компактный вид слева: Скачивание (Download)
                 HStack(spacing: 2) {
-                    Image(systemName: context.isStale ? "pause.fill" : "arrow.down")
+                    Image(systemName: context.isStale ? "moon.zzz.fill" : "arrow.down")
                         .font(.system(size: 9, weight: .heavy))
                         .foregroundStyle(context.isStale ? Color.orange : Color.cyan)
                     Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -166,23 +178,25 @@ public struct NetPulseLiveActivityWidget: Widget {
                     Text(cleanUpload(context.state.compactUploadText))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .opacity(context.isStale ? 0.4 : 1)
-                    Image(systemName: context.isStale ? "pause.fill" : "arrow.up")
+                    Image(systemName: context.isStale ? "moon.zzz.fill" : "arrow.up")
                         .font(.system(size: 9, weight: .heavy))
                         .foregroundStyle(context.isStale ? Color.orange : Color.mint)
                 }
             } minimal: {
                 // MARK: - Минимальный вид (Apple HIG: скорость загрузки с направляющей стрелкой)
                 HStack(spacing: 1) {
-                    Image(systemName: context.isStale ? "pause.fill" : "arrow.down")
+                    Image(systemName: context.isStale ? "moon.zzz.fill" : "arrow.down")
                         .font(.system(size: 7, weight: .heavy))
                         .foregroundStyle(context.isStale ? Color.orange : Color.cyan)
                     Text(cleanDownload(context.state.compactDownloadText))
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
@@ -191,6 +205,12 @@ public struct NetPulseLiveActivityWidget: Widget {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+
+    /// «iOS усыпила приложение · данные 3 мин назад»: подпись обновляет сама система, пока приложение спит
+    private func staleAgeText(_ updatedAt: Date?, prefix: String) -> Text {
+        guard let updatedAt else { return Text("\(prefix) · данные устарели") }
+        return Text("\(prefix) · данные \(updatedAt, style: .relative) назад")
     }
 
     private func cleanDownload(_ text: String) -> String {
@@ -250,7 +270,7 @@ public struct NetPulseLiveActivityWidget: Widget {
 /// Баннер на экране блокировки с реальной скоростью и пингом
 private struct LockScreenLiveActivityView: View {
     let state: NetPulseAttributes.ContentState
-    /// Обновления перестали приходить (приложение приостановлено): цифры тускнеют, вместо пинга — «пауза»
+    /// Обновления перестали приходить (iOS усыпила приложение): цифры тускнеют, вместо пинга — «спит» и возраст данных
     let isStale: Bool
 
     private var statusColor: Color {
@@ -292,6 +312,7 @@ private struct LockScreenLiveActivityView: View {
                         Text(state.downloadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .foregroundStyle(.white)
                             .opacity(isStale ? 0.4 : 1)
                     }
@@ -303,6 +324,7 @@ private struct LockScreenLiveActivityView: View {
                         Text(state.uploadSpeedText)
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .foregroundStyle(.white)
                             .opacity(isStale ? 0.4 : 1)
                     }
@@ -317,7 +339,7 @@ private struct LockScreenLiveActivityView: View {
                         .fill(isStale ? Color.orange : statusColor)
                         .frame(width: 6, height: 6)
                     if isStale {
-                        Text("пауза")
+                        Text("спит")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color.orange)
                     } else if let p = state.pingMs, p > 0 {
@@ -330,10 +352,23 @@ private struct LockScreenLiveActivityView: View {
                             .foregroundStyle(statusColor)
                     }
                 }
-                Text(state.ispName)
+                if isStale {
+                    Group {
+                        if let updatedAt = state.updatedAt {
+                            Text("данные \(updatedAt, style: .relative) назад")
+                        } else {
+                            Text("данные устарели")
+                        }
+                    }
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.orange)
                     .lineLimit(1)
+                } else {
+                    Text(state.ispName)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(14)

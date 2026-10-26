@@ -29,7 +29,8 @@ struct HomeTopBar: View {
     @Binding var satellite: Bool
     /// Показывать ли покрытие сети (цветная зона вокруг вас и полосы прежних маршрутов) в обычном режиме
     @Binding var coverageOn: Bool
-    let onSettings: () -> Void
+    /// Во время записи карта поворачивается по направлению движения
+    @Binding var followsHeading: Bool
     let onRecenter: () -> Void
     let onBack: () -> Void
 
@@ -42,8 +43,9 @@ struct HomeTopBar: View {
             }
             if style == .recording {
                 HomeLiveQualityCard(recorder: recorder)
-                HStack {
+                HStack(spacing: 8) {
                     Spacer(minLength: 0)
+                    headingButton
                     recenterButton
                 }
             }
@@ -108,15 +110,9 @@ struct HomeTopBar: View {
     @ViewBuilder
     private var trailing: some View {
         if style == .recording {
-            HStack(spacing: 8) {
-                settingsButton
-                styleButton
-            }
+            styleButton
         } else {
             VStack(spacing: 8) {
-                if style == .idle {
-                    settingsButton
-                }
                 if !(style == .idle && compact) {
                     styleButton
                     if style == .idle {
@@ -126,15 +122,6 @@ struct HomeTopBar: View {
                 }
             }
         }
-    }
-
-    private var settingsButton: some View {
-        GlassCircleButton(
-            systemImage: "slider.horizontal.3",
-            label: "Настройки",
-            identifier: "homeSettingsButton",
-            action: onSettings
-        )
     }
 
     private var styleButton: some View {
@@ -157,6 +144,20 @@ struct HomeTopBar: View {
             identifier: "homeCoverageButton"
         ) {
             coverageOn.toggle()
+            HapticManager.shared.selectionChanged()
+        }
+    }
+
+    /// Включает и выключает поворот карты по ходу движения. Включено: карта едет за вами и «смотрит» вперёд.
+    /// Выключено: карта тоже едет за вами, но север остаётся вверху.
+    private var headingButton: some View {
+        GlassCircleButton(
+            systemImage: followsHeading ? "location.north.line.fill" : "location.north",
+            label: "Карта по направлению движения",
+            value: followsHeading ? "Включена" : "Выключена",
+            identifier: "networkMapHeadingButton"
+        ) {
+            followsHeading.toggle()
             HapticManager.shared.selectionChanged()
         }
     }
@@ -193,6 +194,7 @@ struct HomeLinkPill: View {
                 Image(systemName: quality.systemIcon)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(quality.displayColor)
+                    .npBounce(value: quality)
                 Text(quality.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(quality.displayColor)
@@ -214,6 +216,7 @@ struct HomeIslandPill: View {
 
     var body: some View {
         let active = ActivityManager.shared.isLiveActivityActive
+        let isPro = ProStore.shared.isPro
         Button {
             HapticManager.shared.impactMedium()
             if !ActivityManager.shared.isLiveActivityActive {
@@ -226,9 +229,12 @@ struct HomeIslandPill: View {
                 Circle()
                     .fill(active ? Color.green : Color.orange)
                     .frame(width: 8, height: 8)
-                Text(active ? "Островок" : "Старт островка")
+                Text(active ? "Островок" : (isPro ? "Старт островка" : "Островок"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(NPTheme.textPrimary)
+                if !isPro {
+                    ProBadge()
+                }
             }
             .padding(.horizontal, 12)
             .frame(height: 34)
@@ -248,10 +254,7 @@ struct HomeRecordingPill: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(NPTheme.semanticCritical)
-                .frame(width: 10, height: 10)
-                .shadow(color: NPTheme.semanticCritical.opacity(0.6), radius: 4)
+            NPRecordingDot(color: NPTheme.semanticCritical)
             Text("Запись")
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(NPTheme.textPrimary)
@@ -291,6 +294,7 @@ struct HomeLiveQualityCard: View {
                 Image(systemName: quality.systemIcon)
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(quality.displayColor)
+                    .npBounce(value: quality)
                     .frame(width: 48, height: 48)
                     .overlay(Circle().stroke(quality.displayColor, lineWidth: 3))
 

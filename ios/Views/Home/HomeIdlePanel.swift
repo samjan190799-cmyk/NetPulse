@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Нижняя панель главного экрана в обычном режиме: скорость сети, две главные кнопки и ряд «Мои маршруты».
 /// Её можно потянуть вверх (или нажать на ручку): под ней откроются маршруты, настройки записи, инструменты
-/// и оценка возможностей сети. Внизу панели закреплён рекламный баннер, если он загрузился.
+/// и оценка возможностей сети.
 @MainActor
 struct HomeIdlePanel: View {
     let viewModel: NetworkMonitorViewModel
@@ -37,7 +37,7 @@ struct HomeIdlePanel: View {
     // MARK: - Размеры и жест
 
     private var expandedScrollHeight: CGFloat {
-        // Над панелью остаётся место для плашек и кнопок на карте; запас снизу — под рекламный баннер
+        // Над панелью остаётся место для плашек и кнопок на карте
         max(Self.mediumScrollHeight + 120, containerHeight - 60 - Self.handleHeight - 56)
     }
 
@@ -96,11 +96,21 @@ struct HomeIdlePanel: View {
         return displayedDownload
     }
 
+    /// Есть ли что показывать в крупной цифре скорости
+    private var hasSpeed: Bool {
+        shownSpeed > 0
+    }
+
     private var phaseLabel: String {
         if viewModel.isSpeedtestRunning, viewModel.liveUploadSpeed > 0 {
             return "ОТДАЧА"
         }
         return "СКАЧИВАНИЕ"
+    }
+
+    /// Цвет «пульса сети»: оценка связи сейчас; пока её нет, основной цвет приложения
+    private var pulseColor: Color {
+        viewModel.homeLinkQuality?.displayColor ?? NPTheme.accentPrimary
     }
 
     private var capabilities: [CapabilityItem] {
@@ -143,8 +153,6 @@ struct HomeIdlePanel: View {
                     }
                 }
             }
-
-            YandexStickyBannerView()
         }
         .frame(maxWidth: .infinity)
         .background(HomePanelBackground())
@@ -181,17 +189,19 @@ struct HomeIdlePanel: View {
                     .frame(height: 16, alignment: .leading)
 
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text(shownSpeed > 0 ? String(format: "%.1f", shownSpeed) : "—")
-                        .font(.system(size: 60, weight: .heavy, design: .rounded))
+                    // Пока замера не было, вместо жирной белой полосы — приглушённый прочерк поменьше
+                    Text(hasSpeed ? String(format: "%.1f", shownSpeed) : "—")
+                        .font(.system(size: hasSpeed ? 60 : 44, weight: hasSpeed ? .heavy : .semibold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(NPTheme.textPrimary)
+                        .foregroundStyle(hasSpeed ? NPTheme.textPrimary : NPTheme.textTertiary)
                         .contentTransition(.numericText(value: shownSpeed))
-                        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: shownSpeed)
+                        .npAnimation(.spring(response: 0.35, dampingFraction: 0.8), value: shownSpeed)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                        .npBreathingGlow(color: NPTheme.accentPrimary, active: viewModel.isSpeedtestRunning)
                     Text("Мбит/с")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(NPTheme.textSecondary)
+                        .foregroundStyle(hasSpeed ? NPTheme.textSecondary : NPTheme.textTertiary)
                 }
                 .frame(height: 60)
             }
@@ -200,6 +210,18 @@ struct HomeIdlePanel: View {
             capabilityHint
         }
         .frame(height: 76)
+        .background(alignment: .bottom) {
+            // «Пульс сети»: бегущая линия за цифрами. Цвет — оценка связи, размах — скорость, без связи линия ровная
+            NetworkPulseLine(
+                color: pulseColor,
+                intensity: min(max(shownSpeed / 150.0, 0), 1),
+                isFlat: viewModel.homeLinkQuality == .dead,
+                isBusy: viewModel.isSpeedtestRunning
+            )
+            .frame(height: 44)
+            // Пока замера не было, линия едва заметна: она не должна перечёркивать подсказку «Нажмите «Замер скорости»»
+            .opacity(hasSpeed || viewModel.isSpeedtestRunning ? 0.55 : 0.22)
+        }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("homeSpeedValue")
     }
@@ -299,16 +321,18 @@ struct HomeIdlePanel: View {
                 HapticManager.shared.impactMedium()
                 recorder.start()
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Image(systemName: "record.circle")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(HomePalette.softRed)
                     Text("Записать маршрут")
                 }
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .foregroundStyle(NPTheme.textPrimary)
+                // Поля по бокам: текст не упирается в рамку кнопки на узких экранах
+                .padding(.horizontal, 10)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .background(
@@ -458,17 +482,26 @@ struct HomeIdlePanel: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Запись маршрута")
 
+            // «Карта скорости»: автоматические замеры на маршруте входят в подписку PRO
             Toggle(isOn: Binding(
-                get: { recorder.measuresSpeed },
-                set: { recorder.measuresSpeed = $0 }
+                get: { recorder.measuresSpeed && ProStore.shared.isPro },
+                set: { enabled in
+                    if enabled && !ProStore.shared.requirePro(.speedMap) { return }
+                    recorder.measuresSpeed = enabled
+                }
             )) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Замерять скорость на маршруте")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(NPTheme.textPrimary)
+                    HStack(spacing: 6) {
+                        Text("Замерять скорость на маршруте")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(NPTheme.textPrimary)
+                        if !ProStore.shared.isPro {
+                            ProBadge()
+                        }
+                    }
                     Text(powerSaver
                          ? "Сейчас включён режим экономии заряда: скорость на маршруте не замеряется."
-                         : "Раз в 30 секунд скачивается до 1,5 МБ. На мобильном интернете это расходует трафик, поэтому по умолчанию выключено.")
+                         : "Раз в 30 секунд скачивается до 1,5 МБ, и карта показывает, где интернет быстрый. На мобильном интернете это расходует трафик, поэтому по умолчанию выключено.")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)
                 }
@@ -533,13 +566,13 @@ struct HomeIdlePanel: View {
                 spacing: 10
             ) {
                 NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
-                    toolLabel("DNS Гонка", icon: "bolt.shield.fill")
+                    toolLabel("Гонка DNS", icon: "bolt.shield.fill")
                 }
                 .buttonStyle(NPPressableButtonStyle())
                 .accessibilityIdentifier("homeToolDNS")
 
                 NavigationLink(destination: GamingRadarView(viewModel: viewModel)) {
-                    toolLabel("Gaming Радар", icon: "gamecontroller.fill")
+                    toolLabel("Радар для игр", icon: "gamecontroller.fill")
                 }
                 .buttonStyle(NPPressableButtonStyle())
                 .accessibilityIdentifier("homeToolGaming")
@@ -551,7 +584,7 @@ struct HomeIdlePanel: View {
                 .accessibilityIdentifier("homeToolBufferbloat")
 
                 NavigationLink(destination: LANScannerView(viewModel: viewModel)) {
-                    toolLabel("LAN Сканер", icon: "wifi.router.fill")
+                    toolLabel("Сканер сети", icon: "wifi.router.fill")
                 }
                 .buttonStyle(NPPressableButtonStyle())
                 .accessibilityIdentifier("homeToolLAN")

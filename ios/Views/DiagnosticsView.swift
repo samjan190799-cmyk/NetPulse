@@ -15,6 +15,14 @@ public struct DiagnosticsView: View {
     @State private var isExporting = false
     @State private var quickHostInput: String = ""
     @State private var showGlossarySheet: Bool = false
+    /// AI-аудит открывается отсюда (входит в подписку PRO)
+    @State private var showAIAudit: Bool = false
+    /// Экраны подписки PRO: доступность сервисов и история замеров
+    @State private var showServices: Bool = false
+    @State private var showSpeedHistory: Bool = false
+    /// Отчёт для провайдера: собирается по нажатию и открывается в окне «Поделиться»
+    @State private var reportShare: SharePayload?
+    @State private var isBuildingReport: Bool = false
 
     public var body: some View {
         NavigationStack {
@@ -33,9 +41,6 @@ public struct DiagnosticsView: View {
                             }
                         )
 
-                        // 2. Рекламный баннер Яндекса на видном месте
-                        YandexBannerView(contextTag: "Диагностика сети")
-
                         // 3. Pro-инструменты сети (DNS, Gaming Radar, Bufferbloat, LAN Scanner)
                         proUtilitiesHub
 
@@ -51,19 +56,22 @@ public struct DiagnosticsView: View {
                     .padding(16)
                     .padding(.bottom, 110) // Безопасный отступ для закрепленного рекламного баннера и таб-бара
                 }
-
-                // Всплывающий баннер алертов
-                if let alert = viewModel.activeAlert {
-                    AlertsBannerView(alert: alert) {
-                        withAnimation {
-                            viewModel.activeAlert = nil
-                        }
-                    }
-                    .padding(.top, 8)
+                // Баннер лежит над содержимым, а не поверх него: карточка под ним не прячется
+                .safeAreaInset(edge: .top, spacing: 8) {
+                    alertBanner
                 }
             }
-            .navigationTitle("Диагностика")
+            .navigationTitle("Инструменты")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showServices) {
+                ServiceCheckView()
+            }
+            .navigationDestination(isPresented: $showSpeedHistory) {
+                SpeedHistoryView()
+            }
+            .sheet(item: $reportShare) { payload in
+                NPShareSheet(activityItems: payload.items)
+            }
             .toolbar {
                 // Кнопка паузы / запуска пинга
                 ToolbarItem(placement: .topBarLeading) {
@@ -146,6 +154,32 @@ public struct DiagnosticsView: View {
                     ShareSheet(activityItems: [url])
                 }
             }
+            .fullScreenCover(isPresented: $showAIAudit) {
+                AIDiagnosticsView(viewModel: viewModel)
+            }
+        }
+    }
+
+    // MARK: - Баннер оповещения
+
+    /// Баннер только для серьёзных проблем (узел не отвечает, потери, высокая задержка) и сам исчезает через несколько
+    /// секунд. Предупреждения вроде «задержка 118 мс» остаются цветом на карточках узлов и не отвлекают.
+    @ViewBuilder
+    private var alertBanner: some View {
+        if let alert = viewModel.activeAlert, alert.severity == .critical {
+            AlertsBannerView(alert: alert) {
+                withAnimation {
+                    viewModel.activeAlert = nil
+                }
+            }
+            .task(id: alert.id) {
+                try? await Task.sleep(for: .seconds(6))
+                if !Task.isCancelled, viewModel.activeAlert?.id == alert.id {
+                    withAnimation {
+                        viewModel.activeAlert = nil
+                    }
+                }
+            }
         }
     }
 
@@ -154,7 +188,7 @@ public struct DiagnosticsView: View {
     private var proUtilitiesHub: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("ПРОФЕССИОНАЛЬНЫЕ УТИЛИТЫ")
+                Text("ПРОВЕРКИ СЕТИ")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(NPTheme.textTertiary)
                     .tracking(0.5)
@@ -174,10 +208,69 @@ public struct DiagnosticsView: View {
                 }
             }
 
+            // AI-аудит: сводная оценка сети, причины проблем и обращение к провайдеру. Входит в подписку PRO.
+            Button {
+                HapticManager.shared.impactLight()
+                if ProStore.shared.requirePro(.aiAudit) {
+                    showAIAudit = true
+                }
+            } label: {
+                proUtilityTile(
+                    title: "AI-аудит сети",
+                    subtitle: "Оценка 0–100, причины, обращение провайдеру",
+                    icon: "sparkles",
+                    color: NPTheme.accentPrimary
+                )
+                .overlay(alignment: .topTrailing) {
+                    if !ProStore.shared.isPro {
+                        ProBadge()
+                            .padding(6)
+                    }
+                }
+            }
+            .buttonStyle(NPPressableButtonStyle())
+            .accessibilityIdentifier("toolsAIAuditButton")
+
+            // Возможности подписки PRO: отчёт провайдеру, доступность сервисов, история замеров
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                proToolButton(
+                    feature: .report,
+                    title: "Отчёт провайдеру",
+                    subtitle: isBuildingReport ? "Готовим PDF…" : "PDF для претензии",
+                    icon: "doc.text.fill",
+                    color: Color.orange,
+                    identifier: "toolsReportButton"
+                ) {
+                    buildReport()
+                }
+
+                proToolButton(
+                    feature: .services,
+                    title: "Сервисы",
+                    subtitle: "Telegram, YouTube, WhatsApp",
+                    icon: "antenna.radiowaves.left.and.right",
+                    color: Color.pink,
+                    identifier: "toolsServicesButton"
+                ) {
+                    showServices = true
+                }
+
+                proToolButton(
+                    feature: .history,
+                    title: "История замеров",
+                    subtitle: "Графики и итоги",
+                    icon: "chart.xyaxis.line",
+                    color: Color.indigo,
+                    identifier: "toolsHistoryButton"
+                ) {
+                    showSpeedHistory = true
+                }
+            }
+
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 NavigationLink(destination: DNSBenchmarkView(viewModel: viewModel)) {
                     proUtilityTile(
-                        title: "DNS Гонка",
+                        title: "Гонка DNS",
                         subtitle: "12+ Anycast узлов",
                         icon: "bolt.shield.fill",
                         color: NPTheme.accentPrimary
@@ -187,7 +280,7 @@ public struct DiagnosticsView: View {
 
                 NavigationLink(destination: GamingRadarView(viewModel: viewModel)) {
                     proUtilityTile(
-                        title: "Gaming Радар",
+                        title: "Радар для игр",
                         subtitle: "CS2, Dota, Valorant",
                         icon: "gamecontroller.fill",
                         color: Color.mint
@@ -207,13 +300,58 @@ public struct DiagnosticsView: View {
 
                 NavigationLink(destination: LANScannerView(viewModel: viewModel)) {
                     proUtilityTile(
-                        title: "LAN Сканер",
+                        title: "Сканер сети",
                         subtitle: "Устройства и порты",
                         icon: "wifi.router.fill",
                         color: Color.cyan
                     )
                 }
                 .buttonStyle(NPPressableButtonStyle())
+            }
+        }
+    }
+
+    /// Плитка возможности PRO: без подписки нажатие открывает окно подписки, с подпиской выполняет действие
+    private func proToolButton(
+        feature: ProFeature,
+        title: String,
+        subtitle: String,
+        icon: String,
+        color: Color,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            HapticManager.shared.impactLight()
+            if ProStore.shared.requirePro(feature) {
+                action()
+            }
+        } label: {
+            proUtilityTile(title: title, subtitle: subtitle, icon: icon, color: color)
+                .overlay(alignment: .topTrailing) {
+                    if !ProStore.shared.isPro {
+                        ProBadge()
+                            .padding(4)
+                    }
+                }
+        }
+        .buttonStyle(NPPressableButtonStyle())
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// Собирает PDF-отчёт и открывает «Поделиться»
+    private func buildReport() {
+        guard !isBuildingReport else { return }
+        isBuildingReport = true
+        let data = ProReportData.gather(viewModel: viewModel)
+        Task {
+            let url = await Task.detached(priority: .userInitiated) {
+                ProReportData.writePDF(data)
+            }.value
+            isBuildingReport = false
+            if let url {
+                reportShare = SharePayload(items: [url])
+                HapticManager.shared.notificationSuccess()
             }
         }
     }

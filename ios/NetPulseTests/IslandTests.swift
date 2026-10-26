@@ -430,3 +430,72 @@ final class IslandDiagnosticsTests: XCTestCase {
         XCTAssertEqual(IslandDiagnostics.formatAge(-3), "0 с")
     }
 }
+
+// MARK: - Трафик, прошедший, пока приложение спало
+
+final class SleepTrafficTests: XCTestCase {
+    func testNoteIsMadeWhenAwayLongEnoughAndTrafficIsNoticeable() throws {
+        let summary = SleepTrafficSummary(downloadBytes: 120_000_000, uploadBytes: 8_000_000)
+        let note = try XCTUnwrap(SleepTrafficNote.make(summary: summary, awaySeconds: 180))
+        XCTAssertEqual(note.downloadBytes, 120_000_000)
+        XCTAssertEqual(note.uploadBytes, 8_000_000)
+        XCTAssertEqual(note.awaySeconds, 180)
+    }
+
+    func testShortAbsenceIsNotSleep() {
+        let summary = SleepTrafficSummary(downloadBytes: 5_000_000, uploadBytes: 1_000_000)
+        XCTAssertNil(SleepTrafficNote.make(summary: summary, awaySeconds: SleepTrafficNote.minAwaySeconds - 1),
+                     "Обычное переключение между приложениями не считается сном")
+        XCTAssertNotNil(SleepTrafficNote.make(summary: summary, awaySeconds: SleepTrafficNote.minAwaySeconds))
+    }
+
+    func testBackgroundNoiseIsNotShown() {
+        let noise = SleepTrafficSummary(downloadBytes: 10_000, uploadBytes: 5_000)
+        XCTAssertNil(SleepTrafficNote.make(summary: noise, awaySeconds: 600))
+        let enough = SleepTrafficSummary(downloadBytes: SleepTrafficNote.minBytes, uploadBytes: 0)
+        XCTAssertNotNil(SleepTrafficNote.make(summary: enough, awaySeconds: 600))
+    }
+
+    func testMissingDataGivesNoNote() {
+        XCTAssertNil(SleepTrafficNote.make(summary: nil, awaySeconds: 600), "Первой сверки счётчиков ещё не было")
+        XCTAssertNil(SleepTrafficNote.make(summary: SleepTrafficSummary(downloadBytes: 9_000_000, uploadBytes: 0), awaySeconds: nil),
+                     "Неизвестно, когда приложение свернули")
+    }
+
+    func testNoteTextShowsDurationAndBothDirections() {
+        let note = SleepTrafficNote(downloadBytes: 120 * 1_048_576, uploadBytes: 8 * 1_048_576, awaySeconds: 180)
+        XCTAssertTrue(note.text.contains("3 мин"), note.text)
+        XCTAssertTrue(note.text.contains("↓ 120.0 МБ"), note.text)
+        XCTAssertTrue(note.text.contains("↑ 8.0 МБ"), note.text)
+    }
+
+    func testTotalBytesAddsBothDirections() {
+        XCTAssertEqual(SleepTrafficSummary(downloadBytes: 3, uploadBytes: 4).totalBytes, 7)
+    }
+}
+
+#if canImport(ActivityKit)
+// MARK: - Состояние острова: метка времени кадра
+
+final class IslandContentStateTests: XCTestCase {
+    func testUpdatedAtSurvivesEncodingRoundTrip() throws {
+        let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let state = NetPulseAttributes.ContentState(compactDownloadText: "12", updatedAt: stamp)
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(NetPulseAttributes.ContentState.self, from: data)
+        XCTAssertEqual(decoded.updatedAt, stamp)
+        XCTAssertEqual(decoded.compactDownloadText, "12")
+    }
+
+    /// Остров, созданный прежней версией приложения, не знает про `updatedAt`: такой кадр должен читаться
+    func testStateWithoutUpdatedAtStillDecodes() throws {
+        let old = NetPulseAttributes.ContentState(compactDownloadText: "7")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(old)) as? [String: Any])
+        object.removeValue(forKey: "updatedAt")
+        let data = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(NetPulseAttributes.ContentState.self, from: data)
+        XCTAssertNil(decoded.updatedAt)
+        XCTAssertEqual(decoded.compactDownloadText, "7")
+    }
+}
+#endif

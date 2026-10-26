@@ -38,6 +38,15 @@ struct HomeMapLayer: View {
     /// Метки «Старт» и «Финиш»: в обычном режиме они только мешают (могут уехать под строку состояния)
     let showsEndpoints: Bool
     @Binding var camera: MapCameraPosition
+    /// Камера остановилась (палец отпущен или карта доехала до точки): по этому сигналу экран решает, не пора ли
+    /// вернуть карту к пользователю
+    var onCameraSettled: () -> Void = {}
+
+    @Environment(\.npOneShotMotion) private var oneShotMotion
+    /// Какому маршруту (по времени начала) относится `revealFraction`
+    @State private var revealedKey: Date?
+    /// Какая часть маршрута уже «нарисована» (1 — весь маршрут)
+    @State private var revealFraction: Double = 0
 
     private var mapStyleValue: MapStyle {
         // Приглушённая схема без значков заведений: цветная линия маршрута читается лучше, чем на пёстрой карте
@@ -64,11 +73,13 @@ struct HomeMapLayer: View {
     }
 
     var body: some View {
-        let points = route?.points ?? []
+        let allPoints = route?.points ?? []
+        let points = visiblePoints(of: allPoints)
         let segments = RouteAnalyzer.segments(for: points, metric: metric)
         let deadZones = RouteAnalyzer.deadZones(in: points)
         let first = points.first
-        let last = points.last
+        // Флажок «Финиш» появляется, когда маршрут дорисован
+        let last = currentFraction >= 1 ? allPoints.last : nil
 
         Map(position: $camera) {
             if showsUserDot {
@@ -106,7 +117,7 @@ struct HomeMapLayer: View {
 
             ForEach(deadZones) { zone in
                 Annotation("Нет сети", coordinate: CLLocationCoordinate2D(latitude: zone.center.latitude, longitude: zone.center.longitude)) {
-                    deadZoneMarker
+                    HomeDeadZoneMarker()
                 }
             }
 
@@ -122,10 +133,55 @@ struct HomeMapLayer: View {
         }
         .mapStyle(mapStyleValue)
         .mapControlVisibility(.hidden)
+        .onMapCameraChange(frequency: .onEnd) { _ in
+            onCameraSettled()
+        }
+        .task(id: route?.startedAt) {
+            await reveal()
+        }
     }
 
-    /// Круглая метка места без сети: значок «нет Wi-Fi» читается и без цвета
-    private var deadZoneMarker: some View {
+    // MARK: - «Рисование» маршрута
+
+    /// Доля маршрута, которую сейчас нужно показать: у маршрута, который ещё не «рисовали», — ноль
+    private var currentFraction: Double {
+        revealedKey == route?.startedAt ? revealFraction : 0
+    }
+
+    private func visiblePoints(of all: [RoutePoint]) -> [RoutePoint] {
+        let fraction = currentFraction
+        guard fraction < 1 else { return all }
+        return Array(all.prefix(Int(Double(all.count) * fraction)))
+    }
+
+    /// Новый маршрут на карте не появляется разом, а «рисуется» от старта к финишу примерно за секунду.
+    /// Идущая запись растёт сама, по мере появления точек; при «Уменьшении движения» и у коротких маршрутов
+    /// маршрут появляется сразу.
+    private func reveal() async {
+        let key = route?.startedAt
+        guard oneShotMotion, !isLive, (route?.points.count ?? 0) > 4 else {
+            revealedKey = key
+            revealFraction = 1
+            return
+        }
+        revealedKey = key
+        revealFraction = 0
+        let steps = 24
+        for step in 1...steps {
+            try? await Task.sleep(for: .milliseconds(40))
+            if Task.isCancelled { return }
+            revealFraction = Double(step) / Double(steps)
+        }
+    }
+}
+
+/// Круглая метка места без сети: значок «нет Wi-Fi» читается и без цвета. Появляется с отскоком.
+@MainActor
+struct HomeDeadZoneMarker: View {
+    @Environment(\.npOneShotMotion) private var oneShot
+    @State private var popped = false
+
+    var body: some View {
         ZStack {
             Circle()
                 .fill(HomePalette.stopRed)
@@ -135,5 +191,12 @@ struct HomeMapLayer: View {
                 .foregroundStyle(.white)
         }
         .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.5))
+        .scaleEffect(popped || !oneShot ? 1 : 0.2)
+        .onAppear {
+            guard oneShot else { return }
+            withAnimation(NPMotion.pop) {
+                popped = true
+            }
+        }
     }
 }

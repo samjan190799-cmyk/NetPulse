@@ -1,24 +1,31 @@
 BACKGROUND LOCATION
 The "location" background mode (UIBackgroundModes) is used by ONE feature only: Home screen ("Сеть" tab) -> "Record route" (Russian UI: «Записать маршрут»).
-While the user records a route, the app saves every few seconds the device position and the network quality at that place (TCP connect time to 1.1.1.1, connection type Wi-Fi / 5G / 4G / 3G / 2G, optionally a short download-speed sample). The map then shows the route coloured by quality (good / fair / poor / no connection) and marks places without connectivity. This needs continuous location while the phone is in a pocket, a car or a train.
+While the user records a route, the app saves every few seconds the device position and the network quality there (TCP connect time to 1.1.1.1, connection type, optionally a short download-speed sample). The map shows the route coloured by quality and marks places without connectivity. This needs continuous location while the phone is in a pocket, a car or a train.
 
 USER CONTROL
-- Recording starts ONLY when the user taps "Record route"; never at launch or after a restart.
+- Recording starts ONLY when the user taps "Record route"; never at launch. The only way a recording continues without the app open is the opt-in switch described below.
 - While recording, the iOS location indicator is visible, the map screen shows a red "Recording" pill with a timer, and the user ends it with "Stop and save".
-- Location permission ("While Using the App") is requested only after that tap. The purpose string says the location is used to record a route and that the data stays on the device.
-- Routes are stored in the app's Application Support directory, excluded from backups, never uploaded; the user can delete one route or all routes. No account, no server.
-- Settings -> «Запись маршрута»: "Записывать маршрут в фоне" (default on; when off, no location is used in the background and recording waits until the user returns) and an automatic stop after 20 minutes without movement (default on).
-- Same section: "Продолжать запись после закрытия приложения" (continue after the app is closed), OFF by default. Only if the user turns it on, the app asks for "Always" location (own purpose string: to keep recording if the app is closed). Then, only WHILE a route is recorded, it uses significant-location-change monitoring: if the user swipes the app away, iOS may relaunch it after about 500 m of movement and the recording continues in the same route (the gap is not drawn). Monitoring stops when recording stops or the user opens the app. Nothing else happens on that launch.
-- Settings -> «Экономия заряда» (battery saver, off by default): one switch that makes the app work less often (coarser location, fewer points, no speed samples, slower Dynamic Island and widget updates). It adds no data collection.
-- All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
+- Location permission ("While Using the App") is requested only after that tap; the purpose string says the data stays on the device.
+- Routes are stored on the device, excluded from backups, never uploaded; the user can delete one route or all routes.
+- "Настройки" tab -> "Запись маршрута": the switch "Записывать маршрут в фоне" (default on); when off, the app does not use location in the background. A second switch stops a recording after 20 minutes without movement.
+- Same section: "Продолжать запись после закрытия приложения" (keep recording after the app is closed), OFF by default. Only if the user turns it on, the app asks for "Always" location (own purpose string) and, only WHILE a route is recorded, uses significant-location-change monitoring: if the app was swiped away, iOS may relaunch it after about 500 m of movement and the recording continues in the same route. Monitoring stops when recording stops or the user opens the app. Nothing else happens on that launch.
+- "Экономия заряда" (battery saver, off by default): one switch that makes the app work less often. It adds no data collection.
+- All other features (speed test, tools, widget, Dynamic Island) work without location permission.
 
-The map (Apple MapKit) is the home screen and is visible before any permission is requested. Routes are drawn as coloured lines from points recorded by the app (green / yellow / orange / red dashed = good / fair / poor / no connection); earlier routes are thinner lines, and a map button hides them. Optional coverage zones (Settings, "Зоны на карте") add coloured 100 x 100 m squares under the lines, only where the user has been at least twice and only after three routes are saved. The colour comes from the app's own ping, not from location data, and no operator coverage data is used.
+The map (Apple MapKit) is the home screen, visible before any permission is requested. The route colour comes from the app's own ping, not from location data; no operator coverage data is used.
 
 HOW TO TEST
-1. The first screen is the map with the bottom panel (network speed and two buttons).
-2. Drag the panel up -> "Показать пример маршрута" (Show example route): a clearly labelled DEMO route is drawn.
-3. Tap "Записать маршрут" (Record route) -> allow "While Using the App". Walk or drive; the points counter grows. Locking the device or switching to another app keeps recording (location indicator in the status bar).
-4. Tap "Остановить и сохранить" (Stop and save): the route summary appears and the route is saved under "Мои маршруты" (My routes), where it can be deleted.
-In the Simulator use Features -> Location -> City Run / Freeway Drive. If the phone stays on a desk, points are written only every 30 seconds.
+1. Drag the bottom panel up -> "Показать пример маршрута" (Show example route): a labelled DEMO route is drawn.
+2. Tap "Записать маршрут" (Record route) -> allow "While Using the App". In the Simulator use Features -> Location -> City Run.
+3. Tap "Остановить и сохранить" (Stop and save): the route is saved under "Мои маршруты" (My routes), where it can be deleted.
+
+ADVERTISING AND TRACKING
+No advertising, no third-party SDKs, no analytics, no tracking (no AppTrackingTransparency). App Privacy answers: "Data Not Collected". No account, no server. The AI audit runs entirely on the device.
+
+SUBSCRIPTION (NetPulse PRO)
+ONE auto-renewable subscription: group "NetPulse PRO", product com.samvel.netpulse.pro.monthly2, USD 0.99 per month. It unlocks: (1) speed in the Dynamic Island / Live Activity, (2) the floating game HUD inside the app, (3) the deep AI audit ("Инструменты" tab -> "AI-аудит"). Everything else is free. The paywall (price, auto-renewal terms, Terms of Use and Privacy Policy links, "Восстановить покупки") opens from "Настройки" tab -> "Оформить NetPulse PRO" or by tapping "Островок". Purchases go only through StoreKit.
+
+WIDGETS AND LIVE ACTIVITY
+Home Screen widget "NetPulse Монитор" (WidgetKit) and a Live Activity on the Lock Screen and in the Dynamic Island. Both work without location permission.
 
 The app's interface is in Russian.

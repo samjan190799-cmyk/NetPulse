@@ -7,12 +7,11 @@
 
 import SwiftUI
 
-/// Экран настроек приложения NetPulse 2026 с переключателем тем оформления
+/// Экран настроек приложения NetPulse 2026
 @MainActor
 public struct SettingsView: View {
     @Bindable var viewModel: NetworkMonitorViewModel
 
-    @State private var themeManager = ThemeManager.shared
     @State private var newHostName: String = ""
     @State private var newHostAddress: String = ""
     @State private var newHostPort: String = "443"
@@ -23,8 +22,15 @@ public struct SettingsView: View {
     @AppStorage("netpulse_map_zones") private var zonesOn = true
     /// Режим экономии заряда (читают циклы приложения: PowerProfile)
     @AppStorage(PowerSaver.defaultsKey) private var powerSaver = false
-    /// Настройки открываются поверх главного экрана (кнопка с ползунками): «Готово» закрывает их
-    @Environment(\.dismiss) private var dismiss
+    /// Оповещения PRO: выбор пользователя и отказ iOS в разрешении
+    @State private var alertsEnabled: Bool = AlertNotifier.shared.isEnabled
+    @State private var alertsDenied: Bool = false
+    #if DEBUG || NETPULSE_TESTER
+    /// Зеркало тестового выключателя PRO: чтобы переключатель сразу отражал выбор
+    @State private var testOverride: ProTestOverride = ProStore.shared.testOverride
+    /// Счётчик кадров и нагрузки поверх приложения (тот же ключ читает ContentView)
+    @AppStorage("netpulse_perf_overlay") private var perfOverlayEnabled = false
+    #endif
 
     /// Версия и сборка из Info.plist (раньше выводилась выдуманная «2.2.0 (Build 2026.08)»)
     private var appVersionText: String {
@@ -78,10 +84,51 @@ public struct SettingsView: View {
         return "Сохранено: \(saved) \(word). Зона рисуется там, где было не меньше \(ZoneBuilder.minRoutesPerCell) разных маршрутов и \(ZoneBuilder.minSamplesPerCell) замеров. \(rules)"
     }
 
+    /// Строка подписки: статус и цена
+    private var proRow: some View {
+        let store = ProStore.shared
+        return HStack(spacing: 10) {
+            Image(systemName: "star.circle.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(NPTheme.accentPrimary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NetPulse PRO")
+                    .font(.system(size: 15, weight: .semibold))
+                Text(store.isPro
+                     ? "Подписка активна: остров, HUD, AI-аудит, отчёт, сервисы и другое"
+                     : "Остров, HUD, AI-аудит, отчёт и другое" + (store.priceText.map { " · \($0)" } ?? ""))
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.textSecondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settingsProRow")
+    }
+
     public var body: some View {
         NavigationStack {
             Form {
-                // 0. Режим экономии заряда: один выключатель вместо десятка настроек
+                // 0. Подписка PRO
+                Section(header: Label("Подписка", systemImage: "star.fill")) {
+                    proRow
+                    if ProStore.shared.isPro {
+                        Link("Управлять подпиской", destination: AppLinks.manageSubscriptions)
+                            .accessibilityIdentifier("settingsManageSubscription")
+                    } else {
+                        Button("Оформить NetPulse PRO") {
+                            ProStore.shared.paywall = .general
+                        }
+                        .accessibilityIdentifier("settingsOpenPaywall")
+                    }
+                    Button("Восстановить покупки") {
+                        Task {
+                            await ProStore.shared.restore()
+                        }
+                    }
+                    .accessibilityIdentifier("settingsRestorePurchases")
+                }
+
+                // Режим экономии заряда: один выключатель вместо десятка настроек
                 Section(
                     header: Label("Экономия заряда", systemImage: "leaf.fill"),
                     footer: Text("Включён: маршрут пишется реже и грубее (около 100 м), скорость на маршруте не замеряется, запись останавливается после 10 минут простоя; скорость и остров обновляются раз в 3–5 секунд; узлы проверяются втрое реже; виджеты и фоновые задачи iOS обновляются реже; на карте нет зон покрытия, а линий прежних маршрутов не больше 80. Выключен: всё работает как обычно.")
@@ -105,43 +152,70 @@ public struct SettingsView: View {
                     }
                 }
 
-                // 1. Внешний вид и темы оформления
+                #if DEBUG || NETPULSE_TESTER
+                // Тестовый режим: только в тестовых сборках, в сборке для App Store его нет
                 Section(
-                    header: Label("Внешний вид и стиль", systemImage: "paintpalette.fill"),
-                    footer: Text(themeManager.currentTheme.description)
+                    header: Label("Тестовый режим", systemImage: "wrench.and.screwdriver.fill"),
+                    footer: Text("Только для проверки в тестовой сборке. «PRO включён» открывает платные возможности без покупки, «PRO выключен» показывает приложение, как у пользователя без подписки. Реклама (если появится) показывается только при выключенном PRO.")
                 ) {
-                    Picker("Тема интерфейса", selection: $themeManager.currentTheme) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.rawValue).tag(theme)
+                    Picker("Режим PRO", selection: $testOverride) {
+                        ForEach(ProTestOverride.allCases) { option in
+                            Text(option.title).tag(option)
                         }
                     }
-                    .pickerStyle(.menu)
-                    .onChange(of: themeManager.currentTheme) { _, _ in
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("settingsTestProPicker")
+                    .onChange(of: testOverride) { _, newValue in
+                        ProStore.shared.testOverride = newValue
                         HapticManager.shared.selectionChanged()
                     }
 
-                    // Образцы палитр (Theme Swatches)
-                    HStack(spacing: 8) {
-                        ForEach(AppTheme.allCases) { theme in
-                            ThemeSwatchButton(
-                                theme: theme,
-                                isSelected: themeManager.currentTheme == theme
-                            ) {
-                                themeManager.currentTheme = theme
-                                HapticManager.shared.impactMedium()
+                    Toggle("Счётчик кадров и нагрузки", isOn: $perfOverlayEnabled)
+                        .accessibilityIdentifier("settingsPerfOverlayToggle")
+
+                    HStack {
+                        Text("Сейчас")
+                        Spacer()
+                        Text(ProStore.shared.isPro ? "PRO активен" : "Без подписки")
+                            .foregroundStyle(ProStore.shared.isPro ? NPTheme.accentPrimary : NPTheme.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("settingsTestProState")
+                }
+                #endif
+
+                // Оповещения о проблемах сети (PRO)
+                Section(
+                    header: Label("Оповещения", systemImage: "bell.badge.fill"),
+                    footer: Text(alertsDenied
+                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → NetPulse → Уведомления."
+                                 : "Уведомление приходит, когда узел перестал отвечать или потери пакетов критические, и напоминание, если запись маршрута идёт больше часа. Работает, пока приложение живо в фоне (запись маршрута, остров): iOS не даёт следить за сетью в закрытом приложении.")
+                ) {
+                    Toggle(isOn: Binding(
+                        get: { alertsEnabled && ProStore.shared.isPro },
+                        set: { enabled in
+                            if enabled {
+                                guard ProStore.shared.requirePro(.alerts) else { return }
+                                Task {
+                                    let granted = await AlertNotifier.shared.enable()
+                                    alertsEnabled = granted
+                                    alertsDenied = !granted
+                                }
+                            } else {
+                                AlertNotifier.shared.disable()
+                                alertsEnabled = false
+                                alertsDenied = false
+                            }
+                        }
+                    )) {
+                        HStack(spacing: 6) {
+                            Text("Уведомления о проблемах сети")
+                            if !ProStore.shared.isPro {
+                                ProBadge()
                             }
                         }
                     }
-                    .padding(.vertical, 4)
-                }
-
-                // 2. Рекламный блок Яндекса (показывается, только если реклама включена в этой сборке)
-                if YandexAdManager.shared.canShowAds {
-                    Section(header: Label("Реклама", systemImage: "megaphone")) {
-                        YandexBannerView(contextTag: "Настройки")
-                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                            .listRowBackground(Color.clear)
-                    }
+                    .accessibilityIdentifier("settingsAlertsToggle")
                 }
 
                 // 3. Статус и параметры опроса
@@ -172,7 +246,7 @@ public struct SettingsView: View {
                 }
 
                 // 3. Целевые узлы мониторинга
-                Section(header: Text("Узлы мониторинга"), footer: Text("Добавьте IP-адреса или домены для постоянного мониторинга задержки, джиттера и потерь.")) {
+                Section(header: Label("Узлы мониторинга", systemImage: "server.rack"), footer: Text("Добавьте IP-адреса или домены для постоянного мониторинга задержки, джиттера и потерь.")) {
                     ForEach(viewModel.targets) { target in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -256,9 +330,10 @@ public struct SettingsView: View {
                 }
 
                 // 4. Пороги сетевых алертов
-                Section("Пороги оповещений") {
+                Section {
+                    DisclosureGroup("Пороги оповещений") {
                     HStack {
-                        Text("Предупреждение RTT")
+                        Text("Задержка: предупреждение")
                         Spacer()
                         Text("\(Int(viewModel.latencyWarnThreshold)) мс")
                             .foregroundStyle(NPTheme.textSecondary)
@@ -266,7 +341,7 @@ public struct SettingsView: View {
                     Slider(value: $viewModel.latencyWarnThreshold, in: 30...300, step: 10)
 
                     HStack {
-                        Text("Критическая задержка RTT")
+                        Text("Задержка: критический порог")
                         Spacer()
                         Text("\(Int(viewModel.latencyCritThreshold)) мс")
                             .foregroundStyle(NPTheme.textSecondary)
@@ -280,6 +355,7 @@ public struct SettingsView: View {
                             .foregroundStyle(NPTheme.textSecondary)
                     }
                     Slider(value: $viewModel.lossCritThreshold, in: 1...20, step: 1)
+                                    }
                 }
 
                 // 5. Фоновый мониторинг трафика (24/7)
@@ -388,8 +464,13 @@ public struct SettingsView: View {
                         set: { viewModel.toggleLiveActivity(enabled: $0) }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Dynamic Island (Спидометр скорости)")
-                                .font(.system(size: 15, weight: .medium))
+                            HStack(spacing: 6) {
+                                Text("Dynamic Island (Спидометр скорости)")
+                                    .font(.system(size: 15, weight: .medium))
+                                if !ProStore.shared.isPro {
+                                    ProBadge()
+                                }
+                            }
                             Text("Индикатор скорости передачи данных (↓ Скачивание / ↑ Отдача) в вырезе экрана и на Lock Screen")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
@@ -467,10 +548,11 @@ public struct SettingsView: View {
                         .accessibilityIdentifier("islandDiagnosticsButton")
                     }
 
-                    // Плавающий игровой оверлей (HUD): доступен всем
+                    // Плавающий игровой оверлей (HUD): входит в подписку PRO
                     Toggle(isOn: Binding(
                         get: { viewModel.floatingHUDEnabled },
                         set: { enabled in
+                            if enabled && !ProStore.shared.requirePro(.hud) { return }
                             viewModel.floatingHUDEnabled = enabled
                             if enabled {
                                 BackgroundTelemetryKeeper.shared.startKeepAlive()
@@ -487,8 +569,11 @@ public struct SettingsView: View {
                             HStack(spacing: 6) {
                                 Text("Плавающий игровой оверлей (HUD)")
                                     .font(.system(size: 15, weight: .medium))
+                                if !ProStore.shared.isPro {
+                                    ProBadge()
+                                }
                             }
-                            Text("Мини-виджет пинга и скорости поверх экрана; режим «картинка в картинке» доступен, если его поддерживает устройство")
+                            Text("Мини-панель пинга, джиттера, потерь и скорости поверх экранов NetPulse; остров переходит в игровой режим")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -496,26 +581,30 @@ public struct SettingsView: View {
                 }
 
                 // 8. Обратная связь
-                Section("Тактильная отдача и звуки") {
+                Section {
+                    DisclosureGroup("Тактильная отдача и звуки") {
                     Toggle("Тактильный отклик (Haptics)", isOn: $viewModel.hapticsEnabled)
                     Toggle(isOn: $viewModel.soundEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Звуковые предупреждения")
-                            Text("Один тихий щелчок при серьёзной проблеме с сетью, не чаще раза в 5 минут. Если звук на телефоне выключен боковой кнопкой, щелчка не будет.")
+                            Text("Один тихий щелчок, когда узел перестал отвечать, пока приложение открыто; не чаще раза в 5 минут. Если звук на телефоне выключен боковой кнопкой, щелчка не будет.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
                     }
                     .accessibilityIdentifier("soundAlertsToggle")
+                    }
                 }
 
                 // 8. Управление хранилищем трафика
-                Section("Хранилище трафика") {
+                Section {
+                    DisclosureGroup("Хранилище трафика") {
                     Button(role: .destructive) {
                         showResetTrafficAlert = true
                     } label: {
                         Label("Сбросить историю трафика", systemImage: "trash")
                     }
+                                    }
                 }
 
                 // 9. О приложении
@@ -568,87 +657,11 @@ public struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settingsSupportLink")
                 }
-
-                #if DEBUG
-                // 10. Диагностика рекламы Яндекса (только в отладочных сборках)
-                Section {
-                    HStack {
-                        Text("Статус SDK Яндекса")
-                        Spacer()
-                        Text(YandexAdManager.shared.isSDKInitialized ? "Запущен" : "Ожидание")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(YandexAdManager.shared.isSDKInitialized ? Color.green : Color.orange)
-                    }
-
-                    HStack {
-                        Text("ATT Авторизация")
-                        Spacer()
-                        Text(YandexAdManager.shared.isATTAuthorized ? "Разрешена (IDFA)" : "Ограничена")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(YandexAdManager.shared.isATTAuthorized ? Color.green : Color.yellow)
-                    }
-
-                    HStack {
-                        Text("Межстраничная реклама")
-                        Spacer()
-                        Text(YandexAdManager.shared.isInterstitialLoaded ? "Готова к показу" : "Загружается")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(NPTheme.textSecondary)
-                    }
-
-                    HStack {
-                        Text("Реклама за награду")
-                        Spacer()
-                        Text(YandexAdManager.shared.isRewardedLoaded ? "Готова к показу" : "Загружается")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(NPTheme.textSecondary)
-                    }
-
-                    HStack {
-                        Text("Рекламные блоки")
-                        Spacer()
-                        Text(YandexAdConfig.usesDemoUnits ? "Демо (тестовая реклама)" : "Боевые")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(YandexAdConfig.usesDemoUnits ? Color.orange : Color.green)
-                    }
-
-                    Button("Тест показа межстраничной рекламы") {
-                        HapticManager.shared.impactMedium()
-                        YandexAdManager.shared.presentInterstitial()
-                    }
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(NPTheme.accentPrimary)
-
-                    Button("Тест рекламы за награду") {
-                        HapticManager.shared.impactMedium()
-                        YandexAdManager.shared.showRewarded(
-                            onRewardConfirmed: {
-                                HapticManager.shared.notificationSuccess()
-                            },
-                            onUnavailable: {
-                                HapticManager.shared.notificationWarning()
-                            }
-                        )
-                    }
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(NPTheme.accentPrimary)
-                } header: {
-                    Label("Отладка: реклама Яндекса", systemImage: "megaphone")
-                } footer: {
-                    Text("Инженерная панель рекламы. Видна только в отладочных сборках.")
-                }
-                #endif
             }
+            // Тот же фон, что и на остальных вкладках, вместо стандартного чёрного списка iOS
+            .scrollContentBackground(.hidden)
+            .background(NPTheme.backgroundGradient.ignoresSafeArea())
             .navigationTitle("Настройки")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Готово") {
-                        dismiss()
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .accessibilityIdentifier("settingsCloseButton")
-                }
-            }
             .confirmationDialog(
                 "Сбросить историю трафика?",
                 isPresented: $showResetTrafficAlert,
@@ -667,60 +680,6 @@ public struct SettingsView: View {
             .sheet(isPresented: $showIslandDiagnostics) {
                 IslandDiagnosticsView()
             }
-        }
-    }
-}
-
-/// Кнопка быстрого выбора темы со свотчем
-private struct ThemeSwatchButton: View {
-    let theme: AppTheme
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: 4) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(swatchBgColor)
-                        .frame(height: 32)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected ? swatchAccentColor : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
-                        )
-
-                    Circle()
-                        .fill(swatchAccentColor)
-                        .frame(width: 10, height: 10)
-                }
-
-                Text(theme.rawValue.components(separatedBy: " ").first ?? theme.rawValue)
-                    .font(.system(size: 9, weight: isSelected ? .bold : .medium))
-                    .foregroundStyle(isSelected ? NPTheme.accentPrimary : NPTheme.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .buttonStyle(NPPressableButtonStyle(scale: 0.92))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Тема: \(theme.rawValue)")
-        .accessibilityHint(isSelected ? "Активная тема" : "Дважды коснитесь для переключения")
-    }
-
-    private var swatchBgColor: Color {
-        switch theme {
-        case .obsidianMono: return Color(red: 0.027, green: 0.035, blue: 0.055)
-        case .cyberNeon: return Color(red: 0.031, green: 0.027, blue: 0.063)
-        case .titaniumFrost: return Color(red: 0.043, green: 0.051, blue: 0.067)
-        case .oledBlack: return Color.black
-        }
-    }
-
-    private var swatchAccentColor: Color {
-        switch theme {
-        case .obsidianMono: return Color.white
-        case .cyberNeon: return Color(red: 0.0, green: 0.95, blue: 0.85)
-        case .titaniumFrost: return Color(red: 0.40, green: 0.75, blue: 1.0)
-        case .oledBlack: return Color.white
         }
     }
 }

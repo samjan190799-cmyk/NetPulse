@@ -161,10 +161,14 @@ public actor TrafficStorage {
     /// подключения: раньше учитывалась только текущая сеть, и трафик другой (например, сотовой после ухода
     /// с Wi-Fi в фоне) терялся. После перезагрузки счётчики начинаются с нуля, и раньше это принималось за
     /// 32-битное переполнение (фантомные сотни мегабайт).
+    ///
+    /// Возвращает, сколько байт прошло за это время (nil — сверка первая, точки отсчёта ещё не было): по этим числам
+    /// приложение при возвращении на экран показывает, что трафик шёл, пока остров стоял.
+    @discardableResult
     public func reconcileBackgroundHardwareTraffic(
         currentConnectionType: String,
         currentNetworkName: String
-    ) {
+    ) -> SleepTrafficSummary? {
         let currentCounters = BandwidthEngine.fetchDetailedInterfaceBytes()
         let now = Date()
         let bootNow = Self.currentBootTime()
@@ -176,7 +180,7 @@ public actor TrafficStorage {
             // Первичная точка отсчета: фиксируем текущее состояние ядра БЕЗ начисления дельты
             persistHardwareCounters(currentCounters)
             BandwidthEngine.shared.resetBaseline(to: currentCounters)
-            return
+            return nil
         }
 
         // 2. Что изменилось с момента сохранения: перезагрузка и прошедшее время
@@ -227,6 +231,7 @@ public actor TrafficStorage {
         if added {
             scheduleDebouncedSave()
         }
+        return SleepTrafficSummary(downloadBytes: wifiIn + cellIn, uploadBytes: wifiOut + cellOut)
     }
 
     /// Начисление трафика, прошедшего в фоне, в сессию соответствующего типа сети

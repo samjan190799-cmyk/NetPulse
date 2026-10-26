@@ -60,10 +60,6 @@ public struct DNSBenchmarkView: View {
                     // 3. Список серверов в реальном времени с медалями
                     serversListSection
 
-                    // Рекламный баннер Яндекса на видном месте
-                    YandexBannerView(contextTag: "DNS и безопасность")
-                        .padding(.horizontal)
-
                     // 4. Пояснительная карточка DoH/DoT и безопасности
                     securityExplanationCard
                 }

@@ -126,6 +126,8 @@
 		A20001012C12345600000101 /* IslandRefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001012C12345600000101 /* IslandRefreshIntent.swift */; };
 		A10001022C12345600000102 /* IslandSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001022C12345600000102 /* IslandSnapshot.swift */; };
 		A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001012C12345600000103 /* IslandRefreshTests.swift */; };
+		A10001032C12345600000104 /* TripModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001032C12345600000104 /* TripModels.swift */; };
+		A30001022C12345600000105 /* TripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001022C12345600000105 /* TripTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -291,6 +293,8 @@
 		B10001012C12345600000101 /* IslandRefreshIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandRefreshIntent.swift; sourceTree = "<group>"; };
 		B10001022C12345600000102 /* IslandSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandSnapshot.swift; sourceTree = "<group>"; };
 		B30001012C12345600000103 /* IslandRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandRefreshTests.swift; sourceTree = "<group>"; };
+		B10001032C12345600000104 /* TripModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TripModels.swift; sourceTree = "<group>"; };
+		B30001022C12345600000105 /* TripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/TripTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -380,6 +384,7 @@
 				B10000D32C123456000000D3 /* RouteModels.swift */,
 				B10000E12C123456000000E1 /* HomeModels.swift */,
 				B10000EA2C123456000000EA /* ZoneModels.swift */,
+				B10001032C12345600000104 /* TripModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -520,6 +525,7 @@
 				B300000B2C1234560000000B /* ZoneTests.swift */,
 				B300000C2C1234560000000C /* PowerSaverTests.swift */,
 				B30001012C12345600000103 /* IslandRefreshTests.swift */,
+				B30001022C12345600000105 /* TripTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -788,6 +794,7 @@
 				A10000EC2C123456000000EC /* PowerSaver.swift in Sources */,
 				A10001012C12345600000101 /* IslandRefreshIntent.swift in Sources */,
 				A10001022C12345600000102 /* IslandSnapshot.swift in Sources */,
+				A10001032C12345600000104 /* TripModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -820,6 +827,7 @@
 				A300000B2C1234560000000B /* ZoneTests.swift in Sources */,
 				A300000C2C1234560000000C /* PowerSaverTests.swift in Sources */,
 				A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */,
+				A30001022C12345600000105 /* TripTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

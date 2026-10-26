@@ -438,6 +438,23 @@ public struct SettingsView: View {
                     }
                     .disabled(!RouteRecorder.shared.recordsInBackground)
                     .accessibilityIdentifier("routeContinueAfterCloseToggle")
+
+                    Toggle(isOn: Binding(
+                        get: { RouteRecorder.shared.tripWarningsEnabled },
+                        set: { enabled in
+                            RouteRecorder.shared.tripWarningsEnabled = enabled
+                            HapticManager.shared.selectionChanged()
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Режим «Поездка»: слабая связь впереди")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Во время записи приложение предупредит, если по ходу движения на ваших прошлых маршрутах была слабая связь. Используются только ваши записи, ничего нового не собирается.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("tripWarningsToggle")
                 }
 
                 // 5.2 Зоны покрытия: появляются на карте, когда накопится достаточно маршрутов

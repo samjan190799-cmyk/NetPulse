@@ -1315,3 +1315,139 @@ final class RouteStorageTests: XCTestCase {
         XCTAssertTrue(loadedIDs.contains(ids[total - 1]))
     }
 }
+
+// MARK: - Режим «Поездка» во время записи
+
+final class RouteRecorderTripTests: XCTestCase {
+
+    /// Прошлый маршрут вдоль долготы 37,0: связь есть, на точках 10…16 (широта 55,0110…55,0122) её нет совсем
+    private func pastRouteWithDeadStretch() -> RouteRecord {
+        var points: [RoutePoint] = []
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        for index in 0..<30 {
+            let dead = (10...16).contains(index)
+            points.append(RoutePoint(
+                time: start.addingTimeInterval(Double(index) * 5),
+                latitude: 55.0090 + Double(index) * 0.0002,
+                longitude: 37.0,
+                speedMps: 10,
+                latencyMs: dead ? nil : 40,
+                reachable: !dead,
+                link: .lte
+            ))
+        }
+        return RouteRecord(startedAt: start, endedAt: points.last?.time, points: points)
+    }
+
+    /// Едем на север от широты 55,0000 по 44 м за шаг (скорость 10 м/с) и собираем все предупреждения
+    @MainActor
+    private func drive(_ rig: Rig, steps: Int = 22, southbound: Bool = false) async -> [TripWarning] {
+        rig.recorder.start()
+        var now = Date()
+        var seen: [TripWarning] = []
+        let origin = southbound ? 55.0090 : 55.0
+        for step in 0..<steps {
+            let delta = Double(step) * 0.0004
+            rig.session.emit(fix(southbound ? origin - delta : origin + delta, at: now))
+            await rig.recorder.tick(now: now)
+            if let warning = rig.recorder.tripWarning {
+                seen.append(warning)
+            }
+            now = now.addingTimeInterval(5)
+            // Индекс слабых мест строится вне главного потока: даём ему время
+            try? await Task.sleep(nanoseconds: 60_000_000)
+        }
+        rig.recorder.stop()
+        return seen
+    }
+
+    @MainActor
+    func testItIsOnByDefaultAndRemembered() throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        XCTAssertTrue(rig.recorder.tripWarningsEnabled)
+
+        rig.recorder.tripWarningsEnabled = false
+        let second = try makeRig(authorization: .authorized, defaults: rig.defaults)
+        defer { try? FileManager.default.removeItem(at: second.directory) }
+        XCTAssertFalse(second.recorder.tripWarningsEnabled)
+    }
+
+    @MainActor
+    func testWarnsAboutTheDeadStretchFromAPastRoute() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        try await rig.storage.save(pastRouteWithDeadStretch())
+        await rig.recorder.reloadHistory()
+
+        let seen = await drive(rig)
+
+        let first = try XCTUnwrap(seen.first, "Впереди на прошлом маршруте нет связи, предупреждение должно появиться")
+        XCTAssertEqual(first.quality, .dead)
+        XCTAssertGreaterThan(first.distanceMeters, TripAdvisor.minDistanceMeters)
+        XCTAssertLessThan(first.distanceMeters, 1_300)
+        XCTAssertEqual(first.routeCount, 1)
+        XCTAssertNil(rig.recorder.tripWarning, "После остановки записи плашка пропадает")
+    }
+
+    @MainActor
+    func testNoWarningWhenTheModeIsOff() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        try await rig.storage.save(pastRouteWithDeadStretch())
+        await rig.recorder.reloadHistory()
+        rig.recorder.tripWarningsEnabled = false
+
+        let seen = await drive(rig)
+        XCTAssertTrue(seen.isEmpty)
+    }
+
+    @MainActor
+    func testNoWarningWhenDrivingAwayFromTheStretch() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        try await rig.storage.save(pastRouteWithDeadStretch())
+        await rig.recorder.reloadHistory()
+
+        let seen = await drive(rig, southbound: true)
+        XCTAssertTrue(seen.isEmpty, "Слабый участок остаётся позади, предупреждать не о чем")
+    }
+
+    @MainActor
+    func testNoWarningWithoutSavedRoutes() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        let seen = await drive(rig)
+        XCTAssertTrue(seen.isEmpty)
+    }
+
+    /// Удалённый маршрут не должен влиять на предупреждения
+    @MainActor
+    func testDeletedRoutesNoLongerWarn() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+        try await rig.storage.save(pastRouteWithDeadStretch())
+        await rig.recorder.reloadHistory()
+
+        let before = await drive(rig)
+        XCTAssertFalse(before.isEmpty)
+
+        // Остановка записи сохраняет новый маршрут в фоне: ждём, пока он окажется в истории вместе с прошлым
+        for _ in 0..<100 where rig.recorder.history.count < 2 {
+            try? await Task.sleep(nanoseconds: 40_000_000)
+        }
+        rig.recorder.deleteAllRoutes()
+        // Файлы удаляются в фоне: ждём, пока их не останется
+        for _ in 0..<100 {
+            if await rig.storage.loadAll().isEmpty { break }
+            try? await Task.sleep(nanoseconds: 40_000_000)
+        }
+        let remaining = await rig.storage.loadAll()
+        XCTAssertTrue(remaining.isEmpty)
+        XCTAssertTrue(rig.recorder.history.isEmpty)
+
+        let after = await drive(rig)
+        XCTAssertTrue(after.isEmpty, "Маршрутов нет, а предупреждение всё ещё приходит")
+    }
+}

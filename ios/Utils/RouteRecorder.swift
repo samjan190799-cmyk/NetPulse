@@ -100,8 +100,11 @@ public final class RouteRecorder {
     }
     /// Идущая запись (`nil`, если запись не идёт)
     public private(set) var current: RouteRecord?
-    /// Сохранённые маршруты, новые первыми
-    public private(set) var history: [RouteRecord] = []
+    /// Сохранённые маршруты, новые первыми. Изменились маршруты — индекс режима «Поездка» устарел (в том числе
+    /// после удаления: удалённый маршрут не должен влиять на предупреждения).
+    public private(set) var history: [RouteRecord] = [] {
+        didSet { invalidateTripAdvisor() }
+    }
     /// Последний сохранённый маршрут (для показа на карте сразу после остановки)
     public private(set) var lastSaved: RouteRecord?
     /// Сообщение о том, что произошло с записью (слишком короткий маршрут, восстановление после обрыва и т. д.)
@@ -178,6 +181,24 @@ public final class RouteRecorder {
         didSet { defaults.set(stopsWhenIdle, forKey: Self.stopsWhenIdleKey) }
     }
 
+    private static let tripWarningsKey = "netpulse_route_trip_warnings"
+    /// Режим «Поездка»: пока идёт запись, предупреждать, что впереди по ходу движения на ваших прошлых маршрутах была
+    /// слабая связь. Включён по умолчанию. Ничего нового не собирает: используются только сохранённые маршруты.
+    public var tripWarningsEnabled: Bool {
+        didSet {
+            defaults.set(tripWarningsEnabled, forKey: Self.tripWarningsKey)
+            guard tripWarningsEnabled != oldValue else { return }
+            IslandDiagnostics.shared.log("Режим «Поездка»: \(tripWarningsEnabled ? "включён" : "выключен")", .location)
+            if !tripWarningsEnabled {
+                tripWarning = nil
+                tripAnnouncer.reset()
+            }
+        }
+    }
+
+    /// Слабая связь впереди по ходу движения (`nil` — предупреждать не о чем)
+    public private(set) var tripWarning: TripWarning?
+
     // MARK: - Настройки записи
 
     /// Маршрут короче не сохраняется: из одной точки пути не получится
@@ -215,6 +236,11 @@ public final class RouteRecorder {
     @ObservationIgnored private var pausedInBackground = false
     /// Когда телефон в последний раз заметно сдвинулся с места (для автоостановки)
     @ObservationIgnored private var lastMovementAt = Date.distantPast
+    /// Индекс слабых мест по сохранённым маршрутам для режима «Поездка»
+    @ObservationIgnored private var tripAdvisor: TripAdvisor?
+    @ObservationIgnored private var tripAdvisorGeneration = 0
+    @ObservationIgnored private var tripAdvisorTask: Task<Void, Never>?
+    @ObservationIgnored private var tripAnnouncer = TripAnnouncer()
 
     public init(
         session: any LocationSessionProviding,
@@ -237,6 +263,7 @@ public final class RouteRecorder {
         self.hasAlwaysAuthorization = session.hasAlwaysAuthorization
         self.recordsInBackground = (defaults.object(forKey: Self.backgroundKey) as? Bool) ?? true
         self.stopsWhenIdle = (defaults.object(forKey: Self.stopsWhenIdleKey) as? Bool) ?? true
+        self.tripWarningsEnabled = (defaults.object(forKey: Self.tripWarningsKey) as? Bool) ?? true
 
         session.onFix = { [weak self] fix in
             self?.receive(fix)
@@ -270,6 +297,8 @@ public final class RouteRecorder {
         latestFix = nil
         lastSpeedProbeAt = .distantPast
         lastPersistAt = .distantPast
+        tripWarning = nil
+        tripAnnouncer.reset()
 
         let now = Date()
         wantsRecording = true
@@ -292,6 +321,7 @@ public final class RouteRecorder {
         let finished = current
         current = nil
         recordingSince = nil
+        tripWarning = nil
         state = .idle
         IslandDiagnostics.shared.log("Запись маршрута остановлена", .location)
         AlertNotifier.shared.cancelRecordingReminder()
@@ -445,6 +475,8 @@ public final class RouteRecorder {
         lastSpeedProbeAt = .distantPast
         lastPersistAt = .distantPast
         lastMovementAt = now
+        tripWarning = nil
+        tripAnnouncer.reset()
         notice = "Запись продолжена после закрытия приложения: на маршруте есть пропуск."
         IslandDiagnostics.shared.log("Запись маршрута продолжена после закрытия приложения (\(record.points.count) точек до перерыва)", .location)
         applyDesiredState()
@@ -512,6 +544,7 @@ public final class RouteRecorder {
         let unfinished = current
         current = nil
         recordingSince = nil
+        tripWarning = nil
         state = newState
 
         // Ни одной точки не записано (разрешения не было с самого начала) — сохранять нечего
@@ -613,12 +646,81 @@ public final class RouteRecorder {
         lastLink = point.link
         progressLine = ""
 
+        updateTripWarning(now: now)
         persistIfNeeded(now: now)
 
         if pointCount >= Self.maxPoints {
             notice = "Достигнут предел записи (\(Self.maxPoints) точек): маршрут сохранён."
             stop()
         }
+    }
+
+    // MARK: - Режим «Поездка»
+
+    /// Ищет слабую связь впереди по ходу движения и, если находит, сообщает о ней один раз на участок.
+    /// Идёт после каждой записанной точки; сам поиск лёгкий (индекс построен заранее).
+    private func updateTripWarning(now: Date) {
+        guard tripWarningsEnabled, let points = current?.points, let last = points.last else {
+            if tripWarning != nil { tripWarning = nil }
+            return
+        }
+        ensureTripAdvisor()
+        guard let advisor = tripAdvisor, !advisor.isEmpty,
+              let heading = TripAdvisor.heading(from: points),
+              let speed = TripAdvisor.speed(from: points) else {
+            if tripWarning != nil { tripWarning = nil }
+            return
+        }
+        let warning = advisor.warning(
+            at: last.coordinate,
+            headingDegrees: heading,
+            speedMps: speed,
+            currentQuality: last.quality
+        )
+        if tripWarning != warning { tripWarning = warning }
+        guard let warning, tripAnnouncer.shouldAnnounce(warning, now: now) else { return }
+        announceTrip(warning)
+    }
+
+    /// Щелчок при открытом приложении; уведомление (подписка PRO, оповещения включены), если приложение свёрнуто
+    private func announceTrip(_ warning: TripWarning) {
+        IslandDiagnostics.shared.log(
+            "Режим «Поездка»: \(warning.title.lowercased()), через \(Int(warning.distanceMeters.rounded())) м",
+            .location
+        )
+        if !isInBackground {
+            HapticManager.shared.notificationWarning()
+        }
+        AlertNotifier.shared.notifyProblem(
+            key: "trip|\(warning.zoneKey)",
+            title: warning.title,
+            body: warning.detail
+        )
+    }
+
+    /// Строит индекс слабых мест по сохранённым маршрутам вне главного потока. Пока индекса нет, предупреждений нет
+    /// (первые секунды записи).
+    private func ensureTripAdvisor() {
+        guard tripAdvisor == nil, tripAdvisorTask == nil else { return }
+        let generation = tripAdvisorGeneration
+        tripAdvisorTask = Task { [weak self, storage] in
+            let known = self?.history ?? []
+            let routes = known.isEmpty ? await storage.loadAll() : known
+            let advisor = await Task.detached(priority: .utility) {
+                TripAdvisor(routes: routes)
+            }.value
+            guard let self, !Task.isCancelled, generation == self.tripAdvisorGeneration else { return }
+            self.tripAdvisor = advisor
+            self.tripAdvisorTask = nil
+        }
+    }
+
+    /// Маршруты изменились: индекс устарел, будет построен заново
+    private func invalidateTripAdvisor() {
+        tripAdvisor = nil
+        tripAdvisorGeneration += 1
+        tripAdvisorTask?.cancel()
+        tripAdvisorTask = nil
     }
 
     // MARK: - Сохранение

@@ -9,13 +9,14 @@
 #
 # Переменная PROBE_WITH: файлы приложения (пути от каталога ios, через пробел), которые проверяются вместе с
 # фрагментом. Так новые экраны и модификаторы проверяются вместе с темой оформления, не собирая всё приложение.
-# Метки вместо путей: @app — все файлы фазы Sources цели NetPulse, @widgets — цели NetPulseWidgets (список берётся
+# Метки вместо путей: @app — все файлы фазы Sources цели NetPulse, @widgets — цели NetPulseWidgets, @tests — приложение и тесты (список берётся
 # из project.pbxproj, см. target_sources.py). Так вся цель проверяется на типы за пару минут, без сборки и симулятора.
 set -o pipefail
 set -f
 
 ios_dir="$(cd "$(dirname "$0")/.." && pwd)"
 extra=()
+flags=()
 for rel in ${PROBE_WITH:-}; do
   case "$rel" in
     @app|@widgets)
@@ -27,6 +28,22 @@ for rel in ${PROBE_WITH:-}; do
       while IFS= read -r path; do
         extra+=("$path")
       done <<< "$listed"
+      continue
+      ;;
+    @tests)
+      # Тесты проверяются вместе с приложением как один модуль: строка `@testable import NetPulse` в копиях убирается,
+      # а XCTest берётся из платформы симулятора
+      listed="$(python3 "$ios_dir/ci/target_sources.py" NetPulse)" || { echo "$listed"; exit 2; }
+      while IFS= read -r path; do
+        extra+=("$path")
+      done <<< "$listed"
+      listed="$(python3 "$ios_dir/ci/target_sources.py" NetPulseTests)" || { echo "$listed"; exit 2; }
+      stripped_dir="$(mktemp -d)"
+      while IFS= read -r path; do
+        sed '/^@testable import NetPulse$/d' "$path" > "$stripped_dir/$(basename "$path")"
+        extra+=("$stripped_dir/$(basename "$path")")
+      done <<< "$listed"
+      flags+=(-F "$(xcrun --sdk iphonesimulator --show-sdk-platform-path)/Developer/Library/Frameworks")
       continue
       ;;
   esac
@@ -72,7 +89,7 @@ for file in "${files[@]}"; do
     failed=$((failed + 1))
     continue
   fi
-  output="$(xcrun swiftc -typecheck -sdk "$sdk" -target arm64-apple-ios17.0-simulator -swift-version 6 "$file" "${extra[@]}" 2>&1)"
+  output="$(xcrun swiftc -typecheck -sdk "$sdk" -target arm64-apple-ios17.0-simulator -swift-version 6 "${flags[@]}" "$file" "${extra[@]}" 2>&1)"
   code=$?
   printf '%s\n' "$output" | head -n 90
   if [ "$code" -eq 0 ]; then

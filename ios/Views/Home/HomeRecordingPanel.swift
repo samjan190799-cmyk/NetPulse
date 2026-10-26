@@ -25,6 +25,9 @@ struct HomeRecordingPanel: View {
                 waitingBlock
             } else {
                 statsRow
+                if let warning = recorder.tripWarning {
+                    TripWarningBanner(warning: warning)
+                }
                 if !recorder.progressLine.isEmpty {
                     Text(recorder.progressLine)
                         .font(.system(size: 12))
@@ -141,5 +144,40 @@ struct HomeRecordingPanel: View {
             .buttonStyle(NPPressableButtonStyle(scale: 0.97))
             .accessibilityIdentifier("networkMapCancelButton")
         }
+    }
+}
+
+/// Режим «Поездка»: впереди по ходу движения на ваших прошлых маршрутах была слабая связь
+private struct TripWarningBanner: View {
+    let warning: TripWarning
+
+    var body: some View {
+        let tint = warning.quality.displayColor
+        HStack(spacing: 10) {
+            Image(systemName: warning.quality == .dead ? "wifi.slash" : "exclamationmark.triangle.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(warning.title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(NPTheme.textPrimary)
+                Text(warning.detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(NPTheme.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.opacity(0.14))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(tint.opacity(0.35), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("tripWarningBanner")
     }
 }

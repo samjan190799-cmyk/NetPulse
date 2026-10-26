@@ -39,6 +39,8 @@ struct ProReportData: Sendable {
     var problems: [String]
     var routes: [ReportRouteLine]
     var complaint: String
+    /// Последние тесты стабильности: по строке на тест (пусто, если тестов не было)
+    var stability: [String] = []
 }
 
 // MARK: - PDF
@@ -103,6 +105,13 @@ enum ReportBuilder {
                         host.lossPct.map { String(format: "%.1f %%", $0) } ?? "—",
                         host.status
                     ], bold: false)
+                }
+            }
+
+            if !data.stability.isEmpty {
+                page.heading("Тесты стабильности")
+                for line in data.stability {
+                    page.text("• \(line)", font: .systemFont(ofSize: 11.5), after: 3)
                 }
             }
 
@@ -363,6 +372,9 @@ extension ProReportData {
             )
         }
 
+        // Тесты стабильности: берём не больше трёх последних
+        let stability = StabilityHistoryStore.shared.results.prefix(3).map { StabilityReportText.line(for: $0) }
+
         let complaint = viewModel.buildDiagnosticsContext().generateISPSupportReport(template: .packetLossAndLatency)
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
 
@@ -378,7 +390,8 @@ extension ProReportData {
             hosts: hosts,
             problems: Array(problems),
             routes: routes,
-            complaint: complaint
+            complaint: complaint,
+            stability: Array(stability)
         )
     }
 

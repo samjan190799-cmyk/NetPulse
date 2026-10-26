@@ -467,6 +467,28 @@ final class NetPulseUITests: XCTestCase {
         closeSettings(app)
     }
 
+    /// В настройках записи есть режим «Поездка»: по умолчанию включён, переключается и возвращается
+    @MainActor func testTripWarningsToggleIsInSettings() throws {
+        let app = launchApp()
+        openSettings(app)
+
+        let trip = app.switches["tripWarningsToggle"]
+        XCTAssertTrue(reveal(trip, in: app), "В настройках нет тумблера «Режим «Поездка»»")
+        XCTAssertTrue(isOn(trip), "Режим «Поездка» по умолчанию включён: он ничего не собирает, а только читает ваши маршруты")
+        attachScreenshot("settings-trip")
+
+        flip(trip)
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertFalse(isOn(trip), "Тумблер режима «Поездка» не выключился")
+        flip(trip)
+        Thread.sleep(forTimeInterval: 0.6)
+        XCTAssertTrue(isOn(trip), "Тумблер режима «Поездка» не включился обратно")
+        print("NETPULSE-CI: режим «Поездка»: тумблер на месте, переключается")
+
+        scrollToTop(app)
+        closeSettings(app)
+    }
+
     @MainActor func testLiveActivityStartsInSimulator() throws {
         let app = launchApp()
         openSettings(app)
@@ -820,6 +842,47 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["serviceRow-telegram"].exists, "Нет строки Telegram")
         XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "У подписчика открылось окно подписки")
         attachScreenshot("services")
+    }
+
+    /// Тест стабильности открывается из «Инструментов», идёт, останавливается и показывает итог. Он бесплатный.
+    @MainActor func testStabilityTestRunsAndShowsAResult() throws {
+        let app = launchApp(pro: false)
+        waitForHome(app)
+
+        app.tabBars.buttons["Инструменты"].tap()
+        let tile = app.buttons["toolsStabilityButton"]
+        XCTAssertTrue(reveal(tile, in: app), "В «Инструментах» нет плитки «Тест стабильности»")
+        tile.tap()
+
+        let start = app.buttons["stabilityStartButton"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15), "Экран теста стабильности не открылся")
+        XCTAssertFalse(app.descendants(matching: .any)["paywallView"].exists, "Тест стабильности бесплатный: окна подписки быть не должно")
+        for seconds in [300, 900, 1_800, 3_600] {
+            XCTAssertTrue(app.buttons["stabilityDuration-\(seconds)"].exists, "Нет выбора длительности \(seconds) с")
+        }
+        attachScreenshot("stability-start")
+
+        start.tap()
+        XCTAssertTrue(app.staticTexts["stabilityRemaining"].waitForExistence(timeout: 10), "Тест не начался: нет счётчика времени")
+        // Даём тесту поработать: на раннере есть сеть, шаги идут раз в секунду
+        Thread.sleep(forTimeInterval: 6)
+        attachScreenshot("stability-running")
+
+        let stop = app.buttons["stabilityStopButton"]
+        XCTAssertTrue(stop.exists, "Во время теста нет кнопки «Остановить тест»")
+        stop.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["stabilityVerdict"].waitForExistence(timeout: 10),
+            "После остановки нет итога теста"
+        )
+        attachScreenshot("stability-result")
+        print("NETPULSE-CI: тест стабильности: запускается, останавливается, показывает итог")
+
+        let again = app.buttons["stabilityNewTestButton"]
+        XCTAssertTrue(again.exists, "На итоге нет кнопки «Новый тест»")
+        again.tap()
+        XCTAssertTrue(start.waitForExistence(timeout: 5), "После «Нового теста» экран выбора не вернулся")
     }
 
     /// Без подписки плитки PRO открывают окно подписки

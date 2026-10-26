@@ -1444,7 +1444,8 @@ public final class NetworkMonitorViewModel {
     /// Средний пинг по узлам, отвечающим прямо сейчас; nil — свежих данных нет
     public var currentAveragePing: Double? {
         let latencies = relevantHosts.compactMap { $0.lastLatencyMs }.filter { $0 > 0 }
-        guard !latencies.isEmpty else { return nil }
+        // Свежих данных мониторинга нет (например, приложение свёрнуто), но идёт тест стабильности: берём его пинг
+        guard !latencies.isEmpty else { return StabilityTestRunner.shared.islandSnapshot?.pingMs }
         return (latencies.reduce(0, +) / Double(latencies.count) * 10).rounded() / 10
     }
 
@@ -1460,7 +1461,7 @@ public final class NetworkMonitorViewModel {
     /// Средний процент потерь по узлам со свежими данными (0, если данных нет — см. `hasLiveData`)
     public var currentPacketLossPct: Double {
         let losses = relevantHosts.map { $0.lossWindowPct }
-        guard !losses.isEmpty else { return 0.0 }
+        guard !losses.isEmpty else { return StabilityTestRunner.shared.islandSnapshot?.lossPercent ?? 0.0 }
         return (losses.reduce(0, +) / Double(losses.count) * 10).rounded() / 10
     }
 

@@ -33,6 +33,8 @@ struct NetPulseApp: App {
     init() {
         // Регистрация системных обработчиков фонового сбора трафика BGTaskScheduler
         BackgroundTaskManager.shared.registerBackgroundTasks()
+        // Тест стабильности: на iOS 26 и новее система не усыпляет приложение, пока идёт тест, запущенный пользователем
+        ContinuedProcessingHost.register()
         // «Карта скорости»: автоматические замеры на маршруте входят в подписку PRO
         RouteRecorder.shared.speedSamplingAllowed = { ProStore.shared.isPro }
         AlertNotifier.shared.clearStaleReminder()

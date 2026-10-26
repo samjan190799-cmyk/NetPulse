@@ -433,6 +433,17 @@ final class ProFeatureSupportTests: XCTestCase {
         XCTAssertGreaterThan(big.count, short.count, "Длинный отчёт занимает больше страниц")
     }
 
+    func testStabilityTestsMakeTheReportLonger() {
+        var withTests = sampleReport()
+        withTests.stability = ["26 окт., 12:05 · Wi-Fi · 15 мин · потери 1.2 % · обрывов нет · задержка в среднем 31 мс. Связь хорошая."]
+        XCTAssertGreaterThan(
+            ReportBuilder.makePDF(withTests).count,
+            ReportBuilder.makePDF(sampleReport()).count,
+            "Раздел «Тесты стабильности» должен попасть в отчёт провайдеру"
+        )
+        XCTAssertTrue(sampleReport().stability.isEmpty, "Без тестов раздела в отчёте нет")
+    }
+
     func testGPXContainsPointsTimesAndEscapedText() {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
         let route = RouteRecord(

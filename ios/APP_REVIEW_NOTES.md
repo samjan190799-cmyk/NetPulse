@@ -44,6 +44,10 @@ User control and transparency:
 - Settings → "Экономия заряда" (Battery saver; off by default): one switch that makes the app work less often (coarser
   location of about 100 m, fewer route points, no speed sampling on routes, slower Dynamic Island and widget updates,
   no coverage zones). It does not add any data collection.
+- Settings → "Запись маршрута" → «Режим «Поездка»» (Trip mode; on by default): while a route is being recorded, the app
+  looks at the routes the user has already saved and, if the direction of travel leads to a place where the connection
+  was weak or lost on an earlier route, shows "Впереди слабая связь" (weak connection ahead) with the distance. It uses
+  only routes already stored on the device, collects nothing new and uses no operator data.
 - All other features (speed test, diagnostics, widgets, Dynamic Island) work without location permission.
   Nothing is gated behind location.
 
@@ -77,6 +81,17 @@ HOW TO TEST
 Note: if the phone stays on a desk, points are written only every 30 seconds. In the Simulator use
 Features → Location → City Run / Freeway Drive.
 
+STABILITY TEST
+
+"Инструменты" tab → "Тест стабильности" (Stability test; free). The user picks 5, 15, 30 or 60 minutes and taps
+"Начать тест". Once a second the app opens a TCP connection to three public DNS servers (Cloudflare 1.1.1.1,
+Google 8.8.8.8, Quad9 9.9.9.9) and, on Wi-Fi, to the user's own router, and shows packet loss, latency, jitter and outages
+(about 5 MB of traffic per hour). On iOS 26 and later the test runs as a user-initiated BGContinuedProcessingTask
+(identifier com.samvel.netpulse.stability, requested only when the user taps the start button): the system shows its own
+progress UI, the user can cancel the test from there, and the task ends when the test ends. On earlier iOS versions the
+test runs only while the app is open (the screen stays on). The test does not use location, needs no account, and its
+results stay on the device.
+
 ADVERTISING AND TRACKING
 
 The app contains no advertising, no third-party SDKs, no analytics and does not track users: it does not use the
@@ -106,6 +121,8 @@ WIDGETS AND LIVE ACTIVITY
 
 The app includes a Home Screen widget ("NetPulse Монитор", WidgetKit: network status, latency, connection speed and
 data usage) and a Live Activity shown on the Lock Screen and in the Dynamic Island with live speed and latency.
+The Live Activity has a "Обновить" (Refresh) button: it is a LiveActivityIntent that makes one fresh network
+measurement (a TCP connection time and a short download of at most 1.5 MB) and updates the Live Activity.
 Both work without location permission.
 
 The app's interface is in Russian.
@@ -125,4 +142,5 @@ The app's interface is in Russian.
 8. **Фоновая запись.** Фоновая геолокация включается только записью, которую начал сам пользователь. В «Настройки → Запись маршрута» есть тумблер «Записывать маршрут в фоне» (по умолчанию включён; выключенный — свёрнутое приложение не получает геолокацию и значок в строке состояния не появляется) и тумблер автоостановки: через 20 минут без движения маршрут сохраняется, запись останавливается.
    **Запись после закрытия приложения** — отдельный тумблер «Продолжать запись после закрытия приложения» (по умолчанию выключен). Включённый, он просит доступ «Всегда» (текст запроса в `NSLocationAlwaysAndWhenInUseUsageDescription`) и, пока идёт запись, включает слежение за значительными перемещениями: iOS может запустить закрытое приложение, и запись продолжится в том же маршруте. Это единственное место, где нужен «Всегда»; без тумблера приложение его не просит. Рецензент может спросить, зачем «Всегда»: ответ уже есть в тексте Notes (только пока идёт запись, только по желанию пользователя, ничего другого при запуске не делается). Если Apple откажет именно из-за «Всегда», уберите тумблер и ключ `NSLocationAlwaysAndWhenInUseUsageDescription`, остальное можно оставить.
    **Режим экономии заряда** («Настройки», первый раздел, по умолчанию выключен) не добавляет сбора данных: он только ослабляет работу приложения. В описание для ревью его вносить не обязательно, но он упомянут в Notes.
-9. **Если ревью отклонит запись маршрута** — убрать `location` из `UIBackgroundModes` и экран записи в магазинной сборке (функции в сборке просто не будет), а не прятать её. Остров продолжит обновляться, пока приложение открыто, и покажет «паузу» в фоне.
+9. **Тест стабильности и системная фоновая задача.** На iOS 26 тест запускается как `BGContinuedProcessingTask` (идентификатор `com.samvel.netpulse.stability` записан в `BGTaskSchedulerPermittedIdentifiers` и регистрируется при запуске приложения; режим `processing` в `UIBackgroundModes` уже есть). Задача запрашивается только по кнопке «Начать тест», ход виден в системном окне, отменить можно оттуда: это обычная пользовательская долгая работа. Если Apple возразит, достаточно убрать запрос задачи (`ContinuedProcessingHost.begin`): тест продолжит работать в открытом приложении. Кнопка «Обновить» на острове (`LiveActivityIntent`) и режим «Поездка» новых разрешений не просят.
+10. **Если ревью отклонит запись маршрута** — убрать `location` из `UIBackgroundModes` и экран записи в магазинной сборке (функции в сборке просто не будет), а не прятать её. Остров продолжит обновляться, пока приложение открыто, и покажет «паузу» в фоне.

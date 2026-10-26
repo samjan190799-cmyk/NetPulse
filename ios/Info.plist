@@ -72,6 +72,7 @@
     <array>
         <string>com.samvel.netpulse.telemetry</string>
         <string>com.samvel.netpulse.refresh</string>
+        <string>com.samvel.netpulse.stability</string>
     </array>
     <key>UIApplicationSceneManifest</key>
     <dict>

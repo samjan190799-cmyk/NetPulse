@@ -307,6 +307,17 @@ public struct DiagnosticsView: View {
                     )
                 }
                 .buttonStyle(NPPressableButtonStyle())
+
+                NavigationLink(destination: StabilityTestView(viewModel: viewModel)) {
+                    proUtilityTile(
+                        title: "Тест стабильности",
+                        subtitle: "Потери, обрывы, джиттер",
+                        icon: "waveform.path.ecg",
+                        color: Color.green
+                    )
+                }
+                .buttonStyle(NPPressableButtonStyle())
+                .accessibilityIdentifier("toolsStabilityButton")
             }
         }
     }

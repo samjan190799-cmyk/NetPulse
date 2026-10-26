@@ -128,6 +128,12 @@
 		A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001012C12345600000103 /* IslandRefreshTests.swift */; };
 		A10001032C12345600000104 /* TripModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001032C12345600000104 /* TripModels.swift */; };
 		A30001022C12345600000105 /* TripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001022C12345600000105 /* TripTests.swift */; };
+		A10001042C12345600000106 /* StabilityModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001042C12345600000106 /* StabilityModels.swift */; };
+		A10001052C12345600000107 /* StabilityTestEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001052C12345600000107 /* StabilityTestEngine.swift */; };
+		A10001062C12345600000108 /* StabilityHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001062C12345600000108 /* StabilityHistoryStore.swift */; };
+		A10001072C12345600000109 /* ContinuedProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001072C12345600000109 /* ContinuedProcessing.swift */; };
+		A10001082C1234560000010A /* StabilityTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001082C1234560000010A /* StabilityTestView.swift */; };
+		A30001032C1234560000010B /* StabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001032C1234560000010B /* StabilityTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -295,6 +301,12 @@
 		B30001012C12345600000103 /* IslandRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandRefreshTests.swift; sourceTree = "<group>"; };
 		B10001032C12345600000104 /* TripModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TripModels.swift; sourceTree = "<group>"; };
 		B30001022C12345600000105 /* TripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/TripTests.swift; sourceTree = "<group>"; };
+		B10001042C12345600000106 /* StabilityModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/StabilityModels.swift; sourceTree = "<group>"; };
+		B10001052C12345600000107 /* StabilityTestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/StabilityTestEngine.swift; sourceTree = "<group>"; };
+		B10001062C12345600000108 /* StabilityHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/StabilityHistoryStore.swift; sourceTree = "<group>"; };
+		B10001072C12345600000109 /* ContinuedProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ContinuedProcessing.swift; sourceTree = "<group>"; };
+		B10001082C1234560000010A /* StabilityTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/StabilityTestView.swift; sourceTree = "<group>"; };
+		B30001032C1234560000010B /* StabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/StabilityTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -385,6 +397,7 @@
 				B10000E12C123456000000E1 /* HomeModels.swift */,
 				B10000EA2C123456000000EA /* ZoneModels.swift */,
 				B10001032C12345600000104 /* TripModels.swift */,
+				B10001042C12345600000106 /* StabilityModels.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -407,6 +420,7 @@
 				B10000972C12345600000097 /* LANScannerEngine.swift */,
 				B10000D72C123456000000D7 /* NetworkProbe.swift */,
 				B54000002C12345600000040 /* ServiceCheckEngine.swift */,
+				B10001052C12345600000107 /* StabilityTestEngine.swift */,
 			);
 			name = Engines;
 			sourceTree = "<group>";
@@ -443,6 +457,7 @@
 				B10000E02C123456000000E0 /* HomeFloatingCards.swift */,
 				B54100002C12345600000041 /* ServiceCheckView.swift */,
 				B54300002C12345600000043 /* SpeedHistoryView.swift */,
+				B10001082C1234560000010A /* StabilityTestView.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -495,6 +510,8 @@
 				B54900002C12345600000049 /* MetricsReporter.swift */,
 				B10001012C12345600000101 /* IslandRefreshIntent.swift */,
 				B10001022C12345600000102 /* IslandSnapshot.swift */,
+				B10001062C12345600000108 /* StabilityHistoryStore.swift */,
+				B10001072C12345600000109 /* ContinuedProcessing.swift */,
 			);
 			name = Utils;
 			sourceTree = "<group>";
@@ -526,6 +543,7 @@
 				B300000C2C1234560000000C /* PowerSaverTests.swift */,
 				B30001012C12345600000103 /* IslandRefreshTests.swift */,
 				B30001022C12345600000105 /* TripTests.swift */,
+				B30001032C1234560000010B /* StabilityTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -795,6 +813,11 @@
 				A10001012C12345600000101 /* IslandRefreshIntent.swift in Sources */,
 				A10001022C12345600000102 /* IslandSnapshot.swift in Sources */,
 				A10001032C12345600000104 /* TripModels.swift in Sources */,
+				A10001042C12345600000106 /* StabilityModels.swift in Sources */,
+				A10001052C12345600000107 /* StabilityTestEngine.swift in Sources */,
+				A10001062C12345600000108 /* StabilityHistoryStore.swift in Sources */,
+				A10001072C12345600000109 /* ContinuedProcessing.swift in Sources */,
+				A10001082C1234560000010A /* StabilityTestView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -828,6 +851,7 @@
 				A300000C2C1234560000000C /* PowerSaverTests.swift in Sources */,
 				A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */,
 				A30001022C12345600000105 /* TripTests.swift in Sources */,
+				A30001032C1234560000010B /* StabilityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -43,7 +43,8 @@ for rel in ${PROBE_WITH:-}; do
         sed '/^@testable import NetPulse$/d' "$path" > "$stripped_dir/$(basename "$path")"
         extra+=("$stripped_dir/$(basename "$path")")
       done <<< "$listed"
-      flags+=(-F "$(xcrun --sdk iphonesimulator --show-sdk-platform-path)/Developer/Library/Frameworks")
+      platform_dir="$(xcrun --sdk iphonesimulator --show-sdk-platform-path)"
+      flags+=(-F "$platform_dir/Developer/Library/Frameworks" -I "$platform_dir/Developer/usr/lib")
       continue
       ;;
   esac
@@ -53,6 +54,11 @@ for rel in ${PROBE_WITH:-}; do
   fi
   extra+=("$ios_dir/$rel")
 done
+
+# Целые цели проверяются без предупреждений: в них их много, а нужны только ошибки
+case "${PROBE_WITH:-}" in
+  *@*) flags+=(-suppress-warnings) ;;
+esac
 
 dir="$(cd "$(dirname "$0")" && pwd)/probes"
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"

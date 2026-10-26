@@ -251,12 +251,9 @@ public final class ActivityManager {
         #if canImport(ActivityKit)
         guard let activity = liveActivity() else { return }
         let state = IslandSnapshot.state(from: result, previous: activity.content.state, now: Date())
-        let content = ActivityContent(
-            state: state,
-            staleDate: Date().addingTimeInterval(IslandSnapshot.staleAfter),
-            relevanceScore: Self.relevance(for: state)
-        )
-        await activity.update(content)
+        // Отправка тем же отправителем, что и у обычных кадров, но со сроком свежести подольше
+        let send = makeSender(for: activity, staleAfter: IslandSnapshot.staleAfter)
+        await send(state)
         lastRenderedState = state
         lastRenderedAt = Date()
         let pingText = state.pingMs.map { "\(Int($0)) мс" } ?? "нет ответа"
@@ -525,7 +522,10 @@ public final class ActivityManager {
         pipeline.submit(state, send: makeSender(for: activity))
     }
 
-    private func makeSender(for activity: Activity<NetPulseAttributes>) -> IslandUpdatePipeline<NetPulseAttributes.ContentState>.Sender {
+    private func makeSender(
+        for activity: Activity<NetPulseAttributes>,
+        staleAfter: TimeInterval = ActivityManager.staleAfter
+    ) -> IslandUpdatePipeline<NetPulseAttributes.ContentState>.Sender {
         return { state in
             // staleDate продлевается с каждым кадром: если кадры прекратятся, iOS сама пометит остров устаревшим.
             // Метка времени кадра нужна, чтобы устаревший остров показывал «данные N назад»
@@ -533,7 +533,7 @@ public final class ActivityManager {
             stamped.updatedAt = Date()
             let content = ActivityContent(
                 state: stamped,
-                staleDate: Date().addingTimeInterval(ActivityManager.staleAfter),
+                staleDate: Date().addingTimeInterval(staleAfter),
                 relevanceScore: ActivityManager.relevance(for: state)
             )
             await activity.update(content)

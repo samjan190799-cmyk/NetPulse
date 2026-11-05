@@ -488,7 +488,8 @@ struct StabilityResultContent: View {
             }
             .accessibilityIdentifier("stabilityShareButton")
         }
-        .accessibilityIdentifier("stabilityResult")
+        // Общий идентификатор на контейнере здесь нельзя: SwiftUI перекрывает им идентификаторы всех вложенных
+        // элементов, и «stabilityVerdict», «stabilityChart» и кнопка «Поделиться» пропадают для UI-тестов.
     }
 
     private func verdictCard(_ verdict: StabilityVerdict) -> some View {

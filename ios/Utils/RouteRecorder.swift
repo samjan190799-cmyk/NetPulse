@@ -241,6 +241,12 @@ public final class RouteRecorder {
     @ObservationIgnored private var tripAdvisorGeneration = 0
     @ObservationIgnored private var tripAdvisorTask: Task<Void, Never>?
     @ObservationIgnored private var tripAnnouncer = TripAnnouncer()
+    /// Последняя отложенная работа с файлами маршрутов (сохранение остановленного маршрута, удаление). Каждая новая
+    /// ждёт предыдущую: «Удалить все» сразу после остановки записи не оставит на диске только что сохранённый маршрут.
+    @ObservationIgnored private var storageWork: Task<Void, Never>?
+    /// Сколько раз удаляли маршруты. Список, перечитанный с диска до удаления, после него применять нельзя:
+    /// он вернул бы на экран удалённые маршруты (и они снова влияли бы на предупреждения «Поездки»).
+    @ObservationIgnored private var deletionEpoch = 0
 
     public init(
         session: any LocationSessionProviding,
@@ -412,7 +418,8 @@ public final class RouteRecorder {
     public func deleteRoute(id: UUID) {
         history.removeAll { $0.id == id }
         if lastSaved?.id == id { lastSaved = nil }
-        Task { [storage] in
+        deletionEpoch += 1
+        enqueueStorageWork { storage in
             await storage.delete(id: id)
         }
     }
@@ -420,8 +427,24 @@ public final class RouteRecorder {
     public func deleteAllRoutes() {
         history = []
         lastSaved = nil
-        Task { [storage] in
+        deletionEpoch += 1
+        enqueueStorageWork { storage in
             await storage.deleteAll()
+        }
+    }
+
+    /// Ждёт, пока закончится отложенная работа с файлами маршрутов (сохранение остановленного маршрута, удаление).
+    /// Приложению это не нужно: нужно тестам, чтобы не опираться на паузы.
+    func waitForStorageWork() async {
+        await storageWork?.value
+    }
+
+    /// Ставит работу с файлами в очередь после предыдущей
+    private func enqueueStorageWork(_ work: @escaping @Sendable (RouteStorage) async -> Void) {
+        let previous = storageWork
+        storageWork = Task { [storage] in
+            await previous?.value
+            await work(storage)
         }
     }
 
@@ -750,11 +773,17 @@ public final class RouteRecorder {
 
         lastSaved = saved
         history.insert(saved, at: 0)
-        Task { [weak self, storage] in
+        let epoch = deletionEpoch
+        let previous = storageWork
+        storageWork = Task { [weak self, storage] in
+            await previous?.value
             try? await storage.save(saved)
             await storage.clearActive()
             let all = await storage.loadAll()
-            self?.history = all
+            // Пока маршрут сохранялся, пользователь мог удалить маршруты: список на экране уже верный,
+            // а снимок диска он испортил бы
+            guard let self, self.deletionEpoch == epoch else { return }
+            self.history = all
         }
     }
 }

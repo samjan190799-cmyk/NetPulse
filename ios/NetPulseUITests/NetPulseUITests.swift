@@ -879,8 +879,9 @@ final class NetPulseUITests: XCTestCase {
         attachScreenshot("stability-result")
         print("NETPULSE-CI: тест стабильности: запускается, останавливается, показывает итог")
 
+        // Кнопка стоит под итогом, ниже видимой части экрана: сначала прокручиваем к ней
         let again = app.buttons["stabilityNewTestButton"]
-        XCTAssertTrue(again.exists, "На итоге нет кнопки «Новый тест»")
+        XCTAssertTrue(reveal(again, in: app), "На итоге нет кнопки «Новый тест»")
         again.tap()
         XCTAssertTrue(start.waitForExistence(timeout: 5), "После «Нового теста» экран выбора не вернулся")
     }

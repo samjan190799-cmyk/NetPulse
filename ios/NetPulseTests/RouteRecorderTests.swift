@@ -1433,21 +1433,45 @@ final class RouteRecorderTripTests: XCTestCase {
         let before = await drive(rig)
         XCTAssertFalse(before.isEmpty)
 
-        // Остановка записи сохраняет новый маршрут в фоне: ждём, пока он окажется в истории вместе с прошлым
-        for _ in 0..<100 where rig.recorder.history.count < 2 {
-            try? await Task.sleep(nanoseconds: 40_000_000)
-        }
+        // Сразу после остановки новый маршрут ещё сохраняется в фоне; удаление встаёт в очередь за этим сохранением
         rig.recorder.deleteAllRoutes()
-        // Файлы удаляются в фоне: ждём, пока их не останется
-        for _ in 0..<100 {
-            if await rig.storage.loadAll().isEmpty { break }
-            try? await Task.sleep(nanoseconds: 40_000_000)
-        }
+        await rig.recorder.waitForStorageWork()
         let remaining = await rig.storage.loadAll()
-        XCTAssertTrue(remaining.isEmpty)
-        XCTAssertTrue(rig.recorder.history.isEmpty)
+        XCTAssertTrue(remaining.isEmpty, "На диске не должно остаться маршрутов, в том числе только что записанного")
+        XCTAssertTrue(rig.recorder.history.isEmpty, "Удалённые маршруты не должны возвращаться в список")
 
         let after = await drive(rig)
         XCTAssertTrue(after.isEmpty, "Маршрутов нет, а предупреждение всё ещё приходит")
+        await rig.recorder.waitForStorageWork()
+    }
+
+    /// Маршрут удалили сразу после остановки, пока он ещё сохранялся: ни на экран, ни на диск он не возвращается
+    @MainActor
+    func testRouteDeletedRightAfterStopDoesNotComeBack() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        _ = await drive(rig)
+        let newest = try XCTUnwrap(rig.recorder.history.first, "После остановки маршрут сразу виден в истории")
+        rig.recorder.deleteRoute(id: newest.id)
+        await rig.recorder.waitForStorageWork()
+
+        XCTAssertTrue(rig.recorder.history.isEmpty)
+        let remaining = await rig.storage.loadAll()
+        XCTAssertTrue(remaining.isEmpty)
+    }
+
+    /// Без удаления остановленный маршрут оказывается и в списке, и на диске
+    @MainActor
+    func testStoppedRouteIsListedAndSavedOnDisk() async throws {
+        let rig = try makeRig(authorization: .authorized)
+        defer { try? FileManager.default.removeItem(at: rig.directory) }
+
+        _ = await drive(rig)
+        await rig.recorder.waitForStorageWork()
+
+        XCTAssertEqual(rig.recorder.history.count, 1)
+        let saved = await rig.storage.loadAll()
+        XCTAssertEqual(saved.map(\.id), rig.recorder.history.map(\.id))
     }
 }

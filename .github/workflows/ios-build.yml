@@ -22,6 +22,10 @@ on:
         description: 'Только эти UI-тесты (имена методов через запятую, например testRecordingSavesRouteWithPoints); пусто — все'
         required: false
         default: ''
+      unit_tests:
+        description: 'Только эти юнит-тесты (Класс или Класс/метод через запятую, например RouteRecorderTripTests); пусто — все'
+        required: false
+        default: ''
       skip_unit:
         description: 'Пропустить юнит-тесты'
         type: boolean
@@ -153,14 +157,30 @@ jobs:
         if: ${{ !inputs.skip_unit }}
         continue-on-error: true
         working-directory: ./ios
+        env:
+          # Параметр ручного запуска передаётся через окружение и проверяется (защита от инъекции команд)
+          ONLY_UNIT_TESTS: ${{ inputs.unit_tests }}
         run: |
           set -o pipefail
+          ONLY_ARGS=(-only-testing:NetPulseTests)
+          if [ -n "$ONLY_UNIT_TESTS" ]; then
+            ONLY_ARGS=()
+            set -f
+            for name in ${ONLY_UNIT_TESTS//,/ }; do
+              if ! [[ "$name" =~ ^[A-Za-z0-9_]+(/[A-Za-z0-9_]+)?$ ]]; then
+                echo "❌ Некорректное имя теста: '$name'"
+                exit 1
+              fi
+              ONLY_ARGS+=("-only-testing:NetPulseTests/$name")
+            done
+            set +f
+          fi
           xcodebuild test-without-building \
             -project NetPulse.xcodeproj \
             -scheme NetPulse \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
-            -only-testing:NetPulseTests \
+            "${ONLY_ARGS[@]}" \
             -resultBundlePath build/unit.xcresult \
             2>&1 | tee build/unit.log | tail -n 60
 

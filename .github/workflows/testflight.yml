@@ -1,14 +1,8 @@
-name: "Выгрузка в TestFlight (Apple App Store Connect)"
+name: "Служебная: расшифровка вылета сборки"
 
-# Выгрузка в TestFlight запускается ТОЛЬКО вручную. Раньше любой push в ios/** на main автоматически отправлял
-# сборку тестировщикам, а новый запуск отменял предыдущий (в том числе во время загрузки).
+# Служебная проверка: собирает тот же архив, что и сборка 146, и расшифровывает адреса из отчёта о вылете. Ничего не выгружает.
 on:
   workflow_dispatch:
-    inputs:
-      version_name:
-        description: 'Маркетинговая версия (например: 1.0.0)'
-        required: true
-        default: '1.0.0'
 
 permissions:
   contents: read
@@ -19,12 +13,9 @@ concurrency:
 
 jobs:
   build-and-upload:
-    name: "Сборка и доставка в TestFlight"
+    name: "Сборка архива и расшифровка"
     runs-on: macos-15
     timeout-minutes: 45
-    env:
-      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-
     steps:
       - name: "Проверка репозитория"
         uses: actions/checkout@v4
@@ -139,37 +130,12 @@ jobs:
           ls -la "$ICONSET/"
           echo "✔ Иконки сгенерированы успешно"
 
-      - name: "Настройка ключа App Store Connect API"
-        env:
-          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
-        run: |
-          umask 077
-          mkdir -p ~/.appstoreconnect/private_keys
-          printf '%s\n' "$API_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
-
-      - name: "Импорт сертификата Apple Distribution (при наличии)"
-        if: env.APPLE_CERTIFICATE_BASE64 != ''
-        env:
-          CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          KEYCHAIN_PASSWORD="$(uuidgen)"
-          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
-          security import $RUNNER_TEMP/certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
       - name: "Сборка архива NetPulse.xcarchive"
         working-directory: ./ios
         env:
           # Значения из inputs передаются через окружение, а не подставляются в текст скрипта (защита от инъекции команд)
-          VERSION_NAME: ${{ github.event.inputs.version_name }}
-          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION_NAME: '1.1.0'
+          BUILD_NUMBER: '146'
         run: |
           set -euo pipefail
           if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
@@ -199,113 +165,24 @@ jobs:
             plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST"
           fi
 
-      - name: "Фреймворки в архиве: снять подпись линкера (ad hoc)"
+      - name: "Расшифровка адресов из отчёта о вылете"
         working-directory: ./ios
         run: |
-          # Статическую библиотеку (например, рекламу Яндекса) Xcode 26 кладёт в приложение «бескодовым» фреймворком
-          # и вставляет в него пустую заглушку, подписанную линкером (ad hoc). Архив собирается без подписи, и экспорт
-          # такую готовую подпись оставляет как есть: Apple отклоняет сборку («Invalid Signature … not properly signed»).
-          # Снимаем подпись линкера, чтобы экспорт подписал заглушку сертификатом распространения.
-          # Если же Xcode положил в Frameworks/ саму статическую библиотеку (ar-архив), её копия не нужна: код уже
-          # слинкован в основной бинарник, а подписать архив нельзя. Такую копию удаляем целиком.
           APP="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
-          shopt -s nullglob
-          for fw in "$APP"/Frameworks/*.framework; do
-            name="$(basename "$fw" .framework)"
-            exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$fw/Info.plist" 2>/dev/null || echo "$name")"
-            bin="$fw/$exe"
-            if [ ! -f "$bin" ]; then
-              echo "• $name: бинарного файла нет"
-              continue
-            fi
-            if file -b "$bin" 2>/dev/null | grep -q "ar archive"; then
-              echo "• $name: статическая библиотека, встроенную копию удаляю"
-              rm -rf "$fw"
-              continue
-            fi
-            sig="$(codesign -dv --verbose=2 "$bin" 2>&1 | grep -E '^Signature=|^CodeDirectory' | tr '\n' ' ' || true)"
-            echo "• $name: ${sig:-не подписан}"
-            if echo "$sig" | grep -qi "adhoc"; then
-              codesign --remove-signature "$bin"
-              echo "    подпись линкера снята: подписать заглушку должен экспорт"
-            fi
+          DSYM="build/NetPulse.xcarchive/dSYMs/NetPulse.app.dSYM/Contents/Resources/DWARF/NetPulse"
+          echo "=== UUID собранного файла (в отчёте: 98af0b0e-915d-3f10-8ef9-cba167b51f69) ==="
+          dwarfdump --uuid "$APP/NetPulse" || true
+          dwarfdump --uuid "$DSYM" || true
+          echo "=== Адреса из потоков, где упало ==="
+          for off in 121868 1454172; do
+            addr=$(printf '0x%x' $((0x100000000 + off)))
+            echo "--- смещение $off ($addr)"
+            xcrun atos -arch arm64 -o "$DSYM" -l 0x100000000 "$addr" || true
           done
-          rmdir "$APP/Frameworks" 2>/dev/null || true
-
-      - name: "Экспорт и подпись IPA через App Store Connect API"
-        working-directory: ./ios
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          mkdir -p build/IPA
-          plutil -replace teamID -string "$TEAM_ID" ExportOptions.plist
-
-          xcodebuild -exportArchive \
-            -archivePath build/NetPulse.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/IPA \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$KEY_ID" \
-            -authenticationKeyIssuerID "$ISSUER_ID" \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
-
-      - name: "Проверка подписи в готовом IPA (до выгрузки)"
-        working-directory: ./ios
-        run: |
-          # Apple отклоняет сборку, если любой встроенный код подписан не сертификатом распространения.
-          # Проверяем это здесь, чтобы не тратить время на заведомо неудачную выгрузку.
-          set -e
-          rm -rf build/ipa_check && mkdir -p build/ipa_check
-          IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
-          unzip -q "$IPA_PATH" -d build/ipa_check
-          APP="$(echo build/ipa_check/Payload/*.app)"
-          shopt -s nullglob
-          bad=0
-          check() {
-            info="$(codesign -dvv "$1" 2>&1 || true)"
-            auth="$(echo "$info" | grep -E '^Authority=' | head -n 1 || true)"
-            team="$(echo "$info" | grep -E '^TeamIdentifier=' | head -n 1 || true)"
-            echo "• $2: ${auth:-без Authority} ${team:+| $team}"
-            if echo "$info" | grep -qE 'Signature=adhoc|not signed at all' || [ -z "$auth" ]; then
-              bad=1
-            fi
-          }
-          check "$APP" "приложение"
-          for item in "$APP"/Frameworks/*.framework "$APP"/PlugIns/*.appex; do
-            check "$item" "$(basename "$item")"
+          echo "=== Соседние адреса (поиск по символам) ==="
+          for off in 121868 1454172; do
+            for d in -64 -32 0 32 64; do
+              addr=$(printf '0x%x' $((0x100000000 + off + d)))
+              xcrun atos -arch arm64 -o "$DSYM" -l 0x100000000 "$addr" || true
+            done
           done
-          if [ "$bad" -ne 0 ]; then
-            echo "❌ Часть кода в IPA подписана не сертификатом распространения (ad hoc или без подписи): Apple отклонит сборку"
-            exit 1
-          fi
-          echo "✔ Весь код в IPA подписан сертификатом распространения"
-
-      - name: "Выгрузка в TestFlight"
-        working-directory: ./ios
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-        run: |
-          set -eo pipefail
-          IPA_PATH=$(find build/IPA -name "*.ipa" | head -n 1)
-          if [ -z "$IPA_PATH" ]; then
-            echo "❌ IPA файл не найден!"
-            exit 1
-          fi
-          echo "✔ Найден IPA: $IPA_PATH ($(ls -lh "$IPA_PATH" | awk '{print $5}'))"
-
-          # altool при отказе Apple печатает «UPLOAD FAILED», но завершается с кодом 0 — проверяем вывод сами
-          xcrun altool --upload-app \
-            -f "$IPA_PATH" \
-            --type ios \
-            --apiKey "$KEY_ID" \
-            --apiIssuer "$ISSUER_ID" 2>&1 | tee build/altool.log
-
-          if grep -qE "UPLOAD FAILED|Failed to upload package" build/altool.log; then
-            echo "❌ Apple отклонила загрузку (причина выше). Сборка НЕ отправлена."
-            exit 1
-          fi
-
-          echo "🚀 Сборка успешно отправлена в Apple TestFlight!"

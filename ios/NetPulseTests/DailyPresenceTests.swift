@@ -345,21 +345,19 @@ private final class FakeNotifications: NotificationScheduling, @unchecked Sendab
         _authorized = authorized
     }
 
-    var scheduled: [Scheduled] { lock.lock(); defer { lock.unlock() }; return _scheduled }
-    var removed: [[String]] { lock.lock(); defer { lock.unlock() }; return _removed }
+    var scheduled: [Scheduled] { lock.withLock { _scheduled } }
+    var removed: [[String]] { lock.withLock { _removed } }
 
     func isAuthorized() async -> Bool { _authorized }
 
     func schedule(identifier: String, title: String, body: String, at components: DateComponents) async {
-        lock.lock()
-        _scheduled.append(Scheduled(identifier: identifier, title: title, body: body, components: components))
-        lock.unlock()
+        lock.withLock {
+            _scheduled.append(Scheduled(identifier: identifier, title: title, body: body, components: components))
+        }
     }
 
     func removePending(identifiers: [String]) {
-        lock.lock()
-        _removed.append(identifiers)
-        lock.unlock()
+        lock.withLock { _removed.append(identifiers) }
     }
 }
 

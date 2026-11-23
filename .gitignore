@@ -22,10 +22,15 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
+kap_history.db
 netpulse_history.db
 *.db-wal
 *.db-shm
 *.db-journal
+kap_report_*.json
+kap_metrics_*.csv
+Kap_Report_*.json
+Kap_Metrics_*.csv
 netpulse_report_*.json
 netpulse_metrics_*.csv
 NetPulse_Report_*.json

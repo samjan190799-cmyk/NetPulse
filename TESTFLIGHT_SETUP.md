@@ -1,4 +1,4 @@
-# 🚀 Инструкция по автоматической выгрузке NetPulse в TestFlight
+# 🚀 Инструкция по автоматической выгрузке Kap в TestFlight
 
 В репозитории настроен автоматический CI/CD пайплайн GitHub Actions: [`.github/workflows/testflight.yml`](.github/workflows/testflight.yml), который собирает проект на виртуальной машине macOS, подписывает его и автоматически отправляет в Apple TestFlight.
 

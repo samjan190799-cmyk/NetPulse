@@ -1,4 +1,4 @@
-# Fastfile for NetPulse iOS
+# Fastfile for Kap iOS
 default_platform(:ios)
 
 platform :ios do
@@ -15,27 +15,27 @@ platform :ios do
     # Инкремент номера билда
     increment_build_number(
       build_number: ENV["GITHUB_RUN_NUMBER"] || Time.now.to_i.to_s,
-      xcodeproj: "NetPulse.xcodeproj"
+      xcodeproj: "Kap.xcodeproj"
     )
 
     # Сборка приложения
     build_app(
-      project: "NetPulse.xcodeproj",
-      scheme: "NetPulse",
+      project: "Kap.xcodeproj",
+      scheme: "Kap",
       configuration: "Release",
       export_method: "app-store",
       export_options: "ExportOptions.plist",
       output_directory: "./build",
-      output_name: "NetPulse.ipa",
+      output_name: "Kap.ipa",
       clean: true
     )
 
     # Выгрузка в TestFlight
     upload_to_testflight(
       api_key: api_key,
-      ipa: "./build/NetPulse.ipa",
+      ipa: "./build/Kap.ipa",
       skip_waiting_for_build_processing: true,
-      changelog: ENV["TESTFLIGHT_CHANGELOG"] || "Автоматическая сборка NetPulse"
+      changelog: ENV["TESTFLIGHT_CHANGELOG"] || "Автоматическая сборка Kap"
     )
   end
 end

@@ -1,6 +1,6 @@
 //
 //  TrafficStorage.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -622,7 +622,7 @@ public actor TrafficStorage {
         }
 
         let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("NetPulse_Traffic_Report_\(UUID().uuidString.prefix(6)).csv")
+        let fileURL = tempDir.appendingPathComponent("Kap_Traffic_Report_\(UUID().uuidString.prefix(6)).csv")
         try csv.write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
     }
@@ -641,7 +641,7 @@ public actor TrafficStorage {
 
         let data = try encoder.encode(exportPayload)
         let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("NetPulse_Traffic_Report_\(UUID().uuidString.prefix(6)).json")
+        let fileURL = tempDir.appendingPathComponent("Kap_Traffic_Report_\(UUID().uuidString.prefix(6)).json")
         try data.write(to: fileURL)
         return fileURL
     }

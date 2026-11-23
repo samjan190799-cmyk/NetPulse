@@ -38,7 +38,7 @@ class AsyncSpeedtestEngine:
             try:
                 req = urllib.request.Request(
                     url,
-                    headers={"User-Agent": "NetPulse/1.0 Speedtest"}
+                    headers={"User-Agent": "Kap/1.0 Speedtest"}
                 )
                 t_request = time.perf_counter()
                 total_all = 0
@@ -84,7 +84,7 @@ class AsyncSpeedtestEngine:
             req = urllib.request.Request(
                 cls.CF_UPLOAD_URL,
                 data=payload,
-                headers={"User-Agent": "NetPulse/1.0 Speedtest", "Content-Type": "application/octet-stream"},
+                headers={"User-Agent": "Kap/1.0 Speedtest", "Content-Type": "application/octet-stream"},
                 method="POST"
             )
             start_time = time.perf_counter()

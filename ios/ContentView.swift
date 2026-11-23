@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 import UIKit
 
-/// Главный навигационный контейнер приложения NetPulse (Apple HIG 2026)
+/// Главный навигационный контейнер приложения Kap (Apple HIG 2026)
 /// 4 раздела: Сеть (карта, скорость и запись маршрута), Узлы (Диагностика), Трафик, AI Диагност.
 /// Настройки открываются кнопкой на главном экране.
 public struct ContentView: View {

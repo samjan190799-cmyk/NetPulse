@@ -1,6 +1,6 @@
 //
 //  ActivityManager.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -40,15 +40,15 @@ public final class ActivityManager {
     public private(set) var isLiveActivityActive: Bool = false
 
     #if canImport(ActivityKit)
-    private var currentActivity: Activity<NetPulseAttributes>?
-    private var lastRenderedState: NetPulseAttributes.ContentState?
+    private var currentActivity: Activity<KapAttributes>?
+    private var lastRenderedState: KapAttributes.ContentState?
     private var lastRenderedAt: Date?
-    private var lastSubmittedState: NetPulseAttributes.ContentState?
+    private var lastSubmittedState: KapAttributes.ContentState?
     private var stateObservationTask: Task<Void, Never>?
     private var foregroundCheckTask: Task<Void, Never>?
     private var nextStartAttemptAt: Date?
     private var reportedMissingInBackground = false
-    private let pipeline = IslandUpdatePipeline<NetPulseAttributes.ContentState>(sendTimeout: ActivityManager.sendTimeout)
+    private let pipeline = IslandUpdatePipeline<KapAttributes.ContentState>(sendTimeout: ActivityManager.sendTimeout)
     #endif
 
     private init() {
@@ -249,7 +249,7 @@ public final class ActivityManager {
         currentActivity = nil
         isLiveActivityActive = false
 
-        let all = Activity<NetPulseAttributes>.activities
+        let all = Activity<KapAttributes>.activities
         Task {
             for activity in all {
                 await activity.end(nil, dismissalPolicy: .immediate)
@@ -294,8 +294,8 @@ public final class ActivityManager {
         gameTitle: String?,
         gameRegion: String?,
         packetLossPct: Double?
-    ) -> NetPulseAttributes.ContentState {
-        NetPulseAttributes.ContentState(
+    ) -> KapAttributes.ContentState {
+        KapAttributes.ContentState(
             downloadSpeedText: downloadSpeedText,
             uploadSpeedText: uploadSpeedText,
             compactDownloadText: compactDownloadText,
@@ -312,7 +312,7 @@ public final class ActivityManager {
         )
     }
 
-    private static func relevance(for state: NetPulseAttributes.ContentState) -> Double {
+    private static func relevance(for state: KapAttributes.ContentState) -> Double {
         state.isTesting ? 100.0 : (state.isGamingMode ? 90.0 : 80.0)
     }
 
@@ -326,12 +326,12 @@ public final class ActivityManager {
         }
     }
 
-    private static func isAlive(_ activity: Activity<NetPulseAttributes>) -> Bool {
+    private static func isAlive(_ activity: Activity<KapAttributes>) -> Bool {
         activity.activityState != .ended && activity.activityState != .dismissed
     }
 
     /// Видимое пользователю изменение: цифры в компактном виде или режим замера
-    private static func hasVisibleChange(from old: NetPulseAttributes.ContentState, to new: NetPulseAttributes.ContentState) -> Bool {
+    private static func hasVisibleChange(from old: KapAttributes.ContentState, to new: KapAttributes.ContentState) -> Bool {
         old.compactDownloadText != new.compactDownloadText
             || old.compactUploadText != new.compactUploadText
             || old.isTesting != new.isTesting
@@ -347,12 +347,12 @@ public final class ActivityManager {
     }
 
     /// Живая активность: текущая, а если её нет — подхваченная из списка системы (лишние дубликаты завершаются)
-    private func liveActivity() -> Activity<NetPulseAttributes>? {
+    private func liveActivity() -> Activity<KapAttributes>? {
         if let current = currentActivity, Self.isAlive(current) {
             return current
         }
 
-        let alive = Activity<NetPulseAttributes>.activities.filter { Self.isAlive($0) }
+        let alive = Activity<KapAttributes>.activities.filter { Self.isAlive($0) }
         guard let first = alive.first else {
             currentActivity = nil
             return nil
@@ -364,7 +364,7 @@ public final class ActivityManager {
         return first
     }
 
-    private func adopt(_ activity: Activity<NetPulseAttributes>) {
+    private func adopt(_ activity: Activity<KapAttributes>) {
         if currentActivity?.id != activity.id {
             // Ответы на отправки в прежнюю активность больше не важны
             pipeline.reset()
@@ -377,7 +377,7 @@ public final class ActivityManager {
     }
 
     /// Подключается к существующей активности или создаёт новую
-    private func attachOrRequest(state: NetPulseAttributes.ContentState, reason: String) {
+    private func attachOrRequest(state: KapAttributes.ContentState, reason: String) {
         lastSubmittedState = state
         guard areActivitiesEnabled else {
             isLiveActivityActive = false
@@ -393,13 +393,13 @@ public final class ActivityManager {
     }
 
     @discardableResult
-    private func requestNewActivity(state: NetPulseAttributes.ContentState, reason: String) -> Activity<NetPulseAttributes>? {
+    private func requestNewActivity(state: KapAttributes.ContentState, reason: String) -> Activity<KapAttributes>? {
         guard areActivitiesEnabled else {
             isLiveActivityActive = false
             return nil
         }
 
-        let attributes = NetPulseAttributes(sessionTitle: "Мониторинг NetPulse")
+        let attributes = KapAttributes(sessionTitle: "Мониторинг Kap")
         let content = ActivityContent(
             state: state,
             staleDate: Date().addingTimeInterval(Self.staleAfter),
@@ -407,7 +407,7 @@ public final class ActivityManager {
         )
 
         do {
-            let activity = try Activity<NetPulseAttributes>.request(
+            let activity = try Activity<KapAttributes>.request(
                 attributes: attributes,
                 content: content,
                 pushType: nil
@@ -430,14 +430,14 @@ public final class ActivityManager {
     }
 
     /// Создаёт новую активность и завершает прежние
-    private func recreateActivity(with state: NetPulseAttributes.ContentState, reason: String) {
+    private func recreateActivity(with state: KapAttributes.ContentState, reason: String) {
         guard areActivitiesEnabled else {
             isLiveActivityActive = false
             return
         }
 
         IslandDiagnostics.shared.log("Пересоздаю Live Activity: \(reason)", .island)
-        let previous = Activity<NetPulseAttributes>.activities
+        let previous = Activity<KapAttributes>.activities
         pipeline.reset()
         lastRenderedState = nil
 
@@ -452,7 +452,7 @@ public final class ActivityManager {
         }
     }
 
-    private func submit(state: NetPulseAttributes.ContentState, force: Bool) {
+    private func submit(state: KapAttributes.ContentState, force: Bool) {
         lastSubmittedState = state
 
         guard areActivitiesEnabled else {
@@ -489,7 +489,7 @@ public final class ActivityManager {
         pipeline.submit(state, send: makeSender(for: activity))
     }
 
-    private func makeSender(for activity: Activity<NetPulseAttributes>) -> IslandUpdatePipeline<NetPulseAttributes.ContentState>.Sender {
+    private func makeSender(for activity: Activity<KapAttributes>) -> IslandUpdatePipeline<KapAttributes.ContentState>.Sender {
         return { state in
             // staleDate продлевается с каждым кадром: если кадры прекратятся, iOS сама пометит остров устаревшим
             let content = ActivityContent(
@@ -522,7 +522,7 @@ public final class ActivityManager {
         recreateActivity(with: state, reason: "остров не обновлялся после возврата в приложение")
     }
 
-    private func monitorActivityState(_ activity: Activity<NetPulseAttributes>) {
+    private func monitorActivityState(_ activity: Activity<KapAttributes>) {
         stateObservationTask?.cancel()
         stateObservationTask = Task { [weak self, activityId = activity.id] in
             var wasStale = false

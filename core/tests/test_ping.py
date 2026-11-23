@@ -249,7 +249,7 @@ def ip_header(src: str, ihl_words: int = 5) -> bytes:
 
 
 def echo_reply(src: str, ident: int = IDENT, seq: int = SEQ, ihl_words: int = 5) -> tuple:
-    data = ip_header(src, ihl_words) + struct.pack("!BBHHH", 0, 0, 0, ident, seq) + b"NetPulsePing"
+    data = ip_header(src, ihl_words) + struct.pack("!BBHHH", 0, 0, 0, ident, seq) + b"KapPing"
     return data, (src, 0)
 
 

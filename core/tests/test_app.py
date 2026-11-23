@@ -10,7 +10,7 @@ import pytest
 from rich.console import Console
 
 from config.settings import GATEWAY_PLACEHOLDER, AppConfig, HostTarget, PingMode
-from main import NetPulseApplication, parse_arguments, parse_host_spec
+from main import KapApplication, parse_arguments, parse_host_spec
 from metrics.models import AlertSeverity, NetworkAlert, SpeedtestResult
 
 
@@ -70,7 +70,7 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
-def make_app(tmp_path, monkeypatch, targets=None) -> NetPulseApplication:
+def make_app(tmp_path, monkeypatch, targets=None) -> KapApplication:
     monkeypatch.chdir(tmp_path)
     cfg = AppConfig()
     cfg.db_path = tmp_path / "app.db"
@@ -81,7 +81,7 @@ def make_app(tmp_path, monkeypatch, targets=None) -> NetPulseApplication:
         HostTarget("Шлюз", GATEWAY_PLACEHOLDER, is_gateway=True),
         HostTarget("DNS", "1.1.1.1"),
     ]
-    app = NetPulseApplication(cfg)
+    app = KapApplication(cfg)
     app.storage.export_dir = tmp_path / "exports"
     app.console = Console(file=io.StringIO(), width=140, color_system=None)
     return app

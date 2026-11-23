@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F10000012C12345600000001"
-               BuildableName = "NetPulse.app"
-               BlueprintName = "NetPulse"
-               ReferencedContainer = "container:NetPulse.xcodeproj">
+               BuildableName = "Kap.app"
+               BlueprintName = "Kap"
+               ReferencedContainer = "container:Kap.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -30,9 +30,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F30000012C12345600000001"
-               BuildableName = "NetPulseTests.xctest"
-               BlueprintName = "NetPulseTests"
-               ReferencedContainer = "container:NetPulse.xcodeproj">
+               BuildableName = "KapTests.xctest"
+               BlueprintName = "KapTests"
+               ReferencedContainer = "container:Kap.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -44,9 +44,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F40000012C12345600000001"
-               BuildableName = "NetPulseUITests.xctest"
-               BlueprintName = "NetPulseUITests"
-               ReferencedContainer = "container:NetPulse.xcodeproj">
+               BuildableName = "KapUITests.xctest"
+               BlueprintName = "KapUITests"
+               ReferencedContainer = "container:Kap.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -64,9 +64,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F30000012C12345600000001"
-               BuildableName = "NetPulseTests.xctest"
-               BlueprintName = "NetPulseTests"
-               ReferencedContainer = "container:NetPulse.xcodeproj">
+               BuildableName = "KapTests.xctest"
+               BlueprintName = "KapTests"
+               ReferencedContainer = "container:Kap.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -75,9 +75,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F40000012C12345600000001"
-               BuildableName = "NetPulseUITests.xctest"
-               BlueprintName = "NetPulseUITests"
-               ReferencedContainer = "container:NetPulse.xcodeproj">
+               BuildableName = "KapUITests.xctest"
+               BlueprintName = "KapUITests"
+               ReferencedContainer = "container:Kap.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -97,9 +97,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F10000012C12345600000001"
-            BuildableName = "NetPulse.app"
-            BlueprintName = "NetPulse"
-            ReferencedContainer = "container:NetPulse.xcodeproj">
+            BuildableName = "Kap.app"
+            BlueprintName = "Kap"
+            ReferencedContainer = "container:Kap.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -114,9 +114,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F10000012C12345600000001"
-            BuildableName = "NetPulse.app"
-            BlueprintName = "NetPulse"
-            ReferencedContainer = "container:NetPulse.xcodeproj">
+            BuildableName = "Kap.app"
+            BlueprintName = "Kap"
+            ReferencedContainer = "container:Kap.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

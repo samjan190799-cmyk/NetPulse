@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "netpulse"
+name = "kap"
 version = "1.0.0"
 description = "Легковесный инструмент мониторинга качества сетевого соединения в реальном времени"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    { name = "NetPulse Engineering Team" }
+    { name = "Kap Engineering Team" }
 ]
 # Только то, что реально импортируется. Без fastapi/uvicorn веб-интерфейс работает на встроенном http.server.
 dependencies = [
@@ -26,7 +26,7 @@ dev = [
 ]
 
 [project.scripts]
-netpulse = "main:main"
+kap = "main:main"
 
 # Плоская раскладка: main.py + несколько пакетов. Без явного перечня setuptools отказывается
 # собирать проект («Multiple top-level packages discovered in a flat-layout»).

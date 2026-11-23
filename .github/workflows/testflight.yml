@@ -72,11 +72,11 @@ jobs:
           mkdir -p "$ICONSET"
           
           # Если мастер-логотип существует в assets/, генерируем все размеры напрямую из него
-          if [ -f "../assets/netpulse_logo.png" ]; then
-            echo "🖼 Генерация иконок из официального мастер-логотипа ../assets/netpulse_logo.png"
+          if [ -f "../assets/kap_logo.png" ]; then
+            echo "🖼 Генерация иконок из официального мастер-логотипа ../assets/kap_logo.png"
             python3 -c "
           from PIL import Image
-          master = Image.open('../assets/netpulse_logo.png').convert('RGBA')
+          master = Image.open('../assets/kap_logo.png').convert('RGBA')
           # Создаем непрозрачный фон для App Store (требование Apple: без альфа-канала)
           bg = Image.new('RGB', master.size, (10, 13, 20))
           if master.mode == 'RGBA':
@@ -94,7 +94,7 @@ jobs:
                   resized.save(f'$ICONSET/AppIcon-60@2x.png', 'PNG')
               elif sz == 180:
                   resized.save(f'$ICONSET/AppIcon-60@3x.png', 'PNG')
-          print('Все размеры иконок успешно сформированы из netpulse_logo.png')
+          print('Все размеры иконок успешно сформированы из kap_logo.png')
           " || true
           fi
           
@@ -164,7 +164,7 @@ jobs:
           security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-      - name: "Сборка архива NetPulse.xcarchive"
+      - name: "Сборка архива Kap.xcarchive"
         working-directory: ./ios
         env:
           # Значения из inputs передаются через окружение, а не подставляются в текст скрипта (защита от инъекции команд)
@@ -181,11 +181,11 @@ jobs:
           # Info.plist читают их через $(MARKETING_VERSION) и $(CURRENT_PROJECT_VERSION).
           # Раньше agvtool с `|| true` молча не срабатывал, а в plist были зашиты 1.0.0 и 1.
           xcodebuild archive \
-            -project NetPulse.xcodeproj \
-            -scheme NetPulse \
+            -project Kap.xcodeproj \
+            -scheme Kap \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath build/NetPulse.xcarchive \
+            -archivePath build/Kap.xcarchive \
             MARKETING_VERSION="$VERSION_NAME" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_IDENTITY="" \
@@ -193,7 +193,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
           # Внедрение CFBundleIconName в скомпилированный Info.plist архива
-          ARCHIVE_PLIST="build/NetPulse.xcarchive/Products/Applications/NetPulse.app/Info.plist"
+          ARCHIVE_PLIST="build/Kap.xcarchive/Products/Applications/Kap.app/Info.plist"
           if [ -f "$ARCHIVE_PLIST" ]; then
             echo "✔ Внедрение CFBundleIconName в $ARCHIVE_PLIST"
             plutil -replace CFBundleIconName -string "AppIcon" "$ARCHIVE_PLIST"
@@ -208,7 +208,7 @@ jobs:
           # Снимаем подпись линкера, чтобы экспорт подписал заглушку сертификатом распространения.
           # Если же Xcode положил в Frameworks/ саму статическую библиотеку (ar-архив), её копия не нужна: код уже
           # слинкован в основной бинарник, а подписать архив нельзя. Такую копию удаляем целиком.
-          APP="build/NetPulse.xcarchive/Products/Applications/NetPulse.app"
+          APP="build/Kap.xcarchive/Products/Applications/Kap.app"
           shopt -s nullglob
           for fw in "$APP"/Frameworks/*.framework; do
             name="$(basename "$fw" .framework)"
@@ -243,7 +243,7 @@ jobs:
           plutil -replace teamID -string "$TEAM_ID" ExportOptions.plist
 
           xcodebuild -exportArchive \
-            -archivePath build/NetPulse.xcarchive \
+            -archivePath build/Kap.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
             -exportPath build/IPA \
             -allowProvisioningUpdates \

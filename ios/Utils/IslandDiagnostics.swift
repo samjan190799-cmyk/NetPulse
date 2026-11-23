@@ -1,6 +1,6 @@
 //
 //  IslandDiagnostics.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -309,7 +309,7 @@ public final class IslandDiagnostics {
 
     /// Журнал текстом: сверху заголовок со сводкой, дальше события от старых к новым
     public func exportText(summary: String) -> String {
-        var lines = ["NetPulse — журнал острова", Self.environmentSummary(), "", summary, "", "События:"]
+        var lines = ["Kap — журнал острова", Self.environmentSummary(), "", summary, "", "События:"]
         for entry in entries {
             lines.append("\(timeFormatter.string(from: entry.time)) [\(entry.kind.rawValue)] \(entry.text)")
         }

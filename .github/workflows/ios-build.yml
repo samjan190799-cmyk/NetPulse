@@ -126,7 +126,7 @@ jobs:
 
       - name: "Разрешение зависимостей Swift Package Manager"
         working-directory: ./ios
-        run: xcodebuild -resolvePackageDependencies -project NetPulse.xcodeproj -scheme NetPulse
+        run: xcodebuild -resolvePackageDependencies -project Kap.xcodeproj -scheme Kap
 
       - name: "Выбор и запуск симулятора"
         working-directory: ./ios
@@ -147,8 +147,8 @@ jobs:
           set -o pipefail
           mkdir -p build
           xcodebuild build-for-testing \
-            -project NetPulse.xcodeproj \
-            -scheme NetPulse \
+            -project Kap.xcodeproj \
+            -scheme Kap \
             -configuration Debug \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
@@ -172,11 +172,11 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild test-without-building \
-            -project NetPulse.xcodeproj \
-            -scheme NetPulse \
+            -project Kap.xcodeproj \
+            -scheme Kap \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
-            -only-testing:NetPulseTests \
+            -only-testing:KapTests \
             -resultBundlePath build/unit.xcresult \
             2>&1 | tee build/unit.log | tail -n 60
 
@@ -201,7 +201,7 @@ jobs:
           ONLY_UI_TESTS: ${{ inputs.ui_tests }}
         run: |
           set -o pipefail
-          ONLY_ARGS=(-only-testing:NetPulseUITests)
+          ONLY_ARGS=(-only-testing:KapUITests)
           if [ -n "$ONLY_UI_TESTS" ]; then
             ONLY_ARGS=()
             set -f
@@ -210,7 +210,7 @@ jobs:
                 echo "❌ Некорректное имя теста: '$name'"
                 exit 1
               fi
-              ONLY_ARGS+=("-only-testing:NetPulseUITests/NetPulseUITests/$name")
+              ONLY_ARGS+=("-only-testing:KapUITests/KapUITests/$name")
             done
             set +f
           fi
@@ -249,8 +249,8 @@ jobs:
           trap 'kill "$TRAFFIC_PID" "$ROUTE_PID" 2>/dev/null || true' EXIT
 
           xcodebuild test-without-building \
-            -project NetPulse.xcodeproj \
-            -scheme NetPulse \
+            -project Kap.xcodeproj \
+            -scheme Kap \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
             "${ONLY_ARGS[@]}" \
@@ -260,11 +260,11 @@ jobs:
             -resultBundlePath build/ui.xcresult \
             2>&1 | tee build/ui.log | tail -n 80
 
-      - name: "Строки NETPULSE-CI из журнала UI-теста"
+      - name: "Строки KAP-CI из журнала UI-теста"
         if: always()
         working-directory: ./ios
         run: |
-          grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+          grep -h "KAP-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк KAP-CI)"
           echo "=== Ход UI-тестов (начало, итог и ошибки по журналу xcodebuild) ==="
           grep -E "Test Case .* (started|passed|failed)|Test Suite .* (started|passed|failed)|exceeded|timed out|Restarting after|crash|error:" build/ui.log 2>/dev/null | tail -n 60 || true
           echo "=== Хвост журнала xcodebuild ==="
@@ -339,15 +339,15 @@ jobs:
         run: |
           mkdir -p build/diagnostics
           xcrun simctl spawn "$UDID" log show --last 30m --style compact \
-            --predicate 'process == "NetPulse"' 2>/dev/null | tail -n 400 > build/diagnostics/app-log.txt || true
-          cp ~/Library/Logs/DiagnosticReports/NetPulse* build/diagnostics/ 2>/dev/null || true
+            --predicate 'process == "Kap"' 2>/dev/null | tail -n 400 > build/diagnostics/app-log.txt || true
+          cp ~/Library/Logs/DiagnosticReports/Kap* build/diagnostics/ 2>/dev/null || true
           echo "=== Файлы диагностики ==="
           ls -la build/diagnostics | head -n 20
           echo "=== Отчёты о падениях в системном каталоге ==="
           ls -la ~/Library/Logs/DiagnosticReports 2>/dev/null | head -n 20 || echo "(каталога нет)"
           echo "=== Хвост журнала приложения ==="
           tail -n 60 build/diagnostics/app-log.txt 2>/dev/null || true
-          for report in build/diagnostics/NetPulse*.ips; do
+          for report in build/diagnostics/Kap*.ips; do
             if [ -f "$report" ]; then
               echo "--- Отчёт о падении: $report"
               head -n 60 "$report"
@@ -359,7 +359,7 @@ jobs:
         run: |
           # Строки категории ads пишет YandexAdManager и баннеры: запуск SDK, ответ на запрос разрешения, загрузка и ошибки рекламы
           xcrun simctl spawn "$UDID" log show --last 90m --style compact \
-            --predicate 'process == "NetPulse" AND category == "ads"' 2>/dev/null | tail -n 150 || true
+            --predicate 'process == "Kap" AND category == "ads"' 2>/dev/null | tail -n 150 || true
 
       - name: "Сводка результатов"
         if: always()

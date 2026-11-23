@@ -1,6 +1,6 @@
 //
 //  SpeechRecognizerManager.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI / Speech) - 2026.
 //
@@ -20,7 +20,7 @@ private final class RecognitionRequestBox: @unchecked Sendable {
     }
 }
 
-/// Менеджер распознавания речи Apple Speech-to-Text для голосового ввода запросов в NetPulse AI.
+/// Менеджер распознавания речи Apple Speech-to-Text для голосового ввода запросов в Kap AI.
 @Observable
 @MainActor
 public final class SpeechRecognizerManager {

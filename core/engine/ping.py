@@ -66,7 +66,7 @@ def _sync_raw_ping(host: str, timeout: float) -> PingOutcome:
         return False, None, f"DNS: {ex}"
 
     ident, seq = _next_icmp_ident()
-    payload = b"NetPulsePing" + struct.pack("!d", time.time())
+    payload = b"KapPing" + struct.pack("!d", time.time())
     header = struct.pack("!BBHHH", 8, 0, 0, ident, seq)
     checksum = _icmp_checksum(header + payload)
     packet = struct.pack("!BBHHH", 8, 0, checksum, ident, seq) + payload

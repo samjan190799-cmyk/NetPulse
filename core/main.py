@@ -1,5 +1,5 @@
 """
-NetPulse — Высокопроизводительный инструмент мониторинга качества сети в реальном времени.
+Kap — Высокопроизводительный инструмент мониторинга качества сети в реальном времени.
 Точка входа и оркестратор асинхронных подсистем.
 """
 import argparse
@@ -34,8 +34,8 @@ from ui.web import FASTAPI_AVAILABLE, StandaloneWebServer, create_web_app
 GATEWAY_WATCH_INTERVAL_S = 30.0
 
 
-class NetPulseApplication:
-    """Главный оркестратор приложения NetPulse."""
+class KapApplication:
+    """Главный оркестратор приложения Kap."""
 
     def __init__(self, config: AppConfig):
         self.config = config
@@ -437,7 +437,7 @@ class NetPulseApplication:
             speedtest_callback=self.run_manual_speedtest,
             loop=asyncio.get_running_loop(),
         )
-        threading.Thread(target=self._run_standalone_server, name="netpulse-web", daemon=True).start()
+        threading.Thread(target=self._run_standalone_server, name="kap-web", daemon=True).start()
         return None
 
     # ---- жизненный цикл ---------------------------------------------------------------------
@@ -514,7 +514,7 @@ class NetPulseApplication:
         except Exception as e:
             errors.append(f"экспорт отчётов: {e}")
 
-        self.console.print("\n[bold green]✔ Сессия NetPulse успешно завершена.[/bold green]")
+        self.console.print("\n[bold green]✔ Сессия Kap успешно завершена.[/bold green]")
         if json_file and csv_file:
             self.console.print(f"[bold cyan]📁 Итоговый отчет JSON:[/bold cyan] {escape(str(json_file))}")
             self.console.print(f"[bold cyan]📁 Итоговый отчет CSV:[/bold cyan] {escape(str(csv_file))}\n")
@@ -563,7 +563,7 @@ def parse_host_spec(spec: str) -> HostTarget:
 def parse_arguments(argv: Optional[List[str]] = None) -> AppConfig:
     """Парсинг аргументов командной строки."""
     parser = argparse.ArgumentParser(
-        description="NetPulse — Легковесный инструмент мониторинга качества сетевого соединения в реальном времени"
+        description="Kap — Легковесный инструмент мониторинга качества сетевого соединения в реальном времени"
     )
     parser.add_argument(
         "-H", "--hosts",
@@ -633,7 +633,7 @@ def parse_arguments(argv: Optional[List[str]] = None) -> AppConfig:
 def main(argv: Optional[List[str]] = None) -> int:
     """Точка входа в программу. Возвращает код выхода процесса."""
     config = parse_arguments(argv)
-    app = NetPulseApplication(config)
+    app = KapApplication(config)
 
     # Регистрация системных сигналов
     def signal_handler(*_):

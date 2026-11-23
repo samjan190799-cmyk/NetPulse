@@ -30,7 +30,7 @@ def _csv_safe(value):
 class StorageManager:
     """Менеджер базы данных SQLite и экспорта отчетов."""
 
-    def __init__(self, db_path: Path = Path("netpulse_history.db"), export_dir: Optional[Path] = None):
+    def __init__(self, db_path: Path = Path("kap_history.db"), export_dir: Optional[Path] = None):
         self.db_path = Path(db_path)
         self.export_dir = Path(export_dir) if export_dir is not None else Path(".")
         self.session_id: str = str(uuid.uuid4())[:8]
@@ -290,7 +290,7 @@ class StorageManager:
         Экспорт всех данных текущей сессии в JSON файл.
         Записи пинга пишутся потоком (курсор → файл), без загрузки всей сессии в память.
         """
-        path = self._export_path(export_path, "netpulse_report", "json")
+        path = self._export_path(export_path, "kap_report", "json")
 
         def dump(obj, indent_level: int = 1) -> str:
             text = json.dumps(obj, ensure_ascii=False, indent=2)
@@ -323,7 +323,7 @@ class StorageManager:
 
             with open(path, "w", encoding="utf-8") as f:
                 f.write("{\n")
-                f.write('  "netpulse_version": "1.0.0",\n')
+                f.write('  "kap_version": "1.0.0",\n')
                 f.write(f'  "session": {dump(session_data)},\n')
                 f.write(f'  "summary": {dump(summary)},\n')
                 f.write(f'  "speedtests": {dump(speedtests)},\n')
@@ -342,7 +342,7 @@ class StorageManager:
 
     def export_csv(self, export_path: Optional[Path] = None) -> Path:
         """Экспорт измерений пинга текущей сессии в CSV файл (потоково)."""
-        path = self._export_path(export_path, "netpulse_metrics", "csv")
+        path = self._export_path(export_path, "kap_metrics", "csv")
 
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row

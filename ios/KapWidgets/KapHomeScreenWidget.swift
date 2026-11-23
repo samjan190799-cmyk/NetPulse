@@ -1,6 +1,6 @@
 //
-//  NetPulseHomeScreenWidget.swift
-//  NetPulseWidgets
+//  KapHomeScreenWidget.swift
+//  KapWidgets
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI / WidgetKit) - 2026.
 //
@@ -8,36 +8,36 @@
 import SwiftUI
 import WidgetKit
 
-/// Запись таймлайна виджета NetPulse
-public struct NetPulseWidgetEntry: TimelineEntry {
+/// Запись таймлайна виджета Kap
+public struct KapWidgetEntry: TimelineEntry {
     public let date: Date
-    public let data: NetPulseWidgetData
+    public let data: KapWidgetData
 
-    public init(date: Date, data: NetPulseWidgetData) {
+    public init(date: Date, data: KapWidgetData) {
         self.date = date
         self.data = data
     }
 }
 
-/// Поставщик таймлайна для домашних виджетов и экрана блокировки NetPulse (async/await, iOS 17+)
-public struct NetPulseWidgetProvider: TimelineProvider {
+/// Поставщик таймлайна для домашних виджетов и экрана блокировки Kap (async/await, iOS 17+)
+public struct KapWidgetProvider: TimelineProvider {
     public init() {}
 
-    public func placeholder(in context: Context) -> NetPulseWidgetEntry {
-        NetPulseWidgetEntry(date: Date(), data: .placeholder)
+    public func placeholder(in context: Context) -> KapWidgetEntry {
+        KapWidgetEntry(date: Date(), data: .placeholder)
     }
 
-    public func getSnapshot(in context: Context, completion: @escaping @Sendable (NetPulseWidgetEntry) -> Void) {
+    public func getSnapshot(in context: Context, completion: @escaping @Sendable (KapWidgetEntry) -> Void) {
         // Демонстрационные значения — только в галерее виджетов; в остальных случаях показываем реальные данные
-        let snapshotData = context.isPreview ? NetPulseWidgetData.placeholder : WidgetDataManager.shared.loadLatestSnapshot()
-        let entry = NetPulseWidgetEntry(date: Date(), data: snapshotData)
+        let snapshotData = context.isPreview ? KapWidgetData.placeholder : WidgetDataManager.shared.loadLatestSnapshot()
+        let entry = KapWidgetEntry(date: Date(), data: snapshotData)
         completion(entry)
     }
 
-    public func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<NetPulseWidgetEntry>) -> Void) {
+    public func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<KapWidgetEntry>) -> Void) {
         let currentData = WidgetDataManager.shared.loadLatestSnapshot()
         let currentDate = Date()
-        let entry = NetPulseWidgetEntry(date: currentDate, data: currentData)
+        let entry = KapWidgetEntry(date: currentDate, data: currentData)
 
         // Обновление таймлайна каждые 15 минут
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate.addingTimeInterval(900)
@@ -67,8 +67,8 @@ private func connectionIcon(_ type: String) -> String {
 
 // MARK: - Представление виджета для всех семейств экранов
 
-public struct NetPulseWidgetEntryView: View {
-    public var entry: NetPulseWidgetProvider.Entry
+public struct KapWidgetEntryView: View {
+    public var entry: KapWidgetProvider.Entry
     @Environment(\.widgetFamily) var family
 
     public var body: some View {
@@ -110,7 +110,7 @@ public struct NetPulseWidgetEntryView: View {
 // MARK: - 1. Компактный виджет (Small: 2x2)
 
 private struct SmallWidgetView: View {
-    let data: NetPulseWidgetData
+    let data: KapWidgetData
 
     private var statusColor: Color {
         // Нет свежего пинга — серый индикатор, а не «зелёный, всё хорошо»
@@ -206,7 +206,7 @@ private struct SmallWidgetView: View {
 // MARK: - 2. Средний виджет (Medium: 4x2)
 
 private struct MediumWidgetView: View {
-    let data: NetPulseWidgetData
+    let data: KapWidgetData
 
     private var formattedTrafficMB: String {
         let mb = Double(data.todayTrafficBytes) / 1_048_576.0
@@ -240,7 +240,7 @@ private struct MediumWidgetView: View {
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.white.opacity(0.5))
                         }
-                        Text(NetPulseWidgetData.speedText(data.downloadSpeedMbps))
+                        Text(KapWidgetData.speedText(data.downloadSpeedMbps))
                             .font(.system(size: 17, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white)
@@ -258,7 +258,7 @@ private struct MediumWidgetView: View {
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.cyan.opacity(0.7))
                         }
-                        Text(NetPulseWidgetData.speedText(data.uploadSpeedMbps))
+                        Text(KapWidgetData.speedText(data.uploadSpeedMbps))
                             .font(.system(size: 17, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.cyan)
@@ -331,7 +331,7 @@ private struct MediumWidgetView: View {
 // MARK: - 3. Большой виджет (Large: 4x4)
 
 private struct LargeWidgetView: View {
-    let data: NetPulseWidgetData
+    let data: KapWidgetData
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -371,8 +371,8 @@ private struct LargeWidgetView: View {
 
             // Метрики качества в 4 ячейках
             HStack(spacing: 8) {
-                LargeMetricCell(title: "Скачивание", value: NetPulseWidgetData.speedText(data.downloadSpeedMbps), unit: "Мбит/с", icon: "arrow.down", color: .white)
-                LargeMetricCell(title: "Отдача", value: NetPulseWidgetData.speedText(data.uploadSpeedMbps), unit: "Мбит/с", icon: "arrow.up", color: .cyan)
+                LargeMetricCell(title: "Скачивание", value: KapWidgetData.speedText(data.downloadSpeedMbps), unit: "Мбит/с", icon: "arrow.down", color: .white)
+                LargeMetricCell(title: "Отдача", value: KapWidgetData.speedText(data.uploadSpeedMbps), unit: "Мбит/с", icon: "arrow.up", color: .cyan)
                 LargeMetricCell(title: "Пинг", value: data.pingValueText, unit: "мс", icon: "network", color: .green)
                 LargeMetricCell(title: "Джиттер", value: data.jitterValueText, unit: "мс", icon: "waveform.path.ecg", color: .orange)
             }
@@ -389,7 +389,7 @@ private struct LargeWidgetView: View {
 
                 if data.dnsHosts.isEmpty {
                     // Раньше здесь всегда писалось «1.1.1.1, 8.8.8.8, Шлюз LAN онлайн», даже без единой проверки
-                    Text("Нет данных о проверках узлов — откройте NetPulse")
+                    Text("Нет данных о проверках узлов — откройте Kap")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.7))
                 } else {
@@ -428,7 +428,7 @@ private struct LargeWidgetView: View {
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.white.opacity(0.4))
                 Spacer()
-                Text("NetPulse 2026")
+                Text("Kap 2026")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.cyan.opacity(0.8))
             }
@@ -467,7 +467,7 @@ private struct LargeMetricCell: View {
 // MARK: - 4. Виджеты экрана блокировки (Accessory Widgets)
 
 private struct AccessoryCircularView: View {
-    let data: NetPulseWidgetData
+    let data: KapWidgetData
 
     var body: some View {
         ZStack {
@@ -486,14 +486,14 @@ private struct AccessoryCircularView: View {
 }
 
 private struct AccessoryRectangularView: View {
-    let data: NetPulseWidgetData
+    let data: KapWidgetData
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Image(systemName: "gauge.with.dots.needle.67percent")
                     .font(.system(size: 10, weight: .bold))
-                Text("NetPulse • \(data.connectionType)")
+                Text("Kap • \(data.connectionType)")
                     .font(.system(size: 11, weight: .bold))
             }
 
@@ -501,7 +501,7 @@ private struct AccessoryRectangularView: View {
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .monospacedDigit()
 
-            Text("↓ \(NetPulseWidgetData.speedText(data.downloadSpeedMbps, decimals: 0)) Mbps • ↑ \(NetPulseWidgetData.speedText(data.uploadSpeedMbps, decimals: 0)) Mbps")
+            Text("↓ \(KapWidgetData.speedText(data.downloadSpeedMbps, decimals: 0)) Mbps • ↑ \(KapWidgetData.speedText(data.uploadSpeedMbps, decimals: 0)) Mbps")
                 .font(.system(size: 10, weight: .regular))
                 .monospacedDigit()
         }
@@ -509,12 +509,12 @@ private struct AccessoryRectangularView: View {
 }
 
 private struct AccessoryInlineView: View {
-    let data: NetPulseWidgetData
+    let data: KapWidgetData
 
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "bolt.fill")
-            Text("\(data.formattedPing) • ↓\(NetPulseWidgetData.speedText(data.downloadSpeedMbps, decimals: 0))M")
+            Text("\(data.formattedPing) • ↓\(KapWidgetData.speedText(data.downloadSpeedMbps, decimals: 0))M")
                 .monospacedDigit()
         }
     }
@@ -522,16 +522,18 @@ private struct AccessoryInlineView: View {
 
 // MARK: - Главная декларация домашнего виджета WidgetKit
 
-public struct NetPulseHomeScreenWidget: Widget {
+public struct KapHomeScreenWidget: Widget {
+    // Идентификатор виджета остался от прежнего названия (NetPulse) намеренно: по нему система узнаёт уже
+    // добавленные на экран виджеты, и при смене строки они бы пропали.
     public let kind: String = "NetPulseHomeScreenWidget"
 
     public init() {}
 
     public var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: NetPulseWidgetProvider()) { entry in
-            NetPulseWidgetEntryView(entry: entry)
+        StaticConfiguration(kind: kind, provider: KapWidgetProvider()) { entry in
+            KapWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("NetPulse Монитор")
+        .configurationDisplayName("Kap Монитор")
         .description("Живой статус сети, задержка RTT, скорость соединения и расход трафика.")
         .supportedFamilies([
             .systemSmall,

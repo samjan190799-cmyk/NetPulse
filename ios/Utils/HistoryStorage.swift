@@ -1,6 +1,6 @@
 //
 //  HistoryStorage.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -88,7 +88,7 @@ public actor HistoryStorage {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let jsonData = try encoder.encode(report)
 
-        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("NetPulse_Report_\(sessionId).json")
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("Kap_Report_\(sessionId).json")
         try jsonData.write(to: fileURL, options: .atomic)
         return fileURL
     }
@@ -112,7 +112,7 @@ public actor HistoryStorage {
             rows.append(fields.joined(separator: ","))
         }
 
-        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("NetPulse_Metrics_\(sessionId).csv")
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("Kap_Metrics_\(sessionId).csv")
         try (rows.joined(separator: "\n") + "\n").write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
     }

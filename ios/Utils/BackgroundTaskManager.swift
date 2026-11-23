@@ -1,6 +1,6 @@
 //
 //  BackgroundTaskManager.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -124,7 +124,7 @@ public final class BackgroundTaskManager: @unchecked Sendable {
         let budget = await TrafficStorage.shared.getBudget()
         let budgetSummary = await TrafficStorage.shared.getSummary(for: budget.period)
 
-        let widgetData = NetPulseWidgetData(
+        let widgetData = KapWidgetData(
             downloadSpeedMbps: 0,
             uploadSpeedMbps: 0,
             pingMs: nil,

@@ -47,7 +47,7 @@ jobs:
 
       - name: "Разрешение зависимостей Swift Package Manager"
         working-directory: ./ios
-        run: xcodebuild -resolvePackageDependencies -project NetPulse.xcodeproj -scheme NetPulse
+        run: xcodebuild -resolvePackageDependencies -project Kap.xcodeproj -scheme Kap
 
       - name: "Выбор и запуск симулятора, чистая строка состояния"
         working-directory: ./ios
@@ -72,8 +72,8 @@ jobs:
           set -o pipefail
           mkdir -p build
           xcodebuild build-for-testing \
-            -project NetPulse.xcodeproj \
-            -scheme NetPulse \
+            -project Kap.xcodeproj \
+            -scheme Kap \
             -configuration Debug \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
@@ -114,22 +114,22 @@ jobs:
           trap 'kill "$TRAFFIC_PID" "$ROUTE_PID" 2>/dev/null || true' EXIT
 
           xcodebuild test-without-building \
-            -project NetPulse.xcodeproj \
-            -scheme NetPulse \
+            -project Kap.xcodeproj \
+            -scheme Kap \
             -destination "platform=iOS Simulator,id=$UDID" \
             -derivedDataPath build/DerivedData \
-            -only-testing:NetPulseUITests/AppStoreScreenshotTests \
+            -only-testing:KapUITests/AppStoreScreenshotTests \
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 1200 \
             -maximum-test-execution-time-allowance 1200 \
             -resultBundlePath build/shots.xcresult \
             2>&1 | tee build/ui.log | tail -n 60
 
-      - name: "Строки NETPULSE-CI из журнала съёмки"
+      - name: "Строки KAP-CI из журнала съёмки"
         if: always()
         working-directory: ./ios
         run: |
-          grep -h "NETPULSE-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк NETPULSE-CI)"
+          grep -h "KAP-CI" build/ui.log 2>/dev/null | sort -u || echo "(нет строк KAP-CI)"
           grep -E "Test Case .* (started|passed|failed)|error:|exceeded|timed out" build/ui.log 2>/dev/null | tail -n 20 || true
 
       - name: "Готовые файлы: без альфа-канала, проверка размера"

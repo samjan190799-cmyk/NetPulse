@@ -1,5 +1,5 @@
 """
-Настройки и параметры конфигурации системы NetPulse.
+Настройки и параметры конфигурации системы Kap.
 Использует стандартные датаклассы Python для максимальной автономности и скорости.
 """
 from dataclasses import dataclass, field
@@ -76,7 +76,7 @@ class AppConfig:
     # Буфер и хранилище
     history_window_size: int = 120          # Размер скользящего окна метрик для графиков
     status_window_size: int = 20            # Окно (последние N проверок) для статуса и алертов по потерям
-    db_path: Path = Path("netpulse_history.db")  # Путь к файлу базы SQLite
+    db_path: Path = Path("kap_history.db")  # Путь к файлу базы SQLite
     retention_days: int = 30                # Сколько дней хранить историю в SQLite (0 — не чистить)
 
     # Веб-интерфейс

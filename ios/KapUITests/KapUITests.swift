@@ -1,6 +1,6 @@
 //
-//  NetPulseUITests.swift
-//  NetPulseUITests
+//  KapUITests.swift
+//  KapUITests
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -14,8 +14,8 @@ import XCTest
 /// остальное: приложение запускается и не падает, интерфейс на месте, Live Activity стартует, режим включается,
 /// а скриншоты острова в фоне сохраняются во вложения результата и публикуются артефактами CI.
 ///
-/// Строки с префиксом `NETPULSE-CI:` попадают в журнал и помогают разобрать прогон без скачивания артефактов.
-final class NetPulseUITests: XCTestCase {
+/// Строки с префиксом `KAP-CI:` попадают в журнал и помогают разобрать прогон без скачивания артефактов.
+final class KapUITests: XCTestCase {
 
     // MARK: - Запуск и общие помощники
 
@@ -51,7 +51,7 @@ final class NetPulseUITests: XCTestCase {
             for title in preferred {
                 let button = alert.buttons[title]
                 if button.exists {
-                    print("NETPULSE-CI: системное окно «\(alert.label)»: нажимаю «\(title)»")
+                    print("KAP-CI: системное окно «\(alert.label)»: нажимаю «\(title)»")
                     button.tap()
                     tapped = true
                     break
@@ -59,7 +59,7 @@ final class NetPulseUITests: XCTestCase {
             }
             if !tapped {
                 let titles = alert.buttons.allElementsBoundByIndex.map { $0.label }
-                print("NETPULSE-CI: неизвестное системное окно «\(alert.label)», кнопки: \(titles)")
+                print("KAP-CI: неизвестное системное окно «\(alert.label)», кнопки: \(titles)")
                 attachScreenshot("unknown-system-alert")
                 return
             }
@@ -226,7 +226,7 @@ final class NetPulseUITests: XCTestCase {
     }
 
     private func logDiagnostics(_ summary: String, label: String) {
-        print("NETPULSE-CI: диагностика острова (\(label)): " + summary.replacingOccurrences(of: "\n", with: " | "))
+        print("KAP-CI: диагностика острова (\(label)): " + summary.replacingOccurrences(of: "\n", with: " | "))
     }
 
     /// Заголовок подсказки «остров замирал» над нижней панелью главного экрана
@@ -292,7 +292,7 @@ final class NetPulseUITests: XCTestCase {
             attachHierarchy(app, name: "recording-status-not-found-hierarchy")
             return false
         }
-        print("NETPULSE-CI: запись маршрута началась: \(status.label)")
+        print("KAP-CI: запись маршрута началась: \(status.label)")
         return true
     }
 
@@ -324,7 +324,7 @@ final class NetPulseUITests: XCTestCase {
         for (index, pause) in pauses.enumerated() {
             Thread.sleep(forTimeInterval: pause)
             let state = describe(app.state)
-            print("NETPULSE-CI: \(prefix), шаг \(index + 1), состояние приложения: \(state)")
+            print("KAP-CI: \(prefix), шаг \(index + 1), состояние приложения: \(state)")
             attachScreenshot("\(prefix)-\(index + 1)")
         }
     }
@@ -398,7 +398,7 @@ final class NetPulseUITests: XCTestCase {
         switchPoint.tap()
         Thread.sleep(forTimeInterval: 0.6)
         XCTAssertEqual(background.value as? String, "1", "Тумблер фоновой записи не включился обратно")
-        print("NETPULSE-CI: настройки записи маршрута: тумблеры на месте, фоновая запись переключается")
+        print("KAP-CI: настройки записи маршрута: тумблеры на месте, фоновая запись переключается")
 
         scrollToTop(app)
         closeSettings(app)
@@ -415,7 +415,7 @@ final class NetPulseUITests: XCTestCase {
         while Date() < deadline, !status.label.contains("Активен в Dynamic Island") {
             Thread.sleep(forTimeInterval: 1)
         }
-        print("NETPULSE-CI: статус острова: \(status.label)")
+        print("KAP-CI: статус острова: \(status.label)")
         attachScreenshot("live-activity-status")
         XCTAssertTrue(status.label.contains("Активен в Dynamic Island"), "Live Activity не запустилась. Статус: «\(status.label)»")
 
@@ -455,7 +455,7 @@ final class NetPulseUITests: XCTestCase {
         logDiagnostics(after, label: "после перезапуска")
         attachScreenshot("after-restart")
         let sentAfter = sentFrames(in: after) ?? -1
-        print("NETPULSE-CI: кадров до перезапуска: \(sentBefore), после: \(sentAfter)")
+        print("KAP-CI: кадров до перезапуска: \(sentBefore), после: \(sentAfter)")
         XCTAssertTrue(after.contains("Остров: активна"), "После перезапуска остров не активен:\n\(after)")
         // Счётчик не обнуляется при перезапуске: рост значит, что новая активность действительно получает кадры
         XCTAssertGreaterThan(sentAfter, sentBefore, "После перезапуска кадры не уходят:\n\(after)")
@@ -506,7 +506,7 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(startRecording(app), "Запись маршрута не началась")
         XCTAssertTrue(app.descendants(matching: .any)["recordingBanner"].waitForExistence(timeout: 10), "Нет плашки «Запись» над картой")
         let points = waitForPoints(app, atLeast: 3, timeout: 75)
-        print("NETPULSE-CI: запись маршрута: набрано точек \(points)")
+        print("KAP-CI: запись маршрута: набрано точек \(points)")
         attachScreenshot("route-recording")
         XCTAssertGreaterThanOrEqual(points, 3, "Запись не набрала три точки за 75 секунд: не работает геолокация или проверка сети")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось во время записи")
@@ -516,7 +516,7 @@ final class NetPulseUITests: XCTestCase {
         // Сразу после остановки панель показывает итог сохранённого маршрута
         let summary = app.descendants(matching: .any)["networkMapSummary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 15), "После остановки нет итога маршрута")
-        print("NETPULSE-CI: сводка сохранённого маршрута: \(summary.label)")
+        print("KAP-CI: сводка сохранённого маршрута: \(summary.label)")
         attachScreenshot("route-saved")
         XCTAssertTrue(summary.label.hasPrefix("Точек:"), "Странная сводка: «\(summary.label)»")
 
@@ -543,7 +543,7 @@ final class NetPulseUITests: XCTestCase {
         coverage.tap()
         XCTAssertTrue(legend.waitForExistence(timeout: 5), "Легенда не вернулась после включения линий")
         XCTAssertEqual(coverage.value as? String, "Показаны")
-        print("NETPULSE-CI: линии маршрутов: легенда и кнопка работают")
+        print("KAP-CI: линии маршрутов: легенда и кнопка работают")
 
         expandPanel(app)
         let row = app.descendants(matching: .any).matching(identifier: "networkMapHistoryRow").firstMatch
@@ -559,7 +559,7 @@ final class NetPulseUITests: XCTestCase {
         // Карта Apple Maps видна и до первой записи (раньше вместо неё была заглушка)
         let mapVisible = app.maps.firstMatch.waitForExistence(timeout: 10)
             || app.descendants(matching: .any)["networkMapMap"].waitForExistence(timeout: 2)
-        print("NETPULSE-CI: карта на экране до записи: \(mapVisible ? "есть" : "НЕТ")")
+        print("KAP-CI: карта на экране до записи: \(mapVisible ? "есть" : "НЕТ")")
         attachScreenshot("map-idle")
 
         expandPanel(app)
@@ -571,7 +571,7 @@ final class NetPulseUITests: XCTestCase {
         XCTAssertTrue(badge.waitForExistence(timeout: 10), "Пример не показан или не подписан как демо-данные")
         let summary = app.descendants(matching: .any)["networkMapSummary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5), "Нет итога по примеру")
-        print("NETPULSE-CI: сводка примера: \(summary.label)")
+        print("KAP-CI: сводка примера: \(summary.label)")
         XCTAssertTrue(summary.label.hasPrefix("Точек: 72"), "Сводка примера: «\(summary.label)»")
         attachScreenshot("map-demo")
 
@@ -605,7 +605,7 @@ final class NetPulseUITests: XCTestCase {
         // Пока приложение было свёрнуто дольше 40 секунд, а запись не шла, на главном экране появляется подсказка
         let hint = recordingHintTitle(app)
         let hintShown = hint.waitForExistence(timeout: 10)
-        print("NETPULSE-CI: подсказка после долгого фона без записи маршрута: \(hintShown ? "показана" : "НЕ показана")")
+        print("KAP-CI: подсказка после долгого фона без записи маршрута: \(hintShown ? "показана" : "НЕ показана")")
         attachScreenshot("control-hint")
         XCTAssertTrue(hintShown, "После долгого фона без записи маршрута подсказка не появилась")
 
@@ -637,7 +637,7 @@ final class NetPulseUITests: XCTestCase {
 
         // Запись не прервалась: за время в фоне точек стало больше
         let after = waitForPoints(app, atLeast: before + 1, timeout: 30)
-        print("NETPULSE-CI: точек до сворачивания: \(before), после возврата: \(after)")
+        print("KAP-CI: точек до сворачивания: \(before), после возврата: \(after)")
         attachScreenshot("recording-bg-after")
         XCTAssertGreaterThan(after, before, "Запись маршрута не продолжалась в фоне")
 
@@ -645,7 +645,7 @@ final class NetPulseUITests: XCTestCase {
         let banner = app.descendants(matching: .any)["recordingBanner"]
         XCTAssertTrue(banner.waitForExistence(timeout: 10), "На главном экране нет плашки «Запись»")
         let hintShown = recordingHintTitle(app).waitForExistence(timeout: 3)
-        print("NETPULSE-CI: подсказка во время записи маршрута: \(hintShown ? "ПОКАЗАНА (ошибка)" : "не показана")")
+        print("KAP-CI: подсказка во время записи маршрута: \(hintShown ? "ПОКАЗАНА (ошибка)" : "не показана")")
         XCTAssertFalse(hintShown, "Во время записи маршрута подсказка показываться не должна")
         attachScreenshot("recording-dashboard-banner")
 
@@ -679,7 +679,7 @@ final class NetPulseUITests: XCTestCase {
         // 1. SDK запущен, баннер запрошен (до этого пользователь отвечает на окно «Разрешить отслеживание?»)
         dismissSystemAlerts(timeout: 4)
         let requestedAfter = secondsUntilExists(requested, timeout: 60)
-        print("NETPULSE-CI: реклама Яндекса: баннер запрошен через \(requestedAfter.map { String(format: "%.0f", $0) } ?? "—") с")
+        print("KAP-CI: реклама Яндекса: баннер запрошен через \(requestedAfter.map { String(format: "%.0f", $0) } ?? "—") с")
         if requestedAfter == nil {
             attachScreenshot("ads-not-requested")
             attachHierarchy(app, name: "ads-not-requested-hierarchy")
@@ -689,9 +689,9 @@ final class NetPulseUITests: XCTestCase {
         // 2. Объявление пришло (мягкая проверка: зависит от внешней рекламной сети)
         let loadedAfter = secondsUntilExists(loaded, timeout: 60)
         if let loadedAfter {
-            print("NETPULSE-CI: реклама Яндекса: баннер на главном экране загружен через \(String(format: "%.0f", loadedAfter)) с")
+            print("KAP-CI: реклама Яндекса: баннер на главном экране загружен через \(String(format: "%.0f", loadedAfter)) с")
         } else {
-            print("NETPULSE-CI: реклама Яндекса: баннер на главном экране НЕ загрузился за 60 с (зависит от внешней рекламной сети)")
+            print("KAP-CI: реклама Яндекса: баннер на главном экране НЕ загрузился за 60 с (зависит от внешней рекламной сети)")
         }
         attachScreenshot("ads-home")
 
@@ -703,7 +703,7 @@ final class NetPulseUITests: XCTestCase {
         app.tabBars.buttons["Узлы"].tap()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5), "Приложение закрылось на вкладке «Узлы»")
         let tabLoadedAfter = secondsUntilExists(app.descendants(matching: .any)["yandexBanner.loaded"], timeout: 45)
-        print("NETPULSE-CI: реклама Яндекса: баннеры на вкладке «Узлы» загружены через \(tabLoadedAfter.map { String(format: "%.0f", $0) } ?? "— (не загрузились)") с")
+        print("KAP-CI: реклама Яндекса: баннеры на вкладке «Узлы» загружены через \(tabLoadedAfter.map { String(format: "%.0f", $0) } ?? "— (не загрузились)") с")
         attachScreenshot("ads-tab-hosts")
         XCTAssertTrue(app.tabBars.firstMatch.exists, "Панель вкладок пропала из-за рекламы")
     }

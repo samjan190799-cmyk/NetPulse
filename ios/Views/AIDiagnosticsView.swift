@@ -1,6 +1,6 @@
 //
 //  AIDiagnosticsView.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI / Speech) - 2026.
 //
@@ -810,7 +810,7 @@ private struct AIMessageBubble: View {
                         Image(systemName: "sparkles")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
-                        Text("NetPulse AI")
+                        Text("Kap AI")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
 

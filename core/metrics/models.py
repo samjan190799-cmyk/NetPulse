@@ -1,5 +1,5 @@
 """
-Модели данных для системы NetPulse.
+Модели данных для системы Kap.
 """
 from dataclasses import dataclass, field
 from datetime import datetime

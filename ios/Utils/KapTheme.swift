@@ -1,6 +1,6 @@
 //
-//  NetPulseTheme.swift
-//  NetPulse
+//  KapTheme.swift
+//  Kap
 //
 //  Дизайн-система нового поколения (iOS 17+ / Swift 6.0+) — 2026.
 //  Поддержка динамических тем оформления, стеклянного морфизма (Glassmorphism),
@@ -10,7 +10,7 @@
 import SwiftUI
 import Observation
 
-/// Доступные темы визуального оформления NetPulse
+/// Доступные темы визуального оформления Kap
 public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
     case obsidianMono = "Obsidian Mono"
     case cyberNeon = "Cyberpunk Neon"
@@ -57,7 +57,7 @@ public final class ThemeManager {
     }
 }
 
-/// Централизованные дизайн-токены NetPulse.
+/// Централизованные дизайн-токены Kap.
 /// Автоматически адаптируются под выбранную тему оформления.
 @MainActor
 public enum NPTheme {

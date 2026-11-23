@@ -21,7 +21,7 @@ TRACE_PANEL_TTL_S = 60.0
 
 
 class TerminalUI:
-    """Терминальный интерфейс мониторинга NetPulse в реальном времени."""
+    """Терминальный интерфейс мониторинга Kap в реальном времени."""
 
     def __init__(self, config: AppConfig, collector: MetricsCollector, console: Optional[Console] = None):
         self.config = config
@@ -103,7 +103,7 @@ class TerminalUI:
 
         return Panel(
             Group(grid, sub_grid),
-            title="[bold bright_green]❯❯[/bold bright_green][bold bright_cyan]━▲━ NetPulse[/bold bright_cyan] [dim]|[/dim] [italic bright_white]Network Motion & Quality Telemetry v1.0[/italic bright_white]",
+            title="[bold bright_green]❯❯[/bold bright_green][bold bright_cyan]━▲━ Kap[/bold bright_cyan] [dim]|[/dim] [italic bright_white]Network Motion & Quality Telemetry v1.0[/italic bright_white]",
             border_style="bright_blue",
             padding=(0, 1)
         )

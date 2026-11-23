@@ -1,6 +1,6 @@
 //
 //  TracerouteEngine.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -198,7 +198,7 @@ public actor TracerouteEngine {
             UInt8(identifier >> 8), UInt8(identifier & 0xFF),
             UInt8(sequence >> 8), UInt8(sequence & 0xFF)
         ]
-        packet.append(contentsOf: Array("NetPulseTrace".utf8))
+        packet.append(contentsOf: Array("KapTrace".utf8))
 
         let checksum = internetChecksum(packet)
         packet[2] = UInt8(checksum >> 8)

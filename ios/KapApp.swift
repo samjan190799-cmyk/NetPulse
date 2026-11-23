@@ -1,6 +1,6 @@
 //
-//  NetPulseApp.swift
-//  NetPulse
+//  KapApp.swift
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct NetPulseApp: App {
+struct KapApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {

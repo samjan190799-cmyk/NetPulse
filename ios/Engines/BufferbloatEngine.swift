@@ -1,6 +1,6 @@
 //
 //  BufferbloatEngine.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / Network.framework) - 2026.
 //

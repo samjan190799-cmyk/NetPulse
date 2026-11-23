@@ -1,6 +1,6 @@
 //
 //  AIDiagnosticsModels.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -733,7 +733,7 @@ public struct NetworkDiagnosticsContext: Sendable {
 
         return """
         ================================================================
-        NETPULSE — ОБРАЩЕНИЕ В ТЕХНИЧЕСКУЮ ПОДДЕРЖКУ ПРОВАЙДЕРА
+        KAP — ОБРАЩЕНИЕ В ТЕХНИЧЕСКУЮ ПОДДЕРЖКУ ПРОВАЙДЕРА
         Тема: \(reasonTitle)
         Дата фиксации: \(dateStr)
         \(reference)
@@ -759,7 +759,7 @@ public struct NetworkDiagnosticsContext: Sendable {
         4. ПРОСЬБА:
         \(request)
 
-        Документ сформирован приложением NetPulse по результатам измерений на устройстве абонента.
+        Документ сформирован приложением Kap по результатам измерений на устройстве абонента.
         ================================================================
         """
     }

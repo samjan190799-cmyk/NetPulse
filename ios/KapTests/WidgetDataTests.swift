@@ -1,12 +1,12 @@
 //
 //  WidgetDataTests.swift
-//  NetPulseTests
+//  KapTests
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
 
 import XCTest
-@testable import NetPulse
+@testable import Kap
 
 /// Снимок данных для виджетов и острова: никаких выдуманных значений, устаревшие данные не выдаются за живые.
 final class WidgetDataTests: XCTestCase {
@@ -15,7 +15,7 @@ final class WidgetDataTests: XCTestCase {
 
     /// Раньше без данных виджет показывал демо «285 Мбит/с, здоровье 98» как реальные значения.
     func testEmptySnapshotContainsNoDemoValues() {
-        let empty = NetPulseWidgetData.empty
+        let empty = KapWidgetData.empty
         XCTAssertNil(empty.pingMs)
         XCTAssertNil(empty.jitterMs)
         XCTAssertNil(empty.healthScore)
@@ -30,7 +30,7 @@ final class WidgetDataTests: XCTestCase {
     // MARK: - Свежесть данных
 
     func testFreshValuesAreShown() {
-        let fresh = NetPulseWidgetData(pingMs: 24.6, jitterMs: 1.26, lastUpdated: Date())
+        let fresh = KapWidgetData(pingMs: 24.6, jitterMs: 1.26, lastUpdated: Date())
         XCTAssertFalse(fresh.isStale)
         XCTAssertEqual(fresh.pingValueText, "25")
         XCTAssertEqual(fresh.jitterValueText, "1.3")
@@ -40,19 +40,19 @@ final class WidgetDataTests: XCTestCase {
 
     /// В фоне приложение пинг не измеряет, поэтому «замороженное» значение старше 10 минут показывать нельзя.
     func testStaleValuesAreHidden() {
-        let old = NetPulseWidgetData(pingMs: 24.6, jitterMs: 1.26, lastUpdated: Date().addingTimeInterval(-601))
+        let old = KapWidgetData(pingMs: 24.6, jitterMs: 1.26, lastUpdated: Date().addingTimeInterval(-601))
         XCTAssertTrue(old.isStale)
         XCTAssertEqual(old.pingValueText, "—")
         XCTAssertEqual(old.jitterValueText, "—")
         XCTAssertEqual(old.formattedPing, "—")
         XCTAssertEqual(old.formattedJitter, "—")
 
-        let almostStale = NetPulseWidgetData(pingMs: 10, lastUpdated: Date().addingTimeInterval(-590))
+        let almostStale = KapWidgetData(pingMs: 10, lastUpdated: Date().addingTimeInterval(-590))
         XCTAssertFalse(almostStale.isStale)
     }
 
     func testMissingPingIsDashEvenWhenFresh() {
-        let noPing = NetPulseWidgetData(pingMs: nil, lastUpdated: Date())
+        let noPing = KapWidgetData(pingMs: nil, lastUpdated: Date())
         XCTAssertEqual(noPing.pingValueText, "—")
         XCTAssertEqual(noPing.formattedPing, "—")
     }
@@ -60,37 +60,37 @@ final class WidgetDataTests: XCTestCase {
     // MARK: - Скорость
 
     func testUnmeasuredSpeedIsDash() {
-        XCTAssertEqual(NetPulseWidgetData.speedText(0), "—")
-        XCTAssertEqual(NetPulseWidgetData.speedText(-1), "—")
-        XCTAssertEqual(NetPulseWidgetData.speedText(12.34), "12.3")
-        XCTAssertEqual(NetPulseWidgetData.speedText(12.34, decimals: 0), "12")
-        XCTAssertEqual(NetPulseWidgetData.speedText(12.34, decimals: 2), "12.34")
+        XCTAssertEqual(KapWidgetData.speedText(0), "—")
+        XCTAssertEqual(KapWidgetData.speedText(-1), "—")
+        XCTAssertEqual(KapWidgetData.speedText(12.34), "12.3")
+        XCTAssertEqual(KapWidgetData.speedText(12.34, decimals: 0), "12")
+        XCTAssertEqual(KapWidgetData.speedText(12.34, decimals: 2), "12.34")
     }
 
     // MARK: - Лимит трафика
 
     func testBudgetProgress() {
         // Лимит не задан: прогресса нет (раньше по умолчанию подставлялись «5 ГБ»)
-        let noLimit = NetPulseWidgetData(todayTrafficBytes: 500, budgetTotalBytes: 0)
+        let noLimit = KapWidgetData(todayTrafficBytes: 500, budgetTotalBytes: 0)
         XCTAssertEqual(noLimit.budgetProgress, 0)
 
         // Расход считается за период квоты, а не «за сегодня»
-        let half = NetPulseWidgetData(todayTrafficBytes: 10, budgetTotalBytes: 100, budgetUsedBytes: 50)
+        let half = KapWidgetData(todayTrafficBytes: 10, budgetTotalBytes: 100, budgetUsedBytes: 50)
         XCTAssertEqual(half.budgetProgress, 0.5, accuracy: 0.0001)
 
         // Снимок старого формата: расход периода неизвестен — используется трафик за сегодня
-        let legacy = NetPulseWidgetData(todayTrafficBytes: 25, budgetTotalBytes: 100)
+        let legacy = KapWidgetData(todayTrafficBytes: 25, budgetTotalBytes: 100)
         XCTAssertEqual(legacy.budgetProgress, 0.25, accuracy: 0.0001)
 
         // Перерасход не выходит за 100 %
-        let over = NetPulseWidgetData(todayTrafficBytes: 0, budgetTotalBytes: 100, budgetUsedBytes: 400)
+        let over = KapWidgetData(todayTrafficBytes: 0, budgetTotalBytes: 100, budgetUsedBytes: 400)
         XCTAssertEqual(over.budgetProgress, 1.0, accuracy: 0.0001)
     }
 
     // MARK: - Сохранение и чтение
 
     func testSnapshotSurvivesJSONRoundTrip() throws {
-        let original = NetPulseWidgetData(
+        let original = KapWidgetData(
             downloadSpeedMbps: 42.5,
             uploadSpeedMbps: 7.5,
             pingMs: 31,
@@ -104,7 +104,7 @@ final class WidgetDataTests: XCTestCase {
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000)
         )
         let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(NetPulseWidgetData.self, from: data)
+        let decoded = try JSONDecoder().decode(KapWidgetData.self, from: data)
 
         XCTAssertEqual(decoded.downloadSpeedMbps, 42.5)
         XCTAssertEqual(decoded.pingMs, 31)
@@ -120,7 +120,7 @@ final class WidgetDataTests: XCTestCase {
     /// поэтому между ними ничто не может перезаписать снимок.
     @MainActor
     func testManagerSavesAndLoadsLatestSnapshot() {
-        let snapshot = NetPulseWidgetData(
+        let snapshot = KapWidgetData(
             downloadSpeedMbps: 42.5,
             uploadSpeedMbps: 7.5,
             pingMs: 31,

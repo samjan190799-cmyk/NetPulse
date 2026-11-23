@@ -1,12 +1,12 @@
 //
 //  BandwidthTests.swift
-//  NetPulseTests
+//  KapTests
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
 
 import XCTest
-@testable import NetPulse
+@testable import Kap
 
 /// Скорость и учёт трафика: единая единица Мбит/с, классификация интерфейсов, защита от скачков счётчиков.
 final class BandwidthTests: XCTestCase {

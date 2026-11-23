@@ -1,6 +1,6 @@
 //
 //  WidgetDataManager.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI / WidgetKit) - 2026.
 //
@@ -26,8 +26,8 @@ public struct WidgetDNSHost: Codable, Sendable, Identifiable {
     }
 }
 
-/// Универсальный снимок состояния сетевых метрик для всех семейств виджетов NetPulse
-public struct NetPulseWidgetData: Codable, Sendable {
+/// Универсальный снимок состояния сетевых метрик для всех семейств виджетов Kap
+public struct KapWidgetData: Codable, Sendable {
     public let downloadSpeedMbps: Double
     public let uploadSpeedMbps: Double
     public let pingMs: Double?
@@ -76,17 +76,17 @@ public struct NetPulseWidgetData: Codable, Sendable {
     }
 
     /// Пустой снимок: приложение ещё ни разу не сохраняло данные (никаких демонстрационных значений)
-    public static var empty: NetPulseWidgetData {
-        NetPulseWidgetData(
-            ispName: "Откройте NetPulse",
+    public static var empty: KapWidgetData {
+        KapWidgetData(
+            ispName: "Откройте Kap",
             connectionType: "Нет данных",
             lastUpdated: Date.distantPast
         )
     }
 
     /// Демонстрационный снимок — только для предпросмотра в галерее виджетов, но не для показа как реальных данных
-    public static var placeholder: NetPulseWidgetData {
-        NetPulseWidgetData(
+    public static var placeholder: KapWidgetData {
+        KapWidgetData(
             downloadSpeedMbps: 285.4,
             uploadSpeedMbps: 84.1,
             pingMs: 16.5,
@@ -184,7 +184,7 @@ public final class WidgetDataManager: @unchecked Sendable {
     /// Сохранение снимка состояния для виджетов (файл группы приложения + UserDefaults).
     /// `reloadTimelines: false` — только обновить данные, не заставляя систему перерисовывать виджеты
     /// (раньше перезагрузка шла при каждой записи, то есть каждые несколько секунд).
-    public func saveSnapshot(_ data: NetPulseWidgetData, reloadTimelines: Bool = true) {
+    public func saveSnapshot(_ data: KapWidgetData, reloadTimelines: Bool = true) {
         guard let encoded = try? JSONEncoder().encode(data) else { return }
         lock.lock()
         defer { lock.unlock() }
@@ -207,14 +207,14 @@ public final class WidgetDataManager: @unchecked Sendable {
     }
 
     /// Загрузка последнего сохраненного снимка данных с каскадным поиском (файл контейнера -> UserDefaults -> пустой снимок)
-    public func loadLatestSnapshot() -> NetPulseWidgetData {
+    public func loadLatestSnapshot() -> KapWidgetData {
         lock.lock()
         defer { lock.unlock() }
 
         // 1. Приоритетное чтение из файла общего контейнера App Group
         for fileURL in sharedContainerFileURLs {
             if let data = try? Data(contentsOf: fileURL),
-               let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: data) {
+               let decoded = try? JSONDecoder().decode(KapWidgetData.self, from: data) {
                 return decoded
             }
         }
@@ -222,7 +222,7 @@ public final class WidgetDataManager: @unchecked Sendable {
         // 2. Чтение из UserDefaults (общая группа -> стандартные)
         for defaults in defaultsList {
             if let raw = defaults.data(forKey: dataKey),
-               let decoded = try? JSONDecoder().decode(NetPulseWidgetData.self, from: raw) {
+               let decoded = try? JSONDecoder().decode(KapWidgetData.self, from: raw) {
                 return decoded
             }
         }

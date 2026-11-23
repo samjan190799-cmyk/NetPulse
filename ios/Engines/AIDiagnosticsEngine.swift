@@ -1,6 +1,6 @@
 //
 //  AIDiagnosticsEngine.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -763,7 +763,7 @@ public final class AIDiagnosticsEngine: Sendable {
             let call = AIToolCall(
                 toolType: detected.tool,
                 target: detected.target,
-                argumentsDescription: "Запуск инструмента NetPulse: \(detected.tool.displayName)"
+                argumentsDescription: "Запуск инструмента Kap: \(detected.tool.displayName)"
             )
             toolCall = call
             onToolCall?(call)
@@ -773,7 +773,7 @@ public final class AIDiagnosticsEngine: Sendable {
         // Результат инструмента передаётся модели вместе с вопросом
         var enrichedPrompt = prompt
         if let result = toolResult {
-            enrichedPrompt += "\n\n[РЕЗУЛЬТАТ ИЗМЕРЕНИЯ ИНСТРУМЕНТОМ NETPULSE: \(result.outputText)]"
+            enrichedPrompt += "\n\n[РЕЗУЛЬТАТ ИЗМЕРЕНИЯ ИНСТРУМЕНТОМ KAP: \(result.outputText)]"
         }
 
         let response = await askAI(
@@ -1054,7 +1054,7 @@ public final class AIDiagnosticsEngine: Sendable {
         } else {
             let live = String(format: "%.1f", context.liveDownloadMbps)
             return """
-            ### 🧠 Сетевой аудит NetPulse
+            ### 🧠 Сетевой аудит Kap
 
             **Состояние сети:**
             * 📡 **Подключение:** \(conn)
@@ -1072,7 +1072,7 @@ public final class AIDiagnosticsEngine: Sendable {
     // MARK: - 8. Внешние API (Claude, Gemini, OpenAI-совместимые)
 
     private static let cloudSystemPromptBase = """
-    Ты — старший сетевой инженер и AI-диагност в iOS-приложении NetPulse. Отвечай на русском языке, кратко и структурированно (markdown).
+    Ты — старший сетевой инженер и AI-диагност в iOS-приложении Kap. Отвечай на русском языке, кратко и структурированно (markdown).
     Опирайся только на измерения устройства, приведённые ниже, и на результаты инструментов из вопроса. Не выдумывай значений, которых там нет: если данных не хватает, скажи, какой замер нужно выполнить (мониторинг, замер скорости, трассировка, DNS Бенчмарк, Bufferbloat Тест).
     Замеры выполняются TCP-подключениями до публичных узлов, а не ICMP-пингом до игровых серверов.
     """

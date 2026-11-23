@@ -1,6 +1,6 @@
 //
 //  HomeIdlePanel.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //

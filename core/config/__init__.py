@@ -1,5 +1,5 @@
 """
-Модуль конфигурации NetPulse.
+Модуль конфигурации Kap.
 """
 from config.settings import AppConfig, HostTarget, PingMode, load_config
 

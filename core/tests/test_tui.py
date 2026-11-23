@@ -41,7 +41,7 @@ def rendered(ui) -> str:
 
 
 def test_empty_dashboard_renders(ui):
-    assert "NetPulse" in rendered(ui)
+    assert "Kap" in rendered(ui)
 
 
 def test_dynamic_text_with_markup_is_shown_literally(ui, collector):

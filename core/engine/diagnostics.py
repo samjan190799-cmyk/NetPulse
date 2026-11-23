@@ -204,7 +204,7 @@ class NetworkDiagnostics:
             try:
                 req = urllib.request.Request(
                     url,
-                    headers={"User-Agent": "NetPulse/1.0 (Network Quality Monitor)"}
+                    headers={"User-Agent": "Kap/1.0 (Network Quality Monitor)"}
                 )
                 with urllib.request.urlopen(req, timeout=3.0) as response:
                     raw_data = response.read().decode("utf-8", errors="ignore")

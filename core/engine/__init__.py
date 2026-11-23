@@ -1,5 +1,5 @@
 """
-Сетевой движок NetPulse: параллельный пинг, диагностика интерфейсов, MTR и замер скорости.
+Сетевой движок Kap: параллельный пинг, диагностика интерфейсов, MTR и замер скорости.
 """
 from engine.ping import AsyncPingEngine
 from engine.diagnostics import NetworkDiagnostics

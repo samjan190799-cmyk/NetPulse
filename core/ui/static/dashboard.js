@@ -1,4 +1,4 @@
-/* NetPulse Web Dashboard.
+/* Kap Web Dashboard.
  *
  * Без фреймворков. Все динамические данные (имена узлов, адреса, тексты алертов) выводятся только
  * через textContent / DOM API — никакого innerHTML, поэтому строка вроде «<img onerror=…>» в имени узла
@@ -370,7 +370,7 @@
         } catch (e) {
             setText('live-speed-val', DASH);
             setSpeedStatus(
-                e && e.name === 'AbortError' ? 'Превышено время ожидания замера' : 'Нет связи с NetPulse',
+                e && e.name === 'AbortError' ? 'Превышено время ожидания замера' : 'Нет связи с Kap',
                 'error',
             );
         } finally {

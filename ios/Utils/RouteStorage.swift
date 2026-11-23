@@ -1,6 +1,6 @@
 //
 //  RouteStorage.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -30,7 +30,9 @@ public actor RouteStorage {
         self.directory = directory
     }
 
-    /// Каталог по умолчанию: Application Support/NetPulse/Routes
+    /// Каталог по умолчанию: Application Support/NetPulse/Routes.
+    /// Имя каталога осталось от прежнего названия приложения (NetPulse) намеренно: под этим путём уже лежат
+    /// сохранённые маршруты, и при смене имени они бы пропали с экрана.
     public static func defaultDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory

@@ -1,6 +1,6 @@
 //
-//  NetPulseLiveActivityWidget.swift
-//  NetPulse
+//  KapLiveActivityWidget.swift
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI / ActivityKit) - 2026.
 //
@@ -15,11 +15,11 @@ import ActivityKit
 
 #if canImport(WidgetKit) && canImport(ActivityKit)
 /// Виджет Live Activity и Dynamic Island: скорость загрузки и выгрузки в компактном режиме, пинг и детальная сеть по зажатию.
-public struct NetPulseLiveActivityWidget: Widget {
+public struct KapLiveActivityWidget: Widget {
     public init() {}
 
     public var body: some WidgetConfiguration {
-        ActivityConfiguration(for: NetPulseAttributes.self) { context in
+        ActivityConfiguration(for: KapAttributes.self) { context in
             // Экран блокировки / Баннер уведомлений
             LockScreenLiveActivityView(state: context.state, isStale: context.isStale)
         } dynamicIsland: { context in
@@ -249,7 +249,7 @@ public struct NetPulseLiveActivityWidget: Widget {
 
 /// Баннер на экране блокировки с реальной скоростью и пингом
 private struct LockScreenLiveActivityView: View {
-    let state: NetPulseAttributes.ContentState
+    let state: KapAttributes.ContentState
     /// Обновления перестали приходить (приложение приостановлено): цифры тускнеют, вместо пинга — «пауза»
     let isStale: Bool
 
@@ -273,7 +273,7 @@ private struct LockScreenLiveActivityView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(state.isGamingMode ? (state.gameTitle ?? "Gaming Radar") : "NetPulse Трафик")
+                    Text(state.isGamingMode ? (state.gameTitle ?? "Gaming Radar") : "Kap Трафик")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Text("•")

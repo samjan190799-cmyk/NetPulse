@@ -177,7 +177,7 @@ def get_json(state, path, **kw):
 def test_dashboard_page_is_served(server):
     status, headers, body = http("GET", server.base + "/")
     assert status == 200 and "text/html" in headers["content-type"]
-    assert "NetPulse" in body.decode("utf-8")
+    assert "Kap" in body.decode("utf-8")
 
 
 def test_index_html_alias_and_query_string_do_not_break_routing(server):
@@ -269,7 +269,7 @@ def test_same_origin_post_is_allowed(server):
 def test_static_path_traversal_is_blocked(server, path):
     status, _, body = http("GET", server.base + path)
     assert status in (400, 403, 404)
-    assert b"NetPulseApplication" not in body and b"root:" not in body
+    assert b"KapApplication" not in body and b"root:" not in body
 
 
 # ---- статические файлы -----------------------------------------------------------------------------
@@ -318,7 +318,7 @@ def test_dashboard_stays_responsive_during_speedtest(server):
 # ---- экспорт ---------------------------------------------------------------------------------------
 
 def leftover_export_dirs():
-    return {p.name for p in Path(tempfile.gettempdir()).glob("netpulse_export_*")}
+    return {p.name for p in Path(tempfile.gettempdir()).glob("kap_export_*")}
 
 
 def wait_cleanup(before, timeout=3.0):
@@ -352,7 +352,7 @@ def test_export_through_web_does_not_litter_working_directory(server, tmp_path, 
     monkeypatch.chdir(tmp_path)
     http("GET", server.base + "/api/export/json")
     http("GET", server.base + "/api/export/csv")
-    assert list(tmp_path.glob("netpulse_*")) == []
+    assert list(tmp_path.glob("kap_*")) == []
 
 
 # ---- резервный сервер: особенности ------------------------------------------------------------------

@@ -1,6 +1,6 @@
 //
 //  DNSBenchmarkView.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -581,7 +581,7 @@ private struct DNSConfigExportSheet: View {
 
     private func createTempConfigFile(text: String) -> URL? {
         let sanitizedName = provider.id.replacingOccurrences(of: ".", with: "_")
-        let fileName = "NetPulse_\(sanitizedName).mobileconfig"
+        let fileName = "Kap_\(sanitizedName).mobileconfig"
         let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent(fileName)
         do {

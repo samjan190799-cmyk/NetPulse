@@ -1,5 +1,5 @@
 """
-Веб-интерфейс NetPulse.
+Веб-интерфейс Kap.
 Поддерживает FastAPI/Uvicorn (при наличии) и встроенный http.server стандартной библиотеки Python.
 
 Безопасность: API не требует авторизации, поэтому по умолчанию сервер слушает только 127.0.0.1,
@@ -157,7 +157,7 @@ def create_web_app(
     if not FASTAPI_AVAILABLE:
         return None
 
-    app = FastAPI(title="NetPulse Web Dashboard", version="1.0.0")
+    app = FastAPI(title="Kap Web Dashboard", version="1.0.0")
     index_html_path = TEMPLATES_DIR / "index.html"
     allowed = allowed_hosts_for(config)
 
@@ -204,13 +204,13 @@ def create_web_app(
 
     def _export_response(kind: str):
         """Экспорт — во временный каталог, который удаляется после отправки файла."""
-        tmp = Path(tempfile.mkdtemp(prefix="netpulse_export_"))
+        tmp = Path(tempfile.mkdtemp(prefix="kap_export_"))
         try:
             if kind == "json":
-                path = storage.export_json(tmp / f"netpulse_report_{storage.session_id}.json")
+                path = storage.export_json(tmp / f"kap_report_{storage.session_id}.json")
                 media = "application/json"
             else:
-                path = storage.export_csv(tmp / f"netpulse_metrics_{storage.session_id}.csv")
+                path = storage.export_csv(tmp / f"kap_metrics_{storage.session_id}.csv")
                 media = "text/csv"
         except Exception:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -319,13 +319,13 @@ class StandaloneWebServer:
                 self._send_bytes(200, target.read_bytes(), ctype)
 
             def _send_export(self, kind: str):
-                tmp = Path(tempfile.mkdtemp(prefix="netpulse_export_"))
+                tmp = Path(tempfile.mkdtemp(prefix="kap_export_"))
                 try:
                     if kind == "json":
-                        path = server.storage.export_json(tmp / f"netpulse_report_{server.storage.session_id}.json")
+                        path = server.storage.export_json(tmp / f"kap_report_{server.storage.session_id}.json")
                         ctype = "application/json"
                     else:
-                        path = server.storage.export_csv(tmp / f"netpulse_metrics_{server.storage.session_id}.csv")
+                        path = server.storage.export_csv(tmp / f"kap_metrics_{server.storage.session_id}.csv")
                         ctype = "text/csv; charset=utf-8"
                     self._send_bytes(
                         200, path.read_bytes(), ctype,

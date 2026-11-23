@@ -1,6 +1,6 @@
 //
 //  YandexBannerSlot.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI / Yandex Mobile Ads SDK 8) - 2026.
 //

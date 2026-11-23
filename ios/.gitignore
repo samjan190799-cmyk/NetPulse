@@ -21,5 +21,7 @@ xcuserdata/
 .idea/
 
 # Временные отчеты сессий
+Kap_Report_*.json
+Kap_Metrics_*.csv
 NetPulse_Report_*.json
 NetPulse_Metrics_*.csv

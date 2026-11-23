@@ -1,6 +1,6 @@
 //
 //  NetworkMonitorViewModel.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -14,7 +14,7 @@ import AudioToolbox
 import WidgetKit
 #endif
 
-/// Главная модель представления NetPulse на базе макроса @Observable (iOS 17+ / Swift 6).
+/// Главная модель представления Kap на базе макроса @Observable (iOS 17+ / Swift 6).
 @Observable
 @MainActor
 public final class NetworkMonitorViewModel {
@@ -354,7 +354,7 @@ public final class NetworkMonitorViewModel {
 
     private func beginBackgroundAssertion() {
         endBackgroundAssertion()
-        bgTask = UIApplication.shared.beginBackgroundTask(withName: "NetPulseBackgroundTelemetry") { [weak self] in
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "KapBackgroundTelemetry") { [weak self] in
             Task { @MainActor in
                 self?.endBackgroundAssertion()
             }
@@ -1402,7 +1402,7 @@ public final class NetworkMonitorViewModel {
             )
         }
 
-        let widgetData = NetPulseWidgetData(
+        let widgetData = KapWidgetData(
             downloadSpeedMbps: liveDownloadSpeed > 0 ? liveDownloadSpeed : (lastSpeedtestResult?.downloadMbps ?? liveBandwidth.downloadMbps),
             uploadSpeedMbps: liveUploadSpeed > 0 ? liveUploadSpeed : (lastSpeedtestResult?.uploadMbps ?? liveBandwidth.uploadMbps),
             pingMs: currentAveragePing,
@@ -1550,7 +1550,7 @@ public final class NetworkMonitorViewModel {
                 scoreLine = "\(report.statusTitle): \(report.summaryText)"
             }
             let greeting = """
-            Привет! Я сетевой диагност **NetPulse AI**.
+            Привет! Я сетевой диагност **Kap AI**.
 
             \(scoreLine)
 

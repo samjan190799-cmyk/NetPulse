@@ -1,5 +1,5 @@
 """
-Пользовательские интерфейсы NetPulse (Rich TUI и Web Dashboard).
+Пользовательские интерфейсы Kap (Rich TUI и Web Dashboard).
 """
 from ui.tui import TerminalUI
 from ui.web import FASTAPI_AVAILABLE, StandaloneWebServer, create_web_app

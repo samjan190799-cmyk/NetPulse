@@ -1,12 +1,12 @@
 //
 //  ModesAndPrivacyTests.swift
-//  NetPulseTests
+//  KapTests
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
 
 import XCTest
-@testable import NetPulse
+@testable import Kap
 
 // MARK: - Запись маршрута: состояния и сборка
 

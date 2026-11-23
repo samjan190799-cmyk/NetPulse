@@ -1,6 +1,6 @@
 //
 //  BackgroundTelemetryKeeper.swift
-//  NetPulse
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / Strict Concurrency) - 2026.
 //

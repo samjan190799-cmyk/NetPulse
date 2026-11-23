@@ -1,6 +1,6 @@
 //
-//  NetPulseAttributes.swift
-//  NetPulse
+//  KapAttributes.swift
+//  Kap
 //
 //  Created for iOS (Swift 6.0+ / SwiftUI) - 2026.
 //
@@ -12,7 +12,7 @@ import ActivityKit
 
 /// Атрибуты и состояние Live Activity для Dynamic Island с реальной скоростью загрузки и отдачи.
 #if canImport(ActivityKit)
-public struct NetPulseAttributes: ActivityAttributes, Sendable {
+public struct KapAttributes: ActivityAttributes, Sendable {
     public struct ContentState: Codable, Hashable, Sendable {
         public var downloadSpeedText: String
         public var uploadSpeedText: String
@@ -61,7 +61,7 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
 
     public var sessionTitle: String
 
-    public init(sessionTitle: String = "NetPulse Monitor") {
+    public init(sessionTitle: String = "Kap Monitor") {
         self.sessionTitle = sessionTitle
     }
 }

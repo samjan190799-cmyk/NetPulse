@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000012C12345600000001 /* NetPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000012C12345600000001 /* NetPulseApp.swift */; };
+		A10000012C12345600000001 /* KapApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000012C12345600000001 /* KapApp.swift */; };
 		A10000022C12345600000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000022C12345600000002 /* ContentView.swift */; };
 		A10000032C12345600000003 /* HostTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000032C12345600000003 /* HostTarget.swift */; };
 		A10000042C12345600000004 /* PingRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000042C12345600000004 /* PingRecord.swift */; };
@@ -35,9 +35,9 @@
 		A10000222C1234560000002C /* NetworkCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000222C1234560000002C /* NetworkCapability.swift */; };
 		A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000232C1234560000002D /* NetworkCapabilityCardView.swift */; };
 		A10000242C1234560000002E /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000242C1234560000002E /* DiagnosticsView.swift */; };
-		A10000252C1234560000002F /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000252C1234560000002F /* NetPulseAttributes.swift */; };
+		A10000252C1234560000002F /* KapAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000252C1234560000002F /* KapAttributes.swift */; };
 		A10000262C12345600000030 /* ActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000262C12345600000030 /* ActivityManager.swift */; };
-		A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */; };
+		A10000272C12345600000031 /* KapLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C12345600000031 /* KapLiveActivityWidget.swift */; };
 		A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C12345600000032 /* FloatingGameOverlayView.swift */; };
 		A10000302C12345600000034 /* PiPHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C12345600000034 /* PiPHUDManager.swift */; };
 		A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */; };
@@ -49,7 +49,7 @@
 		A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000502C12345600000050 /* AIDiagnosticsModels.swift */; };
 		A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000512C12345600000051 /* AIDiagnosticsEngine.swift */; };
 		A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000522C12345600000052 /* AIDiagnosticsView.swift */; };
-		A10000602C12345600000060 /* NetPulseTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000602C12345600000060 /* NetPulseTheme.swift */; };
+		A10000602C12345600000060 /* KapTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000602C12345600000060 /* KapTheme.swift */; };
 		A1000020AC1234560000002A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000020AC1234560000002A /* Assets.xcassets */; };
 		A10000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
 		A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */; };
@@ -67,17 +67,17 @@
 		A100009A2C1234560000009A /* BufferbloatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100009A2C1234560000009A /* BufferbloatView.swift */; };
 		A100009B2C1234560000009B /* LANScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100009B2C1234560000009B /* LANScannerView.swift */; };
 		A100009C2C1234560000009C /* NetworkGlossarySheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */; };
-		A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */; };
-		A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */; };
-		A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* NetPulseAttributes.swift */; };
+		A20000012C12345600000001 /* KapWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000022C12345600000002 /* KapWidgetsBundle.swift */; };
+		A20000022C12345600000002 /* KapLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000042C12345600000004 /* KapLiveActivityWidget.swift */; };
+		A20000032C12345600000003 /* KapAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000052C12345600000005 /* KapAttributes.swift */; };
 		A20000702C12345600000070 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000702C12345600000070 /* WidgetDataManager.swift */; };
-		A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */; };
-		A20000042C12345600000004 /* NetPulseWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000012C12345600000001 /* NetPulseWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A20000712C12345600000071 /* KapHomeScreenWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000712C12345600000071 /* KapHomeScreenWidget.swift */; };
+		A20000042C12345600000004 /* KapWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000012C12345600000001 /* KapWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A30000012C12345600000001 /* BandwidthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000012C12345600000001 /* BandwidthTests.swift */; };
 		A30000022C12345600000002 /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000022C12345600000002 /* WidgetDataTests.swift */; };
 		A30000032C12345600000003 /* ToolsLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000032C12345600000003 /* ToolsLogicTests.swift */; };
 		A30000042C12345600000004 /* ModesAndPrivacyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000042C12345600000004 /* ModesAndPrivacyTests.swift */; };
-		A40000012C12345600000001 /* NetPulseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000012C12345600000001 /* NetPulseUITests.swift */; };
+		A40000012C12345600000001 /* KapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000012C12345600000001 /* KapUITests.swift */; };
 		A10000D02C123456000000D0 /* IslandUpdatePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */; };
 		A10000D12C123456000000D1 /* IslandDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D12C123456000000D1 /* IslandDiagnostics.swift */; };
 		A10000D22C123456000000D2 /* IslandDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */; };
@@ -116,21 +116,21 @@
 			containerPortal = 010000002C12345600000000 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = F20000012C12345600000001;
-			remoteInfo = NetPulseWidgets;
+			remoteInfo = KapWidgets;
 		};
 		P30000012C12345600000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 010000002C12345600000000 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = F10000012C12345600000001;
-			remoteInfo = NetPulse;
+			remoteInfo = Kap;
 		};
 		P40000012C12345600000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 010000002C12345600000000 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = F10000012C12345600000001;
-			remoteInfo = NetPulse;
+			remoteInfo = Kap;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -141,7 +141,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				A20000042C12345600000004 /* NetPulseWidgets.appex in Embed App Extensions */,
+				A20000042C12345600000004 /* KapWidgets.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -149,9 +149,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		C10000002C12345600000000 /* NetPulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000002C12345600000000 /* Kap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kap.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000002C12345600000000 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B10000012C12345600000001 /* NetPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseApp.swift; sourceTree = "<group>"; };
+		B10000012C12345600000001 /* KapApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapApp.swift; sourceTree = "<group>"; };
 		B10000022C12345600000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B10000032C12345600000003 /* HostTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HostTarget.swift; sourceTree = "<group>"; };
 		B10000042C12345600000004 /* PingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/PingRecord.swift; sourceTree = "<group>"; };
@@ -161,7 +161,7 @@
 		B10000082C12345600000008 /* TracerouteHop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/TracerouteHop.swift; sourceTree = "<group>"; };
 		B10000092C12345600000009 /* NetworkAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetworkAlert.swift; sourceTree = "<group>"; };
 		B10000222C1234560000002C /* NetworkCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetworkCapability.swift; sourceTree = "<group>"; };
-		B10000252C1234560000002F /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/NetPulseAttributes.swift; sourceTree = "<group>"; };
+		B10000252C1234560000002F /* KapAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/KapAttributes.swift; sourceTree = "<group>"; };
 		B100000A2C1234560000000A /* PingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/PingEngine.swift; sourceTree = "<group>"; };
 		B100000B2C1234560000000B /* JitterAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/JitterAnalyzer.swift; sourceTree = "<group>"; };
 		B100000C2C1234560000000C /* SpeedtestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/SpeedtestEngine.swift; sourceTree = "<group>"; };
@@ -178,7 +178,7 @@
 		B10000162C12345600000016 /* TracerouteSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/TracerouteSheetView.swift; sourceTree = "<group>"; };
 		B10000172C12345600000017 /* AlertsBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/AlertsBannerView.swift; sourceTree = "<group>"; };
 		B10000232C1234560000002D /* NetworkCapabilityCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkCapabilityCardView.swift; sourceTree = "<group>"; };
-		B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
+		B10000272C12345600000031 /* KapLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/KapLiveActivityWidget.swift; sourceTree = "<group>"; };
 		B10000282C12345600000032 /* FloatingGameOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/FloatingGameOverlayView.swift; sourceTree = "<group>"; };
 		B10000182C12345600000018 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HapticManager.swift; sourceTree = "<group>"; };
 		B10000192C12345600000019 /* HistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/HistoryStorage.swift; sourceTree = "<group>"; };
@@ -193,7 +193,7 @@
 		B10000502C12345600000050 /* AIDiagnosticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AIDiagnosticsModels.swift; sourceTree = "<group>"; };
 		B10000512C12345600000051 /* AIDiagnosticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AIDiagnosticsEngine.swift; sourceTree = "<group>"; };
 		B10000522C12345600000052 /* AIDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIDiagnosticsView.swift; sourceTree = "<group>"; };
-		B10000602C12345600000060 /* NetPulseTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/NetPulseTheme.swift; sourceTree = "<group>"; };
+		B10000602C12345600000060 /* KapTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/KapTheme.swift; sourceTree = "<group>"; };
 		B1000020AC1234560000002A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000702C12345600000070 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/WidgetDataManager.swift; sourceTree = "<group>"; };
 		B10000802C12345600000080 /* AINetworkAnomalyDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/AINetworkAnomalyDetector.swift; sourceTree = "<group>"; };
@@ -211,32 +211,32 @@
 		B100009A2C1234560000009A /* BufferbloatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/BufferbloatView.swift; sourceTree = "<group>"; };
 		B100009B2C1234560000009B /* LANScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/LANScannerView.swift; sourceTree = "<group>"; };
 		B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/NetworkGlossarySheetView.swift; sourceTree = "<group>"; };
-		B20000012C12345600000001 /* NetPulseWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetPulseWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseWidgetsBundle.swift; sourceTree = "<group>"; };
-		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = NetPulseWidgets/Info.plist; sourceTree = "<group>"; };
-		B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseLiveActivityWidget.swift; sourceTree = "<group>"; };
-		B20000052C12345600000005 /* NetPulseAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseAttributes.swift; sourceTree = "<group>"; };
-		B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseHomeScreenWidget.swift; sourceTree = "<group>"; };
-		B10000E12C12345600000E01 /* NetPulse.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetPulse.entitlements; sourceTree = "<group>"; };
-		B20000E22C12345600000E02 /* NetPulseWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetPulseWidgets/NetPulseWidgets.entitlements; sourceTree = "<group>"; };
-		C30000012C12345600000001 /* NetPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		C40000012C12345600000001 /* NetPulseUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetPulseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B30000012C12345600000001 /* BandwidthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/BandwidthTests.swift; sourceTree = "<group>"; };
-		B30000022C12345600000002 /* WidgetDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/WidgetDataTests.swift; sourceTree = "<group>"; };
-		B30000032C12345600000003 /* ToolsLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ToolsLogicTests.swift; sourceTree = "<group>"; };
-		B30000042C12345600000004 /* ModesAndPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/ModesAndPrivacyTests.swift; sourceTree = "<group>"; };
-		B40000012C12345600000001 /* NetPulseUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/NetPulseUITests.swift; sourceTree = "<group>"; };
+		B20000012C12345600000001 /* KapWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KapWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000022C12345600000002 /* KapWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapWidgets/KapWidgetsBundle.swift; sourceTree = "<group>"; };
+		B20000032C12345600000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = KapWidgets/Info.plist; sourceTree = "<group>"; };
+		B20000042C12345600000004 /* KapLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapWidgets/KapLiveActivityWidget.swift; sourceTree = "<group>"; };
+		B20000052C12345600000005 /* KapAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapWidgets/KapAttributes.swift; sourceTree = "<group>"; };
+		B20000712C12345600000071 /* KapHomeScreenWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapWidgets/KapHomeScreenWidget.swift; sourceTree = "<group>"; };
+		B10000E12C12345600000E01 /* Kap.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Kap.entitlements; sourceTree = "<group>"; };
+		B20000E22C12345600000E02 /* KapWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KapWidgets/KapWidgets.entitlements; sourceTree = "<group>"; };
+		C30000012C12345600000001 /* KapTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KapTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C40000012C12345600000001 /* KapUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KapUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B30000012C12345600000001 /* BandwidthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/BandwidthTests.swift; sourceTree = "<group>"; };
+		B30000022C12345600000002 /* WidgetDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/WidgetDataTests.swift; sourceTree = "<group>"; };
+		B30000032C12345600000003 /* ToolsLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/ToolsLogicTests.swift; sourceTree = "<group>"; };
+		B30000042C12345600000004 /* ModesAndPrivacyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/ModesAndPrivacyTests.swift; sourceTree = "<group>"; };
+		B40000012C12345600000001 /* KapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapUITests/KapUITests.swift; sourceTree = "<group>"; };
 		B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandUpdatePipeline.swift; sourceTree = "<group>"; };
 		B10000D12C123456000000D1 /* IslandDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/IslandDiagnostics.swift; sourceTree = "<group>"; };
 		B10000D22C123456000000D2 /* IslandDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/IslandDiagnosticsView.swift; sourceTree = "<group>"; };
-		B30000052C12345600000005 /* IslandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/IslandTests.swift; sourceTree = "<group>"; };
+		B30000052C12345600000005 /* IslandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/IslandTests.swift; sourceTree = "<group>"; };
 		B10000D32C123456000000D3 /* RouteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/RouteModels.swift; sourceTree = "<group>"; };
 		B10000D42C123456000000D4 /* RouteStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteStorage.swift; sourceTree = "<group>"; };
 		B10000D52C123456000000D5 /* RouteLocationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteLocationSession.swift; sourceTree = "<group>"; };
 		B10000D62C123456000000D6 /* RouteRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/RouteRecorder.swift; sourceTree = "<group>"; };
 		B10000D72C123456000000D7 /* NetworkProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engines/NetworkProbe.swift; sourceTree = "<group>"; };
-		B30000062C12345600000006 /* RouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteTests.swift; sourceTree = "<group>"; };
-		B30000072C12345600000007 /* RouteRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/RouteRecorderTests.swift; sourceTree = "<group>"; };
+		B30000062C12345600000006 /* RouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/RouteTests.swift; sourceTree = "<group>"; };
+		B30000072C12345600000007 /* RouteRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/RouteRecorderTests.swift; sourceTree = "<group>"; };
 		B10000D92C123456000000D9 /* NetworkHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/NetworkHomeView.swift; sourceTree = "<group>"; };
 		B10000DA2C123456000000DA /* HomeMapLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeMapLayer.swift; sourceTree = "<group>"; };
 		B10000DB2C123456000000DB /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeComponents.swift; sourceTree = "<group>"; };
@@ -246,14 +246,14 @@
 		B10000DF2C123456000000DF /* HomeRoutePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeRoutePanel.swift; sourceTree = "<group>"; };
 		B10000E02C123456000000E0 /* HomeFloatingCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeFloatingCards.swift; sourceTree = "<group>"; };
 		B10000E12C123456000000E1 /* HomeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HomeModels.swift; sourceTree = "<group>"; };
-		B30000082C12345600000008 /* HomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/HomeTests.swift; sourceTree = "<group>"; };
+		B30000082C12345600000008 /* HomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/HomeTests.swift; sourceTree = "<group>"; };
 		B10000E22C123456000000E2 /* AdModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AdModels.swift; sourceTree = "<group>"; };
 		B10000E32C123456000000E3 /* YandexAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/YandexAdManager.swift; sourceTree = "<group>"; };
 		B10000E42C123456000000E4 /* YandexBannerSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerSlot.swift; sourceTree = "<group>"; };
 		B10000E52C123456000000E5 /* YandexStickyBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexStickyBannerView.swift; sourceTree = "<group>"; };
 		B10000E62C123456000000E6 /* YandexBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Components/YandexBannerView.swift; sourceTree = "<group>"; };
-		B30000092C12345600000009 /* AdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/AdTests.swift; sourceTree = "<group>"; };
-		B40000022C12345600000002 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseUITests/AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
+		B30000092C12345600000009 /* AdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapTests/AdTests.swift; sourceTree = "<group>"; };
+		B40000022C12345600000002 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KapUITests/AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
 		B10000E82C123456000000E8 /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/AppLinks.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -294,7 +294,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000002C12345600000000 /* Info.plist */,
-				B10000012C12345600000001 /* NetPulseApp.swift */,
+				B10000012C12345600000001 /* KapApp.swift */,
 				B10000022C12345600000002 /* ContentView.swift */,
 				E10000022C12345600000002 /* Models */,
 				E10000032C12345600000003 /* Engines */,
@@ -302,23 +302,23 @@
 				E10000052C12345600000005 /* Views */,
 				E10000072C12345600000007 /* Utils */,
 				B1000020AC1234560000002A /* Assets.xcassets */,
-				E20000022C12345600000002 /* NetPulseWidgets */,
-				E50000012C12345600000001 /* NetPulseTests */,
-				E60000012C12345600000001 /* NetPulseUITests */,
+				E20000022C12345600000002 /* KapWidgets */,
+				E50000012C12345600000001 /* KapTests */,
+				E60000012C12345600000001 /* KapUITests */,
 				E10000082C12345600000008 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		E20000022C12345600000002 /* NetPulseWidgets */ = {
+		E20000022C12345600000002 /* KapWidgets */ = {
 			isa = PBXGroup;
 			children = (
-				B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */,
-				B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */,
-				B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */,
-				B20000052C12345600000005 /* NetPulseAttributes.swift */,
+				B20000022C12345600000002 /* KapWidgetsBundle.swift */,
+				B20000042C12345600000004 /* KapLiveActivityWidget.swift */,
+				B20000712C12345600000071 /* KapHomeScreenWidget.swift */,
+				B20000052C12345600000005 /* KapAttributes.swift */,
 				B20000032C12345600000003 /* Info.plist */,
 			);
-			name = NetPulseWidgets;
+			name = KapWidgets;
 			sourceTree = "<group>";
 		};
 		E10000022C12345600000002 /* Models */ = {
@@ -332,7 +332,7 @@
 				B10000082C12345600000008 /* TracerouteHop.swift */,
 				B10000092C12345600000009 /* NetworkAlert.swift */,
 				B10000222C1234560000002C /* NetworkCapability.swift */,
-				B10000252C1234560000002F /* NetPulseAttributes.swift */,
+				B10000252C1234560000002F /* KapAttributes.swift */,
 				B10000402C12345600000040 /* TrafficModels.swift */,
 				B10000502C12345600000050 /* AIDiagnosticsModels.swift */,
 				B10000702C12345600000070 /* WidgetDataManager.swift */,
@@ -411,7 +411,7 @@
 				B10000162C12345600000016 /* TracerouteSheetView.swift */,
 				B10000172C12345600000017 /* AlertsBannerView.swift */,
 				B10000232C1234560000002D /* NetworkCapabilityCardView.swift */,
-				B10000272C12345600000031 /* NetPulseLiveActivityWidget.swift */,
+				B10000272C12345600000031 /* KapLiveActivityWidget.swift */,
 				B10000282C12345600000032 /* FloatingGameOverlayView.swift */,
 				B100009C2C1234560000009C /* NetworkGlossarySheetView.swift */,
 				B10000E42C123456000000E4 /* YandexBannerSlot.swift */,
@@ -431,7 +431,7 @@
 				B10000302C12345600000034 /* PiPHUDManager.swift */,
 				B10000312C12345600000035 /* BackgroundTelemetryKeeper.swift */,
 				B10000322C12345600000036 /* BackgroundTaskManager.swift */,
-				B10000602C12345600000060 /* NetPulseTheme.swift */,
+				B10000602C12345600000060 /* KapTheme.swift */,
 				B10000812C12345600000081 /* SpeechRecognizerManager.swift */,
 				B10000D02C123456000000D0 /* IslandUpdatePipeline.swift */,
 				B10000D12C123456000000D1 /* IslandDiagnostics.swift */,
@@ -447,15 +447,15 @@
 		E10000082C12345600000008 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C10000002C12345600000000 /* NetPulse.app */,
-				B20000012C12345600000001 /* NetPulseWidgets.appex */,
-				C30000012C12345600000001 /* NetPulseTests.xctest */,
-				C40000012C12345600000001 /* NetPulseUITests.xctest */,
+				C10000002C12345600000000 /* Kap.app */,
+				B20000012C12345600000001 /* KapWidgets.appex */,
+				C30000012C12345600000001 /* KapTests.xctest */,
+				C40000012C12345600000001 /* KapUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		E50000012C12345600000001 /* NetPulseTests */ = {
+		E50000012C12345600000001 /* KapTests */ = {
 			isa = PBXGroup;
 			children = (
 				B30000012C12345600000001 /* BandwidthTests.swift */,
@@ -468,24 +468,24 @@
 				B30000082C12345600000008 /* HomeTests.swift */,
 				B30000092C12345600000009 /* AdTests.swift */,
 			);
-			name = NetPulseTests;
+			name = KapTests;
 			sourceTree = "<group>";
 		};
-		E60000012C12345600000001 /* NetPulseUITests */ = {
+		E60000012C12345600000001 /* KapUITests */ = {
 			isa = PBXGroup;
 			children = (
-				B40000012C12345600000001 /* NetPulseUITests.swift */,
+				B40000012C12345600000001 /* KapUITests.swift */,
 				B40000022C12345600000002 /* AppStoreScreenshotTests.swift */,
 			);
-			name = NetPulseUITests;
+			name = KapUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F10000012C12345600000001 /* NetPulse */ = {
+		F10000012C12345600000001 /* Kap */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = G10000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulse" */;
+			buildConfigurationList = G10000012C12345600000001 /* Build configuration list for PBXNativeTarget "Kap" */;
 			buildPhases = (
 				D10000002C12345600000000 /* Sources */,
 				D10000012C12345600000001 /* Frameworks */,
@@ -500,14 +500,14 @@
 			packageProductDependencies = (
 				E40000022C12345600000002 /* YandexMobileAds */,
 			);
-			name = NetPulse;
-			productName = NetPulse;
-			productReference = C10000002C12345600000000 /* NetPulse.app */;
+			name = Kap;
+			productName = Kap;
+			productReference = C10000002C12345600000000 /* Kap.app */;
 			productType = "com.apple.product-type.application";
 		};
-		F20000012C12345600000001 /* NetPulseWidgets */ = {
+		F20000012C12345600000001 /* KapWidgets */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = G20000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseWidgets" */;
+			buildConfigurationList = G20000012C12345600000001 /* Build configuration list for PBXNativeTarget "KapWidgets" */;
 			buildPhases = (
 				D20000002C12345600000000 /* Sources */,
 				D20000012C12345600000001 /* Frameworks */,
@@ -517,14 +517,14 @@
 			);
 			dependencies = (
 			);
-			name = NetPulseWidgets;
-			productName = NetPulseWidgets;
-			productReference = B20000012C12345600000001 /* NetPulseWidgets.appex */;
+			name = KapWidgets;
+			productName = KapWidgets;
+			productReference = B20000012C12345600000001 /* KapWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		F30000012C12345600000001 /* NetPulseTests */ = {
+		F30000012C12345600000001 /* KapTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseTests" */;
+			buildConfigurationList = G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "KapTests" */;
 			buildPhases = (
 				D30000002C12345600000000 /* Sources */,
 				D30000012C12345600000001 /* Frameworks */,
@@ -535,14 +535,14 @@
 			dependencies = (
 				T30000012C12345600000001 /* PBXTargetDependency */,
 			);
-			name = NetPulseTests;
-			productName = NetPulseTests;
-			productReference = C30000012C12345600000001 /* NetPulseTests.xctest */;
+			name = KapTests;
+			productName = KapTests;
+			productReference = C30000012C12345600000001 /* KapTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		F40000012C12345600000001 /* NetPulseUITests */ = {
+		F40000012C12345600000001 /* KapUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseUITests" */;
+			buildConfigurationList = G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "KapUITests" */;
 			buildPhases = (
 				D40000002C12345600000000 /* Sources */,
 				D40000012C12345600000001 /* Frameworks */,
@@ -553,9 +553,9 @@
 			dependencies = (
 				T40000012C12345600000001 /* PBXTargetDependency */,
 			);
-			name = NetPulseUITests;
-			productName = NetPulseUITests;
-			productReference = C40000012C12345600000001 /* NetPulseUITests.xctest */;
+			name = KapUITests;
+			productName = KapUITests;
+			productReference = C40000012C12345600000001 /* KapUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -583,7 +583,7 @@
 					};
 				};
 			};
-			buildConfigurationList = G10000002C12345600000000 /* Build configuration list for PBXProject "NetPulse" */;
+			buildConfigurationList = G10000002C12345600000000 /* Build configuration list for PBXProject "Kap" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = ru;
 			hasScannedForEncodings = 0;
@@ -599,10 +599,10 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F10000012C12345600000001 /* NetPulse */,
-				F20000012C12345600000001 /* NetPulseWidgets */,
-				F30000012C12345600000001 /* NetPulseTests */,
-				F40000012C12345600000001 /* NetPulseUITests */,
+				F10000012C12345600000001 /* Kap */,
+				F20000012C12345600000001 /* KapWidgets */,
+				F30000012C12345600000001 /* KapTests */,
+				F40000012C12345600000001 /* KapUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -644,7 +644,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000012C12345600000001 /* NetPulseApp.swift in Sources */,
+				A10000012C12345600000001 /* KapApp.swift in Sources */,
 				A10000022C12345600000002 /* ContentView.swift in Sources */,
 				A10000032C12345600000003 /* HostTarget.swift in Sources */,
 				A10000042C12345600000004 /* PingRecord.swift in Sources */,
@@ -672,9 +672,9 @@
 				A10000222C1234560000002C /* NetworkCapability.swift in Sources */,
 				A10000232C1234560000002D /* NetworkCapabilityCardView.swift in Sources */,
 				A10000242C1234560000002E /* DiagnosticsView.swift in Sources */,
-				A10000252C1234560000002F /* NetPulseAttributes.swift in Sources */,
+				A10000252C1234560000002F /* KapAttributes.swift in Sources */,
 				A10000262C12345600000030 /* ActivityManager.swift in Sources */,
-				A10000272C12345600000031 /* NetPulseLiveActivityWidget.swift in Sources */,
+				A10000272C12345600000031 /* KapLiveActivityWidget.swift in Sources */,
 				A10000282C12345600000032 /* FloatingGameOverlayView.swift in Sources */,
 				A10000302C12345600000034 /* PiPHUDManager.swift in Sources */,
 				A10000312C12345600000035 /* BackgroundTelemetryKeeper.swift in Sources */,
@@ -686,7 +686,7 @@
 				A10000502C12345600000050 /* AIDiagnosticsModels.swift in Sources */,
 				A10000512C12345600000051 /* AIDiagnosticsEngine.swift in Sources */,
 				A10000522C12345600000052 /* AIDiagnosticsView.swift in Sources */,
-				A10000602C12345600000060 /* NetPulseTheme.swift in Sources */,
+				A10000602C12345600000060 /* KapTheme.swift in Sources */,
 				A10000702C12345600000070 /* WidgetDataManager.swift in Sources */,
 				A10000802C12345600000080 /* AINetworkAnomalyDetector.swift in Sources */,
 				A10000812C12345600000081 /* SpeechRecognizerManager.swift in Sources */,
@@ -733,11 +733,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A20000012C12345600000001 /* NetPulseWidgetsBundle.swift in Sources */,
-				A20000022C12345600000002 /* NetPulseLiveActivityWidget.swift in Sources */,
-				A20000032C12345600000003 /* NetPulseAttributes.swift in Sources */,
+				A20000012C12345600000001 /* KapWidgetsBundle.swift in Sources */,
+				A20000022C12345600000002 /* KapLiveActivityWidget.swift in Sources */,
+				A20000032C12345600000003 /* KapAttributes.swift in Sources */,
 				A20000702C12345600000070 /* WidgetDataManager.swift in Sources */,
-				A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */,
+				A20000712C12345600000071 /* KapHomeScreenWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -761,7 +761,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A40000012C12345600000001 /* NetPulseUITests.swift in Sources */,
+				A40000012C12345600000001 /* KapUITests.swift in Sources */,
 				A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -771,17 +771,17 @@
 /* Begin PBXTargetDependency section */
 		T20000012C12345600000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = F20000012C12345600000001 /* NetPulseWidgets */;
+			target = F20000012C12345600000001 /* KapWidgets */;
 			targetProxy = P20000012C12345600000001 /* PBXContainerItemProxy */;
 		};
 		T30000012C12345600000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = F10000012C12345600000001 /* NetPulse */;
+			target = F10000012C12345600000001 /* Kap */;
 			targetProxy = P30000012C12345600000001 /* PBXContainerItemProxy */;
 		};
 		T40000012C12345600000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = F10000012C12345600000001 /* NetPulse */;
+			target = F10000012C12345600000001 /* Kap */;
 			targetProxy = P40000012C12345600000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -847,7 +847,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = NetPulse.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Kap.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -871,7 +871,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = NetPulse.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Kap.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -893,12 +893,12 @@
 		H20000022C12345600000002 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = NetPulseWidgets/NetPulseWidgets.entitlements;
+				CODE_SIGN_ENTITLEMENTS = KapWidgets/KapWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = NetPulseWidgets/Info.plist;
+				INFOPLIST_FILE = KapWidgets/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -918,12 +918,12 @@
 		H20000032C12345600000003 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = NetPulseWidgets/NetPulseWidgets.entitlements;
+				CODE_SIGN_ENTITLEMENTS = KapWidgets/KapWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = NetPulseWidgets/Info.plist;
+				INFOPLIST_FILE = KapWidgets/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -955,7 +955,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetPulse.app/NetPulse";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Kap.app/Kap";
 			};
 			name = Debug;
 		};
@@ -974,7 +974,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetPulse.app/NetPulse";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Kap.app/Kap";
 			};
 			name = Release;
 		};
@@ -992,7 +992,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = NetPulse;
+				TEST_TARGET_NAME = Kap;
 			};
 			name = Debug;
 		};
@@ -1010,14 +1010,14 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = NetPulse;
+				TEST_TARGET_NAME = Kap;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		G10000002C12345600000000 /* Build configuration list for PBXProject "NetPulse" */ = {
+		G10000002C12345600000000 /* Build configuration list for PBXProject "Kap" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				H10000002C12345600000000 /* Debug */,
@@ -1026,7 +1026,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		G10000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulse" */ = {
+		G10000012C12345600000001 /* Build configuration list for PBXNativeTarget "Kap" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				H10000022C12345600000002 /* Debug */,
@@ -1035,7 +1035,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		G20000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseWidgets" */ = {
+		G20000012C12345600000001 /* Build configuration list for PBXNativeTarget "KapWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				H20000022C12345600000002 /* Debug */,
@@ -1044,7 +1044,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseTests" */ = {
+		G30000012C12345600000001 /* Build configuration list for PBXNativeTarget "KapTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				H30000022C12345600000002 /* Debug */,
@@ -1053,7 +1053,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "NetPulseUITests" */ = {
+		G40000012C12345600000001 /* Build configuration list for PBXNativeTarget "KapUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				H40000022C12345600000002 /* Debug */,

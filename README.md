@@ -1,4 +1,4 @@
-# ⚡ NetPulse — Real-Time Network Quality Monitor
+# ⚡ Kap — Real-Time Network Quality Monitor
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-brightgreen.svg)](https://www.python.org/)
@@ -7,14 +7,14 @@
 [![Core tests](https://github.com/samjan190799-cmyk/netpulse/actions/workflows/core-tests.yml/badge.svg)](.github/workflows/core-tests.yml)
 [![iOS build](https://github.com/samjan190799-cmyk/netpulse/actions/workflows/ios-build.yml/badge.svg)](.github/workflows/ios-build.yml)
 
-**NetPulse** — это кроссплатформенный набор легковесных, высокопроизводительных инструментов для мониторинга качества сетевого соединения в реальном времени, анализа стабильности каналов связи, расчета джиттера по стандарту **RFC 3550**, потокового замера скорости (Speedtest) и автоматической MTR-трассировки.
+**Kap** — это кроссплатформенный набор легковесных, высокопроизводительных инструментов для мониторинга качества сетевого соединения в реальном времени, анализа стабильности каналов связи, расчета джиттера по стандарту **RFC 3550**, потокового замера скорости (Speedtest) и автоматической MTR-трассировки.
 
 ---
 
 ## 📂 Структура репозитория
 
 ```
-NetPulse/
+Kap/
 ├── core/                         # 🐍 Python 3.11+ Core, Rich TUI & Web Dashboard
 │   ├── config/                   # Конфигурация хостов, порогов и интервалов
 │   ├── engine/                   # Multi-mode Ping, Network Diagnostics, Speedtest, Traceroute
@@ -25,13 +25,13 @@ NetPulse/
 │   └── requirements.txt
 │
 └── ios/                          # 📱 Нативное приложение для iOS (Swift 6.0+ / SwiftUI)
-    ├── NetPulse.xcodeproj        # Готовый проект Xcode (приложение + расширение виджетов)
+    ├── Kap.xcodeproj        # Готовый проект Xcode (приложение + расширение виджетов)
     ├── Models/                   # Sendable структуры (HostTarget, PingRecord, HostMetrics)
     ├── Engines/                  # PingEngine (NWConnection), SpeedtestEngine, трассировка, DNS, LAN
     ├── ViewModels/               # NetworkMonitorViewModel на базе макроса @Observable
     ├── Views/                    # NetworkHomeView (карта и скорость), SettingsView, Swift Charts, Glassmorphism UI
     ├── Utils/                    # Тактильная отдача (HapticManager), экспорт JSON/CSV
-    └── NetPulseApp.swift         # Точка входа в iOS-приложение
+    └── KapApp.swift         # Точка входа в iOS-приложение
 ```
 
 ---
@@ -96,8 +96,8 @@ python -m pytest
 
 ### 📱 Запуск iOS-версии (Swift 6.0+ / SwiftUI)
 
-1. Откройте `ios/NetPulse.xcodeproj` в **Xcode 16+** на macOS (Swift Package Manager сам подтянет зависимости).
-2. Выберите схему **NetPulse** и в *Signing & Capabilities* укажите свою команду разработчика (для приложения и расширения виджетов; группа приложения — `group.com.samvel.netpulse`).
+1. Откройте `ios/Kap.xcodeproj` в **Xcode 16+** на macOS (Swift Package Manager сам подтянет зависимости).
+2. Выберите схему **Kap** и в *Signing & Capabilities* укажите свою команду разработчика (для приложения и расширения виджетов; группа приложения — `group.com.samvel.netpulse`).
 3. Запустите на симуляторе или реальном устройстве (**Cmd + R**). Live Activity, виджеты и доступ к локальной сети лучше проверять на устройстве.
 
 Подробности, ограничения и список того, что нужно настроить перед выпуском, — в [`ios/README.md`](ios/README.md).

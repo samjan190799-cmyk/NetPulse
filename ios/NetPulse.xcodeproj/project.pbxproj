@@ -1070,7 +1070,7 @@
 			repositoryURL = "https://github.com/yandexmobile/yandex-ads-sdk-ios";
 			requirement = {
 				kind = exactVersion;
-				version = 8.7.1;
+				version = 8.6.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

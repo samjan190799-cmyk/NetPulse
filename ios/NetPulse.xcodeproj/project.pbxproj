@@ -105,7 +105,6 @@
 		A10000E52C123456000000E5 /* YandexStickyBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E52C123456000000E5 /* YandexStickyBannerView.swift */; };
 		A10000E62C123456000000E6 /* YandexBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E62C123456000000E6 /* YandexBannerView.swift */; };
 		A30000092C12345600000009 /* AdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000092C12345600000009 /* AdTests.swift */; };
-		A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E40000022C12345600000002 /* YandexMobileAds */; };
 		A40000022C12345600000002 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40000022C12345600000002 /* AppStoreScreenshotTests.swift */; };
 		A10000E82C123456000000E8 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000E82C123456000000E8 /* AppLinks.swift */; };
 /* End PBXBuildFile section */
@@ -262,7 +261,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000E72C123456000000E7 /* YandexMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -497,9 +495,6 @@
 			dependencies = (
 				T20000012C12345600000001 /* PBXTargetDependency */,
 			);
-			packageProductDependencies = (
-				E40000022C12345600000002 /* YandexMobileAds */,
-			);
 			name = NetPulse;
 			productName = NetPulse;
 			productReference = C10000002C12345600000000 /* NetPulse.app */;
@@ -592,9 +587,6 @@
 				Base,
 			);
 			mainGroup = E10000002C12345600000000;
-			packageReferences = (
-				E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */,
-			);
 			productRefGroup = E10000082C12345600000008 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -1064,24 +1056,7 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/yandexmobile/yandex-ads-sdk-ios";
-			requirement = {
-				kind = exactVersion;
-				version = 8.7.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
-/* Begin XCSwiftPackageProductDependency section */
-		E40000022C12345600000002 /* YandexMobileAds */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E30000022C12345600000002 /* XCRemoteSwiftPackageReference "yandex-ads-sdk-ios" */;
-			productName = YandexMobileAds;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = 010000002C12345600000000 /* Project object */;

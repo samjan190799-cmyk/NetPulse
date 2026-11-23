@@ -1527,6 +1527,17 @@ public final class NetworkMonitorViewModel {
         let reload = reloadTimelines && PowerProfile.current.allowsWidgetReload(elapsed: now.timeIntervalSince(lastWidgetReloadAt))
         if reload { lastWidgetReloadAt = now }
         WidgetDataManager.shared.saveSnapshot(widgetData, reloadTimelines: reload)
+
+        // Замер попадает и в общий журнал для утренней сводки: не чаще раза в 5 минут и только если узлы проверялись
+        if !dnsSnapshot.isEmpty {
+            QuickCheckLog.shared.appendIfDue(QuickCheckSample(
+                time: now,
+                pingMs: widgetData.pingMs,
+                reached: dnsSnapshot.filter(\.isOK).count,
+                total: dnsSnapshot.count,
+                connection: widgetData.connectionType
+            ))
+        }
     }
 
     // MARK: - Traceroute (MTR)

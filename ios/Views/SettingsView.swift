@@ -24,6 +24,12 @@ public struct SettingsView: View {
     @AppStorage(PowerSaver.defaultsKey) private var powerSaver = false
     /// Оповещения PRO: выбор пользователя и отказ iOS в разрешении
     @State private var alertsEnabled: Bool = AlertNotifier.shared.isEnabled
+    @State private var morningSummaryOn: Bool = MorningSummarySettings.shared.isEnabled
+    @State private var morningSummaryDenied = false
+    @State private var morningSummaryTime: Date = {
+        let settings = MorningSummarySettings.shared
+        return Calendar.current.date(bySettingHour: settings.hour, minute: settings.minute, second: 0, of: Date()) ?? Date()
+    }()
     @State private var alertsDenied: Bool = false
     #if DEBUG || NETPULSE_TESTER
     /// Зеркало тестового выключателя PRO: чтобы переключатель сразу отражал выбор
@@ -216,6 +222,68 @@ public struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("settingsAlertsToggle")
+                }
+
+                // Каждый день: утренняя сводка и быстрая проверка без открытия приложения
+                Section(
+                    header: Label("Каждый день", systemImage: "sun.max.fill"),
+                    footer: Text(morningSummaryDenied
+                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → NetPulse → Уведомления."
+                                 : "Один раз в день уведомление с итогом связи за сутки: средний пинг, обрывы и самый слабый час. Данные берутся из замеров на этом телефоне и никуда не отправляются. Чем чаще работают приложение и виджеты, тем точнее сводка.")
+                ) {
+                    Toggle(isOn: Binding(
+                        get: { morningSummaryOn },
+                        set: { enabled in
+                            if enabled {
+                                Task {
+                                    let granted = await MorningSummaryScheduler.enable()
+                                    morningSummaryOn = granted
+                                    morningSummaryDenied = !granted
+                                }
+                            } else {
+                                MorningSummaryScheduler.disable()
+                                morningSummaryOn = false
+                                morningSummaryDenied = false
+                            }
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Утренняя сводка")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Как держалась связь за последние сутки")
+                                .font(.system(size: 12))
+                                .foregroundStyle(NPTheme.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("morningSummaryToggle")
+
+                    if morningSummaryOn {
+                        DatePicker(
+                            "Время сводки",
+                            selection: Binding(
+                                get: { morningSummaryTime },
+                                set: { newValue in
+                                    morningSummaryTime = newValue
+                                    let parts = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                                    MorningSummarySettings.shared.hour = parts.hour ?? MorningSummarySettings.defaultHour
+                                    MorningSummarySettings.shared.minute = parts.minute ?? MorningSummarySettings.defaultMinute
+                                    Task { await MorningSummaryScheduler.reschedule() }
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .accessibilityIdentifier("morningSummaryTime")
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Проверить связь одним касанием")
+                            .font(.system(size: 15, weight: .medium))
+                        Text("Пункт управления → «Изменить» → «Добавить элемент» → NetPulse → «Проверить связь» (iOS 18). На iPhone с кнопкой Action: Настройки → Кнопка действия → Команда → «Проверить связь». Можно и спросить Siri: «Как связь в NetPulse».")
+                            .font(.system(size: 12))
+                            .foregroundStyle(NPTheme.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("quickCheckHint")
                 }
 
                 // 3. Статус и параметры опроса

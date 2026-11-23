@@ -35,14 +35,23 @@ public struct NetPulseWidgetProvider: TimelineProvider {
     }
 
     public func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<NetPulseWidgetEntry>) -> Void) {
-        let currentData = WidgetDataManager.shared.loadLatestSnapshot()
-        let currentDate = Date()
-        let entry = NetPulseWidgetEntry(date: currentDate, data: currentData)
+        let isPreview = context.isPreview
+        Task {
+            var currentData = WidgetDataManager.shared.loadLatestSnapshot()
+            // Закрытое приложение сеть не опрашивает, и данные «замерзают». Тогда виджет сам делает быструю проверку
+            // (пару секунд) и пишет итог в общий журнал: виджет остаётся живым, а утренняя сводка — точной.
+            // Перезагрузку виджетов отсюда просить нельзя: обновление запускало бы само себя.
+            if !isPreview && currentData.isStale {
+                await QuickCheckService.runAndRecord(reloadWidgets: false)
+                currentData = WidgetDataManager.shared.loadLatestSnapshot()
+            }
+            let currentDate = Date()
+            let entry = NetPulseWidgetEntry(date: currentDate, data: currentData)
 
-        // Обновление таймлайна каждые 15 минут
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate.addingTimeInterval(900)
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-        completion(timeline)
+            // Обновление таймлайна каждые 15 минут
+            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate.addingTimeInterval(900)
+            completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
+        }
     }
 }
 
@@ -55,6 +64,38 @@ private func healthColor(_ score: Int?) -> Color {
     if score >= 80 { return .green }
     if score >= 50 { return .orange }
     return .red
+}
+
+/// Вывод по свежему снимку; `nil` — данных нет или они устарели (серый «—», а не «всё хорошо»)
+private func verdict(of data: NetPulseWidgetData) -> QuickCheckVerdict? {
+    guard !data.isStale else { return nil }
+    return QuickCheckVerdict.fromSnapshot(pingMs: data.pingMs, lossPercent: data.lossPercent)
+}
+
+private func verdictColor(_ verdict: QuickCheckVerdict?) -> Color {
+    switch verdict {
+    case .excellent: return .green
+    case .good: return .orange
+    case .poor, .offline: return .red
+    case nil: return .gray
+    }
+}
+
+/// Кнопка «Проверить»: быстрая проверка связи прямо из виджета, приложение не открывается
+private struct CheckButton: View {
+    var size: CGFloat = 11
+
+    var body: some View {
+        Button(intent: WidgetCheckConnectionIntent()) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: size, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: size + 14, height: size + 14)
+                .background(Color.white.opacity(0.14))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 /// Значок типа подключения (раньше всегда рисовался Wi-Fi, даже в мобильной сети и без сети)
@@ -112,19 +153,14 @@ public struct NetPulseWidgetEntryView: View {
 private struct SmallWidgetView: View {
     let data: NetPulseWidgetData
 
+    // Нет свежего пинга — серый индикатор, а не «зелёный, всё хорошо»
     private var statusColor: Color {
-        // Нет свежего пинга — серый индикатор, а не «зелёный, всё хорошо»
-        if !data.isStale, let ping = data.pingMs {
-            if ping < 50 { return .green }
-            if ping < 120 { return .orange }
-            return .red
-        }
-        return .gray
+        verdictColor(verdict(of: data))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Верх: Иконка и тип подключения
+            // Верх: Иконка и тип подключения, справа кнопка «Проверить»
             HStack(spacing: 5) {
                 Image(systemName: connectionIcon(data.connectionType))
                     .font(.system(size: 11, weight: .bold))
@@ -137,20 +173,27 @@ private struct SmallWidgetView: View {
 
                 Spacer()
 
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: statusColor.opacity(0.6), radius: 3)
+                CheckButton()
             }
 
             Spacer()
 
-            // Центр: Крупная задержка RTT
+            // Центр: Крупная задержка RTT, рядом вывод («Отлично», «Нормально», «Плохо», «Нет связи»)
             VStack(alignment: .leading, spacing: 0) {
-                Text("ПИНГ")
-                    .font(.system(size: 8, weight: .heavy))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .tracking(0.5)
+                HStack(spacing: 4) {
+                    Text("ПИНГ")
+                        .font(.system(size: 8, weight: .heavy))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .tracking(0.5)
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: statusColor.opacity(0.6), radius: 3)
+                    Text(verdict(of: data)?.title.uppercased() ?? "НЕТ ДАННЫХ")
+                        .font(.system(size: 8, weight: .heavy))
+                        .foregroundStyle(statusColor)
+                        .lineLimit(1)
+                }
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(data.pingValueText)
@@ -273,6 +316,10 @@ private struct MediumWidgetView: View {
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .foregroundStyle(.white.opacity(0.85))
+                    Text(verdict(of: data)?.title ?? "—")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(verdictColor(verdict(of: data)))
+                    CheckButton(size: 9)
                 }
             }
 
@@ -473,7 +520,7 @@ private struct AccessoryCircularView: View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Image(systemName: "bolt.fill")
+                Image(systemName: verdict(of: data)?.symbolName ?? "bolt.fill")
                     .font(.system(size: 10, weight: .bold))
                 Text(data.formattedPing)
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
@@ -493,7 +540,7 @@ private struct AccessoryRectangularView: View {
             HStack(spacing: 4) {
                 Image(systemName: "gauge.with.dots.needle.67percent")
                     .font(.system(size: 10, weight: .bold))
-                Text("NetPulse • \(data.connectionType)")
+                Text("NetPulse • \(verdict(of: data)?.title ?? data.connectionType)")
                     .font(.system(size: 11, weight: .bold))
             }
 
@@ -513,8 +560,8 @@ private struct AccessoryInlineView: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: "bolt.fill")
-            Text("\(data.formattedPing) • ↓\(NetPulseWidgetData.speedText(data.downloadSpeedMbps, decimals: 0))M")
+            Image(systemName: verdict(of: data)?.symbolName ?? "bolt.fill")
+            Text("\(verdict(of: data)?.title ?? "NetPulse") • \(data.formattedPing)")
                 .monospacedDigit()
         }
     }

@@ -134,6 +134,14 @@
 		A10001072C12345600000109 /* ContinuedProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001072C12345600000109 /* ContinuedProcessing.swift */; };
 		A10001082C1234560000010A /* StabilityTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001082C1234560000010A /* StabilityTestView.swift */; };
 		A30001032C1234560000010B /* StabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30001032C1234560000010B /* StabilityTests.swift */; };
+		A10003022C12345600000302 /* QuickCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003012C12345600000301 /* QuickCheck.swift */; };
+		A20003032C12345600000303 /* QuickCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003012C12345600000301 /* QuickCheck.swift */; };
+		A10003052C12345600000305 /* MorningSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003042C12345600000304 /* MorningSummary.swift */; };
+		A20003062C12345600000306 /* MorningSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003042C12345600000304 /* MorningSummary.swift */; };
+		A10003082C12345600000308 /* CheckConnectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003072C12345600000307 /* CheckConnectionIntent.swift */; };
+		A20003092C12345600000309 /* CheckConnectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003072C12345600000307 /* CheckConnectionIntent.swift */; };
+		A200030B2C1234560000030B /* NetPulseControlWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100030A2C1234560000030A /* NetPulseControlWidget.swift */; };
+		A300030D2C1234560000030D /* DailyPresenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100030C2C1234560000030C /* DailyPresenceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -307,6 +315,11 @@
 		B10001072C12345600000109 /* ContinuedProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ContinuedProcessing.swift; sourceTree = "<group>"; };
 		B10001082C1234560000010A /* StabilityTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/StabilityTestView.swift; sourceTree = "<group>"; };
 		B30001032C1234560000010B /* StabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/StabilityTests.swift; sourceTree = "<group>"; };
+		B10003012C12345600000301 /* QuickCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/QuickCheck.swift; sourceTree = "<group>"; };
+		B10003042C12345600000304 /* MorningSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/MorningSummary.swift; sourceTree = "<group>"; };
+		B10003072C12345600000307 /* CheckConnectionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/CheckConnectionIntent.swift; sourceTree = "<group>"; };
+		B100030A2C1234560000030A /* NetPulseControlWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseWidgets/NetPulseControlWidget.swift; sourceTree = "<group>"; };
+		B100030C2C1234560000030C /* DailyPresenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetPulseTests/DailyPresenceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -366,6 +379,7 @@
 			children = (
 				B20000022C12345600000002 /* NetPulseWidgetsBundle.swift */,
 				B20000042C12345600000004 /* NetPulseLiveActivityWidget.swift */,
+				B100030A2C1234560000030A /* NetPulseControlWidget.swift */,
 				B20000712C12345600000071 /* NetPulseHomeScreenWidget.swift */,
 				B20000052C12345600000005 /* NetPulseAttributes.swift */,
 				B20000032C12345600000003 /* Info.plist */,
@@ -398,6 +412,7 @@
 				B10000EA2C123456000000EA /* ZoneModels.swift */,
 				B10001032C12345600000104 /* TripModels.swift */,
 				B10001042C12345600000106 /* StabilityModels.swift */,
+				B10003012C12345600000301 /* QuickCheck.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -509,6 +524,8 @@
 				B54800002C12345600000048 /* PerformanceMonitor.swift */,
 				B54900002C12345600000049 /* MetricsReporter.swift */,
 				B10001012C12345600000101 /* IslandRefreshIntent.swift */,
+				B10003072C12345600000307 /* CheckConnectionIntent.swift */,
+				B10003042C12345600000304 /* MorningSummary.swift */,
 				B10001022C12345600000102 /* IslandSnapshot.swift */,
 				B10001062C12345600000108 /* StabilityHistoryStore.swift */,
 				B10001072C12345600000109 /* ContinuedProcessing.swift */,
@@ -544,6 +561,7 @@
 				B30001012C12345600000103 /* IslandRefreshTests.swift */,
 				B30001022C12345600000105 /* TripTests.swift */,
 				B30001032C1234560000010B /* StabilityTests.swift */,
+				B100030C2C1234560000030C /* DailyPresenceTests.swift */,
 			);
 			name = NetPulseTests;
 			sourceTree = "<group>";
@@ -818,6 +836,9 @@
 				A10001062C12345600000108 /* StabilityHistoryStore.swift in Sources */,
 				A10001072C12345600000109 /* ContinuedProcessing.swift in Sources */,
 				A10001082C1234560000010A /* StabilityTestView.swift in Sources */,
+				A10003022C12345600000302 /* QuickCheck.swift in Sources */,
+				A10003052C12345600000305 /* MorningSummary.swift in Sources */,
+				A10003082C12345600000308 /* CheckConnectionIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -831,6 +852,10 @@
 				A20000702C12345600000070 /* WidgetDataManager.swift in Sources */,
 				A20000712C12345600000071 /* NetPulseHomeScreenWidget.swift in Sources */,
 				A20001012C12345600000101 /* IslandRefreshIntent.swift in Sources */,
+				A20003032C12345600000303 /* QuickCheck.swift in Sources */,
+				A20003062C12345600000306 /* MorningSummary.swift in Sources */,
+				A20003092C12345600000309 /* CheckConnectionIntent.swift in Sources */,
+				A200030B2C1234560000030B /* NetPulseControlWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -852,6 +877,7 @@
 				A30001012C12345600000103 /* IslandRefreshTests.swift in Sources */,
 				A30001022C12345600000105 /* TripTests.swift in Sources */,
 				A30001032C1234560000010B /* StabilityTests.swift in Sources */,
+				A300030D2C1234560000030D /* DailyPresenceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

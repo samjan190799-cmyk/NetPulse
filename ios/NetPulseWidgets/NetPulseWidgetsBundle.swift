@@ -14,6 +14,10 @@ struct NetPulseWidgetsBundle: WidgetBundle {
     var body: some Widget {
         NetPulseHomeScreenWidget()
         NetPulseLiveActivityWidget()
+        // Кнопка для Пункта управления появилась в iOS 18
+        if #available(iOS 18.0, *) {
+            NetPulseCheckControl()
+        }
     }
 }
 

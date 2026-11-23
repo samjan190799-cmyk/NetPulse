@@ -57,5 +57,15 @@ struct NetPulseShortcuts: AppShortcutsProvider {
             shortTitle: "Замер скорости",
             systemImageName: "speedometer"
         )
+        AppShortcut(
+            intent: CheckConnectionIntent(),
+            phrases: [
+                "Проверить связь в \(.applicationName)",
+                "Как связь в \(.applicationName)",
+                "Как интернет в \(.applicationName)"
+            ],
+            shortTitle: "Проверить связь",
+            systemImageName: "wifi"
+        )
     }
 }

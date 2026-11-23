@@ -52,13 +52,22 @@ struct NetPulseApp: App {
                     ProStore.shared.start()
                     restoreLiveActivityIfNeeded()
                     runRequestedSpeedtest()
+                    refreshMorningSummary()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         restoreLiveActivityIfNeeded()
                         runRequestedSpeedtest()
+                        refreshMorningSummary()
                     }
                 }
+        }
+    }
+
+    /// Утренняя сводка: текст уведомления пересчитывается по свежему журналу замеров
+    private func refreshMorningSummary() {
+        Task {
+            await MorningSummaryScheduler.reschedule()
         }
     }
 

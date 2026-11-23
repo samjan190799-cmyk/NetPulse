@@ -489,6 +489,25 @@ final class NetPulseUITests: XCTestCase {
         closeSettings(app)
     }
 
+    /// В настройках есть раздел «Каждый день»: утренняя сводка (по умолчанию выключена) и подсказка про кнопку «Проверить связь».
+    /// Тумблер не переключается: включение вызывает системное окно разрешения на уведомления.
+    @MainActor func testMorningSummarySettingsAreInSettings() throws {
+        let app = launchApp()
+        openSettings(app)
+
+        let toggle = app.switches["morningSummaryToggle"]
+        XCTAssertTrue(reveal(toggle, in: app), "В настройках нет тумблера «Утренняя сводка»")
+        XCTAssertFalse(isOn(toggle), "Утренняя сводка по умолчанию выключена: уведомления включаются только по желанию")
+        attachScreenshot("settings-morning-summary")
+
+        let hint = app.descendants(matching: .any)["quickCheckHint"]
+        XCTAssertTrue(reveal(hint, in: app), "В настройках нет подсказки про кнопку «Проверить связь»")
+        print("NETPULSE-CI: утренняя сводка: тумблер на месте и выключен, подсказка про «Проверить связь» есть")
+
+        scrollToTop(app)
+        closeSettings(app)
+    }
+
     @MainActor func testLiveActivityStartsInSimulator() throws {
         let app = launchApp()
         openSettings(app)

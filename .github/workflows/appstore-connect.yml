@@ -20,6 +20,7 @@ on:
         default: inspect
         options:
           - inspect
+          - crashes
           - prepare
           - submit
       confirm:
@@ -69,7 +70,7 @@ jobs:
             CONFIRM="$INPUT_CONFIRM"
           fi
           case "$ACTION" in
-            inspect|prepare|submit) ;;
+            inspect|crashes|prepare|submit) ;;
             *) echo "Неизвестное действие: '$ACTION'"; exit 1 ;;
           esac
           echo "Действие: $ACTION"

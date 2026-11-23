@@ -217,6 +217,33 @@ def inspect():
 # prepare: заполнение карточки
 # ---------------------------------------------------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------------------------------------------------
+# crashes: отчёты о вылетах из TestFlight (то, что тестеры отправили через окно «Отправить отзыв» после вылета)
+# ---------------------------------------------------------------------------------------------------------------------
+
+def crashes():
+    app = find_app()
+    app_id = app["id"]
+    items = attempt("Отчёты о вылетах", lambda: get(
+        f"/v1/apps/{app_id}/betaFeedbackCrashSubmissions", {"limit": 10, "sort": "-createdDate"}).get("data", [])) or []
+    print(f"Отчётов о вылетах: {len(items)}")
+    for item in items[:5]:
+        attrs = item.get("attributes", {})
+        # почту и комментарий тестера в открытый журнал не печатаем
+        show("Вылет " + str(attrs.get("createdDate")), {
+            "id": item["id"], "устройство": attrs.get("deviceModel"), "iOS": attrs.get("osVersion"),
+            "платформа": attrs.get("appPlatform"), "сборка": attrs.get("buildBundleId")})
+        log = attempt("Текст отчёта", lambda: get(f"/v1/betaFeedbackCrashSubmissions/{item['id']}/crashLog"))
+        text = ((log or {}).get("data", {}).get("attributes", {}) or {}).get("logText") or ""
+        lines = text.splitlines()
+        print(f"--- Журнал вылета: {len(lines)} строк (первые 140)")
+        print("\n".join(lines[:140]))
+        crashed = [i for i, l in enumerate(lines) if "Crashed:" in l]
+        if crashed:
+            print("--- Поток, в котором упало")
+            print("\n".join(lines[crashed[0]:crashed[0] + 40]))
+
+
 def load_config():
     return json.loads((META / "config.json").read_text(encoding="utf-8"))
 
@@ -620,6 +647,8 @@ def main():
     command = sys.argv[1]
     if command == "inspect":
         inspect()
+    elif command == "crashes":
+        crashes()
     elif command == "prepare":
         prepare()
     elif command == "submit":

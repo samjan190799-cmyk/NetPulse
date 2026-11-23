@@ -138,7 +138,7 @@ xcodebuild test -project NetPulse.xcodeproj -scheme NetPulse \
 
 ## 🚀 Сборка и запуск в Xcode
 
-1. Откройте `NetPulse.xcodeproj` в **Xcode 16+** на macOS; Swift Package Manager сам подтянет зависимости (YandexMobileAds 8.6.0 вместе с AppMetrica, которую SDK рекламы использует внутри; FBAudienceNetwork пока не используется).
+1. Откройте `NetPulse.xcodeproj` в **Xcode 16+** на macOS; Swift Package Manager сам подтянет зависимости (YandexMobileAds 8.7.1 вместе с AppMetrica, которую SDK рекламы использует внутри; FBAudienceNetwork пока не используется).
 2. Выберите схему **NetPulse**, в *Signing & Capabilities* укажите свою команду разработчика для приложения и расширения виджетов.
 3. Запустите приложение на **iOS Simulator** или на реальном устройстве (**Cmd + R**). Live Activity, виджеты, доступ к локальной сети и фоновые задачи надёжно проверяются только на устройстве.
 

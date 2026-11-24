@@ -78,7 +78,7 @@ public struct KapWidgetData: Codable, Sendable {
     /// Пустой снимок: приложение ещё ни разу не сохраняло данные (никаких демонстрационных значений)
     public static var empty: KapWidgetData {
         KapWidgetData(
-            ispName: "Откройте Kap",
+            ispName: "Откройте KAP",
             connectionType: "Нет данных",
             lastUpdated: Date.distantPast
         )

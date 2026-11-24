@@ -79,7 +79,7 @@ public enum TrafficCategory: String, CaseIterable, Identifiable, Codable, Sendab
         case .messagingSocial: return "#007AFF"      // Синий / Telegram / Chat
         case .webBrowsing: return "#5856D6"          // Фиолетовый / Safari / Web
         case .gamingVoip: return "#34C759"           // Зеленый / Gaming / Low Latency
-        case .speedtestDiagnostics: return "#FF9500" // Оранжевый / Kap Speed
+        case .speedtestDiagnostics: return "#FF9500" // Оранжевый / KAP Speed
         case .systemBackground: return "#8E8E93"     // Графитовый / System
         }
     }

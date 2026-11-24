@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Kap</string>
+    <string>KAP</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -55,11 +55,11 @@
     <key>NSSupportsLiveActivitiesFrequentUpdates</key>
     <true/>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Kap использует распознавание речи для голосового ввода диагностических вопросов AI-ассистенту.</string>
+    <string>KAP использует распознавание речи для голосового ввода диагностических вопросов AI-ассистенту.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Kap использует микрофон для голосовой диктовки запросов сетевому диагносту.</string>
+    <string>KAP использует микрофон для голосовой диктовки запросов сетевому диагносту.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Kap использует доступ к локальной сети, чтобы найти устройства в вашей Wi-Fi сети и проверить их открытые порты.</string>
+    <string>KAP использует доступ к локальной сети, чтобы найти устройства в вашей Wi-Fi сети и проверить их открытые порты.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Чтобы записывать маршрут и показывать на карте, где сеть была быстрой, медленной или пропадала. Данные остаются на устройстве.</string>
     <key>UIBackgroundModes</key>

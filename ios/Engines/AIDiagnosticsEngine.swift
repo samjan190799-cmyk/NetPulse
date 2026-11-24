@@ -763,7 +763,7 @@ public final class AIDiagnosticsEngine: Sendable {
             let call = AIToolCall(
                 toolType: detected.tool,
                 target: detected.target,
-                argumentsDescription: "Запуск инструмента Kap: \(detected.tool.displayName)"
+                argumentsDescription: "Запуск инструмента KAP: \(detected.tool.displayName)"
             )
             toolCall = call
             onToolCall?(call)
@@ -1054,7 +1054,7 @@ public final class AIDiagnosticsEngine: Sendable {
         } else {
             let live = String(format: "%.1f", context.liveDownloadMbps)
             return """
-            ### 🧠 Сетевой аудит Kap
+            ### 🧠 Сетевой аудит KAP
 
             **Состояние сети:**
             * 📡 **Подключение:** \(conn)
@@ -1072,7 +1072,7 @@ public final class AIDiagnosticsEngine: Sendable {
     // MARK: - 8. Внешние API (Claude, Gemini, OpenAI-совместимые)
 
     private static let cloudSystemPromptBase = """
-    Ты — старший сетевой инженер и AI-диагност в iOS-приложении Kap. Отвечай на русском языке, кратко и структурированно (markdown).
+    Ты — старший сетевой инженер и AI-диагност в iOS-приложении KAP. Отвечай на русском языке, кратко и структурированно (markdown).
     Опирайся только на измерения устройства, приведённые ниже, и на результаты инструментов из вопроса. Не выдумывай значений, которых там нет: если данных не хватает, скажи, какой замер нужно выполнить (мониторинг, замер скорости, трассировка, DNS Бенчмарк, Bufferbloat Тест).
     Замеры выполняются TCP-подключениями до публичных узлов, а не ICMP-пингом до игровых серверов.
     """

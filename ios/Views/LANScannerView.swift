@@ -214,7 +214,7 @@ public struct LANScannerView: View {
                         .font(.system(size: 32))
                         .foregroundStyle(NPTheme.textTertiary)
                     Text(hasCompletedScan
-                         ? "Устройства не найдены. Проверьте, что Kap разрешён доступ к локальной сети (Настройки iOS → Конфиденциальность → Локальная сеть)."
+                         ? "Устройства не найдены. Проверьте, что KAP разрешён доступ к локальной сети (Настройки iOS → Конфиденциальность → Локальная сеть)."
                          : "Нажмите «Сканировать», чтобы найти устройства в вашей Wi-Fi сети")
                         .font(.system(size: 12))
                         .foregroundStyle(NPTheme.textSecondary)

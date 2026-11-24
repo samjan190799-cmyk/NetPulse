@@ -175,7 +175,7 @@ public enum LANScanError: Error, LocalizedError, Sendable, Equatable {
         case .notOnLocalNetwork:
             return "Сканирование доступно только в домашней или офисной сети (Wi-Fi/Ethernet). В мобильной сети сканер не запускается: он проверял бы чужую сеть оператора."
         case .localNetworkAccessDenied:
-            return "Нет доступа к локальной сети. Разрешите его для Kap в Настройках iOS: Конфиденциальность → Локальная сеть."
+            return "Нет доступа к локальной сети. Разрешите его для KAP в Настройках iOS: Конфиденциальность → Локальная сеть."
         case .cancelled:
             return "Сканирование остановлено."
         }

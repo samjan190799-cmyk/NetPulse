@@ -61,7 +61,7 @@ public struct KapAttributes: ActivityAttributes, Sendable {
 
     public var sessionTitle: String
 
-    public init(sessionTitle: String = "Kap Monitor") {
+    public init(sessionTitle: String = "KAP Monitor") {
         self.sessionTitle = sessionTitle
     }
 }

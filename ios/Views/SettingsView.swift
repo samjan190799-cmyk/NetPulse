@@ -226,7 +226,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Фоновый учет трафика")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("iOS приостанавливает свернутые приложения. Трафик за время «сна» Kap не теряет: при возвращении он сверяется со счетчиками сетевых интерфейсов ядра iOS и добавляется в статистику.")
+                            Text("iOS приостанавливает свернутые приложения. Трафик за время «сна» KAP не теряет: при возвращении он сверяется со счетчиками сетевых интерфейсов ядра iOS и добавляется в статистику.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -309,7 +309,7 @@ public struct SettingsView: View {
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(NPTheme.semanticCritical)
                             }
-                            Text("Разрешите показ Live Activities для Kap в Настройках iOS, чтобы спидометр отображался в вырезе экрана.")
+                            Text("Разрешите показ Live Activities для KAP в Настройках iOS, чтобы спидометр отображался в вырезе экрана.")
                                 .font(.system(size: 11))
                                 .foregroundStyle(NPTheme.textSecondary)
 

@@ -399,7 +399,7 @@ public final class ActivityManager {
             return nil
         }
 
-        let attributes = KapAttributes(sessionTitle: "Мониторинг Kap")
+        let attributes = KapAttributes(sessionTitle: "Мониторинг KAP")
         let content = ActivityContent(
             state: state,
             staleDate: Date().addingTimeInterval(Self.staleAfter),

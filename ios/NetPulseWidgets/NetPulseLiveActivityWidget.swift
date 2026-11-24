@@ -333,7 +333,7 @@ private struct LockScreenLiveActivityView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(state.isGamingMode ? (state.gameTitle ?? "Gaming Radar") : "NetPulse Трафик")
+                    Text(state.isGamingMode ? (state.gameTitle ?? "Gaming Radar") : "KAP Трафик")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
                     Text("•")

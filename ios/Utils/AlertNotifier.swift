@@ -85,7 +85,7 @@ final class AlertNotifier {
         post(
             id: Self.reminderID,
             title: "Запись маршрута идёт уже час",
-            body: "Если вы закончили, откройте NetPulse и остановите запись: она тратит заряд.",
+            body: "Если вы закончили, откройте KAP и остановите запись: она тратит заряд.",
             delay: Self.recordingReminderDelay
         )
     }

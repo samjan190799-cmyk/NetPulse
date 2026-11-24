@@ -425,7 +425,7 @@ public final class ActivityManager {
             return nil
         }
 
-        let attributes = NetPulseAttributes(sessionTitle: "Мониторинг NetPulse")
+        let attributes = NetPulseAttributes(sessionTitle: "Мониторинг KAP")
         var stamped = state
         stamped.updatedAt = Date()
         let content = ActivityContent(

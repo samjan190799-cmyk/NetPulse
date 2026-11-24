@@ -43,7 +43,7 @@ public enum ProFeature: String, Identifiable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .general: return "NetPulse PRO"
+        case .general: return "KAP PRO"
         case .island: return "Скорость в Dynamic Island"
         case .hud: return "Игровой HUD"
         case .aiAudit: return "Глубокий AI-аудит"

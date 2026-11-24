@@ -55,7 +55,7 @@ enum ReportBuilder {
         let format = UIGraphicsPDFRendererFormat()
         format.documentInfo = [
             kCGPDFContextTitle as String: "Отчёт о качестве интернета",
-            kCGPDFContextCreator as String: "NetPulse"
+            kCGPDFContextCreator as String: "KAP"
         ]
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
         return renderer.pdfData { context in
@@ -63,7 +63,7 @@ enum ReportBuilder {
 
             page.text("Отчёт о качестве интернета", font: .systemFont(ofSize: 24, weight: .heavy), after: 2)
             page.text(
-                "Создан \(data.generatedAt.formatted(date: .long, time: .shortened)) в приложении NetPulse \(data.appVersion)",
+                "Создан \(data.generatedAt.formatted(date: .long, time: .shortened)) в приложении KAP \(data.appVersion)",
                 font: .systemFont(ofSize: 11),
                 color: .darkGray,
                 after: 10
@@ -172,7 +172,7 @@ enum ReportBuilder {
             context.beginPage()
             pageNumber += 1
             y = margin
-            let footer = "NetPulse · страница \(pageNumber)"
+            let footer = "KAP · страница \(pageNumber)"
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 9),
                 .foregroundColor: UIColor.gray
@@ -411,7 +411,7 @@ extension ProReportData {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let stamp = formatter.string(from: data.generatedAt)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("NetPulse-отчёт-\(stamp).pdf")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("KAP-отчёт-\(stamp).pdf")
         do {
             try pdf.write(to: url, options: [.atomic])
             return url

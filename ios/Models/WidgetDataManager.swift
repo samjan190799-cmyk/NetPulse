@@ -78,7 +78,7 @@ public struct NetPulseWidgetData: Codable, Sendable {
     /// Пустой снимок: приложение ещё ни разу не сохраняло данные (никаких демонстрационных значений)
     public static var empty: NetPulseWidgetData {
         NetPulseWidgetData(
-            ispName: "Откройте NetPulse",
+            ispName: "Откройте KAP",
             connectionType: "Нет данных",
             lastUpdated: Date.distantPast
         )

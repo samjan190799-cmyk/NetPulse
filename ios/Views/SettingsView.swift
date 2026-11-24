@@ -68,7 +68,7 @@ public struct SettingsView: View {
         if recorder.hasAlwaysAuthorization {
             return "Работает. Если приложение закроют во время записи, iOS запустит его при перемещении примерно на полкилометра, и запись продолжится; на маршруте будет пропуск. Запуск остаётся на усмотрение iOS."
         }
-        return "Нужен доступ к геолокации «Всегда»: iOS предложит его сама или включите в Настройки iOS → NetPulse → Геопозиция."
+        return "Нужен доступ к геолокации «Всегда»: iOS предложит его сама или включите в Настройки iOS → KAP → Геопозиция."
     }
 
     /// Через сколько минут без движения запись останавливается сама (в режиме экономии заряда раньше)
@@ -98,7 +98,7 @@ public struct SettingsView: View {
                 .font(.system(size: 22))
                 .foregroundStyle(NPTheme.accentPrimary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("NetPulse PRO")
+                Text("KAP PRO")
                     .font(.system(size: 15, weight: .semibold))
                 Text(store.isPro
                      ? "Подписка активна: остров, HUD, AI-аудит, отчёт, сервисы и другое"
@@ -121,7 +121,7 @@ public struct SettingsView: View {
                         Link("Управлять подпиской", destination: AppLinks.manageSubscriptions)
                             .accessibilityIdentifier("settingsManageSubscription")
                     } else {
-                        Button("Оформить NetPulse PRO") {
+                        Button("Оформить KAP PRO") {
                             ProStore.shared.paywall = .general
                         }
                         .accessibilityIdentifier("settingsOpenPaywall")
@@ -194,7 +194,7 @@ public struct SettingsView: View {
                 Section(
                     header: Label("Оповещения", systemImage: "bell.badge.fill"),
                     footer: Text(alertsDenied
-                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → NetPulse → Уведомления."
+                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → KAP → Уведомления."
                                  : "Уведомление приходит, когда узел перестал отвечать или потери пакетов критические, и напоминание, если запись маршрута идёт больше часа. Работает, пока приложение живо в фоне (запись маршрута, остров): iOS не даёт следить за сетью в закрытом приложении.")
                 ) {
                     Toggle(isOn: Binding(
@@ -228,7 +228,7 @@ public struct SettingsView: View {
                 Section(
                     header: Label("Каждый день", systemImage: "sun.max.fill"),
                     footer: Text(morningSummaryDenied
-                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → NetPulse → Уведомления."
+                                 ? "iOS не разрешила уведомления. Включите их в Настройки iOS → KAP → Уведомления."
                                  : "Один раз в день уведомление с итогом связи за сутки: средний пинг, обрывы и самый слабый час. Данные берутся из замеров на этом телефоне и никуда не отправляются. Чем чаще работают приложение и виджеты, тем точнее сводка.")
                 ) {
                     Toggle(isOn: Binding(
@@ -278,7 +278,7 @@ public struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Проверить связь одним касанием")
                             .font(.system(size: 15, weight: .medium))
-                        Text("Пункт управления → «Изменить» → «Добавить элемент» → NetPulse → «Проверить связь» (iOS 18). На iPhone с кнопкой Action: Настройки → Кнопка действия → Команда → «Проверить связь». Можно и спросить Siri: «Как связь в NetPulse».")
+                        Text("Пункт управления → «Изменить» → «Добавить элемент» → KAP → «Проверить связь» (iOS 18). На iPhone с кнопкой Action: Настройки → Кнопка действия → Команда → «Проверить связь». Можно и спросить Siri: «Как связь в KAP».")
                             .font(.system(size: 12))
                             .foregroundStyle(NPTheme.textSecondary)
                     }
@@ -432,7 +432,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Фоновый учет трафика")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("iOS приостанавливает свернутые приложения. Трафик за время «сна» NetPulse не теряет: при возвращении он сверяется со счетчиками сетевых интерфейсов ядра iOS и добавляется в статистику.")
+                            Text("iOS приостанавливает свернутые приложения. Трафик за время «сна» KAP не теряет: при возвращении он сверяется со счетчиками сетевых интерфейсов ядра iOS и добавляется в статистику.")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }
@@ -572,7 +572,7 @@ public struct SettingsView: View {
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(NPTheme.semanticCritical)
                             }
-                            Text("Разрешите показ Live Activities для NetPulse в Настройках iOS, чтобы спидометр отображался в вырезе экрана.")
+                            Text("Разрешите показ Live Activities для KAP в Настройках iOS, чтобы спидометр отображался в вырезе экрана.")
                                 .font(.system(size: 11))
                                 .foregroundStyle(NPTheme.textSecondary)
 
@@ -658,7 +658,7 @@ public struct SettingsView: View {
                                     ProBadge()
                                 }
                             }
-                            Text("Мини-панель пинга, джиттера, потерь и скорости поверх экранов NetPulse; остров переходит в игровой режим")
+                            Text("Мини-панель пинга, джиттера, потерь и скорости поверх экранов KAP; остров переходит в игровой режим")
                                 .font(.system(size: 12))
                                 .foregroundStyle(NPTheme.textSecondary)
                         }

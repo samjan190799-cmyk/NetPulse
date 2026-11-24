@@ -628,7 +628,7 @@ public enum StabilityReportText {
     public static func text(for result: StabilityResult) -> String {
         let verdict = result.verdict
         var lines = [
-            "Тест стабильности интернета (NetPulse)",
+            "Тест стабильности интернета (KAP)",
             "Дата: \(result.startedAt.formatted(date: .long, time: .shortened))",
             "Подключение: \(result.connection)"
         ]

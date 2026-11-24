@@ -34,13 +34,13 @@ enum RouteExport {
         let time = ISO8601DateFormatter()
         var lines: [String] = []
         lines.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
-        lines.append("<gpx version=\"1.1\" creator=\"NetPulse \(escape(appVersion))\" xmlns=\"http://www.topografix.com/GPX/1/1\">")
+        lines.append("<gpx version=\"1.1\" creator=\"KAP \(escape(appVersion))\" xmlns=\"http://www.topografix.com/GPX/1/1\">")
         lines.append("  <metadata>")
         lines.append("    <name>\(escape(RouteTitle.dateRange(of: route)))</name>")
         lines.append("    <time>\(time.string(from: route.startedAt))</time>")
         lines.append("  </metadata>")
         lines.append("  <trk>")
-        lines.append("    <name>NetPulse \(escape(RouteTitle.dateRange(of: route)))</name>")
+        lines.append("    <name>KAP \(escape(RouteTitle.dateRange(of: route)))</name>")
         lines.append("    <trkseg>")
         for point in route.points {
             lines.append(String(format: "      <trkpt lat=\"%.7f\" lon=\"%.7f\">", point.latitude, point.longitude))
@@ -81,7 +81,7 @@ enum RouteExport {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HHmm"
-        let name = "NetPulse-маршрут-\(formatter.string(from: route.startedAt)).gpx"
+        let name = "KAP-маршрут-\(formatter.string(from: route.startedAt)).gpx"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do {
             try gpx(for: route, appVersion: version).write(to: url, atomically: true, encoding: .utf8)
@@ -154,7 +154,7 @@ enum RouteExport {
             }
 
             drawLabel(
-                "NetPulse · \(RouteTitle.dateRange(of: route))",
+                "KAP · \(RouteTitle.dateRange(of: route))",
                 subtitle: "\(RouteFormat.distance(stats.distanceMeters)) · \(RouteFormat.duration(stats.duration))",
                 at: CGPoint(x: 40, y: 40)
             )

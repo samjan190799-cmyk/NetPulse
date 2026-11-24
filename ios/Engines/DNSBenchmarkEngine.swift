@@ -183,13 +183,13 @@ public actor DNSBenchmarkEngine {
                 </dict>
             </array>
             <key>PayloadDescription</key>
-            <string>Профиль сгенерирован в NetPulse. Направляет DNS-запросы устройства на сервер \(name) по зашифрованному каналу.</string>
+            <string>Профиль сгенерирован в KAP. Направляет DNS-запросы устройства на сервер \(name) по зашифрованному каналу.</string>
             <key>PayloadDisplayName</key>
-            <string>NetPulse: \(name)</string>
+            <string>KAP: \(name)</string>
             <key>PayloadIdentifier</key>
             <string>\(identifierPrefix).profile.\(identifierSuffix)</string>
             <key>PayloadOrganization</key>
-            <string>NetPulse</string>
+            <string>KAP</string>
             <key>PayloadRemovalDisallowed</key>
             <false/>
             <key>PayloadType</key>

@@ -729,7 +729,7 @@ public final class AIDiagnosticsEngine: Sendable {
             let call = AIToolCall(
                 toolType: detected.tool,
                 target: detected.target,
-                argumentsDescription: "Запуск инструмента NetPulse: \(detected.tool.displayName)"
+                argumentsDescription: "Запуск инструмента KAP: \(detected.tool.displayName)"
             )
             toolCall = call
             onToolCall?(call)
@@ -982,7 +982,7 @@ public final class AIDiagnosticsEngine: Sendable {
         } else {
             let live = String(format: "%.1f", context.liveDownloadMbps)
             return """
-            ### 🧠 Сетевой аудит NetPulse
+            ### 🧠 Сетевой аудит KAP
 
             **Состояние сети:**
             * 📡 **Подключение:** \(conn)

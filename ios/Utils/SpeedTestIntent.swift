@@ -36,7 +36,7 @@ enum SpeedTestRequest {
 
 struct StartSpeedTestIntent: AppIntent {
     static let title: LocalizedStringResource = "Замерить скорость"
-    static let description = IntentDescription("Открывает NetPulse и сразу запускает замер скорости интернета.")
+    static let description = IntentDescription("Открывает KAP и сразу запускает замер скорости интернета.")
     static let openAppWhenRun: Bool = true
 
     @MainActor

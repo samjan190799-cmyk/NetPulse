@@ -182,7 +182,7 @@ struct NPIntroOverlay: View {
                 VStack(spacing: 18) {
                     NPIntroPulseLine()
                         .frame(width: 220, height: 70)
-                    Text("NetPulse")
+                    Text("KAP")
                         .font(.system(size: 26, weight: .heavy, design: .rounded))
                         .foregroundStyle(NPTheme.textPrimary)
                         .opacity(titleOpacity)

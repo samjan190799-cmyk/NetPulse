@@ -436,7 +436,7 @@ private struct LargeWidgetView: View {
 
                 if data.dnsHosts.isEmpty {
                     // Раньше здесь всегда писалось «1.1.1.1, 8.8.8.8, Шлюз LAN онлайн», даже без единой проверки
-                    Text("Нет данных о проверках узлов — откройте NetPulse")
+                    Text("Нет данных о проверках узлов — откройте KAP")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.7))
                 } else {
@@ -475,7 +475,7 @@ private struct LargeWidgetView: View {
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.white.opacity(0.4))
                 Spacer()
-                Text("NetPulse 2026")
+                Text("KAP 2026")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.cyan.opacity(0.8))
             }
@@ -540,7 +540,7 @@ private struct AccessoryRectangularView: View {
             HStack(spacing: 4) {
                 Image(systemName: "gauge.with.dots.needle.67percent")
                     .font(.system(size: 10, weight: .bold))
-                Text("NetPulse • \(verdict(of: data)?.title ?? data.connectionType)")
+                Text("KAP • \(verdict(of: data)?.title ?? data.connectionType)")
                     .font(.system(size: 11, weight: .bold))
             }
 
@@ -561,7 +561,7 @@ private struct AccessoryInlineView: View {
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: verdict(of: data)?.symbolName ?? "bolt.fill")
-            Text("\(verdict(of: data)?.title ?? "NetPulse") • \(data.formattedPing)")
+            Text("\(verdict(of: data)?.title ?? "KAP") • \(data.formattedPing)")
                 .monospacedDigit()
         }
     }
@@ -578,7 +578,7 @@ public struct NetPulseHomeScreenWidget: Widget {
         StaticConfiguration(kind: kind, provider: NetPulseWidgetProvider()) { entry in
             NetPulseWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("NetPulse Монитор")
+        .configurationDisplayName("KAP Монитор")
         .description("Живой статус сети, задержка RTT, скорость соединения и расход трафика.")
         .supportedFamilies([
             .systemSmall,

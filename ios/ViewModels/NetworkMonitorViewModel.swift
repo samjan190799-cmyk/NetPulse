@@ -1667,7 +1667,7 @@ public final class NetworkMonitorViewModel {
                 scoreLine = "\(report.statusTitle): \(report.summaryText)"
             }
             let greeting = """
-            Привет! Я сетевой диагност **NetPulse AI**.
+            Привет! Я сетевой диагност **KAP AI**.
 
             \(scoreLine)
 

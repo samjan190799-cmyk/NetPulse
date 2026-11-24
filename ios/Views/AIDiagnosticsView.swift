@@ -729,7 +729,7 @@ private struct AIMessageBubble: View {
                         Image(systemName: "sparkles")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
-                        Text("NetPulse AI")
+                        Text("KAP AI")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(NPTheme.accentPrimary)
 

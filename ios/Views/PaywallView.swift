@@ -94,7 +94,7 @@ struct PaywallView: View {
         VStack(spacing: 10) {
             NetworkPulseLine(color: NPTheme.accentPrimary, intensity: 0.9, isBusy: true)
                 .frame(height: 64)
-            Text("NetPulse PRO")
+            Text("KAP PRO")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .foregroundStyle(NPTheme.textPrimary)
             Text(feature == .general ? "Остров, HUD, AI-аудит, отчёт провайдеру и другое" : "«\(feature.title)» входит в подписку PRO")
@@ -242,6 +242,6 @@ struct PaywallView: View {
 
     private var legalText: String {
         let price = store.priceText.map { "Стоимость: \($0)." } ?? "Стоимость и срок показаны в окне покупки App Store."
-        return "NetPulse PRO — подписка с автоматическим продлением. \(price) Оплата списывается с вашей учётной записи Apple ID при подтверждении покупки. Подписка продлевается автоматически каждый месяц, если не отменить её минимум за 24 часа до конца текущего периода. Управлять подпиской и отменить её можно в настройках учётной записи Apple ID."
+        return "KAP PRO — подписка с автоматическим продлением. \(price) Оплата списывается с вашей учётной записи Apple ID при подтверждении покупки. Подписка продлевается автоматически каждый месяц, если не отменить её минимум за 24 часа до конца текущего периода. Управлять подпиской и отменить её можно в настройках учётной записи Apple ID."
     }
 }

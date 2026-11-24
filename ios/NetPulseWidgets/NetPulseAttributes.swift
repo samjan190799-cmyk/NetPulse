@@ -66,7 +66,7 @@ public struct NetPulseAttributes: ActivityAttributes, Sendable {
 
     public var sessionTitle: String
 
-    public init(sessionTitle: String = "NetPulse Monitor") {
+    public init(sessionTitle: String = "KAP Monitor") {
         self.sessionTitle = sessionTitle
     }
 }

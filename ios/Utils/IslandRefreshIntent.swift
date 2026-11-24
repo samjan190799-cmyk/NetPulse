@@ -13,7 +13,7 @@ import Foundation
 /// Просьба обновить остров: свежий замер пинга и скорости, затем новый кадр в Live Activity.
 struct RefreshIslandIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Обновить остров"
-    static let description = IntentDescription("Делает свежий замер и обновляет остров NetPulse.")
+    static let description = IntentDescription("Делает свежий замер и обновляет остров KAP.")
 
     init() {}
 
